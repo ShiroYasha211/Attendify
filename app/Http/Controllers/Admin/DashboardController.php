@@ -41,4 +41,11 @@ class DashboardController extends Controller
 
         return view('admin.dashboard', compact('user', 'stats', 'latestAttendance', 'universities_count'));
     }
+    /**
+     * عرض صفحة عن المطور.
+     */
+    public function about()
+    {
+        return view('admin.about');
+    }
 }

@@ -17,6 +17,9 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])
             ->name('dashboard');
+
+        Route::get('about', [App\Http\Controllers\Admin\DashboardController::class, 'about'])
+            ->name('about');
         Route::post('logout', [App\Http\Controllers\Admin\AuthController::class, 'logout'])
             ->name('logout');
 

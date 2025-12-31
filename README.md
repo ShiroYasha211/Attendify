@@ -1,59 +1,122 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🎓 نظام إدارة شؤون الطلاب والحضور الذكي (Smart Student Dashboard)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+نظام متكامل ومتقدم مبني باستخدام إطار العمل **Laravel**، يهدف إلى تسهيل إدارة العملية الأكاديمية ومتابعة حضور الطلاب في الجامعات والكليات. يوفر النظام لوحة تحكم شاملة للمسؤولين، الدكاترة، والمندوبين، مع تقارير وإحصائيات دقيقة.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🌟 أبرز المميزات
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 1. 🏛️ الهيكل الأكاديمي الشامل
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+* **إدارة الجامعات والكليات:** إمكانية إضافة وتعديل بيانات الجامعات والكليات، مع دعم رفع شعارات الجامعات للظهور في التقارير الرسمية.
+* **التخصصات والمراحل:** إدارة مرنة للتخصصات الدراسية والمستويات (Levels) والفصول الدراسية (Terms).
+* **إدارة المواد:** ربط المواد الدراسية بالدكاترة والمستويات المحددة.
 
-## Learning Laravel
+### 2. 👥 إدارة المستخدمين والأدوار
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+يدعم النظام عدة صلاحيات وأدوار لضمان تنظيم العمل:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* **مدير النظام (Admin):** تحكم كامل في جميع الإعدادات، المستخدمين، والهيكل الأكاديمي.
+* **الدكتور (Doctor):** صلاحية الوصول لمواده وطلابه (مخطط له).
+* **المندوب (Delegate):** صلاحيات خاصة للمساعدة في تسجيل الحضور (مخطط له).
+* **الطالب (Student):** عرض للملف الشخصي والحالة الأكاديمية.
 
-## Laravel Sponsors
+### 3. 📊 نظام التقارير والإحصائيات
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+مركز تقارير متطور يوفر بيانات دقيقة لصناع القرار:
 
-### Premium Partners
+* **كشوف الحضور والغياب:** تقارير تفصيلية لكل مادة توضح حالة كل طالب (حضور، غياب، تأخير، عذر).
+* **تقارير الحرمان والإنذارات (Threshold Reports):** نظام ذكي يحلل نسب الغياب ويصدر تنبيهات آلية (إنذار ⚠️ أو حرمان 🚫) بناءً على النسبة المحددة (مثلاً 25%).
+* **تصميم جاهز للطباعة:** جميع التقارير مصممة بتقنيات `CSS Print` الاحترافية، مع ترويسة رسمية، شعار الجامعة، وخانات للتوقيعات.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 4. 🎨 واجهة مستخدم عصرية (UI/UX)
 
-## Contributing
+* **تصميم متجاوب:** يعمل بكفاءة على جميع الأجهزة (سطح المكتب، الأجهزة اللوحية).
+* **تقنية Alpine.js:** لتجربة مستخدم سلسة وتفاعلية (Modals، قوائم منسدلة، تحديث فوري) دون الحاجة لإعادة تحميل الصفحة.
+* **أيقونات SVG:** استخدام أيقونات عالية الدقة لضمان مظهر احترافي.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 🛠️ التقنيات والأدوات المستخدمة
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+تم بناء النظام باستخدام أحدث التقنيات لضمان الأداء العالي والحماية:
 
-## Security Vulnerabilities
+* **Backend:** [Laravel 10.x](https://laravel.com) - إطار عمل PHP القوي والآمن.
+* **Frontend:**
+  * **Blade Templates:** محرك القوالب الخاص بـ Laravel.
+  * **Alpine.js:** لإضافة التفاعل والديناميكية للواجهات.
+  * **CSS3 Custom Properties:** نظام تصميم مخصص ومرن (Variables).
+* **Database:** MySQL / MariaDB.
+* **Icons:** Heroicons / Feather Icons (SVG).
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 🚀 طريقة التثبيت والتشغيل
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+لتحميل وتشغيل المشروع على جهازك المحلي، اتبع الخطوات التالية:
+
+### 1. متطلبات التشغيل
+
+تأكد من وجود البرامج التالية على جهازك:
+
+* PHP >= 8.1
+* Composer
+* MySQL
+
+### 2. خطوات التثبيت
+
+1. **استنسخ المستودع (Clone):**
+
+    ```bash
+    git clone https://github.com/your-username/student-dashboard.git
+    cd student-dashboard
+    ```
+
+2. **تثبيت الحزم (Dependencies):**
+
+    ```bash
+    composer install
+    npm install && npm run build
+    ```
+
+3. **إعداد البيئة (.env):**
+    قم بنسخ ملف المثال وتعديل إعدادات قاعدة البيانات:
+
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
+
+4. **تجهيز قاعدة البيانات:**
+
+    ```bash
+    php artisan migrate --seed
+    ```
+
+5. **ربط ملفات التخزين (للصور والشعارات):**
+
+    ```bash
+    php artisan storage:link
+    ```
+
+6. **تشغيل السيرفر:**
+
+    ```bash
+    php artisan serve
+    ```
+
+يمكنك الآن الدخول للنظام عبر الرابط: `http://127.0.0.1:8000`
+
+---
+
+## 👨‍💻 عن المطور
+
+تم تطوير هذا النظام بواسطة **Mohammed Alhemyari**.
+نحن نركز على تقديم حلول برمجية مبتكرة وعالية الجودة.
+
+* 📧 **البريد الإلكتروني:** <alhemyarimohammed211@gmail.com>
+* 📱 **واتساب:** +967 773 468 708
+
+---
+
+###### جميع الحقوق محفوظة © 2025
