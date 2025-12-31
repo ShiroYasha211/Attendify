@@ -68,7 +68,7 @@
 1. **استنسخ المستودع (Clone):**
 
     ```bash
-    git clone https://github.com/your-username/student-dashboard.git
+    git clone https://github.com/ShiroYasha211/student-dashboard.git
     cd student-dashboard
     ```
 
