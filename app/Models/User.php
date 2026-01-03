@@ -83,4 +83,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\Academic\Subject::class, 'doctor_id');
     }
+
+    /**
+     * Get the attendances for the student.
+     */
+    public function attendances()
+    {
+        return $this->hasMany(\App\Models\Attendance::class, 'student_id');
+    }
 }

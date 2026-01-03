@@ -47,3 +47,43 @@ Route::prefix('admin')
         Route::get('reports/subject', [App\Http\Controllers\Admin\ReportController::class, 'subjectReport'])->name('reports.subject');
         Route::get('reports/threshold', [App\Http\Controllers\Admin\ReportController::class, 'thresholdReport'])->name('reports.threshold');
     });
+
+Route::prefix('doctor')
+    ->name('doctor.')
+    ->middleware(['auth', 'role:doctor'])
+    ->group(function () {
+        Route::get('dashboard', [App\Http\Controllers\Doctor\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('subject/{subject}/report', [App\Http\Controllers\Doctor\DashboardController::class, 'showSubjectReport'])->name('subject.report');
+    });
+
+Route::prefix('student')
+    ->name('student.')
+    ->middleware(['auth', 'role:student'])
+    ->group(function () {
+        Route::get('dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('subject/{subject}', [App\Http\Controllers\Student\DashboardController::class, 'showSubject'])->name('subject.show');
+    });
+
+Route::prefix('delegate')
+    ->name('delegate.')
+    ->middleware(['auth', 'role:delegate'])
+    ->group(function () {
+        Route::get('dashboard', [App\Http\Controllers\Delegate\DashboardController::class, 'index'])->name('dashboard');
+
+        // Students Management
+        Route::resource('students', App\Http\Controllers\Delegate\StudentController::class);
+
+        // Subjects & Schedule
+        Route::resource('subjects', App\Http\Controllers\Delegate\SubjectController::class)->only(['index', 'edit', 'update']);
+        Route::resource('schedules', App\Http\Controllers\Delegate\ScheduleController::class)->except(['show']);
+
+        // Notifications
+        Route::get('notifications', [App\Http\Controllers\Delegate\NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications', [App\Http\Controllers\Delegate\NotificationController::class, 'store'])->name('notifications.store');
+
+        // Attendance
+        Route::get('attendance', [App\Http\Controllers\Delegate\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/{subject}/create', [App\Http\Controllers\Delegate\AttendanceController::class, 'create'])->name('attendance.create');
+        Route::post('attendance/{subject}', [App\Http\Controllers\Delegate\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::get('attendance/{subject}/{date}/report', [App\Http\Controllers\Delegate\AttendanceController::class, 'showReport'])->name('attendance.report');
+    });

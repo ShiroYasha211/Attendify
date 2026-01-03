@@ -37,16 +37,12 @@ class AuthController extends Controller
             /** @var \App\Models\User $user */
             $user = Auth::user();
 
-            // إذا لم يكن admin نعيده إلى صفحة الدخول مع رسالة خطأ
-            if ($user->role !== UserRole::ADMIN) {
-                Auth::logout();
-                return back()->withErrors([
-                    'email' => 'هذا الحساب غير مصرح له بالدخول إلى لوحة الإدارة.',
-                ]);
-            }
-
-            // نجاح – نعيده إلى لوحة التحكم (مسار placeholder الآن)
-            return redirect()->intended(route('admin.dashboard'));
+            return match ($user->role) {
+                UserRole::ADMIN => redirect()->intended(route('admin.dashboard')),
+                UserRole::DOCTOR => redirect()->intended(route('doctor.dashboard')),
+                UserRole::DELEGATE => redirect()->intended(route('delegate.dashboard')), // Placeholder
+                UserRole::STUDENT => redirect()->intended(route('student.dashboard')),   // Placeholder
+            };
         }
 
         // فشل المصادقة
