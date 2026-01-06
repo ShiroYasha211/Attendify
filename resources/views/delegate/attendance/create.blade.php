@@ -54,7 +54,6 @@
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">حاضر</th>
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">غائب</th>
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">تأخر</th>
-                            <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">بعذر</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -82,12 +81,6 @@
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
                                 <label class="status-label late">
                                     <input type="radio" name="attendance[{{ $student->id }}]" value="late">
-                                    <span class="indicator"></span>
-                                </label>
-                            </td>
-                            <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
-                                <label class="status-label excused">
-                                    <input type="radio" name="attendance[{{ $student->id }}]" value="excused">
                                     <span class="indicator"></span>
                                 </label>
                             </td>

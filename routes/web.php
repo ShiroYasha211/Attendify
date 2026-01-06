@@ -53,7 +53,18 @@ Route::prefix('doctor')
     ->middleware(['auth', 'role:doctor'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Doctor\DashboardController::class, 'index'])->name('dashboard');
-        Route::get('subject/{subject}/report', [App\Http\Controllers\Doctor\DashboardController::class, 'showSubjectReport'])->name('subject.report');
+        Route::get('reports/{subject}', [App\Http\Controllers\Doctor\DashboardController::class, 'showSubjectReport'])->name('reports.show');
+
+        // Excuses Routes
+        Route::get('excuses', [App\Http\Controllers\Doctor\ExcuseController::class, 'index'])->name('excuses.index');
+        Route::put('excuses/{excuse}', [App\Http\Controllers\Doctor\ExcuseController::class, 'update'])->name('excuses.update');
+
+        // Reports Routes
+        Route::get('reports', [App\Http\Controllers\Doctor\ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/{subject}', [App\Http\Controllers\Doctor\DashboardController::class, 'showSubjectReport'])->name('reports.show');
+
+        // Assignments Routes
+        Route::resource('assignments', App\Http\Controllers\Doctor\AssignmentController::class)->except(['create', 'edit', 'show']);
     });
 
 Route::prefix('student')
@@ -61,7 +72,15 @@ Route::prefix('student')
     ->middleware(['auth', 'role:student'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
-        Route::get('subject/{subject}', [App\Http\Controllers\Student\DashboardController::class, 'showSubject'])->name('subject.show');
+        Route::resource('subjects', App\Http\Controllers\Student\SubjectController::class)->only(['index', 'show']);
+        Route::get('schedule', [App\Http\Controllers\Student\ScheduleController::class, 'index'])->name('schedule.index');
+        Route::get('assignments', [App\Http\Controllers\Student\AssignmentController::class, 'index'])->name('assignments.index');
+        Route::get('attendance', [App\Http\Controllers\Student\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::post('excuse', [App\Http\Controllers\Student\ExcuseController::class, 'store'])->name('excuse.store');
+        Route::get('reminders', [App\Http\Controllers\Student\ReminderController::class, 'index'])->name('reminders.index');
+        Route::get('announcements', [App\Http\Controllers\Student\AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('alerts', [App\Http\Controllers\Student\AlertController::class, 'index'])->name('alerts.index');
+        Route::post('alerts/{id}/read', [App\Http\Controllers\Student\AlertController::class, 'markAsRead'])->name('alerts.read');
     });
 
 Route::prefix('delegate')
@@ -85,5 +104,15 @@ Route::prefix('delegate')
         Route::get('attendance', [App\Http\Controllers\Delegate\AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/{subject}/create', [App\Http\Controllers\Delegate\AttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance/{subject}', [App\Http\Controllers\Delegate\AttendanceController::class, 'store'])->name('attendance.store');
+        // Assignments
+        Route::resource('assignments', App\Http\Controllers\Delegate\AssignmentController::class)->except(['create', 'edit', 'show']);
+
+        // Announcements
+        Route::resource('announcements', App\Http\Controllers\Delegate\AnnouncementController::class)->except(['create', 'edit', 'show']);
+
+        // Reminders
+        Route::resource('reminders', App\Http\Controllers\Delegate\ReminderController::class)->except(['create', 'edit', 'show']);
+
+        // Attendance Report Route (Correctly placed inside group)
         Route::get('attendance/{subject}/{date}/report', [App\Http\Controllers\Delegate\AttendanceController::class, 'showReport'])->name('attendance.report');
     });

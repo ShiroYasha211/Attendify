@@ -33,4 +33,9 @@ class Attendance extends Model
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
+
+    public function excuse()
+    {
+        return $this->hasOne(Excuse::class);
+    }
 }

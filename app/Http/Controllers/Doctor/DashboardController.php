@@ -20,6 +20,14 @@ class DashboardController extends Controller
             ->with(['major', 'level', 'term', 'major.college.university'])
             ->get();
 
+        // Append student count to each subject
+        $subjects->each(function ($subject) {
+            $subject->students_count = User::where('role', UserRole::STUDENT)
+                ->where('major_id', $subject->major_id)
+                ->where('level_id', $subject->level_id)
+                ->count();
+        });
+
         // Calculate total students across all doctor's subjects
         // Logic: Get all students who belong to the same (major, level, term) as the doctor's subjects
         $studentsCount = 0;
@@ -31,7 +39,12 @@ class DashboardController extends Controller
                 ->count();
         }
 
-        return view('doctor.dashboard', compact('doctor', 'subjects', 'studentsCount'));
+        // Calculate pending excuses
+        $pendingExcusesCount = \App\Models\Excuse::whereHas('attendance', function ($q) use ($subjects) {
+            $q->whereIn('subject_id', $subjects->pluck('id'));
+        })->where('status', 'pending')->count();
+
+        return view('doctor.dashboard', compact('doctor', 'subjects', 'studentsCount', 'pendingExcusesCount'));
     }
 
     public function showSubjectReport(Subject $subject)

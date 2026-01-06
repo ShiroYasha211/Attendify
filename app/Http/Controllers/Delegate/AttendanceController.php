@@ -69,7 +69,7 @@ class AttendanceController extends Controller
         $validated = $request->validate([
             'date' => 'required|date',
             'attendance' => 'required|array',
-            'attendance.*' => 'required|in:present,absent,late,excused',
+            'attendance.*' => 'required|in:present,absent,late',
         ]);
 
         foreach ($validated['attendance'] as $studentId => $status) {

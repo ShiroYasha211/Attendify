@@ -8,331 +8,319 @@
     @media print {
         @page {
             size: A4;
-            margin: 0.5cm;
+            margin: 0;
         }
 
         body {
             background: white;
-            font-family: 'Tajawal', sans-serif;
+            font-family: 'Times New Roman', serif;
+            /* More formal font for English, Cairo is good for Arabic */
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
-        /* Hide Doctor UI Elements explicitly */
-        .top-navbar,
-        .btn,
-        footer,
         .no-print,
+        .sidebar,
+        .top-header,
         .mobile-toggle,
         .desktop-toggle,
-        .user-menu,
-        a {
+        .btn,
+        footer {
             display: none !important;
         }
 
-        .main-container {
+        .main-content {
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
-            background: white !important;
-            max-width: 100% !important;
+            height: auto !important;
         }
 
-        .container {
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
+        .admin-wrapper {
+            display: block !important;
+            height: auto !important;
+        }
+
+        .report-page-container {
+            width: 100%;
+            /* Fill full width */
+            height: 28.5cm;
+            /* Fill full height */
+            padding: 1cm;
+            margin: 0;
+            border: none;
+            background: white;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .card {
-            box-shadow: none !important;
             border: none !important;
+            box-shadow: none !important;
             padding: 0 !important;
-        }
-
-        /* Official Report Styling */
-        .report-container {
-            border: 2px solid #000;
-            padding: 1rem;
-            min-height: 28cm;
-            /* Approximate A4 height minus margins */
-            position: relative;
-        }
-
-        .report-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .header-right,
-        .header-left {
-            text-align: center;
-            width: 30%;
-        }
-
-        .header-right h3,
-        .header-left h3 {
-            font-size: 1rem;
-            margin: 2px 0;
-            font-weight: bold;
-        }
-
-        .header-center {
-            text-align: center;
-            width: 30%;
-        }
-
-        .university-logo-placeholder {
-            width: 80px;
-            height: 80px;
-            border: none;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: transparent;
-        }
-
-        .report-title {
-            text-align: center;
-            margin: 1.5rem 0;
-            font-size: 1.4rem;
-            font-weight: 900;
-            text-decoration: underline;
-        }
-
-        .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid #000;
-            padding: 0.5rem;
-            background: #f8f9fa;
-        }
-
-        .meta-item {
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-            font-size: 0.9rem;
-        }
-
-        .meta-label {
-            font-weight: bold;
-            color: #555;
+            margin: 0 !important;
         }
 
         table {
-            width: 100% !important;
             border-collapse: collapse !important;
-            font-size: 10pt;
-            margin-bottom: 2rem;
+            width: 100% !important;
+            font-size: 11pt;
+            margin-bottom: 1cm;
         }
 
         th,
         td {
             border: 1px solid #000 !important;
-            padding: 6px !important;
+            padding: 8px !important;
             text-align: center;
         }
 
         th {
-            background-color: #e5e7eb !important;
+            background-color: #f0f0f0 !important;
             font-weight: bold;
         }
 
-        .progress-bg {
-            background-color: #ddd !important;
-            border: 1px solid #999;
+        .badge {
+            border: 1px solid #000;
+            background: transparent !important;
+            color: black !important;
+            padding: 2px 5px;
+            font-weight: normal;
         }
 
-        .report-footer {
-            margin-top: 3rem;
+        .badge-danger {
+            border-color: red !important;
+            color: red !important;
+        }
+
+        .badge-warning {
+            border-color: orange !important;
+            color: orange !important;
+        }
+
+        /* Report Header */
+        .header-section {
             display: flex;
             justify-content: space-between;
-            page-break-inside: avoid;
+            align-items: center;
+            /* Use start if multi-line differences are huge */
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-align: center;
         }
 
-        .footer-sign {
+        .header-right,
+        .header-left {
+            width: 30%;
+            font-size: 12pt;
+            line-height: 1.4;
+            font-weight: bold;
+        }
+
+        .header-center {
+            width: 30%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .report-title {
+            text-align: center;
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 20px 0;
+            text-decoration: underline;
+        }
+
+        /* Signatures */
+        .signatures-section {
+            display: flex;
+            justify-content: space-between;
+            /* Arrange horizontally */
+            margin-top: 50px;
+            page-break-inside: avoid;
+            padding-top: 20px;
+        }
+
+        .signature-box {
             text-align: center;
             width: 30%;
         }
 
-        .footer-sign p {
-            margin-bottom: 3rem;
-            font-weight: bold;
+        .signature-line {
+            margin-top: 50px;
+            border-top: 1px dotted #000;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    }
+
+    /* Screen Enhancements */
+    @media screen {
+        .report-page-container {
+            background: white;
+            padding: 2rem;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            max-width: 21cm;
+            margin: 0 auto;
+            min-height: 29.7cm;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
         }
     }
 </style>
 
-<div class="container-fluid" style="padding: 0;">
+<div class="container-fluid py-4" style="background: #f3f4f6; min-height: 100vh;">
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;" class="no-print">
-        <h1 class="page-title" style="font-size: 1.5rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-            </svg>
-            كشف متابعة الحضور
-        </h1>
-        <div style="display: flex; gap: 0.5rem;">
-            <button onclick="window.print()" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Toolbar -->
+    <div class="d-flex justify-content-between align-items-center mb-4 container no-print" style="max-width: 21cm;">
+        <h1 class="h4 fw-bold mb-0">معاينة التقرير</h1>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-primary d-flex align-items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 6 2 18 2 18 9"></polyline>
                     <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                     <rect x="6" y="14" width="12" height="8"></rect>
                 </svg>
-                طباعة التقرير
+                طباعة
             </button>
-            <a href="{{ route('doctor.dashboard') }}" class="btn btn-secondary">عودة للرئيسية</a>
+            <a href="{{ route('doctor.reports.index') }}" class="btn btn-outline-secondary">رجوع</a>
         </div>
     </div>
 
-    <div class="card">
+    <!-- A4 Container -->
+    <div class="report-page-container">
 
-        <!-- Official Report Container for Print -->
-        <div class="report-container">
-
-            <!-- Header -->
-            <div class="report-header">
-                <div class="header-right">
-                    <h3>{{ $subject->major->college->university->name ?? 'اسم الجامعة' }}</h3>
-                    <h3>كلية {{ $subject->major->college->name ?? 'اسم الكلية' }}</h3>
-                    <h3>قسم {{ $subject->major->name ?? 'اسم القسم' }}</h3>
-                </div>
-
-                <div class="header-center">
-                    <div class="university-logo-placeholder">
-                        @if($subject->major->college->university->logo)
-                        <img src="{{ asset('storage/' . $subject->major->college->university->logo) }}" alt="University Logo" style="width: 100%; height: 100%; object-fit: contain;">
-                        @else
-                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 10v6M2 10v6M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
-                            <path d="M6 15v-2a6 6 0 1 1 12 0v2"></path>
-                            <path d="M2 10s2 6 10 6 10-6 10-6"></path>
-                        </svg>
-                        @endif
-                    </div>
-                </div>
-
-                <div class="header-left">
-                    <h3>التاريخ: {{ now()->format('Y/m/d') }}</h3>
-                    <h3>الفصل الدراسي: {{ $subject->term->name ?? '-' }}</h3>
-                    <h3>العام الجامعي: {{ date('Y') }}</h3>
-                </div>
+        <!-- Header -->
+        <div class="header-section">
+            <div class="header-right">
+                <div>الجمهورية اليمنية</div>
+                <div>وزارة التعليم العالي والبحث العلمي</div>
+                <div>{{ $subject->major->college->university->name ?? 'اسم الجامعة' }}</div>
+                <div>كلية {{ $subject->major->college->name ?? '-' }}</div>
             </div>
 
-            <div class="report-title">
-                كشف حضور وانتظام الطلاب
+            <div class="header-center">
+                @if($subject->major->college->university->logo)
+                <img src="{{ asset('storage/' . $subject->major->college->university->logo) }}" style="width: 100px; height: 100px; object-fit: contain;" alt="Logo">
+                @else
+                <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                </svg>
+                @endif
             </div>
 
-            <!-- Meta Data Grid -->
-            <div class="meta-grid">
-                <div class="meta-item">
-                    <span class="meta-label">المقرر الدراسي:</span>
-                    <span>{{ $subject->name }} ({{ $subject->code }})</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">المرحلة الدراسية:</span>
-                    <span>{{ $subject->level->name ?? '-' }}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">أستاذ المقرر:</span>
-                    <span>{{ Auth::user()->name }}</span>
-                </div>
+            <div class="header-left">
+                <div>التاريخ: {{ date('Y/m/d') }}</div>
+                <div>الفصل: {{ $subject->term->name ?? '-' }}</div>
             </div>
+        </div>
 
-            <!-- Detailed Table -->
+        <!-- Title -->
+        <h2 class="report-title">تقرير الحضور والغياب والحرمان</h2>
+
+        <!-- Subject Meta -->
+        <table class="table" style="margin-bottom: 20px;">
+            <tr>
+                <th width="15%">المقرر</th>
+                <td width="35%">{{ $subject->name }} ({{ $subject->code }})</td>
+                <th width="15%">القسم</th>
+                <td width="35%">{{ $subject->major->name ?? '-' }}</td>
+            </tr>
+            <tr>
+                <th>أستاذ المقرر</th>
+                <td>{{ Auth::user()->name }}</td>
+                <th>الحد الأعلى</th>
+                <td>{{ $subject->max_absences }} محاضرات</td>
+            </tr>
+        </table>
+
+        <!-- Students Table -->
+        <div style="flex-grow: 1;">
             <table class="table">
                 <thead>
                     <tr>
-                        <th style="width: 5%;">#</th>
-                        <th style="text-align: right;">اسم الطالب</th>
-                        <th style="width: 20%;">الرقم الجامعي</th>
-                        <th style="width: 8%;">حضور</th>
-                        <th style="width: 8%;">تأخير</th>
-                        <th style="width: 8%;">غياب</th>
-                        <th style="width: 8%;">بعذر</th>
-                        <th style="width: 25%;">نسبة الغياب</th>
+                        <th width="5%">#</th>
+                        <th>اسم الطالب</th>
+                        <th width="15%">الرقم الجامعي</th>
+                        <th width="8%">حضور</th>
+                        <th width="8%">تأخير</th>
+                        <th width="8%">غياب</th>
+                        <th width="8%">عذر</th>
+                        <th width="15%">الحالة</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($students as $student)
                     @php
-                    // Logic to calculate status counts (Assuming standard statuses, adapting as needed)
-                    // 'present', 'late', 'absent', 'excused'
                     $present = $student->attendances->where('status', 'present')->count();
                     $late = $student->attendances->where('status', 'late')->count();
                     $absent = $student->attendances->where('status', 'absent')->count();
                     $excused = $student->attendances->where('status', 'excused')->count();
 
-                    // Total sessions (assuming only recorded sessions count)
-                    $totalSessions = $present + $late + $absent + $excused;
-
-                    // Percentage Calculation (Absence based)
-                    // Formula: (Absent + Late/2) / Total * 100 ? Or just raw absence?
-                    // Let's use simple absent count for now as per previous logic, or (Absent / Total) if total > 0
-                    $absencePercentage = 0;
-                    if ($totalSessions > 0) {
-                    $absencePercentage = round(($absent / $totalSessions) * 100, 1);
-                    }
+                    $isDeprived = $absent >= $subject->max_absences;
+                    $isWarning = !$isDeprived && ($absent >= ($subject->max_absences - 2));
                     @endphp
                     <tr>
                         <td>{{ $loop->iteration }}</td>
                         <td style="text-align: right; font-weight: bold;">{{ $student->name }}</td>
-                        <td style="font-family: monospace;">{{ $student->student_number ?? '-' }}</td>
-                        <td style="color: green;">{{ $present }}</td>
-                        <td style="color: orange;">{{ $late }}</td>
-                        <td style="color: red; font-weight: bold;">{{ $absent }}</td>
+                        <td class="font-monospace">{{ $student->student_number }}</td>
+                        <td>{{ $present }}</td>
+                        <td>{{ $late }}</td>
+                        <td>{{ $absent }}</td>
                         <td>{{ $excused }}</td>
                         <td>
-                            @php
-                            $percentage = min($absencePercentage, 100);
-                            $color = $percentage > 20 ? '#ef4444' : ($percentage > 10 ? '#f59e0b' : '#22c55e');
-                            @endphp
-                            <div style="display: flex; align-items: center; gap: 0.5rem; justify-content: center;">
-                                <div style="flex-grow: 1; height: 10px; background: #eee; border: 1px solid #ccc; border-radius: 2px; overflow: hidden;" class="progress-bg">
-                                    <div style="height: 100%; width: {{ $percentage }}%; background-color: {{ $color }} !important; -webkit-print-color-adjust: exact;"></div>
-                                </div>
-                                <span style="font-size: 0.85rem; font-weight: 600; width: 40px;">{{ $percentage }}%</span>
-                            </div>
+                            @if($isDeprived)
+                            <span class="badge badge-danger">محروم</span>
+                            @elseif($isWarning)
+                            <span class="badge badge-warning">إنذار</span>
+                            @else
+                            <span>-</span>
+                            @endif
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" style="padding: 2rem;">لا يوجد طلاب مسجلين في هذه المادة.</td>
+                        <td colspan="8">لا يوجد طلاب مسجلين.</td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
+        </div>
 
-            <!-- Footer Signatures -->
-            <div class="report-footer">
-                <div class="footer-sign">
-                    <p>أستاذ المقرر</p>
-                    <span>.................................</span>
-                </div>
-                <div class="footer-sign">
-                    <p>رئيس القسم</p>
-                    <span>.................................</span>
-                </div>
-                <div class="footer-sign">
-                    <p>يعتمد، عميد الكلية</p>
-                    <span>.................................</span>
-                </div>
+        <!-- Signatures (Pinned to Bottom) -->
+        <div class="signatures-section">
+            <div class="signature-box">
+                <p>أستاذ المقرر</p>
+                <p>{{ Auth::user()->name }}</p>
+                <div class="signature-line"></div>
             </div>
-
-        </div> <!-- End Report Container -->
+            <div class="signature-box">
+                <p>رئيس القسم</p>
+                <p>&nbsp;</p>
+                <div class="signature-line"></div>
+            </div>
+            <div class="signature-box">
+                <p>عميد الكلية</p>
+                <p>&nbsp;</p>
+                <div class="signature-line"></div>
+            </div>
+        </div>
 
     </div>
-
 </div>
 
 @endsection
