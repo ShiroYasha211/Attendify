@@ -131,4 +131,139 @@ class ReportController extends Controller
 
         return view('admin.reports.threshold_report', compact('level', 'threshold', 'alertData'));
     }
+
+    /**
+     * ملخص الدفعة الدراسية
+     */
+    public function levelSummary(Request $request)
+    {
+        $request->validate([
+            'level_id' => 'required|exists:levels,id',
+        ]);
+
+        $level = \App\Models\Academic\Level::with(['major.college.university', 'terms.subjects.doctor'])->findOrFail($request->level_id);
+
+        $students = User::where('role', UserRole::STUDENT)
+            ->where('level_id', $level->id)
+            ->get();
+
+        $delegate = User::where('role', UserRole::DELEGATE)
+            ->where('level_id', $level->id)
+            ->first();
+
+        $subjects = Subject::whereHas('term', function ($q) use ($level) {
+            $q->where('level_id', $level->id);
+        })->with('doctor')->get();
+
+        // Calculate attendance stats per subject
+        $subjectStats = $subjects->map(function ($subject) use ($students) {
+            $totalRecords = Attendance::where('subject_id', $subject->id)->count();
+            $presentCount = Attendance::where('subject_id', $subject->id)->where('status', 'present')->count();
+            $attendanceRate = $totalRecords > 0 ? round(($presentCount / $totalRecords) * 100, 1) : 0;
+
+            return [
+                'subject' => $subject,
+                'total_records' => $totalRecords,
+                'attendance_rate' => $attendanceRate,
+            ];
+        });
+
+        return view('admin.reports.level_summary', compact('level', 'students', 'delegate', 'subjectStats'));
+    }
+
+    /**
+     * أداء أعضاء هيئة التدريس
+     */
+    public function doctorPerformance(Request $request)
+    {
+        $doctorId = $request->doctor_id;
+
+        $query = User::where('role', UserRole::DOCTOR)->with('subjects');
+
+        if ($doctorId) {
+            $query->where('id', $doctorId);
+        }
+
+        $doctors = $query->get();
+
+        $performanceData = $doctors->map(function ($doctor) {
+            $subjects = $doctor->subjects;
+            $totalSessions = 0;
+            $totalPresent = 0;
+            $totalRecords = 0;
+
+            foreach ($subjects as $subject) {
+                $sessions = Attendance::where('subject_id', $subject->id)->distinct('date')->count();
+                $present = Attendance::where('subject_id', $subject->id)->where('status', 'present')->count();
+                $records = Attendance::where('subject_id', $subject->id)->count();
+
+                $totalSessions += $sessions;
+                $totalPresent += $present;
+                $totalRecords += $records;
+            }
+
+            $attendanceRate = $totalRecords > 0 ? round(($totalPresent / $totalRecords) * 100, 1) : 0;
+
+            return [
+                'doctor' => $doctor,
+                'subjects_count' => $subjects->count(),
+                'total_sessions' => $totalSessions,
+                'attendance_rate' => $attendanceRate,
+            ];
+        });
+
+        return view('admin.reports.doctor_performance', compact('performanceData'));
+    }
+
+    /**
+     * تقرير التكاليف
+     */
+    public function assignmentsReport()
+    {
+        $assignments = \App\Models\Academic\Assignment::with(['subject.doctor', 'submissions'])->get();
+
+        $stats = [
+            'total' => $assignments->count(),
+            'active' => $assignments->where('due_date', '>=', now())->count(),
+            'expired' => $assignments->where('due_date', '<', now())->count(),
+            'with_submissions' => $assignments->filter(fn($a) => $a->submissions->count() > 0)->count(),
+        ];
+
+        return view('admin.reports.assignments_report', compact('assignments', 'stats'));
+    }
+
+    /**
+     * نظرة عامة على النظام
+     */
+    public function systemOverview()
+    {
+        $stats = [
+            'students' => User::where('role', UserRole::STUDENT)->count(),
+            'doctors' => User::where('role', UserRole::DOCTOR)->count(),
+            'delegates' => User::where('role', UserRole::DELEGATE)->count(),
+            'universities' => \App\Models\Academic\University::count(),
+            'colleges' => \App\Models\Academic\College::count(),
+            'majors' => \App\Models\Academic\Major::count(),
+            'levels' => \App\Models\Academic\Level::count(),
+            'subjects' => Subject::count(),
+            'attendance_records' => Attendance::count(),
+            'assignments' => \App\Models\Academic\Assignment::count(),
+        ];
+
+        // Attendance by status
+        $attendanceByStatus = [
+            'present' => Attendance::where('status', 'present')->count(),
+            'absent' => Attendance::where('status', 'absent')->count(),
+            'late' => Attendance::where('status', 'late')->count(),
+            'excused' => Attendance::where('status', 'excused')->count(),
+        ];
+
+        // Recent activities
+        $recentAttendance = Attendance::with(['student', 'subject'])
+            ->latest()
+            ->take(10)
+            ->get();
+
+        return view('admin.reports.system_overview', compact('stats', 'attendanceByStatus', 'recentAttendance'));
+    }
 }

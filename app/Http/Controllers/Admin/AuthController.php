@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Enums\UserRole;
@@ -37,6 +38,15 @@ class AuthController extends Controller
             /** @var \App\Models\User $user */
             $user = Auth::user();
 
+            // تسجيل نشاط تسجيل الدخول
+            ActivityLog::log(
+                action: 'login',
+                modelType: 'User',
+                modelId: $user->id,
+                modelName: $user->name,
+                description: "تسجيل دخول: {$user->name} ({$user->role->value})"
+            );
+
             return match ($user->role) {
                 UserRole::ADMIN => redirect()->intended(route('admin.dashboard')),
                 UserRole::DOCTOR => redirect()->intended(route('doctor.dashboard')),
@@ -56,6 +66,20 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        if ($user) {
+            // تسجيل نشاط تسجيل الخروج
+            ActivityLog::log(
+                action: 'logout',
+                modelType: 'User',
+                modelId: $user->id,
+                modelName: $user->name,
+                description: "تسجيل خروج: {$user->name}"
+            );
+        }
+
         Auth::logout();
 
         $request->session()->invalidate();

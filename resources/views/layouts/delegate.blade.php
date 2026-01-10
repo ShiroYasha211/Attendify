@@ -194,6 +194,25 @@
                     <span>الجدول الدراسي</span>
                 </a>
 
+                <a href="{{ route('delegate.exams.index') }}" class="nav-link {{ request()->routeIs('delegate.exams.*') ? 'active' : '' }}" title="جداول الاختبارات">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>جداول الاختبارات</span>
+                </a>
+
+                <a href="{{ route('delegate.resources.index') }}" class="nav-link {{ request()->routeIs('delegate.resources.*') ? 'active' : '' }}" title="مصادر المقرر">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                    </svg>
+                    <span>مصادر المقرر</span>
+                </a>
+
                 <a href="{{ route('delegate.assignments.index') }}" class="nav-link {{ request()->routeIs('delegate.assignments.*') ? 'active' : '' }}" title="التكاليف الدراسية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -239,6 +258,33 @@
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                     </svg>
                     <span>تنبيهات الغياب</span>
+                </a>
+
+                <div class="nav-group-label" title="التواصل">التواصل</div>
+
+                <a href="{{ route('delegate.messages.index') }}" class="nav-link {{ request()->routeIs('delegate.messages.*') ? 'active' : '' }}" title="رسائل الطلاب">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>رسائل الطلاب</span>
+                </a>
+
+                <a href="{{ route('delegate.inquiries.index') }}" class="nav-link {{ request()->routeIs('delegate.inquiries.*') ? 'active' : '' }}" title="استفسارات الدكتور">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>استفسارات الدكتور</span>
+                </a>
+
+                <!-- Doctor Chat -->
+                <a href="{{ route('delegate.doctor-chat.index') }}" class="nav-link {{ request()->routeIs('delegate.doctor-chat.*') ? 'active' : '' }}" title="محادثات الدكاترة">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                        <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                    </svg>
+                    <span>محادثات الدكاترة</span>
                 </a>
 
             </nav>

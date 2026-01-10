@@ -46,11 +46,38 @@ class SubjectController extends Controller
         $presentCount = $attendanceRecords->where('status', 'present')->count();
         $absentCount = $attendanceRecords->where('status', 'absent')->count();
         $lateCount = $attendanceRecords->where('status', 'late')->count();
-        $excusedCount = $attendanceRecords->where('status', 'excused')->count(); // Keeping for historical data even if removed from form
+        $excusedCount = $attendanceRecords->where('status', 'excused')->count();
 
-        $totalLectures = $attendanceRecords->count(); // Or fetch from schedule/lectures table if we had one
+        $totalLectures = $attendanceRecords->count();
         $attendancePercentage = $totalLectures > 0 ? round(($presentCount / $totalLectures) * 100) : 0;
 
-        return view('student.subjects.show', compact('subject', 'assignments', 'attendanceRecords', 'presentCount', 'absentCount', 'lateCount', 'attendancePercentage'));
+        // Fetch Grades for this student in this subject
+        $grades = \App\Models\Grade::where('student_id', $student->id)
+            ->where('subject_id', $subject->id)
+            ->get();
+
+        $continuousGrade = $grades->where('type', 'continuous')->first();
+        $finalGrade = $grades->where('type', 'final')->first();
+
+        // Calculate total percentage
+        $totalGradePercentage = null;
+        if ($continuousGrade || $finalGrade) {
+            $cWeight = $continuousGrade ? ($continuousGrade->score / $continuousGrade->max_score) * 40 : 0;
+            $fWeight = $finalGrade ? ($finalGrade->score / $finalGrade->max_score) * 60 : 0;
+            $totalGradePercentage = round($cWeight + $fWeight, 1);
+        }
+
+        return view('student.subjects.show', compact(
+            'subject',
+            'assignments',
+            'attendanceRecords',
+            'presentCount',
+            'absentCount',
+            'lateCount',
+            'attendancePercentage',
+            'continuousGrade',
+            'finalGrade',
+            'totalGradePercentage'
+        ));
     }
 }

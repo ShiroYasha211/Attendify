@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Enums\UserRole;
 
 class User extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -21,6 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'status',
         'student_number',
         'university_id',
         'college_id',
@@ -90,5 +92,13 @@ class User extends Authenticatable
     public function attendances()
     {
         return $this->hasMany(\App\Models\Attendance::class, 'student_id');
+    }
+
+    /**
+     * Get the grades for the student.
+     */
+    public function grades()
+    {
+        return $this->hasMany(\App\Models\Grade::class, 'student_id');
     }
 }

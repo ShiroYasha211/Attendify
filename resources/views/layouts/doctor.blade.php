@@ -199,6 +199,35 @@
                     <span>التكاليف</span>
                 </a>
 
+                <!-- Grades -->
+                <a href="{{ route('doctor.grades.index') }}" class="nav-link {{ request()->routeIs('doctor.grades.*') ? 'active' : '' }}" title="إدارة الدرجات">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                        <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                    </svg>
+                    <span>إدارة الدرجات</span>
+                </a>
+
+                <div class="nav-group-label" title="التواصل">التواصل</div>
+
+                <!-- Inquiries -->
+                <a href="{{ route('doctor.inquiries.index') }}" class="nav-link {{ request()->routeIs('doctor.inquiries.*') ? 'active' : '' }}" title="استفسارات الطلاب">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>استفسارات الطلاب</span>
+                </a>
+
+                <!-- Messages with Delegates -->
+                <a href="{{ route('doctor.messages.index') }}" class="nav-link {{ request()->routeIs('doctor.messages.*') ? 'active' : '' }}" title="محادثات المندوبين">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>محادثات المندوبين</span>
+                </a>
+
             </nav>
         </aside>
 

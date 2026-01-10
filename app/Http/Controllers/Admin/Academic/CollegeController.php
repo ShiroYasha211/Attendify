@@ -95,6 +95,12 @@ class CollegeController extends Controller
      */
     public function destroy(College $college)
     {
+        // التحقق من وجود تخصصات مرتبطة
+        if ($college->majors()->count() > 0) {
+            return redirect()->route('admin.colleges.index')
+                ->with('error', 'لا يمكن حذف هذه الكلية لأنها تحتوي على تخصصات. قم بحذفها أولاً.');
+        }
+
         $this->academicService->deleteCollege($college);
 
         return redirect()->route('admin.colleges.index')

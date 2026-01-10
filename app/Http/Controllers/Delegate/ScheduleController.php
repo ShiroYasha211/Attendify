@@ -107,8 +107,13 @@ class ScheduleController extends Controller
 
     public function destroy(Schedule $schedule)
     {
-        // Simple scope check
-        // ideally we check if subject belongs to delegate scope
+        $delegate = Auth::user();
+
+        // Scope Check: Ensure schedule belongs to delegate's major/level
+        if ($schedule->subject->major_id != $delegate->major_id || $schedule->subject->level_id != $delegate->level_id) {
+            abort(403);
+        }
+
         $schedule->delete();
         return redirect()->route('delegate.schedules.index')->with('success', 'تم حذف الموعد.');
     }

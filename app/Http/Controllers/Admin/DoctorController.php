@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Enums\UserRole;
 use App\Models\Academic\College;
+use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class DoctorController extends Controller
 {
+    use LogsActivity;
+
     /**
      * عرض قائمة الدكاترة.
      */
@@ -45,7 +48,7 @@ class DoctorController extends Controller
 
         $college = College::findOrFail($request->college_id);
 
-        User::create([
+        $doctor = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
@@ -54,13 +57,12 @@ class DoctorController extends Controller
             'university_id' => $college->university_id,
         ]);
 
+        $this->logCreate('Doctor', $doctor, "تم إضافة الدكتور: {$doctor->name}");
+
         return redirect()->route('admin.doctors.index')
             ->with('success', 'تم إضافة الدكتور بنجاح.');
     }
 
-    /**
-     * تحديث بيانات الدكتور.
-     */
     /**
      * تحديث بيانات الدكتور.
      */
@@ -89,6 +91,8 @@ class DoctorController extends Controller
 
         $doctor->update($updateData);
 
+        $this->logUpdate('Doctor', $doctor, "تم تعديل بيانات الدكتور: {$doctor->name}");
+
         return redirect()->route('admin.doctors.index')
             ->with('success', 'تم تحديث بيانات الدكتور بنجاح.');
     }
@@ -101,6 +105,8 @@ class DoctorController extends Controller
         if ($doctor->role !== UserRole::DOCTOR) {
             return back()->with('error', 'لا يمكن حذف هذا المستخدم من قائمة الدكاترة.');
         }
+
+        $this->logDelete('Doctor', $doctor, "تم حذف الدكتور: {$doctor->name}");
 
         $doctor->delete();
         return redirect()->route('admin.doctors.index')

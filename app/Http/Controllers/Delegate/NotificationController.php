@@ -7,15 +7,16 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
-use App\Models\Notification; // Assuming simple notification model
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Enums\UserRole;
 
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $delegate = Auth::user();
+        $filter = $request->get('filter', 'all');
 
         // Get all students in scope
         $students = User::where('role', UserRole::STUDENT)
@@ -24,7 +25,6 @@ class NotificationController extends Controller
             ->get();
 
         // Calculate absences per student per subject
-        // This is a bit heavy, in production optimize with raw queries
         $report = [];
         $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)->get();
@@ -41,7 +41,6 @@ class NotificationController extends Controller
                         'student' => $student,
                         'subject' => $subject,
                         'absences' => $absenceCount,
-                        'percentage' => ($absenceCount * 2), // Mock percentage, assuming 50 lectures = 100%
                     ];
                 }
             }
@@ -52,19 +51,47 @@ class NotificationController extends Controller
             return $b['absences'] <=> $a['absences'];
         });
 
-        return view('delegate.notifications.index', compact('report'));
-    }
+        // Calculate stats
+        $stats = [
+            'total' => count($report),
+            'danger' => count(array_filter($report, fn($r) => $r['absences'] >= 5)),
+            'warning' => count(array_filter($report, fn($r) => $r['absences'] >= 3 && $r['absences'] < 5)),
+            'normal' => count(array_filter($report, fn($r) => $r['absences'] < 3)),
+        ];
 
-    public function create(Request $request)
-    {
-        // Show form to send specific warning
-        // We can use a modal in index instead
-    }
+        // Apply filter
+        if ($filter === 'danger') {
+            $report = array_filter($report, fn($r) => $r['absences'] >= 5);
+        } elseif ($filter === 'warning') {
+            $report = array_filter($report, fn($r) => $r['absences'] >= 3 && $r['absences'] < 5);
+        } elseif ($filter === 'normal') {
+            $report = array_filter($report, fn($r) => $r['absences'] < 3);
+        }
 
+        // Get sent notifications history
+        $sentAlerts = DB::table('notifications')
+            ->where('type', 'App\Notifications\AbsenceWarning')
+            ->whereIn('notifiable_id', $students->pluck('id'))
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($n) {
+                $data = json_decode($n->data, true);
+                $student = User::find($n->notifiable_id);
+                return [
+                    'id' => $n->id,
+                    'student_name' => $student ? $student->name : 'غير معروف',
+                    'title' => $data['title'] ?? '',
+                    'message' => $data['message'] ?? '',
+                    'created_at' => $n->created_at,
+                ];
+            });
+
+        return view('delegate.notifications.index', compact('report', 'stats', 'filter', 'sentAlerts'));
+    }
 
     public function store(Request $request)
     {
-        // Send Notification Logic
         $validated = $request->validate([
             'student_id' => 'required|exists:users,id',
             'subject_id' => 'required|exists:subjects,id',
@@ -73,11 +100,9 @@ class NotificationController extends Controller
 
         $subject = Subject::findOrFail($validated['subject_id']);
 
-        // Insert using standard Laravel Notification Schema
-        // We use UUID for ID
-        \Illuminate\Support\Facades\DB::table('notifications')->insert([
+        DB::table('notifications')->insert([
             'id' => \Illuminate\Support\Str::uuid(),
-            'type' => 'App\Notifications\AbsenceWarning', // Custom type identifier
+            'type' => 'App\Notifications\AbsenceWarning',
             'notifiable_type' => 'App\Models\User',
             'notifiable_id' => $validated['student_id'],
             'data' => json_encode([

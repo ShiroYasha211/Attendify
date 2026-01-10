@@ -5,24 +5,49 @@ namespace App\Http\Controllers\Doctor;
 use App\Http\Controllers\Controller;
 use App\Models\Academic\Assignment;
 use App\Models\Academic\Subject;
+use App\Models\AssignmentSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AssignmentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Get subjects assigned to the doctor
-        $doctorSubjects = Subject::where('doctor_id', Auth::id())->get();
+        // Get subjects assigned to the doctor with major and level
+        $doctorSubjects = Subject::where('doctor_id', Auth::id())
+            ->with(['major', 'level'])
+            ->get();
         $subjectIds = $doctorSubjects->pluck('id');
 
-        // Get assignments for these subjects
-        $assignments = Assignment::with('subject')
-            ->whereIn('subject_id', $subjectIds)
-            ->latest()
-            ->get();
+        // Base query
+        $query = Assignment::with(['subject.major', 'subject.level', 'submissions'])
+            ->whereIn('subject_id', $subjectIds);
 
-        return view('doctor.assignments.index', compact('assignments', 'doctorSubjects'));
+        // Filter by subject
+        $subjectFilter = $request->get('subject');
+        if ($subjectFilter && $subjectFilter !== 'all') {
+            $query->where('subject_id', $subjectFilter);
+        }
+
+        // Filter by status
+        $statusFilter = $request->get('status', 'all');
+        if ($statusFilter === 'upcoming') {
+            $query->where('due_date', '>=', now());
+        } elseif ($statusFilter === 'overdue') {
+            $query->where('due_date', '<', now());
+        }
+
+        $assignments = $query->latest()->get();
+
+        // Stats
+        $stats = [
+            'total' => Assignment::whereIn('subject_id', $subjectIds)->count(),
+            'upcoming' => Assignment::whereIn('subject_id', $subjectIds)->where('due_date', '>=', now())->count(),
+            'overdue' => Assignment::whereIn('subject_id', $subjectIds)->where('due_date', '<', now())->count(),
+            'submissions' => AssignmentSubmission::whereHas('assignment', fn($q) => $q->whereIn('subject_id', $subjectIds))->count(),
+        ];
+
+        return view('doctor.assignments.index', compact('assignments', 'doctorSubjects', 'stats', 'subjectFilter', 'statusFilter'));
     }
 
     public function store(Request $request)
@@ -44,6 +69,7 @@ class AssignmentController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
+            'requires_submission' => $request->has('requires_submission'),
             'created_by' => Auth::id(),
         ]);
 
@@ -63,7 +89,12 @@ class AssignmentController extends Controller
             'due_date' => 'required|date',
         ]);
 
-        $assignment->update($request->only(['title', 'description', 'due_date']));
+        $assignment->update([
+            'title' => $request->title,
+            'description' => $request->description,
+            'due_date' => $request->due_date,
+            'requires_submission' => $request->has('requires_submission'),
+        ]);
 
         return redirect()->back()->with('success', 'تم تحديث التكليف بنجاح.');
     }
@@ -78,5 +109,45 @@ class AssignmentController extends Controller
         $assignment->delete();
 
         return redirect()->back()->with('success', 'تم حذف التكليف بنجاح.');
+    }
+
+    /**
+     * Show submissions for an assignment.
+     */
+    public function submissions(Assignment $assignment)
+    {
+        // Ensure the doctor owns the subject
+        if ($assignment->subject->doctor_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $submissions = $assignment->submissions()->with('student')->latest()->get();
+
+        return view('doctor.assignments.submissions', compact('assignment', 'submissions'));
+    }
+
+    /**
+     * Review a submission.
+     */
+    public function reviewSubmission(Request $request, AssignmentSubmission $submission)
+    {
+        // Ensure the doctor owns the subject
+        if ($submission->assignment->subject->doctor_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'status' => 'required|in:accepted,rejected',
+            'feedback' => 'nullable|string|max:1000',
+            'grade' => 'nullable|integer|min:0|max:100',
+        ]);
+
+        $submission->update([
+            'status' => $request->status,
+            'feedback' => $request->feedback,
+            'grade' => $request->grade,
+        ]);
+
+        return back()->with('success', 'تم تقييم التسليم بنجاح.');
     }
 }

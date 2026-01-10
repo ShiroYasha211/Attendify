@@ -36,4 +36,14 @@ class Subject extends Model
     {
         return $this->belongsTo(User::class, 'doctor_id');
     }
+
+    public function resources()
+    {
+        return $this->hasMany(\App\Models\CourseResource::class);
+    }
+
+    public function grades()
+    {
+        return $this->hasMany(\App\Models\Grade::class);
+    }
 }

@@ -35,10 +35,36 @@
 
         <!-- Student List Card -->
         <div class="card">
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center;">
-                <span>قائمة الطلاب</span>
-                <span class="badge badge-info">{{ $students->count() }} طالب</span>
-            </h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                    <span>قائمة الطلاب</span>
+                    <span class="badge badge-info">{{ $students->count() }} طالب</span>
+                </h3>
+
+                <!-- Bulk Selection Buttons -->
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" onclick="selectAll('present')" class="btn btn-sm" style="background: var(--success-color); color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        الكل حاضر
+                    </button>
+                    <button type="button" onclick="selectAll('absent')" class="btn btn-sm" style="background: var(--danger-color); color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        الكل غائب
+                    </button>
+                    <button type="button" onclick="selectAll('late')" class="btn btn-sm" style="background: var(--warning-color); color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        الكل متأخر
+                    </button>
+                </div>
+            </div>
 
             @if($students->isEmpty())
             <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
@@ -170,5 +196,42 @@
         opacity: 0.8;
     }
 </style>
+
+<script>
+    function selectAll(status) {
+        // Get all radio buttons with the specified value
+        const radios = document.querySelectorAll('input[type="radio"][value="' + status + '"]');
+        radios.forEach(function(radio) {
+            radio.checked = true;
+        });
+
+        // Show feedback toast
+        const messages = {
+            'present': 'تم تحديد جميع الطلاب كـ حاضرين ✓',
+            'absent': 'تم تحديد جميع الطلاب كـ غائبين ✗',
+            'late': 'تم تحديد جميع الطلاب كـ متأخرين ⏱'
+        };
+
+        showToast(messages[status]);
+    }
+
+    function showToast(message) {
+        // Create toast element if not exists
+        let toast = document.getElementById('bulk-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'bulk-toast';
+            toast.style.cssText = 'position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9rem; z-index: 1000; opacity: 0; transition: opacity 0.3s;';
+            document.body.appendChild(toast);
+        }
+
+        toast.textContent = message;
+        toast.style.opacity = '1';
+
+        setTimeout(function() {
+            toast.style.opacity = '0';
+        }, 2000);
+    }
+</script>
 
 @endsection

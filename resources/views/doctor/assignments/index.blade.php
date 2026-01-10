@@ -193,6 +193,43 @@
     </div>
     @endif
 
+    <!-- Stats Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="background: white; border-radius: 12px; padding: 1rem; border: 1px solid #e2e8f0; text-align: center;">
+            <div style="font-size: 1.75rem; font-weight: 700; color: #4f46e5;">{{ $stats['total'] }}</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">إجمالي التكاليف</div>
+        </div>
+        <div style="background: white; border-radius: 12px; padding: 1rem; border: 1px solid #e2e8f0; text-align: center;">
+            <div style="font-size: 1.75rem; font-weight: 700; color: #10b981;">{{ $stats['upcoming'] }}</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">قادمة</div>
+        </div>
+        <div style="background: white; border-radius: 12px; padding: 1rem; border: 1px solid #e2e8f0; text-align: center;">
+            <div style="font-size: 1.75rem; font-weight: 700; color: #ef4444;">{{ $stats['overdue'] }}</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">منتهية</div>
+        </div>
+        <div style="background: white; border-radius: 12px; padding: 1rem; border: 1px solid #e2e8f0; text-align: center;">
+            <div style="font-size: 1.75rem; font-weight: 700; color: #8b5cf6;">{{ $stats['submissions'] }}</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">تسليمات</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
+        <form method="GET" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <select name="subject" onchange="this.form.submit()" style="padding: 0.6rem 1rem; border: 1px solid #e2e8f0; border-radius: 10px; background: white; font-weight: 600;">
+                <option value="all">جميع المقررات</option>
+                @foreach($doctorSubjects as $subject)
+                <option value="{{ $subject->id }}" {{ ($subjectFilter ?? '') == $subject->id ? 'selected' : '' }}>{{ $subject->name }}</option>
+                @endforeach
+            </select>
+            <select name="status" onchange="this.form.submit()" style="padding: 0.6rem 1rem; border: 1px solid #e2e8f0; border-radius: 10px; background: white; font-weight: 600;">
+                <option value="all" {{ ($statusFilter ?? 'all') == 'all' ? 'selected' : '' }}>جميع الحالات</option>
+                <option value="upcoming" {{ ($statusFilter ?? '') == 'upcoming' ? 'selected' : '' }}>قادمة</option>
+                <option value="overdue" {{ ($statusFilter ?? '') == 'overdue' ? 'selected' : '' }}>منتهية</option>
+            </select>
+        </form>
+    </div>
+
     <!-- Assignments Grid -->
     <div class="row" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem;">
 
@@ -221,6 +258,12 @@
                 </div>
 
                 <div class="task-actions" style="border: none; margin: 0; padding: 0;">
+                    <a href="{{ route('doctor.assignments.submissions', $assignment->id) }}" class="action-btn" title="التسليمات ({{ $assignment->submissions->count() }})" style="text-decoration: none; {{ $assignment->submissions->count() > 0 ? 'background: #eff6ff; color: var(--primary-color);' : '' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                    </a>
                     <button class="action-btn" @click='openEditModal(@json($assignment))' title="تعديل">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -298,7 +341,7 @@
                     <select name="subject_id" x-model="formData.subject_id" class="form-control" required style="height: 48px;">
                         <option value="" disabled>اختر المقرر...</option>
                         @foreach($doctorSubjects as $subject)
-                        <option value="{{ $subject->id }}">{{ $subject->name }}</option>
+                        <option value="{{ $subject->id }}">{{ $subject->name }} ({{ $subject->major->name ?? '' }} - {{ $subject->level->name ?? '' }})</option>
                         @endforeach
                     </select>
                 </div>
@@ -316,6 +359,16 @@
                 <div class="col-12 mb-3">
                     <label class="form-label">تفاصيل التكليف</label>
                     <textarea name="description" x-model="formData.description" class="form-control" rows="5" required placeholder="اكتب وصفاً دقيقاً للمطلوب..."></textarea>
+                </div>
+
+                <div class="col-12 mb-3">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; user-select: none;">
+                        <input type="checkbox" name="requires_submission" x-model="formData.requires_submission" style="width: 20px; height: 20px; accent-color: #4f46e5;">
+                        <div>
+                            <strong>يتطلب تسليم ملف</strong>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">السماح للطالب برفع ملف PDF أو ZIP كتسليم</div>
+                        </div>
+                    </label>
                 </div>
             </div>
 
@@ -340,7 +393,8 @@
                 subject_id: '',
                 due_date: '',
                 title: '',
-                description: ''
+                description: '',
+                requires_submission: true
             },
             openCreateModal() {
                 this.modalTitle = 'إضافة تكليف جديد';
@@ -350,7 +404,8 @@
                     subject_id: '',
                     due_date: '',
                     title: '',
-                    description: ''
+                    description: '',
+                    requires_submission: true
                 };
                 this.showModal = true;
             },
@@ -365,7 +420,8 @@
                     subject_id: assignment.subject_id,
                     due_date: dateVal,
                     title: assignment.title,
-                    description: assignment.description
+                    description: assignment.description,
+                    requires_submission: assignment.requires_submission ?? true
                 };
                 this.showModal = true;
             }

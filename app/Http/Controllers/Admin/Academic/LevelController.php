@@ -66,6 +66,19 @@ class LevelController extends Controller
      */
     public function destroy(Level $level)
     {
+        // التحقق من وجود طلاب في هذا المستوى
+        $studentsCount = \App\Models\User::where('level_id', $level->id)->count();
+        if ($studentsCount > 0) {
+            return redirect()->route('admin.levels.index')
+                ->with('error', "لا يمكن حذف هذا المستوى لأنه يحتوي على {$studentsCount} طالب مسجل.");
+        }
+
+        // التحقق من وجود فصول دراسية (ترمات)
+        if ($level->terms()->count() > 0) {
+            return redirect()->route('admin.levels.index')
+                ->with('error', 'لا يمكن حذف هذا المستوى لأنه يحتوي على فصول دراسية. قم بحذفها أولاً.');
+        }
+
         $level->delete();
 
         return redirect()->route('admin.levels.index')

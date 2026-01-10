@@ -6,8 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Academic\Subject;
 use App\Models\User;
+use App\Models\Attendance;
+use App\Models\Excuse;
+use App\Models\Inquiry;
+use App\Models\DoctorConversation;
+use App\Models\Grade;
 use App\Enums\UserRole;
-use Illuminate\Http\Request; // Add Request import
+use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -20,31 +26,126 @@ class DashboardController extends Controller
             ->with(['major', 'level', 'term', 'major.college.university'])
             ->get();
 
-        // Append student count to each subject
+        $subjectIds = $subjects->pluck('id');
+
+        // Append student count and attendance stats to each subject
         $subjects->each(function ($subject) {
             $subject->students_count = User::where('role', UserRole::STUDENT)
                 ->where('major_id', $subject->major_id)
                 ->where('level_id', $subject->level_id)
                 ->count();
+
+            // Calculate attendance rate
+            $totalAttendances = Attendance::where('subject_id', $subject->id)->count();
+            $presentAttendances = Attendance::where('subject_id', $subject->id)
+                ->where('status', 'present')
+                ->count();
+            $subject->attendance_rate = $totalAttendances > 0
+                ? round(($presentAttendances / $totalAttendances) * 100)
+                : 0;
         });
 
         // Calculate total students across all doctor's subjects
-        // Logic: Get all students who belong to the same (major, level, term) as the doctor's subjects
         $studentsCount = 0;
+        $uniqueStudentIds = [];
         foreach ($subjects as $subject) {
-            $studentsCount += User::where('role', UserRole::STUDENT)
+            $studentIds = User::where('role', UserRole::STUDENT)
                 ->where('major_id', $subject->major_id)
                 ->where('level_id', $subject->level_id)
-                // ->where('term_id', $subject->term_id) // Assuming students differ by term too, if applicable
-                ->count();
+                ->pluck('id')
+                ->toArray();
+            $uniqueStudentIds = array_merge($uniqueStudentIds, $studentIds);
         }
+        $studentsCount = count(array_unique($uniqueStudentIds));
 
         // Calculate pending excuses
-        $pendingExcusesCount = \App\Models\Excuse::whereHas('attendance', function ($q) use ($subjects) {
-            $q->whereIn('subject_id', $subjects->pluck('id'));
+        $pendingExcusesCount = Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
+            $q->whereIn('subject_id', $subjectIds);
         })->where('status', 'pending')->count();
 
-        return view('doctor.dashboard', compact('doctor', 'subjects', 'studentsCount', 'pendingExcusesCount'));
+        // Pending inquiries count
+        $pendingInquiriesCount = Inquiry::whereIn('subject_id', $subjectIds)
+            ->where('status', 'forwarded')
+            ->count();
+
+        // Unread messages count
+        $unreadMessagesCount = DoctorConversation::where('doctor_id', $doctor->id)
+            ->get()
+            ->sum(function ($conv) use ($doctor) {
+                return $conv->unreadCountFor($doctor->id);
+            });
+
+        // Recent activities (last 5)
+        $recentExcuses = Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
+            $q->whereIn('subject_id', $subjectIds);
+        })->with(['student', 'attendance.subject'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($excuse) {
+                return [
+                    'type' => 'excuse',
+                    'title' => 'عذر جديد من ' . ($excuse->student->name ?? 'طالب'),
+                    'subtitle' => $excuse->attendance->subject->name ?? '',
+                    'status' => $excuse->status,
+                    'date' => $excuse->created_at,
+                ];
+            });
+
+        $recentInquiries = Inquiry::whereIn('subject_id', $subjectIds)
+            ->with(['student', 'subject'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($inquiry) {
+                return [
+                    'type' => 'inquiry',
+                    'title' => 'استفسار من ' . ($inquiry->student->name ?? 'طالب'),
+                    'subtitle' => $inquiry->subject->name ?? '',
+                    'status' => $inquiry->status,
+                    'date' => $inquiry->created_at,
+                ];
+            });
+
+        // Merge and sort activities
+        $recentActivities = $recentExcuses->concat($recentInquiries)
+            ->sortByDesc('date')
+            ->take(5)
+            ->values();
+
+        // Attendance chart data (last 7 days)
+        $attendanceChartData = [];
+        $attendanceLabels = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $attendanceLabels[] = $date->format('m/d');
+
+            $dayStats = Attendance::whereIn('subject_id', $subjectIds)
+                ->whereDate('date', $date)
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+
+            $attendanceChartData['present'][] = $dayStats['present'] ?? 0;
+            $attendanceChartData['absent'][] = $dayStats['absent'] ?? 0;
+        }
+
+        // Grades stats
+        $gradesEntered = Grade::whereIn('subject_id', $subjectIds)->count();
+
+        return view('doctor.dashboard', compact(
+            'doctor',
+            'subjects',
+            'studentsCount',
+            'pendingExcusesCount',
+            'pendingInquiriesCount',
+            'unreadMessagesCount',
+            'recentActivities',
+            'attendanceChartData',
+            'attendanceLabels',
+            'gradesEntered'
+        ));
     }
 
     public function showSubjectReport(Subject $subject)

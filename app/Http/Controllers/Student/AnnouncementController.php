@@ -14,9 +14,29 @@ class AnnouncementController extends Controller
         $student = Auth::user();
         $category = $request->query('category');
 
-        $query = Announcement::where('major_id', $student->major_id)
-            ->where('level_id', $student->level_id)
-            ->latest();
+        $baseQuery = Announcement::where('major_id', $student->major_id)
+            ->where('level_id', $student->level_id);
+
+        // Statistics
+        $stats = [
+            'total' => (clone $baseQuery)->count(),
+            'academic' => (clone $baseQuery)->where('category', 'academic')->count(),
+            'general' => (clone $baseQuery)->where('category', 'general')->count(),
+            'urgent' => (clone $baseQuery)->where('category', 'urgent')->count(),
+        ];
+
+        // Pinned announcements (if column exists)
+        $pinnedAnnouncements = collect();
+        if (\Schema::hasColumn('announcements', 'is_pinned')) {
+            $pinnedAnnouncements = (clone $baseQuery)
+                ->where('is_pinned', true)
+                ->latest()
+                ->take(3)
+                ->get();
+        }
+
+        // Main query
+        $query = (clone $baseQuery)->latest();
 
         if ($category && in_array($category, ['academic', 'general', 'urgent'])) {
             $query->where('category', $category);
@@ -24,6 +44,6 @@ class AnnouncementController extends Controller
 
         $announcements = $query->paginate(10);
 
-        return view('student.announcements.index', compact('announcements', 'category'));
+        return view('student.announcements.index', compact('announcements', 'category', 'stats', 'pinnedAnnouncements'));
     }
 }

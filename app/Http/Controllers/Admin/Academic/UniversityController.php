@@ -74,6 +74,12 @@ class UniversityController extends Controller
      */
     public function destroy(University $university)
     {
+        // التحقق من وجود كليات مرتبطة
+        if ($university->colleges()->count() > 0) {
+            return redirect()->route('admin.universities.index')
+                ->with('error', 'لا يمكن حذف هذه الجامعة لأنها تحتوي على كليات. قم بحذفها أولاً.');
+        }
+
         $this->academicService->deleteUniversity($university);
 
         return redirect()->route('admin.universities.index')

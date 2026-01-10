@@ -6,15 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Enums\UserRole;
 use App\Models\Academic\Major;
+use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 class DelegateController extends Controller
 {
-    /**
-     * عرض قائمة المندوبين.
-     */
+    use LogsActivity;
+
     /**
      * عرض قائمة المندوبين.
      */
@@ -25,11 +25,6 @@ class DelegateController extends Controller
             ->latest()
             ->paginate(10);
 
-        // For the dropdown (Grouped: University > College > Major > Levels)
-        // Since it's deeply nested, we might just pass Universites with all children, 
-        // but to keep it simple and performant for the form, passing Majors with Levels is good enough as implemented.
-        // Actually best UX is: Select College -> Select Major -> Select Level.
-        // For simplicity in this iteration: We load universities with colleges, majors, levels.
         $universities = \App\Models\Academic\University::with('colleges.majors.levels')->get();
 
         return view('admin.users.delegates.index', compact('delegates', 'universities'));
@@ -52,7 +47,7 @@ class DelegateController extends Controller
 
         $level = \App\Models\Academic\Level::with('major.college.university')->findOrFail($request->level_id);
 
-        User::create([
+        $delegate = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
@@ -62,6 +57,8 @@ class DelegateController extends Controller
             'college_id' => $level->major->college_id,
             'university_id' => $level->major->college->university_id,
         ]);
+
+        $this->logCreate('Delegate', $delegate, "تم إضافة المندوب: {$delegate->name}");
 
         return redirect()->route('admin.delegates.index')
             ->with('success', 'تم إضافة المندوب بنجاح.');
@@ -99,6 +96,8 @@ class DelegateController extends Controller
 
         $delegate->update($updateData);
 
+        $this->logUpdate('Delegate', $delegate, "تم تعديل بيانات المندوب: {$delegate->name}");
+
         return redirect()->route('admin.delegates.index')
             ->with('success', 'تم تحديث بيانات المندوب بنجاح.');
     }
@@ -111,6 +110,8 @@ class DelegateController extends Controller
         if ($delegate->role !== UserRole::DELEGATE) {
             return back()->with('error', 'لا يمكن حذف هذا المستخدم من هنا.');
         }
+
+        $this->logDelete('Delegate', $delegate, "تم حذف المندوب: {$delegate->name}");
 
         $delegate->delete();
         return redirect()->route('admin.delegates.index')

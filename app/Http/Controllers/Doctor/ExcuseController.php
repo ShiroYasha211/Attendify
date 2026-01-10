@@ -10,21 +10,43 @@ use Illuminate\Support\Facades\Auth;
 
 class ExcuseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         // Get subjects for the authenticated doctor
         $subjectIds = Subject::where('doctor_id', Auth::id())->pluck('id');
 
-        // Get pending excuses for these subjects
-        $excuses = Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
-            $q->whereIn('subject_id', $subjectIds);
-        })
-            ->where('status', 'pending')
-            ->with(['student', 'attendance.subject'])
-            ->latest()
-            ->paginate(10);
+        // Get filter status
+        $status = $request->get('status', 'pending');
 
-        return view('doctor.excuses.index', compact('excuses'));
+        // Base query
+        $query = Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
+            $q->whereIn('subject_id', $subjectIds);
+        })->with(['student', 'attendance.subject']);
+
+        // Apply status filter
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $excuses = $query->latest()->paginate(15);
+
+        // Stats
+        $stats = [
+            'all' => Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
+                $q->whereIn('subject_id', $subjectIds);
+            })->count(),
+            'pending' => Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
+                $q->whereIn('subject_id', $subjectIds);
+            })->where('status', 'pending')->count(),
+            'accepted' => Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
+                $q->whereIn('subject_id', $subjectIds);
+            })->where('status', 'accepted')->count(),
+            'rejected' => Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
+                $q->whereIn('subject_id', $subjectIds);
+            })->where('status', 'rejected')->count(),
+        ];
+
+        return view('doctor.excuses.index', compact('excuses', 'stats', 'status'));
     }
 
     public function update(Request $request, Excuse $excuse)

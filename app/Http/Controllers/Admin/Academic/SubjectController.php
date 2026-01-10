@@ -7,10 +7,13 @@ use App\Models\Academic\Subject;
 use App\Models\Academic\Term;
 use App\Models\User;
 use App\Enums\UserRole;
+use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 
 class SubjectController extends Controller
 {
+    use LogsActivity;
+
     /**
      * عرض قائمة المواد مع نموذج الإضافة.
      */
@@ -44,7 +47,7 @@ class SubjectController extends Controller
 
         $term = Term::with('level.major')->findOrFail($request->term_id);
 
-        Subject::create([
+        $subject = Subject::create([
             'name' => $request->name,
             'code' => $request->code,
             'description' => $request->description,
@@ -53,6 +56,8 @@ class SubjectController extends Controller
             'major_id' => $term->level->major_id,
             'doctor_id' => $request->doctor_id,
         ]);
+
+        $this->logCreate('Subject', $subject, "تم إضافة مادة: {$subject->name}");
 
         return redirect()->route('admin.subjects.index')
             ->with('success', 'تم إضافة المادة الدراسية بنجاح.');
@@ -87,6 +92,8 @@ class SubjectController extends Controller
 
         $subject->update($updateData);
 
+        $this->logUpdate('Subject', $subject, "تم تعديل مادة: {$subject->name}");
+
         return redirect()->route('admin.subjects.index')
             ->with('success', 'تم تحديث بيانات المادة بنجاح.');
     }
@@ -96,6 +103,15 @@ class SubjectController extends Controller
      */
     public function destroy(Subject $subject)
     {
+        // التحقق من وجود سجلات حضور مرتبطة
+        $attendanceCount = \App\Models\Attendance::where('subject_id', $subject->id)->count();
+        if ($attendanceCount > 0) {
+            return redirect()->route('admin.subjects.index')
+                ->with('error', "لا يمكن حذف هذه المادة لأنها تحتوي على {$attendanceCount} سجل حضور.");
+        }
+
+        $this->logDelete('Subject', $subject, "تم حذف مادة: {$subject->name}");
+
         $subject->delete();
         return redirect()->route('admin.subjects.index')
             ->with('success', 'تم حذف المادة بنجاح.');

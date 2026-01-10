@@ -73,6 +73,12 @@ class TermController extends Controller
      */
     public function destroy(Term $term)
     {
+        // التحقق من وجود مواد مرتبطة بهذا الفصل
+        if ($term->subjects()->count() > 0) {
+            return redirect()->route('admin.terms.index')
+                ->with('error', 'لا يمكن حذف هذا الفصل الدراسي لأنه يحتوي على مواد دراسية. قم بحذفها أولاً.');
+        }
+
         $term->delete();
 
         return redirect()->route('admin.terms.index')

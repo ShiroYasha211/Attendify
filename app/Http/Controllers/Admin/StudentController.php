@@ -6,15 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Enums\UserRole;
 use App\Models\Academic\Major;
+use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
-    /**
-     * عرض قائمة الطلاب.
-     */
+    use LogsActivity;
+
     /**
      * عرض قائمة الطلاب.
      */
@@ -63,7 +63,7 @@ class StudentController extends Controller
 
         $level = \App\Models\Academic\Level::with('major.college.university')->findOrFail($request->level_id);
 
-        User::create([
+        $student = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'student_number' => $request->student_number,
@@ -75,13 +75,12 @@ class StudentController extends Controller
             'university_id' => $level->major->college->university_id,
         ]);
 
+        $this->logCreate('Student', $student, "تم تسجيل الطالب: {$student->name}");
+
         return redirect()->route('admin.students.index')
             ->with('success', 'تم تسجيل الطالب بنجاح.');
     }
 
-    /**
-     * تحديث بيانات الطالب.
-     */
     /**
      * تحديث بيانات الطالب.
      */
@@ -113,6 +112,8 @@ class StudentController extends Controller
 
         $student->update($updateData);
 
+        $this->logUpdate('Student', $student, "تم تعديل بيانات الطالب: {$student->name}");
+
         return redirect()->route('admin.students.index')
             ->with('success', 'تم تحديث بيانات الطالب بنجاح.');
     }
@@ -125,6 +126,8 @@ class StudentController extends Controller
         if ($student->role !== UserRole::STUDENT) {
             return back()->with('error', 'لا يمكن حذف هذا المستخدم من قائمة الطلاب.');
         }
+
+        $this->logDelete('Student', $student, "تم حذف الطالب: {$student->name}");
 
         $student->delete();
         return redirect()->route('admin.students.index')

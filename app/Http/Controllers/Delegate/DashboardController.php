@@ -55,6 +55,16 @@ class DashboardController extends Controller
             })
             ->count();
 
+        // Today's Subjects with Schedule (for Quick Attendance Modal)
+        $todaySubjects = \App\Models\Academic\Schedule::where('day_of_week', $todayDayOfWeek)
+            ->whereHas('subject', function ($q) use ($delegate) {
+                $q->where('major_id', $delegate->major_id)
+                    ->where('level_id', $delegate->level_id);
+            })
+            ->with('subject')
+            ->orderBy('start_time')
+            ->get();
+
         // Alerts Count (e.g. Absences today)
         $alertsCount = \App\Models\Attendance::where('date', date('Y-m-d'))
             ->where('status', 'absent')
@@ -64,6 +74,84 @@ class DashboardController extends Controller
             })
             ->count();
 
-        return view('delegate.dashboard', compact('delegate', 'studentsCount', 'subjects', 'latestStudents', 'latestAttendance', 'todayLecturesCount', 'alertsCount'));
+        // === NEW: Enhanced Statistics ===
+
+        // Weekly Attendance Stats (Last 7 days)
+        $weekStart = \Carbon\Carbon::now()->subDays(7);
+        $weeklyAttendance = \App\Models\Attendance::where('date', '>=', $weekStart->format('Y-m-d'))
+            ->whereHas('student', function ($q) use ($delegate) {
+                $q->where('major_id', $delegate->major_id)
+                    ->where('level_id', $delegate->level_id);
+            });
+
+        $totalWeeklyRecords = (clone $weeklyAttendance)->count();
+        $presentWeeklyRecords = (clone $weeklyAttendance)->where('status', 'present')->count();
+        $weeklyAttendanceRate = $totalWeeklyRecords > 0
+            ? round(($presentWeeklyRecords / $totalWeeklyRecords) * 100, 1)
+            : 0;
+
+        // Top 5 Absent Students (Most absences overall)
+        $topAbsentStudents = \App\Models\User::where('role', UserRole::STUDENT)
+            ->where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->withCount(['attendances as absence_count' => function ($q) {
+                $q->where('status', 'absent');
+            }])
+            ->having('absence_count', '>', 0)
+            ->orderByDesc('absence_count')
+            ->take(5)
+            ->get();
+
+        // At-Risk Students (Students with high absence percentage in any subject)
+        // Threshold: 20% absence rate = at risk of probation
+        $atRiskStudents = collect();
+        $allStudents = \App\Models\User::where('role', UserRole::STUDENT)
+            ->where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->get();
+
+        foreach ($allStudents as $student) {
+            foreach ($subjects as $subject) {
+                $totalSessions = \App\Models\Attendance::where('student_id', $student->id)
+                    ->where('subject_id', $subject->id)
+                    ->count();
+
+                if ($totalSessions >= 3) { // Only count if at least 3 sessions recorded
+                    $absences = \App\Models\Attendance::where('student_id', $student->id)
+                        ->where('subject_id', $subject->id)
+                        ->where('status', 'absent')
+                        ->count();
+
+                    $absenceRate = ($absences / $totalSessions) * 100;
+
+                    if ($absenceRate >= 20) { // 20% or more = at risk
+                        $atRiskStudents->push([
+                            'student' => $student,
+                            'subject' => $subject,
+                            'absence_rate' => round($absenceRate, 1),
+                            'absences' => $absences,
+                            'total' => $totalSessions
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // Sort by highest absence rate and limit
+        $atRiskStudents = $atRiskStudents->sortByDesc('absence_rate')->take(5);
+
+        return view('delegate.dashboard', compact(
+            'delegate',
+            'studentsCount',
+            'subjects',
+            'latestStudents',
+            'latestAttendance',
+            'todayLecturesCount',
+            'alertsCount',
+            'weeklyAttendanceRate',
+            'topAbsentStudents',
+            'todaySubjects',
+            'atRiskStudents'
+        ));
     }
 }

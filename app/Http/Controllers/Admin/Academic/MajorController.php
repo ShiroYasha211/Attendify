@@ -120,6 +120,19 @@ class MajorController extends Controller
      */
     public function destroy(Major $major)
     {
+        // التحقق من وجود طلاب في هذا التخصص
+        $studentsCount = \App\Models\User::where('major_id', $major->id)->count();
+        if ($studentsCount > 0) {
+            return redirect()->route('admin.majors.index')
+                ->with('error', "لا يمكن حذف هذا التخصص لأنه يحتوي على {$studentsCount} طالب مسجل.");
+        }
+
+        // التحقق من وجود مستويات
+        if ($major->levels()->count() > 0) {
+            return redirect()->route('admin.majors.index')
+                ->with('error', 'لا يمكن حذف هذا التخصص لأنه يحتوي على مستويات دراسية. قم بحذفها أولاً.');
+        }
+
         $major->delete();
 
         return redirect()->route('admin.majors.index')

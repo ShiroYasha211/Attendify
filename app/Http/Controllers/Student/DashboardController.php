@@ -90,6 +90,37 @@ class DashboardController extends Controller
             ->with('subject')
             ->get();
 
-        return view('student.dashboard', compact('student', 'subjects', 'announcements', 'reminders', 'assignmentsCount', 'excuseWarnings', 'totalAbsences', 'warnings'));
+        // 8. Next Exam Countdown
+        $nextExam = null;
+        try {
+            // Get exam schedule for student's major and level
+            $examScheduleIds = \App\Models\ExamSchedule::where('major_id', $student->major_id)
+                ->where('level_id', $student->level_id)
+                ->pluck('id');
+
+            if ($examScheduleIds->count() > 0) {
+                // Find next upcoming exam item
+                $nextExamItem = \App\Models\ExamScheduleItem::whereIn('exam_schedule_id', $examScheduleIds)
+                    ->where('exam_date', '>=', now()->startOfDay())
+                    ->orderBy('exam_date', 'asc')
+                    ->orderBy('start_time', 'asc')
+                    ->with('subject')
+                    ->first();
+
+                if ($nextExamItem) {
+                    $nextExam = [
+                        'subject' => $nextExamItem->subject->name ?? 'اختبار',
+                        'date' => $nextExamItem->exam_date,
+                        'days_remaining' => (int) now()->startOfDay()->diffInDays($nextExamItem->exam_date, false),
+                        'start_time' => $nextExamItem->start_time,
+                        'location' => $nextExamItem->location,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            $nextExam = null;
+        }
+
+        return view('student.dashboard', compact('student', 'subjects', 'announcements', 'reminders', 'assignmentsCount', 'excuseWarnings', 'totalAbsences', 'warnings', 'nextExam'));
     }
 }
