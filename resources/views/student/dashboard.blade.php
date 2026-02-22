@@ -520,6 +520,16 @@
                         </div>
                         <span class="quick-link-text">الاختبارات</span>
                     </a>
+
+                    <a href="{{ route('student.subjects.index') }}" class="quick-link">
+                        <div class="quick-link-icon" style="background: linear-gradient(135deg, #f3e8ff 0%, #d8b4fe 100%); color: #7c3aed;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                            </svg>
+                        </div>
+                        <span class="quick-link-text">المحاضرات</span>
+                    </a>
                 </div>
             </div>
         </div>

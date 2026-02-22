@@ -112,22 +112,23 @@ class DashboardController extends Controller
      */
     private function getAtRiskStudents(): int
     {
-        // Get subjects with their max_absences
-        $subjects = Subject::all();
+        // جلب الإعداد الخاص لكل مادة مرة واحدة
+        $subjectsMaxAbsences = Subject::pluck('max_absences', 'id');
+
+        // جلب إحصائيات الغياب المجمعة لكل طالب ولكل مادة في استعلام واحد
+        $absences = Attendance::where('status', 'absent')
+            ->select('student_id', 'subject_id', DB::raw('count(*) as absent_count'))
+            ->groupBy('student_id', 'subject_id')
+            ->get();
+
         $atRiskCount = 0;
 
-        foreach ($subjects as $subject) {
-            $maxAbsences = $subject->max_absences ?? 4;
+        foreach ($absences as $record) {
+            $maxAbsences = $subjectsMaxAbsences->get($record->subject_id) ?? 4;
 
-            // Count students with absences >= max_absences in this subject
-            $studentsAtRisk = Attendance::where('subject_id', $subject->id)
-                ->where('status', 'absent')
-                ->select('student_id')
-                ->groupBy('student_id')
-                ->havingRaw('COUNT(*) >= ?', [$maxAbsences])
-                ->count();
-
-            $atRiskCount += $studentsAtRisk;
+            if ($record->absent_count >= $maxAbsences) {
+                $atRiskCount++;
+            }
         }
 
         return $atRiskCount;

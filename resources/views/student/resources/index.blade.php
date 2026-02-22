@@ -143,6 +143,17 @@
             </div>
         </div>
 
+
+        <!-- Scheduled Filter using a toggle-like checkbox -->
+        <div style="flex: 0 0 auto;">
+            <div style="display: flex; align-items: center; justify-content: center; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 0 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-secondary); white-space: nowrap;">
+                    <input type="checkbox" name="scheduled" value="1" {{ request('scheduled') ? 'checked' : '' }} onchange="this.form.submit()" style="cursor: pointer; width: 1.1rem; height: 1.1rem;">
+                    <span>المجدولة فقط</span>
+                </label>
+            </div>
+        </div>
+
         <!-- Search Button -->
         <button type="submit" class="btn shadow-sm" style="height: 50px; padding: 0 1.5rem; border-radius: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: var(--primary-color); border: none; flex-shrink: 0; color: white;">
             <svg style="width: 20px; height: 20px; stroke: white; stroke-width: 2.5; fill: none;" viewBox="0 0 24 24">
@@ -265,6 +276,9 @@
                         <span class="badge bg-white text-dark border font-weight-bold py-2 px-3 rounded-pill shadow-sm">
                             {{ $resource->subject->name }}
                         </span>
+                        @if(in_array($resource->id, $scheduledResourceIds))
+                        <span class="badge" style="background-color: #dbeafe; color: #1e40af; margin-right: 0.25rem;">مجدول</span>
+                        @endif
                     </td>
                     <td style="padding: 1rem 1.5rem;">
                         @switch($resource->category)
@@ -306,13 +320,27 @@
                         {{ $resource->created_at->format('Y/m/d') }}
                     </td>
                     <td style="padding: 1rem 1.5rem; text-align: left;">
-                        <a href="{{ Storage::url($resource->file_path) }}" target="_blank"
-                            style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary-color); border-radius: 10px; transition: all 0.2s;"
-                            title="تحميل الملف">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                        </a>
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            @php $isScheduled = in_array($resource->id, $scheduledResourceIds); @endphp
+                            <button onclick="openScheduleModal('App\\Models\\CourseResource', {{ $resource->id }}, '{{ $resource->title }}')"
+                                style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; {{ $isScheduled ? 'background: var(--primary-color); color: white;' : 'background: white; color: var(--primary-color);' }} border: 1px solid #e2e8f0; border-radius: 10px; transition: all 0.2s; cursor: pointer;"
+                                title="{{ $isScheduled ? 'مجدول' : 'إضافة لجدولي' }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    <line x1="12" y1="15" x2="12" y2="15"></line>
+                                </svg>
+                            </button>
+                            <a href="{{ Storage::url($resource->file_path) }}" target="_blank"
+                                style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary-color); border-radius: 10px; transition: all 0.2s;"
+                                title="تحميل الملف">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 @empty
@@ -382,16 +410,35 @@
                         </svg>
                         <div style="flex: 1; min-width: 0;">
                             <div style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">{{ $resource->title }}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ strtoupper($resource->file_type) }} • {{ $resource->created_at->format('Y/m/d') }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                {{ strtoupper($resource->file_type) }} • {{ $resource->created_at->format('Y/m/d') }}
+                                @if(in_array($resource->id, $scheduledResourceIds))
+                                <span class="badge" style="background-color: #dbeafe; color: #1e40af; margin-right: 0.5rem; font-size: 0.7rem;">مجدول</span>
+                                @endif
+                            </div>
                         </div>
                     </div>
-                    <a href="{{ Storage::url($resource->file_path) }}" target="_blank" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary-color); border-radius: 8px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                    </a>
+                    <div style="display: flex; gap: 0.5rem; margin-right: 1rem;">
+                        @php $isScheduled = in_array($resource->id, $scheduledResourceIds); @endphp
+                        <button onclick="openScheduleModal('App\\Models\\CourseResource', {{ $resource->id }}, '{{ $resource->title }}')"
+                            style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; {{ $isScheduled ? 'background: var(--primary-color); color: white;' : 'background: white; color: var(--text-secondary);' }} border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                            title="{{ $isScheduled ? 'مجدول' : 'إضافة لجدولي' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                                <line x1="12" y1="15" x2="12" y2="15"></line>
+                            </svg>
+                        </button>
+                        <a href="{{ Storage::url($resource->file_path) }}" target="_blank" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary-color); border-radius: 8px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </a>
+                    </div>
                 </div>
                 @endforeach
             </div>
@@ -447,4 +494,146 @@
         border-color: #cbd5e1;
     }
 </style>
+
+<!-- Schedule Modal -->
+<div id="scheduleModal" class="modal-overlay" style="display: none;">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 class="modal-title">إضافة إلى الجدول الدراسي</h3>
+            <button type="button" class="close-btn" onclick="closeScheduleModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="schedule_type">
+            <input type="hidden" id="schedule_id">
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">العنوان</label>
+                <div id="schedule_title_display" style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem; padding: 0.5rem; background: #f8fafc; border-radius: 8px;"></div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label for="schedule_note" style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">ملاحظات (اختياري)</label>
+                <textarea id="schedule_note" class="form-control" rows="3" placeholder="أضف ملاحظاتك هنا..." style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; resize: none;"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+            <button type="button" class="btn btn-secondary" onclick="closeScheduleModal()" style="background: #f1f5f9; color: var(--text-secondary); border: none; padding: 0.75rem 1.5rem; border-radius: 8px;">إلغاء</button>
+            <button type="button" class="btn btn-primary" onclick="submitSchedule()" style="background: var(--primary-color); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px;">إضافة لمصادري</button>
+        </div>
+    </div>
+</div>
+
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<style>
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-container {
+        background: white;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 500px;
+        padding: 2rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        margin: 1rem;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 0;
+    }
+</style>
+
+<script>
+    // Modal Functions
+    function openScheduleModal(type, id, title) {
+        document.getElementById('schedule_type').value = type;
+        document.getElementById('schedule_id').value = id;
+        document.getElementById('schedule_title_display').textContent = title;
+        document.getElementById('schedule_note').value = ''; // Reset note
+
+        document.getElementById('scheduleModal').style.display = 'flex';
+    }
+
+    function closeScheduleModal() {
+        document.getElementById('scheduleModal').style.display = 'none';
+    }
+
+    function submitSchedule() {
+        const type = document.getElementById('schedule_type').value;
+        const id = document.getElementById('schedule_id').value;
+        const title = document.getElementById('schedule_title_display').textContent;
+        const note = document.getElementById('schedule_note').value;
+
+        fetch('{{ route("student.schedule.store") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    referenceable_type: type,
+                    referenceable_id: id,
+                    title: title,
+                    note: note,
+                    item_type: 'resource' // Force item_type to resource since we are in resources page
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    closeScheduleModal();
+                    // Since this view has pagination/HTML structure that's complex, a reload is easier to reflect changes
+                    // Or we can try to update current item...
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'حدث خطأ ما');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('حدث خطأ أثناء الاتصال بالخادم');
+            });
+    }
+</script>
 @endsection

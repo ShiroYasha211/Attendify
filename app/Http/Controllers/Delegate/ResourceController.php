@@ -154,4 +154,75 @@ class ResourceController extends Controller
 
         return 'other';
     }
+
+    /**
+     * Import a resource from the Global Library to the current batch's subject.
+     * This performs a "Soft Clone" (Metadata copy, same file path).
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'resource_id' => 'required|exists:course_resources,id',
+            'subject_id' => 'required|exists:subjects,id',
+        ]);
+
+        $original = CourseResource::findOrFail($request->resource_id);
+
+        // Prevent duplicate import for the same subject
+        $exists = CourseResource::where('subject_id', $request->subject_id)
+            ->where('file_path', $original->file_path)
+            ->exists();
+
+        if ($exists) {
+            return back()->with('error', 'هذا الملف موجود بالفعل في هذا المقرر.');
+        }
+
+        CourseResource::create([
+            'subject_id' => $request->subject_id,
+            'created_by' => Auth::id(), // The delegate who imported it
+            'title' => $original->title,
+            'category' => $original->category,
+            'file_path' => $original->file_path, // Soft Clone: Point to same file
+            'file_type' => $original->file_type,
+            'description' => $original->description . " (تم استيراده من المكتبة)",
+        ]);
+
+        return back()->with('success', 'تم استيراد الملف إلى مقررك بنجاح.');
+    }
+    public function edit(CourseResource $resource)
+    {
+        if ($resource->created_by !== Auth::id()) {
+            abort(403);
+        }
+
+        $user = Auth::user();
+        $subjects = Subject::where('major_id', $user->major_id)
+            ->where('level_id', $user->level_id)
+            ->get();
+
+        return view('delegate.resources.edit', compact('resource', 'subjects'));
+    }
+
+    public function update(Request $request, CourseResource $resource)
+    {
+        if ($resource->created_by !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'subject_id' => 'required|exists:subjects,id',
+            'title' => 'required|string|max:255',
+            'category' => 'required|in:lectures,references,summaries,exams,other',
+            'description' => 'nullable|string',
+        ]);
+
+        $resource->update([
+            'subject_id' => $request->subject_id,
+            'title' => $request->title,
+            'category' => $request->category,
+            'description' => $request->description,
+        ]);
+
+        return redirect()->route('delegate.resources.index')->with('success', 'تم تعديل الملف بنجاح.');
+    }
 }

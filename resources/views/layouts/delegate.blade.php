@@ -213,6 +213,13 @@
                     <span>مصادر المقرر</span>
                 </a>
 
+                <a href="{{ route('delegate.library.index') }}" class="nav-link {{ request()->routeIs('delegate.library.*') ? 'active' : '' }}" title="المكتبة المشتركة">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                    <span>المكتبة المشتركة</span>
+                </a>
+
                 <a href="{{ route('delegate.assignments.index') }}" class="nav-link {{ request()->routeIs('delegate.assignments.*') ? 'active' : '' }}" title="التكاليف الدراسية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -313,7 +320,20 @@
                 </div>
 
                 <!-- User Profile Section -->
-                <div class="user-menu">
+                <div class="user-menu" style="display: flex; align-items: center; gap: 1rem;">
+
+                    <a href="{{ route('student.dashboard') }}" class="btn-submit" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 8px; text-decoration: none; width: auto; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);" title="التبديل لحساب الطالب">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 3h5v5"></path>
+                            <path d="M4 20L21 3"></path>
+                            <path d="M21 16v5h-5"></path>
+                            <path d="M15 15l6 6"></path>
+                            <path d="M4 4l5 5"></path>
+                        </svg>
+                        التبديل للطالب
+                    </a>
+
+                    <div style="width: 1px; height: 24px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
 
                     <button @click="showLogoutModal = true" class="logout-btn-icon" title="تسجيل الخروج">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

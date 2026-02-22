@@ -38,11 +38,13 @@ class DelegateController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
+            'student_number' => 'required|string|max:50|unique:users',
             'password' => 'required|string|min:8',
             'level_id' => 'required|exists:levels,id',
         ], [
             'level_id.required' => 'يرجى اختيار المستوى الدراسي.',
-            'email.unique' => 'البريد الإلكتروني مسجل مسبقاً.'
+            'email.unique' => 'البريد الإلكتروني مسجل مسبقاً.',
+            'student_number.unique' => 'رقم القيد مسجل مسبقاً.'
         ]);
 
         $level = \App\Models\Academic\Level::with('major.college.university')->findOrFail($request->level_id);
@@ -50,6 +52,7 @@ class DelegateController extends Controller
         $delegate = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'student_number' => $request->student_number,
             'password' => Hash::make($request->password),
             'role' => UserRole::DELEGATE,
             'level_id' => $level->id,
@@ -72,10 +75,12 @@ class DelegateController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $delegate->id,
+            'student_number' => 'required|string|max:50|unique:users,student_number,' . $delegate->id,
             'level_id' => 'required|exists:levels,id',
         ], [
             'level_id.required' => 'يرجى تحديد المستوى الذي يديره المندوب.',
-            'email.unique' => 'البريد الإلكتروني مسجل مسبقاً.'
+            'email.unique' => 'البريد الإلكتروني مسجل مسبقاً.',
+            'student_number.unique' => 'رقم القيد مسجل مسبقاً.'
         ]);
 
         $level = \App\Models\Academic\Level::with('major.college.university')->findOrFail($request->level_id);
@@ -83,6 +88,7 @@ class DelegateController extends Controller
         $updateData = [
             'name' => $request->name,
             'email' => $request->email,
+            'student_number' => $request->student_number,
             'level_id' => $level->id,
             'major_id' => $level->major_id,
             'college_id' => $level->major->college_id,

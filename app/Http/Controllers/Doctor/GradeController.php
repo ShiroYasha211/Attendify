@@ -24,27 +24,45 @@ class GradeController extends Controller
             ->with(['major', 'level'])
             ->get();
 
-        // Add student and grade counts
-        $subjects->each(function ($subject) {
-            $subject->students_count = User::where('role', UserRole::STUDENT)
-                ->where('major_id', $subject->major_id)
-                ->where('level_id', $subject->level_id)
-                ->count();
+        // Add student counts
+        $studentsCountPerSubject = User::where('role', UserRole::STUDENT)
+            ->whereIn('major_id', $subjects->pluck('major_id')->unique())
+            ->whereIn('level_id', $subjects->pluck('level_id')->unique())
+            ->select('major_id', 'level_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('major_id', 'level_id')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->major_id . '_' . $item->level_id;
+            });
 
-            $subject->grades_count = Grade::where('subject_id', $subject->id)->count();
+        // Add grade counts and calculate average
+        $gradeStats = Grade::whereIn('subject_id', $subjects->pluck('id'))
+            ->select(
+                'subject_id',
+                'student_id',
+                \Illuminate\Support\Facades\DB::raw('SUM(score) as total_score')
+            )
+            ->groupBy('subject_id', 'student_id')
+            ->get()
+            ->groupBy('subject_id');
 
-            // Calculate average score
-            $allGrades = Grade::where('subject_id', $subject->id)->get();
-            $studentGrades = [];
-            foreach ($allGrades as $grade) {
-                if (!isset($studentGrades[$grade->student_id])) {
-                    $studentGrades[$grade->student_id] = 0;
-                }
-                $studentGrades[$grade->student_id] += $grade->score;
+        $gradesCount = Grade::whereIn('subject_id', $subjects->pluck('id'))
+            ->select('subject_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('subject_id')
+            ->pluck('count', 'subject_id');
+
+        $subjects->each(function ($subject) use ($studentsCountPerSubject, $gradesCount, $gradeStats) {
+            $key = $subject->major_id . '_' . $subject->level_id;
+            $subject->students_count = $studentsCountPerSubject->has($key) ? $studentsCountPerSubject->get($key)->count : 0;
+            $subject->grades_count = $gradesCount->get($subject->id, 0);
+
+            $subjectGrades = $gradeStats->get($subject->id);
+            if ($subjectGrades && $subjectGrades->count() > 0) {
+                $totalScores = $subjectGrades->sum('total_score');
+                $subject->average_score = round($totalScores / $subjectGrades->count(), 1);
+            } else {
+                $subject->average_score = 0;
             }
-            $subject->average_score = count($studentGrades) > 0
-                ? round(array_sum($studentGrades) / count($studentGrades), 1)
-                : 0;
         });
 
         return view('doctor.grades.index', compact('subjects'));

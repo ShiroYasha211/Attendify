@@ -4,19 +4,35 @@
 
 @section('content')
 
-<div class="container" style="max-width: 100%;">
+<div class="container" style="max-width: 100%;" x-data="qrAttendance()">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
             <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">سجل الحضور</h1>
             <p style="color: var(--text-secondary);">عرض سجلات الحضور السابقة وإمكانية طباعة التقارير.</p>
         </div>
-        <a href="{{ route('delegate.subjects.index') }}" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            رصد جديد
-        </a>
+        <div style="display: flex; gap: 10px;">
+            <!-- QR Attendance Button -->
+            <button @click="openModal()" class="btn btn-primary" style="background-color: #6366f1; border-color: #6366f1; display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <path d="M12 17h.01"></path>
+                    <path d="M12 12h.01"></path>
+                    <path d="M7 17h.01"></path>
+                    <path d="M17 17h.01"></path>
+                </svg>
+                تحضير سريع (QR)
+            </button>
+
+            <a href="{{ route('delegate.attendance.create', $subjects->first()->id ?? 0) }}" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                رصد يدوي
+            </a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -45,6 +61,7 @@
                 <thead>
                     <tr style="background-color: #f8fafc; text-align: right;">
                         <th style="padding: 1rem; border-bottom: 1px solid var(--border-color);">المادة الدراسية</th>
+                        <th style="padding: 1rem; border-bottom: 1px solid var(--border-color);">عنوان المحاضرة</th>
                         <th style="padding: 1rem; border-bottom: 1px solid var(--border-color);">التاريخ</th>
                         <th style="padding: 1rem; border-bottom: 1px solid var(--border-color);">عدد الطلاب</th>
                         <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">الإجراءات</th>
@@ -56,6 +73,19 @@
                         <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9;">
                             <div style="font-weight: 700; color: var(--text-primary);">{{ $session->subject->name }}</div>
                             <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ $session->subject->code }}</div>
+                        </td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9;">
+                            @php
+                            $lecture = \App\Models\Academic\Lecture::where('subject_id', $session->subject_id)->where('date', $session->date)->first();
+                            @endphp
+                            <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                @if($lecture && $lecture->lecture_number)
+                                <span style="font-size: 0.85rem; color: var(--text-secondary); background: #f1f5f9; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                    #{{ $lecture->lecture_number }}
+                                </span>
+                                @endif
+                                <span>{{ $lecture ? $lecture->title : '-' }}</span>
+                            </div>
                         </td>
                         <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary);">
@@ -79,7 +109,7 @@
                                 <a href="{{ route('delegate.attendance.report', ['subject' => $session->subject_id, 'date' => $session->date->format('Y-m-d')]) }}" class="btn btn-primary btn-sm" target="_blank" title="طباعة التقرير">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2-2v5a2 2 0 0 1-2 2h-2"></path>
                                         <rect x="6" y="14" width="12" height="8"></rect>
                                     </svg>
                                     تقرير
@@ -99,6 +129,270 @@
         @endif
         @endif
     </div>
+
+    <!-- QR Code Modal -->
+    <div x-show="showModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;" x-transition.opacity>
+        <div class="modal-container" @click.away="closeModal()" style="background: white; border-radius: 12px; width: 100%; max-width: 500px; padding: 1.5rem; max-height: 90vh; overflow-y: auto;">
+
+            <!-- Setup Phase -->
+            <div x-show="step === 'setup'">
+                <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.25rem;">بدء جلسة تحضير جديدة</h3>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">المادة الدراسية</label>
+                    <select x-model="form.subject_id" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px;" :style="errors.subject_id ? 'border-color: red' : ''">
+                        <option value="">اختر المادة...</option>
+                        @foreach($subjects as $subject)
+                        <option value="{{ $subject->id }}">{{ $subject->name }}</option>
+                        @endforeach
+                    </select>
+                    <span x-show="errors.subject_id" x-text="errors.subject_id" style="color: var(--danger-color); font-size: 0.85rem; display: block; margin-top: 0.25rem;"></span>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">عنوان المحاضرة</label>
+                    <input type="text" x-model="form.title" class="form-control" placeholder="مثال: مقدمة في البرمجة" style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px;" :style="errors.title ? 'border-color: red' : ''">
+                    <span x-show="errors.title" x-text="errors.title" style="color: var(--danger-color); font-size: 0.85rem; display: block; margin-top: 0.25rem;"></span>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">التاريخ</label>
+                    <input type="date" x-model="form.date" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px;">
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button @click="closeModal()" class="btn btn-secondary">إلغاء</button>
+                    <!-- Removed disabled condition to allow validation feedback -->
+                    <button @click="startSession()" class="btn btn-primary" :disabled="loading">
+                        <span x-show="loading">جاري البدء...</span>
+                        <span x-show="!loading">بدء الجلسة وعرض QR</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Phase -->
+            <div x-show="step === 'active'" style="text-align: center;">
+                <h3 style="margin-top: 0; margin-bottom: 0.5rem;">امسح الكود لتسجيل الحضور</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">سيتم تحديث الكود تلقائياً كل 10 ثواني</p>
+
+                <!-- QR Code Display -->
+                <div id="qrcode" style="display: flex; justify-content: center; margin-bottom: 1.5rem;"></div>
+
+                <!-- Timer Bar -->
+                <div style="height: 4px; background: #e2e8f0; border-radius: 2px; margin-bottom: 1.5rem; overflow: hidden;">
+                    <div style="height: 100%; background: #6366f1; transition: width 1s linear;" :style="'width: ' + timerWidth + '%'"></div>
+                </div>
+
+                <!-- Stats -->
+                <div style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                    <div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" x-text="scannedCount">0</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">حضور</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);" x-text="totalStudents">0</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">إجمالي الطلاب</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                    <button @click="finalizeSession()" class="btn btn-danger" :disabled="loading">
+                        <span x-show="loading">جاري الإنهاء...</span>
+                        <span x-show="!loading">إنهاء التحضير وحفظ</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
+
+<!-- QR Code Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+    function qrAttendance() {
+        return {
+            showModal: false,
+            step: 'setup',
+            loading: false,
+            sessionId: null,
+            timerWidth: 100,
+            tokenInternal: null,
+            statusInterval: null,
+            qrObject: null,
+            scannedCount: 0,
+            totalStudents: 0,
+            errors: {}, // Added errors object
+            form: {
+                subject_id: '',
+                title: '',
+                date: new Date().toISOString().split('T')[0]
+            },
+
+            openModal() {
+                this.showModal = true;
+                this.step = 'setup';
+                this.resetForm();
+                this.errors = {}; // Reset errors
+            },
+
+            closeModal() {
+                if (this.step === 'active') {
+                    if (!confirm('هل أنت متأكد من إغلاق النافذة؟ سيتم إيقاف الجلسة.')) return;
+                    this.stopIntervals();
+                }
+                this.showModal = false;
+            },
+
+            resetForm() {
+                this.form.subject_id = '';
+                this.form.title = '';
+                this.form.date = new Date().toISOString().split('T')[0];
+            },
+
+            async startSession() {
+                // Validation Logic
+                this.errors = {};
+                if (!this.form.subject_id) this.errors.subject_id = 'يرجى اختيار المادة الدراسية.';
+                if (!this.form.title) this.errors.title = 'يرجى إدخال عنوان المحاضرة.';
+
+                if (Object.keys(this.errors).length > 0) {
+                    return;
+                }
+
+                this.loading = true;
+                try {
+                    const response = await fetch('/api/qr-attendance/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}' // Using web session auth
+                        },
+                        body: JSON.stringify(this.form)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        alert(data.message || 'حدث خطأ ما');
+                        this.loading = false;
+                        return;
+                    }
+
+                    this.sessionId = data.session_id;
+                    this.step = 'active';
+                    this.loading = false;
+
+                    // Initialize QR
+                    this.$nextTick(() => {
+                        document.getElementById('qrcode').innerHTML = '';
+                        this.qrObject = new QRCode(document.getElementById("qrcode"), {
+                            text: data.token,
+                            width: 256,
+                            height: 256,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+
+                        this.startRotation();
+                        this.startPollingStatus();
+                    });
+
+                } catch (error) {
+                    console.error(error);
+                    alert('حدث خطأ في الاتصال');
+                    this.loading = false;
+                }
+            },
+
+            startRotation() {
+                let seconds = 10;
+                this.timerWidth = 100;
+
+                // Rotation Interval
+                this.tokenInterval = setInterval(async () => {
+                    this.timerWidth = 100; // Reset bar
+                    seconds = 10;
+
+                    try {
+                        const response = await fetch(`/api/qr-attendance/${this.sessionId}/token`);
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            this.qrObject.clear();
+                            this.qrObject.makeCode(data.token);
+                        }
+                    } catch (e) {
+                        console.error('Failed to rotate token', e);
+                    }
+                }, 10000); // 10 seconds
+
+                // Animation Interval for Progress Bar
+                setInterval(() => {
+                    seconds -= 0.1;
+                    this.timerWidth = (seconds / 10) * 100;
+                }, 100);
+            },
+
+            startPollingStatus() {
+                this.statusInterval = setInterval(async () => {
+                    try {
+                        const response = await fetch(`/api/qr-attendance/${this.sessionId}/status`);
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            this.scannedCount = data.scanned_count;
+                            this.totalStudents = data.total_students;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch status', e);
+                    }
+                }, 3000); // Poll every 3 seconds
+            },
+
+            stopIntervals() {
+                clearInterval(this.tokenInterval);
+                clearInterval(this.statusInterval);
+            },
+
+            async finalizeSession() {
+                if (!confirm('هل أنت متأكد من إنهاء التحضير؟ سيتم تسجيل الغياب للبقية.')) return;
+
+                this.loading = true;
+                this.stopIntervals();
+
+                try {
+                    const response = await fetch(`/api/qr-attendance/${this.sessionId}/finalize`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // showToast(data.message); // If I had toast
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            window.location.reload();
+                        }
+                    } else {
+                        alert(data.message);
+                        this.loading = false;
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert('حدث خطأ أثناء الإنهاء');
+                    this.loading = false;
+                }
+            }
+        }
+    }
+</script>
 
 @endsection

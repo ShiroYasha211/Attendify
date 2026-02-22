@@ -13,6 +13,7 @@ class Attendance extends Model
         'status',
         'date',
         'recorded_by',
+        'attendance_method',
     ];
 
     protected $casts = [

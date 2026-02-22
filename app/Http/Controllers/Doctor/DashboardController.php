@@ -28,35 +28,55 @@ class DashboardController extends Controller
 
         $subjectIds = $subjects->pluck('id');
 
+        // جلب الإحصائيات المجمعة للطلاب
+        $studentsCountPerSubject = User::where('role', UserRole::STUDENT)
+            ->whereIn('major_id', $subjects->pluck('major_id')->unique())
+            ->whereIn('level_id', $subjects->pluck('level_id')->unique())
+            ->select('major_id', 'level_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('major_id', 'level_id')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->major_id . '_' . $item->level_id;
+            });
+
+        // جلب إحصائيات الحضور المجمعة
+        $attendanceStats = Attendance::whereIn('subject_id', $subjectIds)
+            ->select(
+                'subject_id',
+                \Illuminate\Support\Facades\DB::raw('count(*) as total'),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count")
+            )
+            ->groupBy('subject_id')
+            ->get()
+            ->keyBy('subject_id');
+
         // Append student count and attendance stats to each subject
-        $subjects->each(function ($subject) {
-            $subject->students_count = User::where('role', UserRole::STUDENT)
-                ->where('major_id', $subject->major_id)
-                ->where('level_id', $subject->level_id)
-                ->count();
+        $subjects->each(function ($subject) use ($studentsCountPerSubject, $attendanceStats) {
+            $key = $subject->major_id . '_' . $subject->level_id;
+            $subject->students_count = $studentsCountPerSubject->has($key) ? $studentsCountPerSubject->get($key)->count : 0;
 
             // Calculate attendance rate
-            $totalAttendances = Attendance::where('subject_id', $subject->id)->count();
-            $presentAttendances = Attendance::where('subject_id', $subject->id)
-                ->where('status', 'present')
-                ->count();
+            $stats = $attendanceStats->get($subject->id);
+            $totalAttendances = $stats ? $stats->total : 0;
+            $presentAttendances = $stats ? $stats->present_count : 0;
+
             $subject->attendance_rate = $totalAttendances > 0
                 ? round(($presentAttendances / $totalAttendances) * 100)
                 : 0;
         });
 
         // Calculate total students across all doctor's subjects
-        $studentsCount = 0;
-        $uniqueStudentIds = [];
-        foreach ($subjects as $subject) {
-            $studentIds = User::where('role', UserRole::STUDENT)
-                ->where('major_id', $subject->major_id)
-                ->where('level_id', $subject->level_id)
-                ->pluck('id')
-                ->toArray();
-            $uniqueStudentIds = array_merge($uniqueStudentIds, $studentIds);
-        }
-        $studentsCount = count(array_unique($uniqueStudentIds));
+        $uniqueStudentIdsQuery = User::where('role', UserRole::STUDENT)
+            ->where(function ($query) use ($subjects) {
+                foreach ($subjects as $subject) {
+                    $query->orWhere(function ($q) use ($subject) {
+                        $q->where('major_id', $subject->major_id)
+                            ->where('level_id', $subject->level_id);
+                    });
+                }
+            })->pluck('id');
+
+        $studentsCount = $uniqueStudentIdsQuery->count();
 
         // Calculate pending excuses
         $pendingExcusesCount = Excuse::whereHas('attendance', function ($q) use ($subjectIds) {

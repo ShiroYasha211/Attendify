@@ -163,6 +163,16 @@
                     <span>الرئيسية</span>
                 </a>
 
+                <div class="nav-group-label" title="السريري">السريري</div>
+
+                <!-- Clinical Hub -->
+                <a href="{{ route('doctor.clinical.index') }}" class="nav-link {{ request()->routeIs('doctor.clinical.*') ? 'active' : '' }}" title="القسم العملي">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+                    </svg>
+                    <span>القسم العملي (Clinical)</span>
+                </a>
+
                 <div class="nav-group-label" title="الأكاديمية">الأكاديمية</div>
 
                 <!-- Excuses -->
@@ -226,6 +236,21 @@
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                     <span>محادثات المندوبين</span>
+                </a>
+
+                <!-- Notifications -->
+                <a href="{{ route('doctor.notifications.index') }}" class="nav-link {{ request()->routeIs('doctor.notifications.*') ? 'active' : '' }}" title="الإشعارات">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                    <span>الإشعارات</span>
+                    @php
+                    $doctorUnreadCount = \App\Models\StudentNotification::where('user_id', Auth::id())->whereNull('read_at')->count();
+                    @endphp
+                    @if($doctorUnreadCount > 0)
+                    <span style="background: #ef4444; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $doctorUnreadCount }}</span>
+                    @endif
                 </a>
 
             </nav>

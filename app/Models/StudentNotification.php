@@ -59,6 +59,7 @@ class StudentNotification extends Model
             'assignment' => 'file-text',
             'resource' => 'folder',
             'announcement' => 'megaphone',
+            'attendance' => 'user-x',
             default => 'bell',
         };
     }
@@ -73,6 +74,7 @@ class StudentNotification extends Model
             'assignment' => '#f59e0b',
             'resource' => '#3b82f6',
             'announcement' => '#10b981',
+            'attendance' => '#ef4444',
             default => '#6366f1',
         };
     }

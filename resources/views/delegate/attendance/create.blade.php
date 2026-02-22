@@ -27,9 +27,38 @@
 
         <!-- Date Selection Card -->
         <div class="card" style="margin-bottom: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <label for="date" style="font-weight: 700; color: var(--text-primary); flex-shrink: 0;">تاريخ المحاضرة:</label>
-                <input type="date" name="date" id="date" value="{{ date('Y-m-d') }}" required class="form-control" style="max-width: 300px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end;">
+
+                <!-- Date Input -->
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="date" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">تاريخ المحاضرة:</label>
+                    <input type="date" name="date" id="date" value="{{ date('Y-m-d') }}" required class="form-control" style="width: 100%;">
+                </div>
+
+                <!-- Lecture Title Input -->
+                <div style="flex: 2; min-width: 300px;">
+                    <label for="title" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">عنوان المحاضرة:</label>
+                    <input type="text" name="title" id="title" value="{{ $prefill['title'] ?? old('title') }}" placeholder="مثال: مقدمة في الفيزياء، القانون الأول..." required class="form-control" style="width: 100%;">
+                </div>
+
+                <!-- Lecture Number Input -->
+                <div style="flex: 0 0 150px;">
+                    <label for="lecture_number" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">رقم المحاضرة:</label>
+                    <input type="text" name="lecture_number" id="lecture_number" value="{{ $prefill['lecture_number'] ?? old('lecture_number') }}" placeholder="مثال: 1، 2..." class="form-control" style="width: 100%;">
+                </div>
+
+                <!-- Start Time Input (Optional) -->
+                <div style="flex: 0 0 150px;">
+                    <label for="start_time" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">وقت البداية: <span style="color: var(--text-secondary); font-size: 0.8rem;">(اختياري)</span></label>
+                    <input type="time" name="start_time" id="start_time" value="{{ old('start_time') }}" class="form-control" style="width: 100%;">
+                </div>
+
+                <!-- End Time Input (Optional) -->
+                <div style="flex: 0 0 150px;">
+                    <label for="end_time" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">وقت الانتهاء: <span style="color: var(--text-secondary); font-size: 0.8rem;">(اختياري)</span></label>
+                    <input type="time" name="end_time" id="end_time" value="{{ old('end_time') }}" class="form-control" style="width: 100%;">
+                </div>
+
             </div>
         </div>
 
@@ -84,29 +113,42 @@
                     </thead>
                     <tbody>
                         @foreach($students as $index => $student)
+                        @php
+                        $record = $attendanceRecords ? ($attendanceRecords[$student->id] ?? null) : null;
+                        // Default logic:
+                        // If records exist (review mode): Scanned -> present, Not Scanned -> absent
+                        // If new mode: Default -> present (as before)
+                        $defaultStatus = $attendanceRecords ? 'absent' : 'present';
+                        $status = $record ? $record->status : $defaultStatus;
+                        @endphp
                         <tr style="border-bottom: 1px solid #f1f5f9;">
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9; color: var(--text-secondary);">{{ $index + 1 }}</td>
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9;">
-                                <div style="font-weight: 600;">{{ $student->name }}</div>
+                                <div style="font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                                    {{ $student->name }}
+                                    @if($record && $record->status == 'present')
+                                    <span style="font-size: 0.7rem; background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">QR</span>
+                                    @endif
+                                </div>
                                 <div style="font-family: monospace; font-size: 0.8rem; color: var(--text-secondary);">{{ $student->student_number }}</div>
                             </td>
 
                             <!-- Radio Buttons -->
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
                                 <label class="status-label present">
-                                    <input type="radio" name="attendance[{{ $student->id }}]" value="present" checked>
+                                    <input type="radio" name="attendance[{{ $student->id }}]" value="present" {{ $status == 'present' ? 'checked' : '' }}>
                                     <span class="indicator"></span>
                                 </label>
                             </td>
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
                                 <label class="status-label absent">
-                                    <input type="radio" name="attendance[{{ $student->id }}]" value="absent">
+                                    <input type="radio" name="attendance[{{ $student->id }}]" value="absent" {{ $status == 'absent' ? 'checked' : '' }}>
                                     <span class="indicator"></span>
                                 </label>
                             </td>
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
                                 <label class="status-label late">
-                                    <input type="radio" name="attendance[{{ $student->id }}]" value="late">
+                                    <input type="radio" name="attendance[{{ $student->id }}]" value="late" {{ $status == 'late' ? 'checked' : '' }}>
                                     <span class="indicator"></span>
                                 </label>
                             </td>
@@ -117,6 +159,27 @@
             </div>
 
             <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+
+                <!-- Lecture Notes -->
+                <div style="margin-bottom: 1.5rem;">
+                    <label for="description" style="font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        ملاحظات المحاضرة (اختياري)
+                    </label>
+                    <textarea name="description" id="description" rows="3" class="form-control"
+                        style="width: 100%; resize: vertical; border-radius: 8px; border: 1px solid #e2e8f0; padding: 0.75rem;"
+                        placeholder="أكتب هنا أي ملاحظات مهمة من الدكتور تخص هذه المحاضرة... مثلاً: الفصل الثالث مهم للاختبار، يجب مراجعة التمارين...">{{ old('description') }}</textarea>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                        ستظهر هذه الملاحظات للطلاب في صفحة المحاضرات وفي مركز الدراسة
+                    </p>
+                </div>
+
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 1rem; font-weight: 700;">
                     حفظ سجل الحضور
                 </button>
@@ -124,6 +187,24 @@
             @endif
         </div>
     </form>
+</div>
+
+<!-- Overwrite Confirmation Modal -->
+<div id="overwrite-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+        <h3 style="margin-top: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">تنبيه: تحضير مكرر ⚠️</h3>
+        <p style="color: var(--text-secondary); margin: 1rem 0;">
+            تم العثور على سجل حضور سابق لهذا اليوم بعنوان: <br>
+            <strong id="existing-title" style="color: var(--primary-color);"></strong>
+        </p>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+            هل تريد استبدال البيانات السابقة بالبيانات الجديدة؟
+        </p>
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+            <button onclick="cancelOverwrite()" class="btn btn-secondary">إلغاء</button>
+            <button onclick="confirmOverwrite()" class="btn btn-primary">نعم، استبدال</button>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -231,6 +312,54 @@
         setTimeout(function() {
             toast.style.opacity = '0';
         }, 2000);
+    }
+
+    // Duplicate Check Logic
+    const dateInput = document.getElementById('date');
+    const titleInput = document.getElementById('title');
+    const lectureNumberInput = document.getElementById('lecture_number');
+    const modal = document.getElementById('overwrite-modal');
+    const existingTitleSpan = document.getElementById('existing-title');
+    let previousDate = dateInput.value;
+
+    function checkAttendance() {
+        const date = dateInput.value;
+        if (!date) return;
+
+        fetch(`{{ route('delegate.attendance.check', $subject->id) }}?date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    // Show warning
+                    existingTitleSpan.textContent = data.title || 'بدون عنوان';
+                    modal.style.display = 'flex';
+
+                    // Pre-fill fields with existing data
+                    if (data.title) titleInput.value = data.title;
+                    if (data.lecture_number) lectureNumberInput.value = data.lecture_number;
+                }
+            })
+            .catch(error => console.error('Error checking attendance:', error));
+    }
+
+    dateInput.addEventListener('change', checkAttendance);
+
+    // Check on load if date is present
+    if (dateInput.value) {
+        checkAttendance();
+    }
+
+    function confirmOverwrite() {
+        modal.style.display = 'none';
+        showToast('سيتم تحديث سجل الحضور والمحاضرة عند الحفظ.');
+    }
+
+    function cancelOverwrite() {
+        modal.style.display = 'none';
+        // If it was an accidentally selected date, maybe clear it?
+        // But if it was the default today, clearing it is annoying.
+        // Let's just notify.
+        showToast('يرجى تغيير التاريخ لتجنب الاستبدال.');
     }
 </script>
 

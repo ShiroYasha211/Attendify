@@ -45,6 +45,13 @@ class ResourceController extends Controller
             $query->where('category', $request->category);
         }
 
+        // Scheduled Filter
+        if ($request->filled('scheduled') && $request->scheduled == '1') {
+            $query->whereHas('scheduleItems', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+        }
+
         // Sorting
         $sort = $request->get('sort', 'newest');
         switch ($sort) {
@@ -86,12 +93,23 @@ class ResourceController extends Controller
         if ($request->filled('category')) {
             $groupedResourcesQuery->where('category', $request->category);
         }
+        if ($request->filled('scheduled') && $request->scheduled == '1') {
+            $groupedResourcesQuery->whereHas('scheduleItems', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+        }
 
         $groupedResources = $groupedResourcesQuery->latest()->get()->groupBy('subject_id');
 
         $viewMode = $request->get('view', 'grouped'); // Default to grouped for student as it's nicer? Or table? Delegate defaults to table. Let's default to table to match.
         // Actually, user said "Like delegate section... look how it is divided". Delegate resources page has a toggle.
 
-        return view('student.resources.index', compact('resources', 'subjects', 'stats', 'groupedResources', 'viewMode', 'sort'));
+        // Fetch scheduled resources for this student
+        $scheduledResourceIds = \App\Models\Student\StudentScheduleItem::where('user_id', $user->id)
+            ->where('referenceable_type', \App\Models\CourseResource::class)
+            ->pluck('referenceable_id')
+            ->toArray();
+
+        return view('student.resources.index', compact('resources', 'subjects', 'stats', 'groupedResources', 'viewMode', 'sort', 'scheduledResourceIds'));
     }
 }

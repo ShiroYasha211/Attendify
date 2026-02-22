@@ -516,6 +516,21 @@
                 </div>
             </button>
             <div class="accordion-body" :class="{ 'open': openSubject === {{ $subjectId }} }">
+                @if(isset($subjectWarnings[$subjectId]) && $subjectWarnings[$subjectId]['warning_level'])
+                @php $sw = $subjectWarnings[$subjectId]; @endphp
+                <div style="padding: 0.75rem 1.25rem; margin: 0 1rem 0.75rem 1rem; border-radius: 12px;
+                        {{ $sw['warning_level'] === 'danger' ? 'background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; color: #991b1b;' : 'background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; color: #92400e;' }}
+                        display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; font-weight: 600;">
+                    <span style="font-size: 1.25rem;">{{ $sw['warning_level'] === 'danger' ? '🚫' : '⚠️' }}</span>
+                    <div>
+                        @if($sw['warning_level'] === 'danger')
+                        <strong>تحذير حرمان!</strong> عدد الغيابات ({{ $sw['absent_count'] }}) تجاوز الحد المسموح ({{ $sw['max_absences'] }}) أو نسبة الغياب ({{ $sw['absence_percent'] }}%) تجاوزت حد الحرمان ({{ $sw['threshold'] }}%)
+                        @else
+                        <strong>تنبيه:</strong> أنت على بعد غياب واحد من الحد الأقصى المسموح ({{ $sw['max_absences'] }} غيابات)
+                        @endif
+                    </div>
+                </div>
+                @endif
                 <table class="attendance-table">
                     <thead>
                         <tr>
@@ -535,7 +550,8 @@
 
                                 @php
                                 $canExcuse = false;
-                                $deadline = \Carbon\Carbon::parse($record->date)->addDays(7);
+                                $excuseDeadlineDays = (int) \App\Models\Setting::get('excuse_deadline_days', 7);
+                                $deadline = \Carbon\Carbon::parse($record->date)->addDays($excuseDeadlineDays);
                                 if(now()->lte($deadline) && !$record->excuse) {
                                 $canExcuse = true;
                                 }
@@ -552,15 +568,29 @@
                                     @endif
                                 </div>
                                 @elseif($canExcuse)
-                                <button class="excuse-btn" @click="openModal({{ $record->id }}, '{{ $record->date->format('Y-m-d') }}')">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                        <polyline points="14 2 14 8 20 8"></polyline>
-                                        <line x1="12" y1="18" x2="12" y2="12"></line>
-                                        <line x1="9" y1="15" x2="15" y2="15"></line>
-                                    </svg>
-                                    تقديم عذر
-                                </button>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+                                    <button class="excuse-btn" @click="openModal({{ $record->id }}, '{{ $record->date->format('Y-m-d') }}')">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="12" y1="18" x2="12" y2="12"></line>
+                                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                                        </svg>
+                                        تقديم عذر
+                                    </button>
+                                    @php
+                                    $daysLeft = (int) ceil(now()->floatDiffInDays($deadline, false));
+                                    @endphp
+                                    @if($daysLeft <= 2)
+                                        <span style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">
+                                        ⚠️ باقي {{ $daysLeft < 1 ? 'أقل من يوم' : $daysLeft . ' يوم' }}
+                                        </span>
+                                        @else
+                                        <span style="font-size: 0.75rem; color: #64748b;">
+                                            آخر موعد: {{ $deadline->format('Y-m-d') }}
+                                        </span>
+                                        @endif
+                                </div>
                                 @endif
 
                                 @elseif($record->status == 'late')

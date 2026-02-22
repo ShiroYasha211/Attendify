@@ -292,6 +292,7 @@
     editUrl: '',
     editName: '',
     editEmail: '',
+    editStudentNumber: '',
     editLevelId: '',
     
     viewDelegate: {}
@@ -454,6 +455,21 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="student_number" class="form-label">رقم القيد الجامعي</label>
+                    <div class="input-with-icon">
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </span>
+                        <input type="text" name="student_number" id="student_number" class="form-control" placeholder="مثال: 442012345" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label for="password" class="form-label">كلمة المرور</label>
                     <div class="input-with-icon">
                         <span class="icon">
@@ -523,6 +539,7 @@
                                         viewDelegate = {
                                             name: '{{ $delegate->name }}',
                                             email: '{{ $delegate->email }}',
+                                            student_number: '{{ $delegate->student_number }}',
                                             university: '{{ $delegate->university->name ?? '-' }}',
                                             college: '{{ $delegate->college->name ?? '-' }}',
                                             major: '{{ $delegate->major->name ?? '-' }}',
@@ -541,6 +558,7 @@
                                         editUrl = '{{ route('admin.delegates.update', $delegate) }}';
                                         editName = '{{ $delegate->name }}';
                                         editEmail = '{{ $delegate->email }}';
+                                        editStudentNumber = '{{ $delegate->student_number }}';
                                         editLevelId = '{{ $delegate->level_id }}';
                                     ">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -624,6 +642,11 @@
                 <input type="email" name="email" id="edit_email" class="form-control" x-model="editEmail" required>
             </div>
 
+            <div class="form-group">
+                <label for="edit_student_number" class="form-label">رقم القيد الجامعي</label>
+                <input type="text" name="student_number" id="edit_student_number" class="form-control" x-model="editStudentNumber" required>
+            </div>
+
             <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
                 <label for="edit_password" class="form-label">كلمة المرور الجديدة (اختياري)</label>
                 <input type="password" name="password" id="edit_password" class="form-control" placeholder="اتركه فارغاً إذا كنت لا تريد تغييرها">
@@ -656,6 +679,9 @@
                 </div>
                 <h4 x-text="viewDelegate.name" style="margin: 0; font-size: 1.25rem;"></h4>
                 <div x-text="viewDelegate.email" style="color: var(--text-secondary); font-size: 0.9rem;"></div>
+                <div style="margin-top: 0.5rem;">
+                    <span class="badge badge-info" x-text="'رقم القيد: ' + viewDelegate.student_number" style="font-size: 0.85rem; padding: 0.25rem 0.75rem;"></span>
+                </div>
             </div>
 
             <div style="background: linear-gradient(135deg, #faf5ff, #f5f3ff); padding: 1.25rem; border-radius: 12px; border: 1px solid #e9d5ff;">

@@ -183,13 +183,22 @@
             </div>
         </div>
         <div class="subject-footer">
-            <a href="{{ route('student.subjects.show', $subject->id) }}" class="view-btn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                عرض التفاصيل والواجبات
-            </a>
+            <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+                <a href="{{ route('student.subjects.show', $subject->id) }}" class="view-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>التفاصيل والواجبات</span>
+                </a>
+                <a href="{{ route('student.lectures.index', $subject->id) }}" class="view-btn" style="background: white; color: var(--text-primary); border: 1px solid #e2e8f0;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>المحاضرات والمذاكرة</span>
+                </a>
+            </div>
         </div>
     </div>
     @empty

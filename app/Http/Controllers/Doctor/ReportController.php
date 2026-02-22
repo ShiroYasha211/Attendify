@@ -17,38 +17,49 @@ class ReportController extends Controller
             ->with(['major', 'level', 'term'])
             ->get();
 
+        // Students count per subject (by major/level)
+        $studentsCountPerSubject = User::where('role', UserRole::STUDENT)
+            ->whereIn('major_id', $subjects->pluck('major_id')->unique())
+            ->whereIn('level_id', $subjects->pluck('level_id')->unique())
+            ->select('major_id', 'level_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('major_id', 'level_id')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->major_id . '_' . $item->level_id;
+            });
+
+        // Attendance stats per subject
+        $attendanceStats = Attendance::whereIn('subject_id', $subjects->pluck('id'))
+            ->select(
+                'subject_id',
+                \Illuminate\Support\Facades\DB::raw('count(*) as total'),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count"),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_count"),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'excused' THEN 1 ELSE 0 END) as excused_count"),
+                \Illuminate\Support\Facades\DB::raw('COUNT(DISTINCT date) as lectures_count')
+            )
+            ->groupBy('subject_id')
+            ->get()
+            ->keyBy('subject_id');
+
         // Add statistics to each subject
-        $subjects->each(function ($subject) {
+        $subjects->each(function ($subject) use ($studentsCountPerSubject, $attendanceStats) {
             // Students count
-            $subject->students_count = User::where('role', UserRole::STUDENT)
-                ->where('major_id', $subject->major_id)
-                ->where('level_id', $subject->level_id)
-                ->count();
+            $key = $subject->major_id . '_' . $subject->level_id;
+            $subject->students_count = $studentsCountPerSubject->has($key) ? $studentsCountPerSubject->get($key)->count : 0;
 
             // Attendance stats
-            $totalAttendances = Attendance::where('subject_id', $subject->id)->count();
-            $presentCount = Attendance::where('subject_id', $subject->id)
-                ->where('status', 'present')
-                ->count();
-            $absentCount = Attendance::where('subject_id', $subject->id)
-                ->where('status', 'absent')
-                ->count();
-            $excusedCount = Attendance::where('subject_id', $subject->id)
-                ->where('status', 'excused')
-                ->count();
+            $stats = $attendanceStats->get($subject->id);
 
-            $subject->total_attendances = $totalAttendances;
-            $subject->present_count = $presentCount;
-            $subject->absent_count = $absentCount;
-            $subject->excused_count = $excusedCount;
-            $subject->attendance_rate = $totalAttendances > 0
-                ? round(($presentCount / $totalAttendances) * 100)
+            $subject->total_attendances = $stats ? $stats->total : 0;
+            $subject->present_count = $stats ? $stats->present_count : 0;
+            $subject->absent_count = $stats ? $stats->absent_count : 0;
+            $subject->excused_count = $stats ? $stats->excused_count : 0;
+            $subject->lectures_count = $stats ? $stats->lectures_count : 0;
+
+            $subject->attendance_rate = $subject->total_attendances > 0
+                ? round(($subject->present_count / $subject->total_attendances) * 100)
                 : 0;
-
-            // Lectures count (unique dates)
-            $subject->lectures_count = Attendance::where('subject_id', $subject->id)
-                ->distinct('date')
-                ->count('date');
         });
 
         return view('doctor.reports.index', compact('subjects'));

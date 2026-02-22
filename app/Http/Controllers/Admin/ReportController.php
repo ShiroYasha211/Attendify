@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\User;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -42,15 +43,19 @@ class ReportController extends Controller
             ->orderBy('name')
             ->get();
 
-        // إحصائيات الحضور
-        $reportData = $students->map(function ($student) use ($subject) {
-            $records = Attendance::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->get();
+        // إحصائيات الحضور: جلب كل السجلات مرة واحدة لهذه المادة
+        $attendances = Attendance::where('subject_id', $subject->id)
+            ->get()
+            ->groupBy('student_id');
 
-            $totalSessions = Attendance::where('subject_id', $subject->id)
-                ->distinct('date')
-                ->count();
+        // إجمالي الجلسات (استعلام واحد)
+        $totalSessions = Attendance::where('subject_id', $subject->id)
+            ->distinct('date')
+            ->count();
+
+        $reportData = $students->map(function ($student) use ($attendances, $totalSessions) {
+            // استرداد سجلات الطالب من المجموعة المحملة مسبقاً
+            $records = $attendances->get($student->id, collect());
 
             $present = $records->where('status', 'present')->count();
             $late = $records->where('status', 'late')->count();
@@ -101,19 +106,33 @@ class ReportController extends Controller
 
         $alertData = [];
 
-        // 3. فحص كل طالب في كل مادة
+        // أ. جلب إجمالي الجلسات لكل مادة مرة واحدة
+        $subjectSessions = [];
+        foreach ($subjects as $subject) {
+            $subjectSessions[$subject->id] = Attendance::where('subject_id', $subject->id)
+                ->distinct('date')
+                ->count();
+        }
+
+        // ب. جلب إحصائيات الغياب لكل الطلاب في هذه المواد مرة واحدة
+        $absences = Attendance::whereIn('subject_id', $subjects->pluck('id'))
+            ->whereIn('student_id', $students->pluck('id'))
+            ->where('status', 'absent')
+            ->select('student_id', 'subject_id', DB::raw('count(*) as count'))
+            ->groupBy('student_id', 'subject_id')
+            ->get()
+            ->groupBy('student_id');
+
+        // ج. فحص كل طالب في كل مادة بدون استعلامات إضافية (N+1 Fixed)
         foreach ($students as $student) {
+            $studentAbsences = $absences->get($student->id, collect())->keyBy('subject_id');
+
             foreach ($subjects as $subject) {
-                $totalSessions = Attendance::where('subject_id', $subject->id)
-                    ->distinct('date')
-                    ->count();
+                $totalSessions = $subjectSessions[$subject->id] ?? 0;
 
                 if ($totalSessions == 0) continue;
 
-                $absentCount = Attendance::where('student_id', $student->id)
-                    ->where('subject_id', $subject->id)
-                    ->where('status', 'absent')
-                    ->count();
+                $absentCount = $studentAbsences->has($subject->id) ? $studentAbsences[$subject->id]->count : 0;
 
                 $percentage = ($absentCount / $totalSessions) * 100;
 

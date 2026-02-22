@@ -108,6 +108,27 @@ Route::prefix('doctor')
         Route::post('messages/start', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'store'])->name('messages.store');
         Route::get('messages/{conversation}', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'show'])->name('messages.show');
         Route::post('messages/{conversation}/send', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'send'])->name('messages.send');
+
+        // Notifications
+        Route::get('notifications', [App\Http\Controllers\Doctor\NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/{id}/read', [App\Http\Controllers\Doctor\NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+        Route::post('notifications/mark-all-read', [App\Http\Controllers\Doctor\NotificationController::class, 'markAllAsRead'])->name('notifications.markAllRead');
+
+        // Clinical Training Hub
+        Route::prefix('clinical')->name('clinical.')->group(function () {
+            // Dashboard / Overview of Centers & Departments
+            Route::get('/', [App\Http\Controllers\Doctor\ClinicalController::class, 'index'])->name('index');
+
+            // Manage Training Centers
+            Route::resource('training-centers', App\Http\Controllers\Doctor\Clinical\TrainingCenterController::class)->except(['show']);
+
+            // Manage Clinical Cases
+            Route::resource('cases', App\Http\Controllers\Doctor\Clinical\ClinicalCaseController::class);
+
+            // Assign Cases to Students
+            Route::get('assignments', [App\Http\Controllers\Doctor\Clinical\AssignmentController::class, 'index'])->name('assignments.index');
+            Route::post('assignments', [App\Http\Controllers\Doctor\Clinical\AssignmentController::class, 'store'])->name('assignments.store');
+        });
     });
 
 Route::prefix('student')
@@ -115,12 +136,16 @@ Route::prefix('student')
     ->middleware(['auth', 'role:student', 'status'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
+
         Route::resource('subjects', App\Http\Controllers\Student\SubjectController::class)->only(['index', 'show']);
-        Route::get('schedule', [App\Http\Controllers\Student\ScheduleController::class, 'index'])->name('schedule.index');
+
         Route::get('assignments', [App\Http\Controllers\Student\AssignmentController::class, 'index'])->name('assignments.index');
         Route::get('assignments/{assignment}', [App\Http\Controllers\Student\AssignmentController::class, 'show'])->name('assignments.show');
         Route::post('assignments/{assignment}/submit', [App\Http\Controllers\Student\AssignmentController::class, 'submit'])->name('assignments.submit');
         Route::get('attendance', [App\Http\Controllers\Student\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/scan', function () {
+            return view('student.attendance.scan');
+        })->name('attendance.scan');
         Route::post('excuse', [App\Http\Controllers\Student\ExcuseController::class, 'store'])->name('excuse.store');
         Route::get('reminders', [App\Http\Controllers\Student\ReminderController::class, 'index'])->name('reminders.index');
         Route::get('resources', [App\Http\Controllers\Student\ResourceController::class, 'index'])->name('resources.index');
@@ -155,6 +180,23 @@ Route::prefix('student')
         Route::get('reports/attendance', [App\Http\Controllers\Student\ReportController::class, 'attendancePdf'])->name('reports.attendance');
         Route::get('reports/grades', [App\Http\Controllers\Student\ReportController::class, 'gradesPdf'])->name('reports.grades');
         Route::get('reports/exams', [App\Http\Controllers\Student\ReportController::class, 'examsPdf'])->name('reports.exams');
+
+        // Lectures Tracking
+        Route::get('lectures/{subject}', [App\Http\Controllers\Student\LectureController::class, 'index'])->name('lectures.index');
+        Route::post('lectures/toggle/{lecture}', [App\Http\Controllers\Student\LectureController::class, 'toggleStatus'])->name('lectures.toggle');
+
+        // Student Schedule (Smart Study Hub)
+        Route::get('schedule', [App\Http\Controllers\Student\StudentScheduleController::class, 'index'])->name('schedule.index');
+        Route::post('schedule', [App\Http\Controllers\Student\StudentScheduleController::class, 'store'])->name('schedule.store');
+        Route::post('schedule/custom-task', [App\Http\Controllers\Student\StudentScheduleController::class, 'storeCustomTask'])->name('schedule.storeCustomTask');
+        Route::get('schedule/check-reminders', [App\Http\Controllers\Student\StudentScheduleController::class, 'checkReminders'])->name('schedule.checkReminders');
+        Route::put('schedule/{id}', [App\Http\Controllers\Student\StudentScheduleController::class, 'update'])->name('schedule.update');
+        Route::delete('schedule/{id}', [App\Http\Controllers\Student\StudentScheduleController::class, 'destroy'])->name('schedule.destroy');
+        Route::post('schedule/reorder', [App\Http\Controllers\Student\StudentScheduleController::class, 'reorder'])->name('schedule.reorder');
+
+        // Shared Study Library
+        Route::get('library', [App\Http\Controllers\Student\LibraryController::class, 'index'])->name('library.index');
+        Route::post('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
     });
 
 Route::prefix('delegate')
@@ -162,6 +204,13 @@ Route::prefix('delegate')
     ->middleware(['auth', 'role:delegate', 'status'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Delegate\DashboardController::class, 'index'])->name('dashboard');
+
+        // Doctor Chat
+        Route::post('doctor-chat/{conversation}/send', [App\Http\Controllers\Delegate\DoctorChatController::class, 'send'])->name('doctor-chat.send');
+
+        // Shared Library Access for Delegate
+        Route::get('library', [App\Http\Controllers\Student\LibraryController::class, 'index'])->name('library.index');
+        Route::post('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
 
         // Students Management
         Route::resource('students', App\Http\Controllers\Delegate\StudentController::class);
@@ -177,6 +226,7 @@ Route::prefix('delegate')
         // Attendance
         Route::get('attendance', [App\Http\Controllers\Delegate\AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/{subject}/create', [App\Http\Controllers\Delegate\AttendanceController::class, 'create'])->name('attendance.create');
+        Route::get('attendance/{subject}/check', [App\Http\Controllers\Delegate\AttendanceController::class, 'check'])->name('attendance.check');
         Route::post('attendance/{subject}', [App\Http\Controllers\Delegate\AttendanceController::class, 'store'])->name('attendance.store');
         // Assignments
         Route::resource('assignments', App\Http\Controllers\Delegate\AssignmentController::class)->except(['create', 'edit', 'show']);
@@ -195,6 +245,9 @@ Route::prefix('delegate')
         Route::get('resources', [App\Http\Controllers\Delegate\ResourceController::class, 'index'])->name('resources.index');
         Route::get('resources/create', [App\Http\Controllers\Delegate\ResourceController::class, 'create'])->name('resources.create');
         Route::post('resources', [App\Http\Controllers\Delegate\ResourceController::class, 'store'])->name('resources.store');
+        Route::get('resources/{resource}/edit', [App\Http\Controllers\Delegate\ResourceController::class, 'edit'])->name('resources.edit');
+        Route::put('resources/{resource}', [App\Http\Controllers\Delegate\ResourceController::class, 'update'])->name('resources.update');
+        Route::post('resources/import', [App\Http\Controllers\Delegate\ResourceController::class, 'import'])->name('resources.import');
         Route::delete('resources/{resource}', [App\Http\Controllers\Delegate\ResourceController::class, 'destroy'])->name('resources.destroy');
 
         // Attendance Report Route (Correctly placed inside group)

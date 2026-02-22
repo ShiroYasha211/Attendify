@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Doctor;
 use App\Http\Controllers\Controller;
 use App\Models\Excuse;
 use App\Models\Academic\Subject;
+use App\Models\StudentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -69,6 +70,23 @@ class ExcuseController extends Controller
         if ($request->status === 'accepted') {
             $excuse->attendance->update(['status' => 'excused']);
         }
+
+        // Notify student about excuse decision
+        $subjectName = $excuse->attendance->subject->name ?? 'غير محدد';
+        $statusLabel = $request->status === 'accepted' ? 'قبول' : 'رفض';
+        $statusIcon = $request->status === 'accepted' ? '✅' : '❌';
+
+        StudentNotification::create([
+            'user_id' => $excuse->student_id,
+            'type'    => 'excuse',
+            'title'   => "{$statusIcon} تم {$statusLabel} العذر",
+            'message' => "تم {$statusLabel} عذرك في مادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')}.",
+            'data'    => [
+                'excuse_id'  => $excuse->id,
+                'status'     => $request->status,
+                'action_url' => route('student.attendance.index'),
+            ],
+        ]);
 
         return back()->with('success', 'تم تحديث حالة العذر بنجاح.');
     }

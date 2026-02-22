@@ -9,6 +9,7 @@ use App\Models\Academic\Subject;
 use App\Models\Announcement;
 use App\Models\Reminder;
 use App\Models\Academic\Assignment;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -51,11 +52,16 @@ class DashboardController extends Controller
         // 6. Deprivation Warnings (Horman)
         // Check per subject if student is absences >= max_absences - 1
         $warnings = [];
+
+        $subjectAbsencesCount = \App\Models\Attendance::where('student_id', $student->id)
+            ->whereIn('subject_id', $subjects->pluck('id'))
+            ->where('status', 'absent')
+            ->select('subject_id', DB::raw('count(*) as absences'))
+            ->groupBy('subject_id')
+            ->pluck('absences', 'subject_id');
+
         foreach ($subjects as $subject) {
-            $subjectAbsences = \App\Models\Attendance::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('status', 'absent')
-                ->count();
+            $subjectAbsences = $subjectAbsencesCount->get($subject->id, 0);
 
             // Logic: Warn if absences >= max - 1
             $threshold = $subject->max_absences ?? 5;
