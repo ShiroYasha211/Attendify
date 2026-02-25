@@ -189,6 +189,42 @@ class ResourceController extends Controller
 
         return back()->with('success', 'تم استيراد الملف إلى مقررك بنجاح.');
     }
+
+    /**
+     * Search the global library for import (AJAX)
+     */
+    public function searchLibrary(Request $request)
+    {
+        $query = $request->get('q');
+        $user = Auth::user();
+
+        $resources = CourseResource::with(['subject', 'uploader'])
+            ->whereHas('subject', function ($q) use ($user) {
+                $q->where('major_id', $user->major_id);
+            })
+            ->when($query, function ($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                    ->orWhereHas('subject', function ($sq) use ($query) {
+                        $sq->where('name', 'like', "%{$query}%");
+                    });
+            })
+            ->latest()
+            ->take(20)
+            ->get()
+            ->map(function ($resource) {
+                return [
+                    'id' => $resource->id,
+                    'title' => $resource->title,
+                    'subject_name' => $resource->subject->name ?? 'غير محدد',
+                    'category' => $resource->category,
+                    'file_type' => $resource->file_type,
+                    'uploader_name' => $resource->uploader->name ?? 'غير معروف',
+                    'created_at' => $resource->created_at->format('Y/m/d'),
+                ];
+            });
+
+        return response()->json($resources);
+    }
     public function edit(CourseResource $resource)
     {
         if ($resource->created_by !== Auth::id()) {

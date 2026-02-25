@@ -13,14 +13,32 @@ use Illuminate\Support\Facades\Auth;
 
 class ClinicalCaseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $cases = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem'])
-            ->where('doctor_id', Auth::id())
-            ->latest()
-            ->paginate(15);
+        $query = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem'])
+            ->where('doctor_id', Auth::id());
 
-        return view('doctor.clinical.cases.index', compact('cases'));
+        // Filters
+        if ($request->filled('patient_name')) {
+            $query->where('patient_name', 'like', '%' . $request->patient_name . '%');
+        }
+        if ($request->filled('training_center_id')) {
+            $query->where('training_center_id', $request->training_center_id);
+        }
+        if ($request->filled('clinical_department_id')) {
+            $query->where('clinical_department_id', $request->clinical_department_id);
+        }
+        if ($request->filled('body_system_id')) {
+            $query->where('body_system_id', $request->body_system_id);
+        }
+
+        $cases = $query->latest()->paginate(15)->withQueryString();
+
+        $centers = TrainingCenter::all();
+        $departments = ClinicalDepartment::all();
+        $systems = BodySystem::all();
+
+        return view('doctor.clinical.cases.index', compact('cases', 'centers', 'departments', 'systems'));
     }
 
     public function create()

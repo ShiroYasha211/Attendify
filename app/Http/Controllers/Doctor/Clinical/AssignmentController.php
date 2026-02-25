@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Auth;
 
 class AssignmentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $doctor = Auth::user();
 
@@ -26,10 +26,20 @@ class AssignmentController extends Controller
         $students = User::where('role', UserRole::STUDENT)->get();
 
         // Get existing assignments by this doctor
-        $assignments = CaseAssignment::with(['student', 'clinicalCase'])
-            ->where('assigned_by', $doctor->id)
-            ->latest()
-            ->paginate(20);
+        $query = CaseAssignment::with(['student', 'clinicalCase'])
+            ->where('assigned_by', $doctor->id);
+
+        if ($request->filled('filter_student_id')) {
+            $query->where('student_id', $request->filter_student_id);
+        }
+        if ($request->filled('filter_case_id')) {
+            $query->where('clinical_case_id', $request->filter_case_id);
+        }
+        if ($request->filled('filter_task_type')) {
+            $query->where('task_type', $request->filter_task_type);
+        }
+
+        $assignments = $query->latest()->paginate(20)->withQueryString();
 
         return view('doctor.clinical.assignments.index', compact('cases', 'students', 'assignments'));
     }

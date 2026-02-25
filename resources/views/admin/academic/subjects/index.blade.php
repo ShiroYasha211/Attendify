@@ -492,6 +492,26 @@
                 <span class="count-badge">{{ $subjects->total() }} مادة</span>
             </div>
 
+            {{-- Filter Bar --}}
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px; position: relative;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="subjectSearch" placeholder="ابحث عن مادة..." class="form-control" style="padding-right: 2.5rem; font-size: 0.88rem;" onkeyup="filterSubjects()">
+                </div>
+                <select id="majorFilter" class="form-control" style="flex: 0 0 220px; font-size: 0.88rem;" onchange="filterSubjects()">
+                    <option value="">كل التخصصات</option>
+                    @php
+                    $uniqueMajors = $subjects->pluck('major.name')->unique()->filter()->sort();
+                    @endphp
+                    @foreach($uniqueMajors as $majorName)
+                    <option value="{{ $majorName }}">{{ $majorName }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             <table class="modern-table">
                 <thead>
                     <tr>
@@ -504,7 +524,7 @@
                 </thead>
                 <tbody>
                     @forelse($subjects as $subject)
-                    <tr>
+                    <tr data-name="{{ $subject->name }}" data-major="{{ $subject->major->name ?? '' }}">
                         <td style="font-weight: 600; color: var(--text-secondary);">{{ $loop->iteration }}</td>
                         <td>
                             <div style="font-weight: 600;">{{ $subject->name }}</div>
@@ -635,3 +655,20 @@
 </div>
 
 @endsection
+
+@push('scripts')
+<script>
+    function filterSubjects() {
+        const search = document.getElementById('subjectSearch').value.toLowerCase();
+        const major = document.getElementById('majorFilter').value;
+        const rows = document.querySelectorAll('.modern-table tbody tr[data-name]');
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name').toLowerCase();
+            const rowMajor = row.getAttribute('data-major');
+            const matchSearch = !search || name.includes(search);
+            const matchMajor = !major || rowMajor === major;
+            row.style.display = (matchSearch && matchMajor) ? '' : 'none';
+        });
+    }
+</script>
+@endpush

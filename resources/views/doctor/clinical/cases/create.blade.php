@@ -153,7 +153,7 @@
             <div class="col-md-4 mb-3">
                 <div class="form-group">
                     <label class="form-label">المركز التدريبي / المستشفى <span style="color:red">*</span></label>
-                    <select name="training_center_id" class="form-select @error('training_center_id') is-invalid @enderror" required>
+                    <select name="training_center_id" class="form-select select2 @error('training_center_id') is-invalid @enderror" required>
                         <option value="">-- اختر المركز --</option>
                         @foreach($centers as $c)
                         <option value="{{ $c->id }}" {{ old('training_center_id') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
@@ -166,7 +166,7 @@
             <div class="col-md-4 mb-3">
                 <div class="form-group">
                     <label class="form-label">القسم الطبي <span style="color:red">*</span></label>
-                    <select name="clinical_department_id" class="form-select @error('clinical_department_id') is-invalid @enderror" required>
+                    <select name="clinical_department_id" class="form-select select2 @error('clinical_department_id') is-invalid @enderror" required>
                         <option value="">-- اختر القسم --</option>
                         @foreach($departments as $d)
                         <option value="{{ $d->id }}" {{ old('clinical_department_id') == $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
@@ -179,7 +179,7 @@
             <div class="col-md-4 mb-3">
                 <div class="form-group">
                     <label class="form-label">الجهاز المرضي (Body System) <span style="color:red">*</span></label>
-                    <select name="body_system_id" class="form-select @error('body_system_id') is-invalid @enderror" required>
+                    <select name="body_system_id" class="form-select select2 @error('body_system_id') is-invalid @enderror" required>
                         <option value="">-- اختر الجهاز --</option>
                         @foreach($systems as $s)
                         <option value="{{ $s->id }}" {{ old('body_system_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
@@ -222,3 +222,16 @@
     </form>
 </div>
 @endsection
+
+@push('scripts')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('.select2').select2({
+            dir: "rtl",
+            width: '100%'
+        });
+    });
+</script>
+@endpush

@@ -9,9 +9,14 @@ use App\Models\Clinical\TrainingCenter;
 
 class TrainingCenterController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $centers = TrainingCenter::latest()->paginate(10);
+        $query = TrainingCenter::latest();
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%')
+                ->orWhere('location', 'like', '%' . $request->search . '%');
+        }
+        $centers = $query->paginate(10)->withQueryString();
         return view('doctor.clinical.training_centers.index', compact('centers'));
     }
 

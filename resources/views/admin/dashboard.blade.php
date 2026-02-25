@@ -226,6 +226,41 @@
 
 </div>
 
+<!-- 7-Day Attendance Trend -->
+@if($weeklyTrend->isNotEmpty())
+@php $maxTrend = max($weeklyTrend->max('total'), 1); @endphp
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1.5rem; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        اتجاه الحضور — آخر 7 أيام
+    </h3>
+    <div style="display: flex; align-items: flex-end; gap: 0.75rem; height: 140px; padding-bottom: 2rem; border-bottom: 2px solid #f1f5f9;">
+        @foreach($weeklyTrend as $day)
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; height: 100%; justify-content: flex-end;">
+            <div style="display: flex; flex-direction: column; width: 100%; gap: 2px; height: {{ ($day->total / $maxTrend) * 100 }}%;">
+                <div style="flex: {{ $day->present }}; background: linear-gradient(180deg, #34d399, #10b981); border-radius: 6px 6px 0 0; min-height: {{ $day->present > 0 ? '4px' : '0' }};"></div>
+                <div style="flex: {{ $day->absent }}; background: linear-gradient(180deg, #f87171, #ef4444); border-radius: 0 0 6px 6px; min-height: {{ $day->absent > 0 ? '4px' : '0' }};"></div>
+            </div>
+            <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">
+                {{ \Carbon\Carbon::parse($day->day)->locale('ar')->isoFormat('ddd') }}
+            </span>
+        </div>
+        @endforeach
+    </div>
+    <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 0.75rem; font-size: 0.8rem;">
+        <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <span style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; display: inline-block;"></span>
+            حاضر
+        </span>
+        <span style="display: flex; align-items: center; gap: 0.35rem;">
+            <span style="width: 10px; height: 10px; background: #ef4444; border-radius: 50%; display: inline-block;"></span>
+            غائب
+        </span>
+    </div>
+</div>
+@endif
 <!-- Bottom Section -->
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
 

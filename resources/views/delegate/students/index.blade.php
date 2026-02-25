@@ -420,107 +420,190 @@
     </div>
     @endif
 
-    <div class="content-grid">
-        <!-- Create Form -->
-        <div class="create-card">
-            <div class="create-header">
-                <h3>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="8.5" cy="7" r="4"></circle>
-                        <line x1="20" y1="8" x2="20" y2="14"></line>
-                        <line x1="23" y1="11" x2="17" y2="11"></line>
-                    </svg>
-                    تسجيل طالب جديد
-                </h3>
+    @if(session('import_report'))
+    @php $report = session('import_report'); @endphp
+    <div style="background: white; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid var(--border-color); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        <h3 style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem; margin-bottom: 1rem; color: var(--text-primary);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            تقرير الاستيراد
+        </h3>
+
+        <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <div style="background: #ecfdf5; padding: 1rem 1.5rem; border-radius: 12px; border: 1px solid #d1fae5; flex: 1; text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #059669;">{{ $report['success_count'] }}</div>
+                <div style="font-size: 0.9rem; color: #10b981; font-weight: 600;">طالب تمت إضافته بنجاح</div>
             </div>
-            <div class="create-body">
-                <div class="info-box">
-                    <div class="title">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="16" x2="12" y2="12"></line>
-                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            <div style="background: #fef2f2; padding: 1rem 1.5rem; border-radius: 12px; border: 1px solid #fee2e2; flex: 1; text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #dc2626;">{{ count($report['errors']) }}</div>
+                <div style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">طلاب فشلت إضافتهم</div>
+            </div>
+        </div>
+
+        @if(count($report['errors']) > 0)
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem;">
+            <h4 style="margin-bottom: 0.75rem; font-size: 0.95rem; color: var(--text-primary); font-weight: 600;">تفاصيل الأخطاء:</h4>
+            <ul style="margin: 0; padding-right: 1.25rem; color: #dc2626; font-size: 0.85rem; max-height: 200px; overflow-y: auto;">
+                @foreach($report['errors'] as $error)
+                <li style="margin-bottom: 0.35rem;">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+    </div>
+    @endif
+
+    <div class="content-grid">
+        <!-- Forms Column -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- Create Form Card -->
+            <div class="create-card" style="position: static;">
+                <div class="create-header">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="20" y1="8" x2="20" y2="14"></line>
+                            <line x1="23" y1="11" x2="17" y2="11"></line>
                         </svg>
-                        سيتم التسجيل تلقائياً في:
-                    </div>
-                    <ul>
-                        <li>{{ Auth::user()->university->name ?? 'الجامعة' }}</li>
-                        <li>{{ Auth::user()->college->name ?? 'الكلية' }}</li>
-                        <li>{{ Auth::user()->major->name ?? 'التخصص' }}</li>
-                        <li>{{ Auth::user()->level->name ?? 'المستوى' }}</li>
-                    </ul>
+                        تسجيل طالب جديد
+                    </h3>
                 </div>
-
-                <form action="{{ route('delegate.students.store') }}" method="POST">
-                    @csrf
-
-                    <div class="form-group">
-                        <label>الاسم الكامل</label>
-                        <div class="input-wrapper">
-                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
+                <div class="create-body">
+                    <div class="info-box">
+                        <div class="title">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
                             </svg>
-                            <input type="text" name="name" placeholder="اسم الطالب..." required>
+                            سيتم التسجيل تلقائياً في:
                         </div>
+                        <ul>
+                            <li>{{ Auth::user()->university->name ?? 'الجامعة' }}</li>
+                            <li>{{ Auth::user()->college->name ?? 'الكلية' }}</li>
+                            <li>{{ Auth::user()->major->name ?? 'التخصص' }}</li>
+                            <li>{{ Auth::user()->level->name ?? 'المستوى' }}</li>
+                        </ul>
                     </div>
 
-                    <div class="form-group">
-                        <label>الرقم الجامعي</label>
-                        <div class="input-wrapper">
-                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                            </svg>
-                            <input type="text" name="student_number" placeholder="12345678" required>
-                        </div>
-                    </div>
+                    <form action="{{ route('delegate.students.store') }}" method="POST">
+                        @csrf
 
-                    <div class="form-group">
-                        <label>البريد الإلكتروني</label>
-                        <div class="input-wrapper">
-                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                <polyline points="22,6 12,13 2,6"></polyline>
-                            </svg>
-                            <input type="email" name="email" placeholder="student@example.com" required>
+                        <div class="form-group">
+                            <label>الاسم الكامل</label>
+                            <div class="input-wrapper">
+                                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                                <input type="text" name="name" placeholder="اسم الطالب..." required>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="form-group">
-                        <label>كلمة المرور</label>
-                        <div class="input-wrapper">
-                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                            </svg>
-                            <input type="password" name="password" required>
+                        <div class="form-group">
+                            <label>الرقم الجامعي</label>
+                            <div class="input-wrapper">
+                                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                <input type="text" name="student_number" placeholder="12345678" required>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="form-group">
-                        <label>تأكيد كلمة المرور</label>
-                        <div class="input-wrapper">
-                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                            </svg>
-                            <input type="password" name="password_confirmation" required>
+                        <div class="form-group">
+                            <label>البريد الإلكتروني</label>
+                            <div class="input-wrapper">
+                                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                    <polyline points="22,6 12,13 2,6"></polyline>
+                                </svg>
+                                <input type="email" name="email" placeholder="student@example.com" required>
+                            </div>
                         </div>
-                    </div>
 
-                    <button type="submit" class="btn-submit">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                            <polyline points="7 3 7 8 15 8"></polyline>
+                        <div class="form-group">
+                            <label>كلمة المرور</label>
+                            <div class="input-wrapper">
+                                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                                <input type="password" name="password" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>تأكيد كلمة المرور</label>
+                            <div class="input-wrapper">
+                                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                                <input type="password" name="password_confirmation" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            حفظ البيانات
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Import Form Card -->
+            <div class="create-card" style="position: sticky; top: 2rem;">
+                <div class="create-header" style="background: linear-gradient(135deg, #0284c7, #0369a1);">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        حفظ البيانات
-                    </button>
-                </form>
+                        استيراد الدفعة من CSV
+                    </h3>
+                </div>
+                <div class="create-body">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">
+                        وفر الوقت وقم برفع قائمة الطلاب دفعة واحدة.
+                        سيتم تعيين <strong style="color: var(--text-primary);">رقم القيد ككلمة سر افتراضية</strong> لكل طالب.
+                    </p>
+
+                    <a href="{{ route('delegate.students.template') }}" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.75rem; background: #f0f9ff; color: #0284c7; border: 1px dashed #bae6fd; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-bottom: 1.5rem; transition: all 0.2s;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        تحميل نموذج CSV
+                    </a>
+
+                    <form action="{{ route('delegate.students.import') }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="form-group" style="margin-bottom: 1.5rem;">
+                            <input type="file" name="csv_file" accept=".csv" required style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem; background: #fafafa; cursor: pointer;">
+                        </div>
+                        <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 12px -2px rgba(2, 132, 199, 0.4);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="16 16 12 12 8 16"></polyline>
+                                <line x1="12" y1="12" x2="12" y2="21"></line>
+                                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+                                <polyline points="16 16 12 12 8 16"></polyline>
+                            </svg>
+                            بدء الاستيراد
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
 

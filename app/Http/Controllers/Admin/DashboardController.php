@@ -92,6 +92,18 @@ class DashboardController extends Controller
         $todayAttendance = Attendance::whereDate('date', today())->count();
         $todayAbsent = Attendance::whereDate('date', today())->where('status', 'absent')->count();
 
+        // 10. اتجاه الحضور لآخر 7 أيام
+        $weeklyTrend = Attendance::select(
+            DB::raw('DATE(date) as day'),
+            DB::raw('SUM(CASE WHEN status = "present" THEN 1 ELSE 0 END) as present'),
+            DB::raw('SUM(CASE WHEN status = "absent" THEN 1 ELSE 0 END) as absent'),
+            DB::raw('COUNT(*) as total')
+        )
+            ->where('date', '>=', now()->subDays(6)->startOfDay())
+            ->groupBy(DB::raw('DATE(date)'))
+            ->orderBy('day')
+            ->get();
+
         return view('admin.dashboard', compact(
             'user',
             'userStats',
@@ -103,7 +115,8 @@ class DashboardController extends Controller
             'latestAttendance',
             'latestUsers',
             'todayAttendance',
-            'todayAbsent'
+            'todayAbsent',
+            'weeklyTrend'
         ));
     }
 

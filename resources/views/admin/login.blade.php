@@ -259,6 +259,29 @@
             transform: translateY(0);
         }
 
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-submit .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 0.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         /* Footer */
         .login-footer {
             margin-top: 2rem;
@@ -502,8 +525,9 @@
                     </div>
 
                     <!-- Submit -->
-                    <button type="submit" class="btn-submit">
-                        تسجيل الدخول
+                    <button type="submit" class="btn-submit" id="loginBtn">
+                        <span id="btnText">تسجيل الدخول</span>
+                        <span class="spinner" id="btnSpinner"></span>
                     </button>
                 </form>
 
@@ -603,6 +627,16 @@
         }
 
         setInterval(nextSlide, 5000);
+
+        // Loading spinner on form submit
+        document.querySelector('form').addEventListener('submit', function() {
+            const btn = document.getElementById('loginBtn');
+            const text = document.getElementById('btnText');
+            const spinner = document.getElementById('btnSpinner');
+            btn.disabled = true;
+            text.textContent = 'جاري تسجيل الدخول...';
+            spinner.style.display = 'inline-block';
+        });
     </script>
 
 </body>

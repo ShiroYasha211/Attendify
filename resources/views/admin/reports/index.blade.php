@@ -346,32 +346,156 @@
     .input-with-icon select {
         padding-right: 2.75rem;
     }
+
+    /* Charts Section */
+    .charts-section {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 20px;
+        border: 1px solid var(--border-color);
+        padding: 1.75rem;
+    }
+
+    .chart-card h4 {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 1.5rem;
+        height: 180px;
+        padding-bottom: 2rem;
+        border-bottom: 2px solid #f1f5f9;
+        position: relative;
+    }
+
+    .bar-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+        height: 100%;
+        justify-content: flex-end;
+    }
+
+    .bar {
+        width: 100%;
+        max-width: 60px;
+        border-radius: 8px 8px 0 0;
+        transition: height 1s ease;
+        position: relative;
+    }
+
+    .bar .bar-value {
+        position: absolute;
+        top: -22px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .bar.present {
+        background: linear-gradient(180deg, #34d399, #10b981);
+    }
+
+    .bar.absent {
+        background: linear-gradient(180deg, #f87171, #ef4444);
+    }
+
+    .bar.late {
+        background: linear-gradient(180deg, #fbbf24, #f59e0b);
+    }
+
+    .bar.excused {
+        background: linear-gradient(180deg, #60a5fa, #3b82f6);
+    }
+
+    .bar.present .bar-value {
+        color: #059669;
+    }
+
+    .bar.absent .bar-value {
+        color: #dc2626;
+    }
+
+    .bar.late .bar-value {
+        color: #d97706;
+    }
+
+    .bar.excused .bar-value {
+        color: #2563eb;
+    }
+
+    .bar-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    .distribution-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .dist-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .dist-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .dist-info {
+        flex: 1;
+    }
+
+    .dist-info .dist-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+    }
+
+    .dist-bar-bg {
+        height: 8px;
+        background: #f1f5f9;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .dist-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 1s ease;
+    }
+
+    .dist-percent {
+        font-size: 0.85rem;
+        font-weight: 700;
+        min-width: 42px;
+        text-align: left;
+    }
 </style>
-
-@php
-$totalStudents = \App\Models\User::where('role', 'student')->count();
-$totalDoctors = \App\Models\User::where('role', 'doctor')->count();
-$totalSubjects = \App\Models\Academic\Subject::count();
-$totalAttendance = \App\Models\Attendance::count();
-$deprivedCount = 0;
-
-// Calculate deprived students count
-$subjectsWithMax = \App\Models\Academic\Subject::all();
-foreach ($subjectsWithMax as $subj) {
-$studentsInSubject = \App\Models\User::where('role', 'student')
-->where('level_id', $subj->term->level_id ?? 0)
-->get();
-foreach ($studentsInSubject as $stu) {
-$absentCount = \App\Models\Attendance::where('student_id', $stu->id)
-->where('subject_id', $subj->id)
-->where('status', 'absent')
-->count();
-if ($absentCount >= $subj->max_absences) {
-$deprivedCount++;
-}
-}
-}
-@endphp
 
 <!-- Page Header -->
 <div class="page-header">
@@ -412,6 +536,102 @@ $deprivedCount++;
     </div>
 </div>
 
+<!-- Charts Section -->
+@php
+$maxBar = max($presentCount, $absentCountAll, $lateCount, $excusedCount, 1);
+$totalAtt = max($totalAttendance, 1);
+@endphp
+
+<div class="charts-section">
+    <div class="chart-card">
+        <h4>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            توزيع سجلات الحضور
+        </h4>
+        <div class="bar-chart">
+            <div class="bar-group">
+                <div class="bar present" style="height: {{ ($presentCount / $maxBar) * 100 }}%">
+                    <span class="bar-value">{{ number_format($presentCount) }}</span>
+                </div>
+                <span class="bar-label">حاضر</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar absent" style="height: {{ ($absentCountAll / $maxBar) * 100 }}%">
+                    <span class="bar-value">{{ number_format($absentCountAll) }}</span>
+                </div>
+                <span class="bar-label">غائب</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar late" style="height: {{ ($lateCount / $maxBar) * 100 }}%">
+                    <span class="bar-value">{{ number_format($lateCount) }}</span>
+                </div>
+                <span class="bar-label">متأخر</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar excused" style="height: {{ ($excusedCount / $maxBar) * 100 }}%">
+                    <span class="bar-value">{{ number_format($excusedCount) }}</span>
+                </div>
+                <span class="bar-label">بعذر</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h4>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10"></path>
+            </svg>
+            النسب المئوية
+        </h4>
+        <div class="distribution-list">
+            <div class="dist-item">
+                <div class="dist-dot" style="background: #10b981;"></div>
+                <div class="dist-info">
+                    <div class="dist-label">حاضر</div>
+                    <div class="dist-bar-bg">
+                        <div class="dist-bar-fill" style="width: {{ round(($presentCount / $totalAtt) * 100) }}%; background: #10b981;"></div>
+                    </div>
+                </div>
+                <span class="dist-percent" style="color: #059669;">{{ round(($presentCount / $totalAtt) * 100) }}%</span>
+            </div>
+            <div class="dist-item">
+                <div class="dist-dot" style="background: #ef4444;"></div>
+                <div class="dist-info">
+                    <div class="dist-label">غائب</div>
+                    <div class="dist-bar-bg">
+                        <div class="dist-bar-fill" style="width: {{ round(($absentCountAll / $totalAtt) * 100) }}%; background: #ef4444;"></div>
+                    </div>
+                </div>
+                <span class="dist-percent" style="color: #dc2626;">{{ round(($absentCountAll / $totalAtt) * 100) }}%</span>
+            </div>
+            <div class="dist-item">
+                <div class="dist-dot" style="background: #f59e0b;"></div>
+                <div class="dist-info">
+                    <div class="dist-label">متأخر</div>
+                    <div class="dist-bar-bg">
+                        <div class="dist-bar-fill" style="width: {{ round(($lateCount / $totalAtt) * 100) }}%; background: #f59e0b;"></div>
+                    </div>
+                </div>
+                <span class="dist-percent" style="color: #d97706;">{{ round(($lateCount / $totalAtt) * 100) }}%</span>
+            </div>
+            <div class="dist-item">
+                <div class="dist-dot" style="background: #3b82f6;"></div>
+                <div class="dist-info">
+                    <div class="dist-label">بعذر</div>
+                    <div class="dist-bar-bg">
+                        <div class="dist-bar-fill" style="width: {{ round(($excusedCount / $totalAtt) * 100) }}%; background: #3b82f6;"></div>
+                    </div>
+                </div>
+                <span class="dist-percent" style="color: #2563eb;">{{ round(($excusedCount / $totalAtt) * 100) }}%</span>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Reports Grid -->
 <div class="reports-grid">
 

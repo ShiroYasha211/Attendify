@@ -10,13 +10,23 @@
         <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">إدارة المصادر</h1>
         <p style="color: var(--text-secondary); margin: 0; font-size: 1rem;">لوحة التحكم في كافة الملفات والمستندات الدراسية</p>
     </div>
-    <a href="{{ route('delegate.resources.create') }}" class="btn btn-primary shadow-lg" style="padding: 0.75rem 2rem; font-weight: 700; border-radius: 50px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border: none; box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.4); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: transform 0.2s;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span>رفع ملف جديد</span>
-    </a>
+    <div style="display: flex; gap: 1rem;">
+        <button x-data @click="$dispatch('open-import-modal')" class="btn shadow-sm" style="padding: 0.75rem 1.5rem; font-weight: 700; border-radius: 50px; background: white; color: #4f46e5; border: 2px solid #4f46e5; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>استيراد من المكتبة</span>
+        </button>
+        <a href="{{ route('delegate.resources.create') }}" class="btn btn-primary shadow-lg" style="padding: 0.75rem 2rem; font-weight: 700; border-radius: 50px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border: none; box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.4); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: transform 0.2s;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>رفع ملف جديد</span>
+        </a>
+    </div>
 </div>
 
 <!-- Stats Overview -->
@@ -438,6 +448,47 @@
         box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
     }
 
+    /* Import Modal specific */
+    .import-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .import-modal-container {
+        background: white;
+        border-radius: 20px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+    }
+
+    .search-result-item {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .search-result-item:hover {
+        background: #f8fafc;
+    }
+
+    .search-result-item.selected {
+        background: #eff6ff;
+        border-left: 4px solid var(--primary-color);
+    }
+
     .page-link {
         color: var(--text-primary);
         border-radius: 10px;
@@ -473,4 +524,185 @@
         color: #dc2626 !important;
     }
 </style>
+</style>
+
+<!-- Import Modal (Alpine.js) -->
+<div x-data="importModalData()"
+    @open-import-modal.window="openModal()"
+    x-show="isOpen"
+    class="import-modal-overlay"
+    style="display: none;"
+    x-transition.opacity>
+
+    <div class="import-modal-container" @click.away="isOpen = false" x-transition.scale>
+
+        <!-- Header -->
+        <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 40px; height: 40px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--primary-color); box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </div>
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">استيراد من المكتبة العامة</h3>
+            </div>
+            <button @click="isOpen = false" style="background: none; border: none; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Search Input -->
+        <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
+            <div style="position: relative;">
+                <input type="text" x-model="searchQuery" @input.debounce.500ms="fetchResults()" placeholder="أدخل اسم الملف أو המادة للبحث..." style="width: 100%; height: 50px; background: #f1f5f9; border: 2px solid transparent; border-radius: 12px; padding: 0 3rem 0 1rem; font-size: 1rem; font-weight: 600; outline: none; transition: 0.2s;" onfocus="this.style.background='white'; this.style.borderColor='var(--primary-color)';">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" style="position: absolute; right: 1rem; top: 15px;">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+
+                <!-- Loading indicator -->
+                <div x-show="isLoading" style="position: absolute; left: 1rem; top: 15px;">
+                    <div style="width: 20px; height: 20px; border: 2px solid #e2e8f0; border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Area -->
+        <div style="flex: 1; overflow-y: auto; max-height: 400px; background: white; padding: 0.5rem 0;">
+
+            <div x-show="results.length === 0 && !isLoading && searchQuery !== ''" style="padding: 2rem; text-align: center; color: #94a3b8;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.5;">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <p style="font-weight: 600;">لا توجد نتائج مطابقة لبحثك</p>
+            </div>
+
+            <div x-show="results.length === 0 && searchQuery === ''" style="padding: 2rem; text-align: center; color: #94a3b8;">
+                <p style="font-weight: 600;">اكتب كلمة مفتاحية للتبحث في أرشيف المكتبة</p>
+            </div>
+
+            <template x-for="item in results" :key="item.id">
+                <div @click="selectedResourceId = item.id" class="search-result-item" :class="{'selected': selectedResourceId === item.id}" style="display: flex; gap: 1rem; align-items: center;">
+                    <!-- Icon -->
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #64748b;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                            <polyline points="13 2 13 9 20 9"></polyline>
+                        </svg>
+                    </div>
+                    <!-- Details -->
+                    <div style="flex: 1; min-width: 0;">
+                        <h4 x-text="item.title" style="margin: 0 0 0.25rem 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h4>
+                        <div style="display: flex; gap: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); align-items: center;">
+                            <span x-text="item.subject_name" style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #475569;"></span>
+                            &bull;
+                            <span x-text="item.uploader_name"></span>
+                            &bull;
+                            <span x-text="item.created_at"></span>
+                        </div>
+                    </div>
+                    <!-- Radio Button equivalent visual -->
+                    <div style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center;">
+                        <div x-show="selectedResourceId === item.id" style="width: 10px; height: 10px; background: var(--primary-color); border-radius: 50%;"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Footer / Submit Form -->
+        <div style="padding: 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 1rem;">
+
+            <form action="{{ route('delegate.resources.import') }}" method="POST" id="importForm" x-show="selectedResourceId">
+                @csrf
+                <input type="hidden" name="resource_id" :value="selectedResourceId">
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 700; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-primary);">استيراد الملف إلى المادة: <span style="color: #ef4444;">*</span></label>
+                    <select name="subject_id" required style="width: 100%; height: 46px; background: white; border: 2px solid #e2e8f0; border-radius: 10px; padding: 0 1rem; font-weight: 600; outline: none;">
+                        <option value="">اختر المادة الدراسية...</option>
+                        @foreach($subjects as $subject)
+                        <option value="{{ $subject->id }}">{{ $subject->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; height: 46px; border-radius: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem;" :disabled="!selectedResourceId">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    تأكيد الاستيراد المباشر
+                </button>
+            </form>
+
+            <div x-show="!selectedResourceId" style="text-align: center; color: #94a3b8; font-size: 0.9rem;">
+                الرجاء البحث واختيار ملف من القائمة أولاً للمتابعة.
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<script>
+    function importModalData() {
+        return {
+            isOpen: false,
+            searchQuery: '',
+            isLoading: false,
+            results: [],
+            selectedResourceId: null,
+
+            openModal() {
+                this.isOpen = true;
+                this.selectedResourceId = null;
+                // Don't auto-fetch empty if you don't want to load all
+            },
+
+            fetchResults() {
+                if (this.searchQuery.length < 2) {
+                    // Start searching from 2 chars
+                    return;
+                }
+
+                this.isLoading = true;
+
+                fetch(`{{ route('delegate.resources.search-library') }}?q=${encodeURIComponent(this.searchQuery)}`, {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        this.results = data;
+                        this.isLoading = false;
+
+                        // Reset selection if not in new results
+                        if (this.selectedResourceId && !this.results.find(r => r.id === this.selectedResourceId)) {
+                            this.selectedResourceId = null;
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching library:", err);
+                        this.isLoading = false;
+                    });
+            }
+        }
+    }
+</script>
+
 @endsection

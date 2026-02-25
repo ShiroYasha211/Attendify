@@ -42,7 +42,7 @@ class DashboardController extends Controller
             $q->where('major_id', $delegate->major_id)
                 ->where('level_id', $delegate->level_id);
         })
-            ->with(['student', 'subject'])
+            ->with(['student' => fn($q) => $q->select('id', 'name', 'student_number'), 'subject' => fn($q) => $q->select('id', 'name')])
             ->latest()
             ->take(5)
             ->get();
@@ -62,7 +62,7 @@ class DashboardController extends Controller
                 $q->where('major_id', $delegate->major_id)
                     ->where('level_id', $delegate->level_id);
             })
-            ->with('subject')
+            ->with(['subject' => fn($q) => $q->select('id', 'name')])
             ->orderBy('start_time')
             ->get();
 

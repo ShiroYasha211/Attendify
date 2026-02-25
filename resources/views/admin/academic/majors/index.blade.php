@@ -316,7 +316,8 @@
     modalMessage: '',
     editUrl: '',
     editName: '',
-    editCollegeId: ''
+    editCollegeId: '',
+    editHasClinical: false
 }">
 
     <!-- Page Header -->
@@ -476,6 +477,20 @@
                     <small>سيقوم النظام بإنشاء المستويات والفصول تلقائياً</small>
                 </div>
 
+                {{-- Clinical Training Toggle --}}
+                <div style="margin-top: 1rem; padding: 0.875rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 600; color: #1e40af; font-size: 0.9rem;">
+                        <input type="checkbox" name="has_clinical" value="1" style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <polyline points="17 11 19 13 23 9"></polyline>
+                        </svg>
+                        يحتوي على تدريب عملي (سريري)
+                    </label>
+                    <small style="display: block; margin-top: 0.5rem; color: #3b82f6; font-size: 0.78rem;">فعّل هذا الخيار إذا كان التخصص يتطلب تدريباً عملياً ويحتاج مندوب عملي</small>
+                </div>
+
                 <button type="submit" class="btn-submit">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -512,7 +527,12 @@
                     @forelse($majors as $major)
                     <tr>
                         <td style="font-weight: 600; color: var(--text-secondary);">{{ $loop->iteration }}</td>
-                        <td style="font-weight: 600;">{{ $major->name }}</td>
+                        <td style="font-weight: 600;">
+                            {{ $major->name }}
+                            @if($major->has_clinical)
+                            <span style="display: inline-flex; align-items: center; gap: 0.2rem; background: #dbeafe; color: #1d4ed8; padding: 0.15rem 0.4rem; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-right: 0.35rem;">🏥 عملي</span>
+                            @endif
+                        </td>
                         <td>
                             <span class="badge badge-warning">{{ $major->college->name }}</span>
                             <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">{{ $major->college->university->name }}</div>
@@ -546,6 +566,7 @@
                                         editUrl = '{{ route('admin.majors.update', $major) }}';
                                         editName = '{{ $major->name }}';
                                         editCollegeId = '{{ $major->college_id }}';
+                                        editHasClinical = {{ $major->has_clinical ? 'true' : 'false' }};
                                     ">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -614,6 +635,19 @@
             <div class="form-group">
                 <label for="edit_name" class="form-label">اسم التخصص</label>
                 <input type="text" name="name" id="edit_name" class="form-control" x-model="editName" required>
+            </div>
+
+            {{-- Clinical Training Toggle --}}
+            <div style="padding: 0.875rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;">
+                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 600; color: #1e40af; font-size: 0.9rem;">
+                    <input type="checkbox" name="has_clinical" value="1" :checked="editHasClinical" style="width: 18px; height: 18px; accent-color: #3b82f6;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <polyline points="17 11 19 13 23 9"></polyline>
+                    </svg>
+                    يحتوي على تدريب عملي (سريري)
+                </label>
             </div>
 
             <div class="modal-actions">

@@ -1,0 +1,109 @@
+<?php
+
+namespace App\Http\Controllers\Api\Admin;
+
+use App\Models\User;
+use App\Enums\UserRole;
+use App\Traits\LogsActivity;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+
+class StudentController extends AdminApiController
+{
+    use LogsActivity;
+
+    public function index(Request $request)
+    {
+        $query = User::where('role', UserRole::STUDENT)
+            ->with(['university', 'college', 'major', 'level'])
+            ->latest();
+
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('student_number', 'like', "%{$request->search}%")
+                    ->orWhere('email', 'like', "%{$request->search}%");
+            });
+        }
+        if ($request->major_id) {
+            $query->where('major_id', $request->major_id);
+        }
+
+        return $this->paginated($query->paginate($request->per_page ?? 15));
+    }
+
+    public function show(User $student)
+    {
+        return $this->success($student->load('university', 'college', 'major', 'level'));
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users',
+            'student_number' => 'required|string|unique:users,student_number|max:50',
+            'password' => 'required|string|min:8',
+            'level_id' => 'required|exists:levels,id',
+        ]);
+
+        $level = \App\Models\Academic\Level::with('major.college.university')->findOrFail($request->level_id);
+
+        $student = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'student_number' => $request->student_number,
+            'password' => Hash::make($request->password),
+            'role' => UserRole::STUDENT,
+            'level_id' => $level->id,
+            'major_id' => $level->major_id,
+            'college_id' => $level->major->college_id,
+            'university_id' => $level->major->college->university_id,
+        ]);
+
+        $this->logCreate('Student', $student, "تم تسجيل الطالب: {$student->name}");
+
+        return $this->success($student, 'تم تسجيل الطالب بنجاح', 201);
+    }
+
+    public function update(Request $request, User $student)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $student->id,
+            'student_number' => 'required|string|max:50|unique:users,student_number,' . $student->id,
+            'level_id' => 'required|exists:levels,id',
+        ]);
+
+        $level = \App\Models\Academic\Level::with('major.college.university')->findOrFail($request->level_id);
+
+        $data = [
+            'name' => $request->name,
+            'email' => $request->email,
+            'student_number' => $request->student_number,
+            'level_id' => $level->id,
+            'major_id' => $level->major_id,
+            'college_id' => $level->major->college_id,
+            'university_id' => $level->major->college->university_id,
+        ];
+
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        $student->update($data);
+        $this->logUpdate('Student', $student, "تم تعديل بيانات الطالب: {$student->name}");
+
+        return $this->success($student->fresh(), 'تم تحديث بيانات الطالب بنجاح');
+    }
+
+    public function destroy(User $student)
+    {
+        if ($student->role !== UserRole::STUDENT) {
+            return $this->error('المستخدم ليس طالباً.', 422);
+        }
+        $this->logDelete('Student', $student, "تم حذف الطالب: {$student->name}");
+        $student->delete();
+        return $this->success(null, 'تم حذف الطالب بنجاح');
+    }
+}

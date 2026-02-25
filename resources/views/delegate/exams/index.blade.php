@@ -427,6 +427,7 @@
 
 <div x-data="{ 
     showCreateModal: false,
+    viewMode: 'cards', // 'cards' or 'calendar'
     items: [{id: 1, subject_id: '', exam_date: '', start_time: '', end_time: '', location: ''}],
     addItem() {
         this.items.push({
@@ -540,13 +541,38 @@
         </svg>
         <h3>لا توجد جداول اختبارات</h3>
         <p>ابدأ بإنشاء جدول اختبارات جديد للدفعة</p>
-        <button @click="showCreateModal = true" class="btn-create" style="display: inline-flex;">
+        <button @click="showCreateModal = true" class="btn-create" style="display: inline-flex; margin: 0 auto;">
             إنشاء أول جدول
         </button>
     </div>
     @else
-    <!-- Schedules Grid -->
-    <div class="schedules-grid">
+
+    <!-- View Options -->
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 1.5rem;">
+        <div style="display: flex; background: white; border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; padding: 0.25rem;">
+            <button @click="viewMode = 'cards'" :style="viewMode === 'cards' ? 'background: var(--primary-color); color: white;' : 'background: transparent; color: var(--text-secondary);'" style="padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                بطاقات
+            </button>
+            <button @click="viewMode = 'calendar'" :style="viewMode === 'calendar' ? 'background: var(--primary-color); color: white;' : 'background: transparent; color: var(--text-secondary);'" style="padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                مفكرة
+            </button>
+        </div>
+    </div>
+
+    <!-- Schedules Grid (Cards View) -->
+    <div class="schedules-grid" x-show="viewMode === 'cards'">
         @foreach($schedules as $schedule)
         <div class="schedule-card">
             <div class="schedule-header">
@@ -625,11 +651,74 @@
         @endforeach
     </div>
 
-    @if($schedules->hasPages())
-    <div style="margin-top: 2rem;">
+    @if($schedules->hasPages() && false) <!-- Hidden in specific view mode if complex -->
+    <div style="margin-top: 2rem;" x-show="viewMode === 'cards'">
         {{ $schedules->links() }}
     </div>
     @endif
+
+    <!-- Calendar View -->
+    <div x-show="viewMode === 'calendar'" style="display: none;">
+        <div style="background: white; border-radius: 20px; border: 1px solid var(--border-color); padding: 1.5rem; overflow-x: auto;">
+            <table style="width: 100%; min-width: 800px; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-color); text-align: right; color: var(--text-secondary);">التاريخ</th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-color); text-align: right; color: var(--text-secondary);">المادة</th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-color); text-align: right; color: var(--text-secondary);">الوقت</th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-color); text-align: right; color: var(--text-secondary);">القاعة</th>
+                        <th style="padding: 1rem; border-bottom: 2px solid var(--border-color); text-align: right; color: var(--text-secondary);">الجدول</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                    // Flatten items and sort by date
+                    $allItems = collect();
+                    foreach($schedules as $sched) {
+                    foreach($sched->items as $item) {
+                    $item->parent_schedule = $sched;
+                    $allItems->push($item);
+                    }
+                    }
+                    $allItems = $allItems->sortBy('exam_date');
+                    @endphp
+
+                    @forelse($allItems as $item)
+                    <tr>
+                        <td style="padding: 1rem; border-bottom: 1px solid var(--border-color); font-weight: 600;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--primary-color);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                {{ \Carbon\Carbon::parse($item->exam_date)->translatedFormat('l, d F Y') }}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem; border-bottom: 1px solid var(--border-color); font-weight: 700;">{{ $item->subject->name ?? '-' }}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <span style="background: #f1f5f9; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.85rem; font-weight: 600; color: #475569;">
+                                {{ \Carbon\Carbon::parse($item->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($item->end_time)->format('h:i A') }}
+                            </span>
+                        </td>
+                        <td style="padding: 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">{{ $item->location ?? 'غير محدد' }}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <a href="{{ route('delegate.exams.show', $item->parent_schedule->id) }}" style="color: var(--primary-color); text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+                                {{ Str::limit($item->parent_schedule->title, 20) }}
+                            </a>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-secondary);">لا توجد مواد مجدولة للوهلة الحالية.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     @endif
 
     <!-- Create Modal -->

@@ -62,7 +62,10 @@ class MajorController extends Controller
             $college = College::findOrFail($request->college_id);
 
             // 1. Create Major
-            $major = $this->academicService->createMajor($college, ['name' => $request->name]);
+            $major = $this->academicService->createMajor($college, [
+                'name' => $request->name,
+                'has_clinical' => $request->boolean('has_clinical'),
+            ]);
 
             // 2. Loop to create Levels (Years)
             for ($i = 1; $i <= $request->levels_count; $i++) {
@@ -108,7 +111,8 @@ class MajorController extends Controller
 
         $this->academicService->updateMajor($major, [
             'college_id' => $request->college_id,
-            'name' => $request->name
+            'name' => $request->name,
+            'has_clinical' => $request->boolean('has_clinical'),
         ]);
 
         return redirect()->route('admin.majors.index')

@@ -2,6 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 
+// Redirect root to login
+Route::redirect('/', '/admin/login');
+
 Route::prefix('admin')
     ->name('admin.')
     ->middleware('guest')
@@ -46,6 +49,10 @@ Route::prefix('admin')
         Route::resource('delegates', App\Http\Controllers\Admin\DelegateController::class);
         Route::resource('students', App\Http\Controllers\Admin\StudentController::class);
         Route::resource('doctors', App\Http\Controllers\Admin\DoctorController::class);
+
+        // Clinical Delegate Management
+        Route::resource('clinical-delegates', App\Http\Controllers\Admin\ClinicalDelegateController::class)
+            ->only(['index', 'store', 'destroy']);
 
         // Attendance Routes - REMOVED (Delegate Duty Only)
         // Route::get('attendance/create', [App\Http\Controllers\Admin\AttendanceController::class, 'create'])->name('attendance.create');
@@ -122,12 +129,41 @@ Route::prefix('doctor')
             // Manage Training Centers
             Route::resource('training-centers', App\Http\Controllers\Doctor\Clinical\TrainingCenterController::class)->except(['show']);
 
+            // Manage Clinical Departments
+            Route::resource('departments', App\Http\Controllers\Doctor\Clinical\ClinicalDepartmentController::class)->except(['show']);
+
+            // Manage Body Systems
+            Route::resource('body-systems', App\Http\Controllers\Doctor\Clinical\BodySystemController::class)->except(['show']);
+
             // Manage Clinical Cases
             Route::resource('cases', App\Http\Controllers\Doctor\Clinical\ClinicalCaseController::class);
 
             // Assign Cases to Students
             Route::get('assignments', [App\Http\Controllers\Doctor\Clinical\AssignmentController::class, 'index'])->name('assignments.index');
             Route::post('assignments', [App\Http\Controllers\Doctor\Clinical\AssignmentController::class, 'store'])->name('assignments.store');
+
+            // QR Scanner & Logbook Records (Doctor scans student QR)
+            Route::get('scanner', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'scanner'])->name('scanner');
+            Route::post('scanner/process', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'processQr'])->name('scanner.process');
+            Route::post('scanner/confirm', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'confirm'])->name('scanner.confirm');
+            Route::get('logbook-records', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'records'])->name('logbook-records');
+            Route::get('manual-attendance', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'manualAttendance'])->name('manual-attendance');
+            Route::post('manual-attendance', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'storeManualAttendance'])->name('manual-attendance.store');
+
+            // OSCE Evaluations
+            Route::prefix('evaluations')->name('evaluations.')->group(function () {
+                Route::get('checklists', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'checklists'])->name('checklists');
+                Route::get('checklists/create', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'createChecklist'])->name('checklists.create');
+                Route::post('checklists', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'storeChecklist'])->name('checklists.store');
+                Route::get('checklists/{id}/edit', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'editChecklist'])->name('checklists.edit');
+                Route::put('checklists/{id}', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'updateChecklist'])->name('checklists.update');
+                Route::delete('checklists/{id}', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'destroyChecklist'])->name('checklists.destroy');
+                Route::get('start', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'startEvaluation'])->name('start');
+                Route::post('live', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'liveEvaluate'])->name('live');
+                Route::post('submit', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'submitEvaluation'])->name('submit');
+                Route::get('results', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'results'])->name('results');
+                Route::get('results/{id}', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'showResult'])->name('results.show');
+            });
         });
     });
 
@@ -176,6 +212,18 @@ Route::prefix('student')
         Route::post('inquiries', [App\Http\Controllers\Student\InquiryController::class, 'store'])->name('inquiries.store');
         Route::get('inquiries/{inquiry}', [App\Http\Controllers\Student\InquiryController::class, 'show'])->name('inquiries.show');
 
+        Route::prefix('clinical')->name('clinical.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'index'])->name('index');
+            Route::get('daily-log/create', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'createDailyLog'])->name('daily-log.create');
+            Route::post('daily-log', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'storeDailyLog'])->name('daily-log.store');
+            Route::get('daily-log/{id}/qr', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'showQr'])->name('show-qr');
+            Route::post('daily-log/{id}/regenerate', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'regenerateQr'])->name('daily-log.regenerate');
+            Route::delete('daily-log/{id}/cancel', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'cancelDailyLog'])->name('daily-log.cancel');
+            Route::get('logbook', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'myLogbook'])->name('logbook');
+            Route::get('evaluations', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'index'])->name('evaluations');
+            Route::get('evaluations/{id}', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'show'])->name('evaluations.show');
+        });
+
         // PDF Reports
         Route::get('reports/attendance', [App\Http\Controllers\Student\ReportController::class, 'attendancePdf'])->name('reports.attendance');
         Route::get('reports/grades', [App\Http\Controllers\Student\ReportController::class, 'gradesPdf'])->name('reports.grades');
@@ -213,10 +261,12 @@ Route::prefix('delegate')
         Route::post('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
 
         // Students Management
+        Route::get('students/template', [App\Http\Controllers\Delegate\StudentController::class, 'downloadTemplate'])->name('students.template');
+        Route::post('students/import', [App\Http\Controllers\Delegate\StudentController::class, 'import'])->name('students.import');
         Route::resource('students', App\Http\Controllers\Delegate\StudentController::class);
 
         // Subjects & Schedule
-        Route::resource('subjects', App\Http\Controllers\Delegate\SubjectController::class)->only(['index', 'edit', 'update']);
+        Route::resource('subjects', App\Http\Controllers\Delegate\SubjectController::class)->except(['create', 'show']);
         Route::resource('schedules', App\Http\Controllers\Delegate\ScheduleController::class)->except(['show']);
 
         // Notifications
@@ -243,6 +293,7 @@ Route::prefix('delegate')
 
         // Course Resources
         Route::get('resources', [App\Http\Controllers\Delegate\ResourceController::class, 'index'])->name('resources.index');
+        Route::get('resources/search-library', [App\Http\Controllers\Delegate\ResourceController::class, 'searchLibrary'])->name('resources.search-library');
         Route::get('resources/create', [App\Http\Controllers\Delegate\ResourceController::class, 'create'])->name('resources.create');
         Route::post('resources', [App\Http\Controllers\Delegate\ResourceController::class, 'store'])->name('resources.store');
         Route::get('resources/{resource}/edit', [App\Http\Controllers\Delegate\ResourceController::class, 'edit'])->name('resources.edit');

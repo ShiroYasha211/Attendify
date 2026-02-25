@@ -17,11 +17,13 @@ class AssignmentController extends Controller
     {
         $delegate = Auth::user();
 
-        // Get assignments for delegate's subjects (created by delegate or for the delegate's major?)
-        // Requirement says Delegate manages assignments.
-
-        $assignments = Assignment::where('created_by', $delegate->id)
-            ->with(['subject'])
+        // Fetch all assignments that belong to subjects within the delegate's Major & Level,
+        // allowing them to see assignments created by Doctors/Admins as well.
+        $assignments = Assignment::whereHas('subject', function ($q) use ($delegate) {
+            $q->where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id);
+        })
+            ->with(['subject', 'creator']) // Eager load creator to show who added it
             ->latest()
             ->paginate(10);
 

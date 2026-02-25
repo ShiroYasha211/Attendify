@@ -193,7 +193,7 @@
         </div>
         <div class="stat-content">
             <h3>{{ $totalCases }}</h3>
-            <span>إجمالي الحالات המסجلة</span>
+            <span>إجمالي الحالات المسجلة</span>
         </div>
     </a>
 
@@ -238,62 +238,99 @@
             <span>المستشفيات والأقسام</span>
         </div>
     </a>
-</div>
 
-<div class="card-section">
-    <div class="section-header">
-        <h3 class="section-title">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+    <a href="{{ route('doctor.clinical.departments.index') }}" class="stat-card" title="إدارة الأقسام الطبية">
+        <div class="stat-icon primary" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
             </svg>
-            مراكز التدريب التابعة لك
-        </h3>
-        <a href="{{ route('doctor.clinical.training-centers.create') }}" class="btn-create-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            إضافة مركز جديد
-        </a>
-    </div>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">الأقسام الطبية</h3>
+            <span>باطنة، جراحة، إلخ</span>
+        </div>
+    </a>
 
-    @if($centers->count() > 0)
-    <div style="overflow-x:auto;">
-        <table class="table-modern">
-            <thead>
-                <tr>
-                    <th width="5%">#</th>
-                    <th width="30%">اسم المستشفى / المركز</th>
-                    <th width="40%">الموقع / الوصف</th>
-                    <th width="25%">عدد حالاتك النشطة فيه</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($centers as $index => $center)
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td style="font-weight: 700; color: var(--primary-color);">{{ $center->name }}</td>
-                    <td>
-                        {{ $center->location ?? '-' }}
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ Str::limit($center->description, 50) }}</div>
-                    </td>
-                    <td>
-                        <span class="badge-cases">{{ $center->cases_count }} حالة</span>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-    @else
-    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #cbd5e1; margin-bottom: 1rem;">
-            <path d="M3 21h18"></path>
-            <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path>
-        </svg>
-        <p>لا يوجد مراكز تدريب مضافة أو لا يوجد لديك حالات فيها بعد.</p>
-    </div>
-    @endif
+    <a href="{{ route('doctor.clinical.body-systems.index') }}" class="stat-card" title="إدارة الأجهزة المرضية">
+        <div class="stat-icon success" style="background: rgba(236, 72, 153, 0.1); color: #ec4899;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12h4l2-9 5 18 3-9h6"></path>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">الأجهزة المرضية</h3>
+            <span>تنفسي، هضمي، إلخ</span>
+        </div>
+    </a>
+
+    <a href="{{ route('doctor.clinical.scanner') }}" class="stat-card" title="ماسح QR السريري">
+        <div class="stat-icon" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">ماسح QR</h3>
+            <span>تأكيد الحضور والسجل اليومي</span>
+        </div>
+    </a>
+
+    <a href="{{ route('doctor.clinical.manual-attendance') }}" class="stat-card" title="تحضير يدوي">
+        <div class="stat-icon" style="background: rgba(236, 72, 153, 0.1); color: #ec4899;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">تحضير يدوي</h3>
+            <span>تسجيل حضور بدون QR</span>
+        </div>
+    </a>
+
+    <a href="{{ route('doctor.clinical.logbook-records') }}" class="stat-card" title="سجل التحضير">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">سجل التحضير</h3>
+            <span>السجلات اليومية للطلاب</span>
+        </div>
+    </a>
+
+    <a href="{{ route('doctor.clinical.evaluations.checklists') }}" class="stat-card" title="التقييم السريري">
+        <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"></path>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">التقييم السريري</h3>
+            <span>قوائم التقييم والفحص المباشر</span>
+        </div>
+    </a>
+
+    <a href="{{ route('doctor.clinical.evaluations.results') }}" class="stat-card" title="نتائج التقييمات">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">نتائج التقييمات</h3>
+            <span>درجات الطلاب والتقديرات</span>
+        </div>
+    </a>
 </div>
 @endsection

@@ -40,6 +40,7 @@
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
+        max-width: 800px;
     }
 
     .settings-section {

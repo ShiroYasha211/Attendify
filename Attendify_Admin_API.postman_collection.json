@@ -1,0 +1,1551 @@
+{
+    "info": {
+        "_postman_id": "attendify-admin-api",
+        "name": "Attendify - Admin API",
+        "description": "واجهة برمجة التطبيقات (API) الخاصة بلوحة إدارة نظام Attendify.\n\nالمصادقة: يستخدم Laravel Sanctum (Bearer Token).\n- أولاً: استدعِ POST /api/admin/login للحصول على token.\n- ثم: استخدم الـ token في جميع الطلبات الأخرى.\n\nالردود: جميع الردود بصيغة JSON موحدة:\n```json\n{\n  \"success\": true/false,\n  \"message\": \"...\",\n  \"data\": { ... }\n}\n```",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000/api/admin",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "🔐 Authentication",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.success && jsonData.data.token) {",
+                                    "    pm.collectionVariables.set('token', jsonData.data.token);",
+                                    "    pm.environment.set('token', jsonData.data.token);",
+                                    "    console.log('Token saved: ' + jsonData.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "login"
+                            ]
+                        },
+                        "description": "تسجيل الدخول للحصول على Bearer Token.\nيُحفظ الـ Token تلقائياً في المجموعة."
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "logout"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Me (Profile)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "me"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📊 Dashboard",
+            "item": [
+                {
+                    "name": "Dashboard Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/dashboard",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "dashboard"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🎓 Universities",
+            "item": [
+                {
+                    "name": "List Universities",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/universities",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "universities"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Show University",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/universities/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "universities",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create University",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"جامعة جديدة\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/universities",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "universities"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update University",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"اسم معدّل\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/universities/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "universities",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete University",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/universities/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "universities",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏫 Colleges",
+            "item": [
+                {
+                    "name": "List Colleges",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/colleges?university_id=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "colleges"
+                            ],
+                            "query": [
+                                {
+                                    "key": "university_id",
+                                    "value": "1",
+                                    "description": "Optional filter"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create College",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"كلية جديدة\",\n    \"university_id\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/colleges",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "colleges"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update College",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"كلية معدّلة\",\n    \"university_id\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/colleges/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "colleges",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete College",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/colleges/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "colleges",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📚 Majors",
+            "item": [
+                {
+                    "name": "List Majors",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/majors?college_id=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "majors"
+                            ],
+                            "query": [
+                                {
+                                    "key": "college_id",
+                                    "value": "1",
+                                    "description": "Optional"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Major",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"تخصص جديد\",\n    \"college_id\": 1,\n    \"levels_count\": 5,\n    \"terms_count\": 2,\n    \"has_clinical\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/majors",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "majors"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Show Major",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/majors/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "majors",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Major",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"تخصص معدّل\",\n    \"college_id\": 1,\n    \"has_clinical\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/majors/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "majors",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Major",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/majors/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "majors",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📖 Subjects",
+            "item": [
+                {
+                    "name": "List Subjects",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/subjects?term_id=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subjects"
+                            ],
+                            "query": [
+                                {
+                                    "key": "term_id",
+                                    "value": "1",
+                                    "description": "Optional"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Subject",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"مادة جديدة\",\n    \"term_id\": 1,\n    \"doctor_id\": 1,\n    \"max_absences\": 4,\n    \"lecture_count\": 14\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/subjects",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subjects"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Show Subject",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/subjects/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subjects",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Subject",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"مادة معدّلة\",\n    \"term_id\": 1,\n    \"doctor_id\": 1,\n    \"max_absences\": 5,\n    \"lecture_count\": 12\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/subjects/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subjects",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Subject",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/subjects/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subjects",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "👥 User Management",
+            "item": [
+                {
+                    "name": "List Users",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/users?role=student&search=&per_page=15&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users"
+                            ],
+                            "query": [
+                                {
+                                    "key": "role",
+                                    "value": "student",
+                                    "description": "student|doctor|delegate|admin|all"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "description": "Search by name/email"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "15"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Toggle User Status",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/users/2/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users",
+                                "2",
+                                "status"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/users/2",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users",
+                                "2"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Bulk Activate",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"ids\": [2, 3, 4]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/users/bulk-activate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users",
+                                "bulk-activate"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Bulk Deactivate",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"ids\": [2, 3, 4]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/users/bulk-deactivate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users",
+                                "bulk-deactivate"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Bulk Delete",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"ids\": [2, 3, 4]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/users/bulk-delete",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users",
+                                "bulk-delete"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "👨‍🎓 Students",
+            "item": [
+                {
+                    "name": "List Students",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/students?search=&major_id=&per_page=15",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "students"
+                            ],
+                            "query": [
+                                {
+                                    "key": "search",
+                                    "value": ""
+                                },
+                                {
+                                    "key": "major_id",
+                                    "value": ""
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "15"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Show Student",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/students/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "students",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Student",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"طالب جديد\",\n    \"email\": \"student@test.com\",\n    \"student_number\": \"STD001\",\n    \"password\": \"password123\",\n    \"level_id\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/students",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "students"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Student",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"اسم معدّل\",\n    \"email\": \"student@test.com\",\n    \"student_number\": \"STD001\",\n    \"level_id\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/students/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "students",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Student",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/students/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "students",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "👨‍⚕️ Doctors",
+            "item": [
+                {
+                    "name": "List Doctors",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/doctors?search=&per_page=15",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "doctors"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Doctor",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"دكتور جديد\",\n    \"email\": \"doc@test.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/doctors",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "doctors"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Doctor",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"اسم معدّل\",\n    \"email\": \"doc@test.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/doctors/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "doctors",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Doctor",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/doctors/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "doctors",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🛡️ Delegates",
+            "item": [
+                {
+                    "name": "List Delegates",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/delegates?search=",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "delegates"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Delegate",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"مندوب جديد\",\n    \"email\": \"delegate@test.com\",\n    \"password\": \"password123\",\n    \"level_id\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/delegates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "delegates"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Delegate",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"اسم معدّل\",\n    \"email\": \"delegate@test.com\",\n    \"level_id\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/delegates/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "delegates",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Delegate",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/delegates/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "delegates",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical Delegates",
+            "item": [
+                {
+                    "name": "List Clinical Delegates",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical-delegates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical-delegates"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Assign Clinical Delegate",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"major_id\": 1,\n    \"student_id\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical-delegates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical-delegates"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Remove Clinical Delegate",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical-delegates/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical-delegates",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📋 Reports",
+            "item": [
+                {
+                    "name": "Reports Overview",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/overview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "overview"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Subject Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/subject?subject_id=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "subject"
+                            ],
+                            "query": [
+                                {
+                                    "key": "subject_id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Threshold (Deprivation) Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/threshold?level_id=1&threshold=75",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "threshold"
+                            ],
+                            "query": [
+                                {
+                                    "key": "level_id",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "threshold",
+                                    "value": "75"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Doctor Performance",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/doctor-performance?doctor_id=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "doctor-performance"
+                            ],
+                            "query": [
+                                {
+                                    "key": "doctor_id",
+                                    "value": "1",
+                                    "description": "Optional, omit for all"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "System Overview",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/system-overview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "system-overview"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "⚙️ Settings",
+            "item": [
+                {
+                    "name": "Get Settings",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "settings"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Settings",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"site_name\": \"Attendify\",\n    \"max_absences\": 4\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/settings",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "settings"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📝 Activity Log",
+            "item": [
+                {
+                    "name": "List Activities",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/activities?user_id=&action=&from=&to=&per_page=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "activities"
+                            ],
+                            "query": [
+                                {
+                                    "key": "user_id",
+                                    "value": "",
+                                    "description": "Optional"
+                                },
+                                {
+                                    "key": "action",
+                                    "value": "",
+                                    "description": "create|update|delete|activate|deactivate"
+                                },
+                                {
+                                    "key": "from",
+                                    "value": "",
+                                    "description": "YYYY-MM-DD"
+                                },
+                                {
+                                    "key": "to",
+                                    "value": "",
+                                    "description": "YYYY-MM-DD"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Cleanup Old Logs",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/activities/cleanup",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "activities",
+                                "cleanup"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

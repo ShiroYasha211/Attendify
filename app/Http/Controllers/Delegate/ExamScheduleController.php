@@ -20,7 +20,9 @@ class ExamScheduleController extends Controller
     {
         $user = Auth::user();
 
-        $schedules = ExamSchedule::where('created_by', Auth::id())
+        $schedules = ExamSchedule::where('major_id', $user->major_id)
+            ->where('level_id', $user->level_id)
+            ->with(['term'])
             ->latest()
             ->paginate(10);
 
@@ -69,6 +71,8 @@ class ExamScheduleController extends Controller
             'items.*.location' => 'nullable|string|max:255',
         ]);
 
+        $this->validateNoOverlap($request->items, $request->term_id, Auth::user());
+
         try {
             DB::beginTransaction();
 
@@ -108,7 +112,7 @@ class ExamScheduleController extends Controller
      */
     public function show(ExamSchedule $exam)
     {
-        if ($exam->created_by !== Auth::id()) {
+        if ($exam->major_id !== Auth::user()->major_id || $exam->level_id !== Auth::user()->level_id) {
             abort(403);
         }
 
@@ -158,6 +162,8 @@ class ExamScheduleController extends Controller
             'items.*.location' => 'nullable|string|max:255',
         ]);
 
+        $this->validateNoOverlap($request->items, $request->term_id, Auth::user(), $exam->id);
+
         try {
             DB::beginTransaction();
 
@@ -201,5 +207,38 @@ class ExamScheduleController extends Controller
 
         $exam->delete();
         return back()->with('success', 'تم حذف جدول الاختبارات بنجاح.');
+    }
+
+    /**
+     * Validate that no exams overlap in date and time for the same major/level.
+     */
+    private function validateNoOverlap($items, $termId, $user, $ignoreScheduleId = null)
+    {
+        foreach ($items as $item) {
+            $query = ExamScheduleItem::whereHas('schedule', function ($q) use ($user, $termId, $ignoreScheduleId) {
+                $q->where('major_id', $user->major_id)
+                    ->where('level_id', $user->level_id)
+                    ->where('term_id', $termId);
+
+                if ($ignoreScheduleId) {
+                    $q->where('id', '!=', $ignoreScheduleId);
+                }
+            })
+                ->where('exam_date', $item['exam_date'])
+                ->where(function ($q) use ($item) {
+                    // Check for time overlap
+                    $q->whereBetween('start_time', [$item['start_time'], $item['end_time']])
+                        ->orWhereBetween('end_time', [$item['start_time'], $item['end_time']])
+                        ->orWhere(function ($subQ) use ($item) {
+                            $subQ->where('start_time', '<=', $item['start_time'])
+                                ->where('end_time', '>=', $item['end_time']);
+                        });
+                });
+
+            if ($query->exists()) {
+                $subject = Subject::find($item['subject_id']);
+                abort(422, "يوجد تعارض في وقت الاختبار لمادة ({$subject->name}) في يوم {$item['exam_date']}. يرجى اختيار وقت آخر.");
+            }
+        }
     }
 }

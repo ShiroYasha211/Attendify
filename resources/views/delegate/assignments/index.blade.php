@@ -198,16 +198,45 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
 
                     @php
-                    $isUrgent = \Carbon\Carbon::parse($assignment->due_date)->isPast() || \Carbon\Carbon::parse($assignment->due_date)->diffInDays(now()) <= 2;
+                    $isOverdue = \Carbon\Carbon::parse($assignment->due_date)->isPast();
+                    $isUpcoming = !\Carbon\Carbon::parse($assignment->due_date)->isPast() && \Carbon\Carbon::parse($assignment->due_date)->diffInDays(now()) <= 3;
                         @endphp
-                        <div class="task-date {{ $isUrgent ? 'urgent' : '' }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                        <span>{{ \Carbon\Carbon::parse($assignment->due_date)->format('Y-m-d') }}</span>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <div class="task-date {{ $isOverdue ? 'overdue' : ($isUpcoming ? 'upcoming' : '') }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            <span>{{ \Carbon\Carbon::parse($assignment->due_date)->format('Y-m-d') }}</span>
+                        </div>
+
+                        <!-- Creator Badge -->
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); background: #f1f5f9; padding: 0.25rem 0.6rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.25rem; width: fit-content;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            بواسطة: {{ $assignment->creator->name ?? 'غير معروف' }}
+                            @if($assignment->creator && $assignment->creator->role->value === 'doctor') (دكتور) @endif
+                            @if($assignment->creator && $assignment->creator->role->value === 'admin') (إدارة) @endif
+                        </span>
+
+                        <!-- Countdown Timer -->
+                        @if(!$isOverdue)
+                        <div x-data="countdown('{{ \Carbon\Carbon::parse($assignment->due_date)->toIso8601String() }}')"
+                            style="font-size: 0.8rem; font-weight: 600; color: #ef4444; display: flex; align-items: center; gap: 0.25rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            متبقي: <span x-text="timeLeft"></span>
+                        </div>
+                        @else
+                        <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">انتهى التكليف</div>
+                        @endif
                 </div>
 
                 <div class="task-actions" style="border: none; margin: 0; padding: 0;">
@@ -369,6 +398,58 @@
             }
         }
     }
+
+    function countdown(endDate) {
+        return {
+            timeLeft: '',
+            timer: null,
+            init() {
+                const end = new Date(endDate).getTime();
+                this.update(end);
+                this.timer = setInterval(() => {
+                    this.update(end);
+                }, 60000); // 1 minute
+            },
+            update(end) {
+                const now = new Date().getTime();
+                const distance = end - now;
+
+                if (distance < 0) {
+                    this.timeLeft = "انتهى";
+                    clearInterval(this.timer);
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+                if (days > 0) {
+                    this.timeLeft = `${days} أيام و ${hours} ساعة`;
+                } else if (hours > 0) {
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    this.timeLeft = `${hours} ساعة و ${minutes} دقيقة`;
+                } else {
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    this.timeLeft = `${minutes} دقيقة`;
+                }
+            }
+        }
+    }
 </script>
+
+<!-- Add push styles if 'overdue' or 'upcoming' exists -->
+@push('styles')
+<style>
+    .task-date.overdue {
+        background: #fee2e2;
+        color: #ef4444;
+    }
+
+    .task-date.upcoming {
+        background: #fffbeb;
+        color: #d97706;
+    }
+</style>
+@endpush
 
 @endsection

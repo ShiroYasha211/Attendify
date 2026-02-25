@@ -30,9 +30,19 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        // محاولة تسجيل الدخول مع التحقق من أن المستخدم من نوع admin
+        // Rate limiting: 5 محاولات كل دقيقة
+        $throttleKey = 'login|' . $request->ip();
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = \Illuminate\Support\Facades\RateLimiter::availableIn($throttleKey);
+            return back()->withErrors([
+                'email' => "محاولات كثيرة جداً. حاول مرة أخرى بعد {$seconds} ثانية.",
+            ])->withInput($request->only('email'));
+        }
+
+        // محاولة تسجيل الدخول
         $remember = $request->boolean('remember');
         if (Auth::attempt($credentials, $remember)) {
+            \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
             $request->session()->regenerate();
 
             /** @var \App\Models\User $user */
@@ -50,15 +60,18 @@ class AuthController extends Controller
             return match ($user->role) {
                 UserRole::ADMIN => redirect()->intended(route('admin.dashboard')),
                 UserRole::DOCTOR => redirect()->intended(route('doctor.dashboard')),
-                UserRole::DELEGATE => redirect()->intended(route('delegate.dashboard')), // Placeholder
-                UserRole::STUDENT => redirect()->intended(route('student.dashboard')),   // Placeholder
+                UserRole::DELEGATE => redirect()->intended(route('delegate.dashboard')),
+                UserRole::STUDENT => redirect()->intended(route('student.dashboard')),
             };
         }
+
+        // تسجيل المحاولة الفاشلة
+        \Illuminate\Support\Facades\RateLimiter::hit($throttleKey, 60);
 
         // فشل المصادقة
         return back()->withErrors([
             'email' => 'بيانات الدخول غير صحيحة.',
-        ]);
+        ])->withInput($request->only('email'));
     }
 
     /**

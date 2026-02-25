@@ -22,7 +22,50 @@ class ReportController extends Controller
         // نحتاج قائمة المواد لتقرير المادة
         $subjects = Subject::with(['level', 'major'])->get();
 
-        return view('admin.reports.index', compact('universities', 'subjects'));
+        // إحصائيات سريعة — استعلام واحد مجمع بدلاً من N+1
+        $totalStudents = User::where('role', UserRole::STUDENT)->count();
+        $totalDoctors = User::where('role', UserRole::DOCTOR)->count();
+        $totalSubjects = Subject::count();
+        $totalAttendance = Attendance::count();
+
+        // توزيع الحضور
+        $statusCounts = Attendance::select('status', DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $presentCount = $statusCounts->get('present', 0);
+        $absentCountAll = $statusCounts->get('absent', 0);
+        $lateCount = $statusCounts->get('late', 0);
+        $excusedCount = $statusCounts->get('excused', 0);
+
+        // حساب المحرومين باستعلام واحد محسّن
+        $subjectsMaxAbsences = Subject::pluck('max_absences', 'id');
+        $absences = Attendance::where('status', 'absent')
+            ->select('student_id', 'subject_id', DB::raw('count(*) as absent_count'))
+            ->groupBy('student_id', 'subject_id')
+            ->get();
+
+        $deprivedCount = 0;
+        foreach ($absences as $record) {
+            $maxAbsences = $subjectsMaxAbsences->get($record->subject_id) ?? 4;
+            if ($record->absent_count >= $maxAbsences) {
+                $deprivedCount++;
+            }
+        }
+
+        return view('admin.reports.index', compact(
+            'universities',
+            'subjects',
+            'totalStudents',
+            'totalDoctors',
+            'totalSubjects',
+            'totalAttendance',
+            'presentCount',
+            'absentCountAll',
+            'lateCount',
+            'excusedCount',
+            'deprivedCount'
+        ));
     }
 
     /**
