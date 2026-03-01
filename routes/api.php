@@ -61,16 +61,16 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     Route::get('dashboard', [AdminDashboardController::class, 'index']);
 
     // Academic — Universities
-    Route::apiResource('universities', AdminUniversityController::class);
+    Route::apiResource('universities', AdminUniversityController::class)->names('admin.universities');
 
     // Academic — Colleges
-    Route::apiResource('colleges', AdminCollegeController::class);
+    Route::apiResource('colleges', AdminCollegeController::class)->names('admin.colleges');
 
     // Academic — Majors
-    Route::apiResource('majors', AdminMajorController::class);
+    Route::apiResource('majors', AdminMajorController::class)->names('admin.majors');
 
     // Academic — Subjects
-    Route::apiResource('subjects', AdminSubjectController::class);
+    Route::apiResource('subjects', AdminSubjectController::class)->names('admin.subjects');
 
     // User Management
     Route::get('users', [AdminUserController::class, 'index']);
@@ -81,17 +81,17 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     Route::post('users/bulk-delete', [AdminUserController::class, 'bulkDelete']);
 
     // Students
-    Route::apiResource('students', AdminStudentController::class);
+    Route::apiResource('students', AdminStudentController::class)->names('admin.students');
 
     // Doctors
-    Route::apiResource('doctors', AdminDoctorController::class);
+    Route::apiResource('doctors', AdminDoctorController::class)->names('admin.doctors');
 
     // Delegates
-    Route::apiResource('delegates', AdminDelegateController::class);
+    Route::apiResource('delegates', AdminDelegateController::class)->names('admin.delegates');
 
     // Clinical Delegates
     Route::apiResource('clinical-delegates', AdminClinicalDelegateController::class)
-        ->only(['index', 'store', 'destroy']);
+        ->only(['index', 'store', 'destroy'])->names('admin.clinical-delegates');
 
     // Reports
     Route::prefix('reports')->group(function () {
@@ -131,15 +131,15 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('dashboard', [DelegateDashboardController::class, 'index']);
 
     // Academic
-    Route::apiResource('subjects', DelegateSubjectController::class)->only(['index', 'show']);
-    Route::apiResource('schedules', DelegateScheduleController::class)->except(['show']);
-    Route::apiResource('exam-schedules', DelegateExamScheduleController::class)->except(['show']);
-    Route::apiResource('assignments', DelegateAssignmentController::class)->except(['show']);
-    Route::apiResource('resources', DelegateResourceController::class)->only(['index', 'store', 'destroy']);
+    Route::apiResource('subjects', DelegateSubjectController::class)->only(['index', 'show'])->names('delegate.subjects');
+    Route::apiResource('schedules', DelegateScheduleController::class)->except(['show'])->names('delegate.schedules');
+    Route::apiResource('exam-schedules', DelegateExamScheduleController::class)->except(['show'])->names('delegate.exam-schedules');
+    Route::apiResource('assignments', DelegateAssignmentController::class)->except(['show'])->names('delegate.assignments');
+    Route::apiResource('resources', DelegateResourceController::class)->only(['index', 'store', 'destroy'])->names('delegate.resources');
 
     // Communication
-    Route::apiResource('announcements', DelegateAnnouncementController::class)->except(['show']);
-    Route::apiResource('reminders', DelegateReminderController::class)->except(['show']);
+    Route::apiResource('announcements', DelegateAnnouncementController::class)->except(['show'])->names('delegate.announcements');
+    Route::apiResource('reminders', DelegateReminderController::class)->except(['show'])->names('delegate.reminders');
 
     // Messaging
     Route::get('messages', [DelegateMessageController::class, 'index']);
