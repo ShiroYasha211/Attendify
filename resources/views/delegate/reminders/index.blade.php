@@ -153,6 +153,88 @@
         backdrop-filter: blur(8px);
     }
 
+    /* Stats Banner */
+    .stats-banner {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.25rem;
+        text-align: center;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    /* Filter Tabs */
+    .filter-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        overflow-x: auto;
+    }
+
+    .filter-tab {
+        padding: 0.5rem 1.25rem;
+        border-radius: 99px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        background: white;
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .filter-tab:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .filter-tab.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
     .modal-container {
         background: white;
         width: 90%;
@@ -165,7 +247,7 @@
 
 <div class="container" x-data="reminderManager()">
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
             <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">جدولة التذكيرات</h1>
             <p style="color: var(--text-secondary);">جدولة تنبيهات تلقائية للطلاب حول الأحداث الهامة.</p>
@@ -177,6 +259,63 @@
             </svg>
             جدولة تنبيه
         </button>
+    </div>
+
+    <!-- Stats Banner -->
+    <div class="stats-banner">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+            </div>
+            <div class="stat-value" style="color: var(--text-primary);">{{ $stats['total'] }}</div>
+            <div class="stat-label">إجمالي التذكيرات</div>
+        </div>
+        <div class="stat-card" style="border-color: #bfdbfe;">
+            <div class="stat-icon" style="color: #3b82f6;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <div class="stat-value" style="color: #3b82f6;">{{ $stats['upcoming'] }}</div>
+            <div class="stat-label">تذكيرات قادمة</div>
+        </div>
+        <div class="stat-card" style="border-color: #fde68a;">
+            <div class="stat-icon" style="color: #f59e0b;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+            <div class="stat-value" style="color: #f59e0b;">{{ $stats['past'] }}</div>
+            <div class="stat-label">تذكيرات مرسلة</div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <a href="{{ route('delegate.reminders.index', ['filter' => 'upcoming']) }}" class="filter-tab {{ $filter == 'upcoming' ? 'active' : '' }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            تذكيرات قادمة النشطة
+        </a>
+        <a href="{{ route('delegate.reminders.index', ['filter' => 'past']) }}" class="filter-tab {{ $filter == 'past' ? 'active' : '' }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            التذكيرات السابقة (التي أرسلت)
+        </a>
+        <a href="{{ route('delegate.reminders.index', ['filter' => 'all']) }}" class="filter-tab {{ $filter == 'all' ? 'active' : '' }}">
+            الكل
+        </a>
     </div>
 
     @if(session('success'))

@@ -1,0 +1,1796 @@
+{
+    "info": {
+        "_postman_id": "0ac622da-b09e-4c75-b66e-bc35cf1f3089",
+        "name": "Attendify - Delegate API",
+        "description": "واجهة برمجة التطبيقات (API) الخاصة بلوحة المندوب في نظام Attendify.\n\nالمصادقة: يستخدم Laravel Sanctum (Bearer Token).\n- أولاً: استدعِ POST /api/delegate/login للحصول على token.\n- ثم: استخدم الـ token في جميع الطلبات الأخرى عبر Header:\n  Authorization: Bearer {token}\n\nالردود: جميع الردود بصيغة JSON موحدة:\n```json\n{\n  \"success\": true/false,\n  \"message\": \"...\",\n  \"data\": { ... }\n}\n```",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{delegate_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "🔐 01 - Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var response = pm.response.json();",
+                                    "if(response.success && response.data.token) {",
+                                    "    pm.collectionVariables.set('delegate_token', response.data.token);",
+                                    "    pm.environment.set('delegate_token', response.data.token);",
+                                    "    console.log('Token saved: ' + response.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"delegate1@example.com\",\n    \"password\": \"password\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "login"
+                            ]
+                        },
+                        "description": "تسجيل دخول المندوب للحصول على Bearer Token.\nيُحفظ الـ Token تلقائياً في المجموعة."
+                    }
+                },
+                {
+                    "name": "My Profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "me"
+                            ]
+                        },
+                        "description": "جلب بيانات المندوب الحالي مع معلومات التخصص والمستوى."
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "logout"
+                            ]
+                        },
+                        "description": "تسجيل خروج المندوب وإلغاء الـ Token الحالي."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📊 02 - Dashboard",
+            "item": [
+                {
+                    "name": "Dashboard Statistics",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/dashboard",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "dashboard"
+                            ]
+                        },
+                        "description": "إحصائيات لوحة تحكم المندوب: عدد المواد، الطلاب، التكاليف النشطة، والاختبارات القادمة."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📚 03 - Academic",
+            "item": [
+                {
+                    "name": "📖 Subjects",
+                    "item": [
+                        {
+                            "name": "List Subjects",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/subjects",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "subjects"
+                                    ]
+                                },
+                                "description": "قائمة المواد الخاصة بدفعة المندوب."
+                            }
+                        },
+                        {
+                            "name": "Show Subject Details",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/subjects/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "subjects",
+                                        "1"
+                                    ]
+                                },
+                                "description": "تفاصيل مادة محددة مع الموارد والتكاليف المرتبطة بها."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "🗓️ Weekly Schedule",
+                    "item": [
+                        {
+                            "name": "List Schedule",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/schedules?day_of_week=1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "schedules"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "day_of_week",
+                                            "value": "1",
+                                            "description": "اختياري: 1=الأحد, 2=الإثنين, 3=الثلاثاء, 4=الأربعاء, 5=الخميس, 6=الجمعة, 7=السبت"
+                                        }
+                                    ]
+                                },
+                                "description": "جلب جدول المحاضرات الأسبوعي مع إمكانية الفلترة حسب اليوم."
+                            }
+                        },
+                        {
+                            "name": "Add Lecture",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"subject_id\": 1,\n    \"day_of_week\": 2,\n    \"start_time\": \"08:00\",\n    \"end_time\": \"10:00\",\n    \"hall_name\": \"مدرج 1\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/schedules",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "schedules"
+                                    ]
+                                },
+                                "description": "إضافة محاضرة جديدة للجدول.\nday_of_week: رقم 1-7 (1=الأحد ... 7=السبت)\nstart_time/end_time: بصيغة HH:mm"
+                            }
+                        },
+                        {
+                            "name": "Update Lecture",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"subject_id\": 1,\n    \"day_of_week\": 2,\n    \"start_time\": \"08:30\",\n    \"end_time\": \"10:30\",\n    \"hall_name\": \"قاعة 5\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/schedules/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "schedules",
+                                        "1"
+                                    ]
+                                },
+                                "description": "تحديث بيانات محاضرة موجودة في الجدول."
+                            }
+                        },
+                        {
+                            "name": "Delete Lecture",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/schedules/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "schedules",
+                                        "1"
+                                    ]
+                                },
+                                "description": "حذف محاضرة من الجدول الأسبوعي."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "📝 Assignments",
+                    "item": [
+                        {
+                            "name": "List Assignments",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/assignments",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "assignments"
+                                    ]
+                                },
+                                "description": "قائمة التكاليف الخاصة بدفعة المندوب مرتبة حسب تاريخ التسليم."
+                            }
+                        },
+                        {
+                            "name": "Create Assignment",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "subject_id",
+                                            "value": "1",
+                                            "type": "text",
+                                            "description": "معرّف المادة"
+                                        },
+                                        {
+                                            "key": "title",
+                                            "value": "الوظيفة العملي الأولى",
+                                            "type": "text",
+                                            "description": "عنوان التكليف"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "تقديم تقرير حول التجربة 1",
+                                            "type": "text",
+                                            "description": "وصف التكليف (اختياري)"
+                                        },
+                                        {
+                                            "key": "due_date",
+                                            "value": "2024-06-01 23:59:00",
+                                            "type": "text",
+                                            "description": "آخر موعد للتسليم"
+                                        },
+                                        {
+                                            "key": "total_marks",
+                                            "value": "10",
+                                            "type": "text",
+                                            "description": "الدرجة الكاملة للتكليف"
+                                        },
+                                        {
+                                            "key": "status",
+                                            "value": "active",
+                                            "type": "text",
+                                            "description": "حالة التكليف: active | completed | cancelled"
+                                        },
+                                        {
+                                            "key": "attachment",
+                                            "type": "file",
+                                            "description": "مرفق اختياري (PDF, DOC, ZIP) - أقصى حجم 10MB"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/assignments",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "assignments"
+                                    ]
+                                },
+                                "description": "إنشاء تكليف جديد مع إمكانية إرفاق ملف.\nالحقول المطلوبة: subject_id, title, due_date, total_marks, status"
+                            }
+                        },
+                        {
+                            "name": "Update Assignment",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "X-HTTP-Method-Override",
+                                        "value": "PUT",
+                                        "description": "Laravel method spoofing for file uploads"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "_method",
+                                            "value": "PUT",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "subject_id",
+                                            "value": "1",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "title",
+                                            "value": "الوظيفة المعدّلة",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "وصف محدّث للتكليف",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "due_date",
+                                            "value": "2024-06-10 23:59:00",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "total_marks",
+                                            "value": "15",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "status",
+                                            "value": "active",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "attachment",
+                                            "type": "file",
+                                            "description": "مرفق جديد (يستبدل القديم إن وُجد)"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/assignments/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "assignments",
+                                        "1"
+                                    ]
+                                },
+                                "description": "تحديث تكليف موجود.\nملاحظة: يُستخدم POST مع _method=PUT لدعم رفع الملفات في Laravel."
+                            }
+                        },
+                        {
+                            "name": "Delete Assignment",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/assignments/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "assignments",
+                                        "1"
+                                    ]
+                                },
+                                "description": "حذف تكليف وحذف المرفق المرتبط به إن وُجد."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "📋 Exam Schedules",
+                    "item": [
+                        {
+                            "name": "List Exam Schedules",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/exam-schedules",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "exam-schedules"
+                                    ]
+                                },
+                                "description": "قائمة جداول الاختبارات لدفعة المندوب مع تفاصيل المواد."
+                            }
+                        },
+                        {
+                            "name": "Create Exam Schedule",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"terms_id\": 1,\n    \"title\": \"برنامج مذاكرات الفصل الأول 2024\",\n    \"description\": \"جدول اختبارات المنتصف والنهائي\",\n    \"items\": [\n        {\n            \"subject_id\": 1,\n            \"exam_date\": \"2024-05-15\",\n            \"start_time\": \"10:00\",\n            \"end_time\": \"11:00\",\n            \"hall_name\": \"مدرج الباسل\",\n            \"exam_type\": \"midterm\"\n        },\n        {\n            \"subject_id\": 2,\n            \"exam_date\": \"2024-05-17\",\n            \"start_time\": \"09:00\",\n            \"end_time\": \"10:30\",\n            \"hall_name\": \"قاعة 3\",\n            \"exam_type\": \"practical\"\n        }\n    ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/exam-schedules",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "exam-schedules"
+                                    ]
+                                },
+                                "description": "إنشاء جدول اختبارات جديد مع عناصره.\nterms_id: معرّف الفصل الدراسي\nexam_type: midterm | final | practical | quiz | other"
+                            }
+                        },
+                        {
+                            "name": "Update Exam Schedule",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"terms_id\": 1,\n    \"title\": \"برنامج مذاكرات معدّل\",\n    \"description\": \"تم تحديث مواعيد الاختبارات\",\n    \"items\": [\n        {\n            \"subject_id\": 1,\n            \"exam_date\": \"2024-05-20\",\n            \"start_time\": \"10:00\",\n            \"end_time\": \"11:30\",\n            \"hall_name\": \"المدرج الرئيسي\",\n            \"exam_type\": \"final\"\n        }\n    ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/exam-schedules/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "exam-schedules",
+                                        "1"
+                                    ]
+                                },
+                                "description": "تحديث جدول اختبارات موجود.\nملاحظة: يتم حذف العناصر القديمة واستبدالها بالجديدة."
+                            }
+                        },
+                        {
+                            "name": "Delete Exam Schedule",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/exam-schedules/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "exam-schedules",
+                                        "1"
+                                    ]
+                                },
+                                "description": "حذف جدول اختبارات وجميع عناصره."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "📂 Course Resources",
+                    "item": [
+                        {
+                            "name": "List Resources",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/resources?subject_id=1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "resources"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "subject_id",
+                                            "value": "1",
+                                            "description": "فلترة حسب المادة"
+                                        }
+                                    ]
+                                },
+                                "description": "قائمة الملفات والموارد المرفوعة لمواد الدفعة."
+                            }
+                        },
+                        {
+                            "name": "Upload Resource",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "subject_id",
+                                            "value": "1",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "title",
+                                            "value": "المحاضرة الأولى pdf",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "lecture",
+                                            "type": "text",
+                                            "description": "lecture | summary | reference | other"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "مقدمة المقرر",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "file",
+                                            "type": "file",
+                                            "description": "الملف المراد رفعه (أقصى حجم 10MB)"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/resources",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "resources"
+                                    ]
+                                },
+                                "description": "رفع مورد جديد (ملف) لمادة محددة."
+                            }
+                        },
+                        {
+                            "name": "Delete Resource",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/resources/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "resources",
+                                        "1"
+                                    ]
+                                },
+                                "description": "حذف مورد وحذف الملف المرتبط به من التخزين."
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "📢 04 - Communication",
+            "item": [
+                {
+                    "name": "📣 Announcements",
+                    "item": [
+                        {
+                            "name": "List Announcements",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/announcements",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "announcements"
+                                    ]
+                                },
+                                "description": "قائمة الإعلانات لدفعة المندوب مرتبة: المثبّتة أولاً ثم الأحدث."
+                            }
+                        },
+                        {
+                            "name": "Publish Announcement",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "type",
+                                            "value": "general",
+                                            "type": "text",
+                                            "description": "general | schedule | exam | activity | urgent"
+                                        },
+                                        {
+                                            "key": "title",
+                                            "value": "تأجيل محاضرة العملي",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "content",
+                                            "value": "نود إعلامكم بتأجيل محاضرة العملي لمادة كذا ليوم غدٍ.",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "is_pinned",
+                                            "value": "1",
+                                            "type": "text",
+                                            "description": "اختياري: 1 لتثبيت الإعلان أعلى القائمة"
+                                        },
+                                        {
+                                            "key": "attachment",
+                                            "type": "file",
+                                            "description": "مرفق اختياري (صورة أو PDF)"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/announcements",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "announcements"
+                                    ]
+                                },
+                                "description": "نشر إعلان جديد لطلاب الدفعة.\ntype: نوع الإعلان (general, schedule, exam, activity, urgent)"
+                            }
+                        },
+                        {
+                            "name": "Update Announcement",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "X-HTTP-Method-Override",
+                                        "value": "PUT"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "_method",
+                                            "value": "PUT",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "urgent",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "title",
+                                            "value": "تحديث: تأجيل محاضرة العملي",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "content",
+                                            "value": "تم تحديث الإعلان - المحاضرة يوم الأربعاء بدلاً من الغد.",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "is_pinned",
+                                            "value": "0",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "attachment",
+                                            "type": "file",
+                                            "description": "مرفق جديد (يستبدل القديم)"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/announcements/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "announcements",
+                                        "1"
+                                    ]
+                                },
+                                "description": "تعديل إعلان موجود.\nيُستخدم POST مع _method=PUT لدعم رفع المرفقات."
+                            }
+                        },
+                        {
+                            "name": "Delete Announcement",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/announcements/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "announcements",
+                                        "1"
+                                    ]
+                                },
+                                "description": "حذف إعلان وحذف المرفق المرتبط به إن وُجد."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "⏰ Reminders",
+                    "item": [
+                        {
+                            "name": "List Reminders",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/reminders?filter=upcoming",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "reminders"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "filter",
+                                            "value": "upcoming",
+                                            "description": "upcoming (افتراضي) | past"
+                                        }
+                                    ]
+                                },
+                                "description": "قائمة التذكيرات - القادمة أو السابقة حسب الفلتر."
+                            }
+                        },
+                        {
+                            "name": "Create Reminder",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"type\": \"assignment\",\n    \"title\": \"تسليم وظيفة البرمجة\",\n    \"description\": \"آخر موعد لتسليم الوظيفة عبر المنصة\",\n    \"reminder_time\": \"2024-06-01 20:00:00\",\n    \"notify_before_minutes\": 60\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/reminders",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "reminders"
+                                    ]
+                                },
+                                "description": "إضافة تذكير جديد للدفعة.\ntype: exam | assignment | lecture | event | other\nreminder_time: يجب أن يكون في المستقبل"
+                            }
+                        },
+                        {
+                            "name": "Update Reminder",
+                            "request": {
+                                "method": "PUT",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"type\": \"exam\",\n    \"title\": \"تسليم وظيفة البرمجة - تحديث\",\n    \"description\": \"تم تمديد الموعد ليوم إضافي\",\n    \"reminder_time\": \"2024-06-02 20:00:00\",\n    \"notify_before_minutes\": 120\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/reminders/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "reminders",
+                                        "1"
+                                    ]
+                                },
+                                "description": "تعديل تذكير موجود."
+                            }
+                        },
+                        {
+                            "name": "Delete Reminder",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/reminders/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "reminders",
+                                        "1"
+                                    ]
+                                },
+                                "description": "حذف تذكير."
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "💬 05 - Messaging",
+            "item": [
+                {
+                    "name": "👨‍🎓 Student Messages",
+                    "item": [
+                        {
+                            "name": "List Conversations",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/messages",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "messages"
+                                    ]
+                                },
+                                "description": "قائمة المحادثات مع طلاب الدفعة."
+                            }
+                        },
+                        {
+                            "name": "Show Conversation",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/messages/2",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "messages",
+                                        "2"
+                                    ]
+                                },
+                                "description": "عرض رسائل محادثة محددة مع طالب."
+                            }
+                        },
+                        {
+                            "name": "Send Message",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"receiver_id\": 2,\n    \"content\": \"مرحباً صديقي بخصوص الوظيفة...\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/messages",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "messages"
+                                    ]
+                                },
+                                "description": "إرسال رسالة جديدة لطالب في الدفعة."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "👨‍⚕️ Doctor Chats",
+                    "item": [
+                        {
+                            "name": "List Doctor Chats",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/doctor-chats",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "doctor-chats"
+                                    ]
+                                },
+                                "description": "قائمة المحادثات مع الأطباء (الدكاترة)."
+                            }
+                        },
+                        {
+                            "name": "Show Chat with Doctor",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/doctor-chats/3",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "doctor-chats",
+                                        "3"
+                                    ]
+                                },
+                                "description": "عرض محادثة محددة مع دكتور."
+                            }
+                        },
+                        {
+                            "name": "Send Message to Doctor",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"receiver_id\": 3,\n    \"content\": \"السلام عليكم دكتور، بخصوص محاضرة الغد...\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/doctor-chats",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "doctor-chats"
+                                    ]
+                                },
+                                "description": "إرسال رسالة لدكتور."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "❓ Inquiries",
+                    "item": [
+                        {
+                            "name": "List Inquiries",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/inquiries",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "inquiries"
+                                    ]
+                                },
+                                "description": "قائمة الاستفسارات الواردة من الطلاب حول مواد الدفعة."
+                            }
+                        },
+                        {
+                            "name": "Show Inquiry",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/inquiries/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "inquiries",
+                                        "1"
+                                    ]
+                                },
+                                "description": "عرض تفاصيل استفسار محدد مع بيانات الطالب والمادة."
+                            }
+                        },
+                        {
+                            "name": "Reply to Inquiry",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"reply\": \"الجواب هو في الصفحة 50 من الكتاب.\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/inquiries/1/reply",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "inquiries",
+                                        "1",
+                                        "reply"
+                                    ]
+                                },
+                                "description": "الرد على استفسار طالب. يتم تحديث الحالة تلقائياً إلى answered."
+                            }
+                        },
+                        {
+                            "name": "Update Inquiry Status",
+                            "request": {
+                                "method": "PATCH",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"status\": \"closed\",\n    \"is_public\": true\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/inquiries/1/status",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "inquiries",
+                                        "1",
+                                        "status"
+                                    ]
+                                },
+                                "description": "تحديث حالة استفسار.\nstatus: pending | answered | closed\nis_public: اختياري لجعل الاستفسار مرئياً للجميع"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "📋 06 - Tracking",
+            "item": [
+                {
+                    "name": "✅ Attendance",
+                    "item": [
+                        {
+                            "name": "List Sessions",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/attendances",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "attendances"
+                                    ]
+                                },
+                                "description": "قائمة جلسات الحضور والغياب المسجّلة لمواد الدفعة."
+                            }
+                        },
+                        {
+                            "name": "Show Session Details",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/attendances/1/2024-05-18",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "attendances",
+                                        "1",
+                                        "2024-05-18"
+                                    ]
+                                },
+                                "description": "عرض تفاصيل جلسة حضور محددة (حسب المادة والتاريخ).\nالصيغة: /attendances/{subject_id}/{date}"
+                            }
+                        },
+                        {
+                            "name": "Store Attendance Record",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"date\": \"2024-05-18\",\n    \"subject_id\": 1,\n    \"students\": [\n        {\"id\": 2, \"status\": \"present\"},\n        {\"id\": 3, \"status\": \"late\"},\n        {\"id\": 4, \"status\": \"absent\"},\n        {\"id\": 5, \"status\": \"excused\"}\n    ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/attendances",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "attendances"
+                                    ]
+                                },
+                                "description": "تسجيل حضور وغياب الطلاب لمادة في تاريخ محدد.\nstatus: present | absent | late | excused\nملاحظة: لا يمكن تسجيل نفس المادة/التاريخ مرتين."
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "🔔 Notifications (Absence Warnings)",
+                    "item": [
+                        {
+                            "name": "Get Absence Stats",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/notifications",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "notifications"
+                                    ]
+                                },
+                                "description": "إحصائيات الغياب للطلاب مع تحديد من تجاوز الحد المسموح."
+                            }
+                        },
+                        {
+                            "name": "Send Warning",
+                            "request": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"student_id\": 4,\n    \"subject_id\": 1,\n    \"absence_count\": 3,\n    \"message\": \"تحذير: لقد تجاوزت الحد المسموح به من الغياب في مقرر كذا.\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/notifications",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "notifications"
+                                    ]
+                                },
+                                "description": "إرسال تحذير غياب لطالب محدد في مادة محددة."
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "📱 07 - QR Attendance",
+            "item": [
+                {
+                    "name": "Start Session",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"subject_id\": 1,\n    \"date\": \"2024-05-18\",\n    \"title\": \"المحاضرة الأولى\",\n    \"lecture_number\": \"1\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/qr-attendance/start",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "qr-attendance",
+                                "start"
+                            ]
+                        },
+                        "description": "بدء جلسة حضور QR جديدة لمادة في تاريخ محدد."
+                    }
+                },
+                {
+                    "name": "Rotate Token",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/qr-attendance/1/token",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "qr-attendance",
+                                "1",
+                                "token"
+                            ]
+                        },
+                        "description": "تدوير كود QR (توليد كود جديد) لمنع التزوير."
+                    }
+                },
+                {
+                    "name": "Get Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/qr-attendance/1/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "qr-attendance",
+                                "1",
+                                "status"
+                            ]
+                        },
+                        "description": "حالة جلسة QR الحالية مع عدد الطلاب المسجّلين."
+                    }
+                },
+                {
+                    "name": "Finalize Session",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/qr-attendance/1/finalize",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "qr-attendance",
+                                "1",
+                                "finalize"
+                            ]
+                        },
+                        "description": "إغلاق جلسة QR وتسجيل من لم يحضر كغائب."
+                    }
+                },
+                {
+                    "name": "📱 Student Testing",
+                    "item": [
+                        {
+                            "name": "Scan QR Code (Student)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{student_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"token\": \"PLACE_QR_TOKEN_HERE\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/qr-attendance/scan",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "qr-attendance",
+                                        "scan"
+                                    ]
+                                },
+                                "description": "مسح كود QR من جهة الطالب لتسجيل الحضور.\nملاحظة: يستخدم student_token بدل delegate_token."
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000",
+            "type": "string"
+        },
+        {
+            "key": "delegate_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "student_token",
+            "value": "",
+            "type": "string",
+            "description": "Token للطالب - يُستخدم فقط في Student Testing"
+        }
+    ]
+}

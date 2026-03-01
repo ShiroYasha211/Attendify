@@ -220,6 +220,18 @@ Route::prefix('student')
             Route::post('daily-log/{id}/regenerate', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'regenerateQr'])->name('daily-log.regenerate');
             Route::delete('daily-log/{id}/cancel', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'cancelDailyLog'])->name('daily-log.cancel');
             Route::get('logbook', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'myLogbook'])->name('logbook');
+            Route::get('logbook/export-pdf', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'exportPdf'])->name('logbook.export_pdf');
+            // Route::post('logbook/store', [LogbookController::class, 'store'])->name('logbook.store'); // This line was malformed in the instruction, assuming it's not needed or should be fixed.
+
+            // Mock OSCE Exams
+            Route::get('mock-exams', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'index'])->name('mock.index');
+            Route::get('mock-exams/create-custom', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'createCustom'])->name('mock.create_custom');
+            Route::post('mock-exams/store-custom', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'storeCustom'])->name('mock.store_custom');
+            Route::delete('mock-exams/{id}/destroy-custom', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'destroyCustom'])->name('mock.destroy_custom');
+            Route::get('mock-exams/take/{checklist}', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'take'])->name('mock.take');
+            Route::post('mock-exams/store', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'store'])->name('mock.store');
+            Route::get('mock-exams/{id}', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'show'])->name('mock.show');
+
             Route::get('evaluations', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'index'])->name('evaluations');
             Route::get('evaluations/{id}', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'show'])->name('evaluations.show');
         });

@@ -290,10 +290,22 @@
 </a>
 
 <!-- Report Header -->
-<div class="report-header">
-    <h1 class="report-title">📊 التقرير الشامل</h1>
-    <div class="report-meta">
-        {{ $subject->name }} • {{ $subject->major->name ?? '' }} • {{ $subject->level->name ?? '' }}
+<div class="report-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="report-title">📊 التقرير الشامل</h1>
+        <div class="report-meta">
+            {{ $subject->name }} • {{ $subject->major->name ?? '' }} • {{ $subject->level->name ?? '' }}
+        </div>
+    </div>
+    <div>
+        <a href="{{ route('doctor.grades.report', ['id' => $subject->id, 'format' => 'excel']) }}" style="display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; color: #10b981; background: #10b98110; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#10b981'; this.style.color='white';" onmouseout="this.style.background='#10b98110'; this.style.color='#10b981';">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            تصدير Excel
+        </a>
     </div>
 </div>
 
@@ -347,25 +359,25 @@
                         <div class="grade-bar">
                             <div class="grade-label">ممتاز (85+)</div>
                             <div class="bar-track">
-                                <div class="bar-fill bar-excellent" style="width: {{ ($excellent / $maxCount) * 100 }}%;">{{ $excellent }}</div>
+                                <div class="bar-fill bar-excellent" style="width: {{ round(($excellent / $maxCount) * 100) }}%;">{{ $excellent }}</div>
                             </div>
                         </div>
                         <div class="grade-bar">
                             <div class="grade-label">جيد (70-84)</div>
                             <div class="bar-track">
-                                <div class="bar-fill bar-good" style="width: {{ ($good / $maxCount) * 100 }}%;">{{ $good }}</div>
+                                <div class="bar-fill bar-good" style="width: {{ round(($good / $maxCount) * 100) }}%;">{{ $good }}</div>
                             </div>
                         </div>
                         <div class="grade-bar">
                             <div class="grade-label">مقبول (60-69)</div>
                             <div class="bar-track">
-                                <div class="bar-fill bar-pass" style="width: {{ ($pass / $maxCount) * 100 }}%;">{{ $pass }}</div>
+                                <div class="bar-fill bar-pass" style="width: {{ round(($pass / $maxCount) * 100) }}%;">{{ $pass }}</div>
                             </div>
                         </div>
                         <div class="grade-bar">
                             <div class="grade-label">راسب (-60)</div>
                             <div class="bar-track">
-                                <div class="bar-fill bar-fail" style="width: {{ ($fail / $maxCount) * 100 }}%;">{{ $fail }}</div>
+                                <div class="bar-fill bar-fail" style="width: {{ round(($fail / $maxCount) * 100) }}%;">{{ $fail }}</div>
                             </div>
                         </div>
                     </div>
@@ -414,6 +426,7 @@
                 <th style="width: 100px;">أعمال السنة</th>
                 <th style="width: 100px;">النهائي</th>
                 <th style="width: 100px;">المجموع</th>
+                <th style="width: 100px;">التقدير</th>
                 <th style="width: 100px;">الحالة</th>
             </tr>
         </thead>
@@ -439,6 +452,33 @@
                 <td>
                     <span class="total-badge {{ $student->total >= 60 ? 'total-pass' : 'total-fail' }}">
                         {{ $student->total }}/100
+                    </span>
+                </td>
+                <td>
+                    @php
+                    $letterGrade = 'F';
+                    $letterColor = '#ef4444'; // Red
+                    $letterLabel = 'راسب';
+                    if ($student->total >= 90) {
+                    $letterGrade = 'A';
+                    $letterColor = '#10b981'; // Green
+                    $letterLabel = 'ممتاز';
+                    } elseif ($student->total >= 80) {
+                    $letterGrade = 'B';
+                    $letterColor = '#3b82f6'; // Blue
+                    $letterLabel = 'جيد جداً';
+                    } elseif ($student->total >= 70) {
+                    $letterGrade = 'C';
+                    $letterColor = '#f59e0b'; // Amber
+                    $letterLabel = 'جيد';
+                    } elseif ($student->total >= 60) {
+                    $letterGrade = 'D';
+                    $letterColor = '#8b5cf6'; // Purple
+                    $letterLabel = 'مقبول';
+                    }
+                    @endphp
+                    <span style="font-weight: 700; color: {{ $letterColor }}; font-size: 0.9rem; padding: 0.2rem 0.5rem; background: {{ $letterColor }}20; border-radius: 6px;" title="{{ $letterGrade }}">
+                        {{ $letterLabel }}
                     </span>
                 </td>
                 <td>

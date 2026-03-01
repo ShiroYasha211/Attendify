@@ -22,20 +22,21 @@ class AttendanceController extends Controller
     {
         $delegate = Auth::user();
 
-        // Get unique attendance sessions (grouped by subject and date)
-        // Since we store individual records, we can group by date & subject
-        $sessions = Attendance::selectRaw('subject_id, date, count(*) as total_records')
-            ->where('recorded_by', $delegate->id)
-            ->groupBy('subject_id', 'date')
-            ->with(['subject'])
-            ->latest('date')
-            ->paginate(10);
-
-        // Fetch subjects for the "Start QR Attendance" modal
+        // Fetch subjects for the delegate's scope
         $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->orderBy('name')
             ->get();
+
+        $subjectIds = $subjects->pluck('id');
+
+        // Get unique attendance sessions (grouped by subject and date) for all subjects in the delegate's scope
+        $sessions = Attendance::selectRaw('subject_id, date, count(*) as total_records')
+            ->whereIn('subject_id', $subjectIds)
+            ->groupBy('subject_id', 'date')
+            ->with(['subject'])
+            ->latest('date')
+            ->paginate(10);
 
         return view('delegate.attendance.index', compact('sessions', 'subjects'));
     }

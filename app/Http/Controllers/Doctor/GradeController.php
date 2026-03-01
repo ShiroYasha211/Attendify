@@ -79,10 +79,21 @@ class GradeController extends Controller
             ->with(['major', 'level'])
             ->findOrFail($id);
 
-        // Base students query
+        // Base students query with eager-loaded grades and notes (fixes N+1)
         $studentsQuery = User::where('role', UserRole::STUDENT)
             ->where('major_id', $subject->major_id)
-            ->where('level_id', $subject->level_id);
+            ->where('level_id', $subject->level_id)
+            ->with([
+                'grades' => function ($q) use ($subject) {
+                    $q->where('subject_id', $subject->id);
+                },
+                'studentNotes' => function ($q) use ($subject, $user) {
+                    $q->where('subject_id', $subject->id)
+                        ->where('doctor_id', $user->id)
+                        ->latest()
+                        ->take(3);
+                }
+            ]);
 
         // Apply search filter
         $search = $request->get('search');
@@ -95,24 +106,11 @@ class GradeController extends Controller
 
         $students = $studentsQuery->orderBy('name')->get();
 
-        // Get grades and notes for each student
+        // Extract grades from eager-loaded relations (no extra queries)
         foreach ($students as $student) {
-            $student->continuous_grade = Grade::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('type', 'continuous')
-                ->first();
-
-            $student->final_grade = Grade::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('type', 'final')
-                ->first();
-
-            $student->notes = StudentNote::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('doctor_id', $user->id)
-                ->latest()
-                ->take(3)
-                ->get();
+            $student->continuous_grade = $student->grades->where('type', 'continuous')->first();
+            $student->final_grade = $student->grades->where('type', 'final')->first();
+            $student->notes = $student->studentNotes;
         }
 
         // Calculate statistics
@@ -212,24 +210,19 @@ class GradeController extends Controller
             ->with(['major', 'level'])
             ->findOrFail($id);
 
-        // Get all students with grades
+        // Get all students with grades (eager-loaded — fixes N+1)
         $students = User::where('role', UserRole::STUDENT)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
+            ->with(['grades' => function ($q) use ($subject) {
+                $q->where('subject_id', $subject->id);
+            }])
             ->orderBy('name')
             ->get();
 
         foreach ($students as $student) {
-            $student->continuous_grade = Grade::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('type', 'continuous')
-                ->first();
-
-            $student->final_grade = Grade::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('type', 'final')
-                ->first();
-
+            $student->continuous_grade = $student->grades->where('type', 'continuous')->first();
+            $student->final_grade = $student->grades->where('type', 'final')->first();
             $student->total = ($student->continuous_grade->score ?? 0) + ($student->final_grade->score ?? 0);
         }
 
@@ -238,6 +231,12 @@ class GradeController extends Controller
 
         // Calculate stats
         $stats = $this->calculateSubjectStats($subject, $students);
+
+        $format = request('format', 'html');
+
+        if ($format === 'excel') {
+            return $this->exportExcel($subject, $students);
+        }
 
         return view('doctor.grades.report', compact('subject', 'students', 'stats'));
     }
@@ -273,5 +272,62 @@ class GradeController extends Controller
             'failed' => $failed,
             'pass_rate' => count($students) > 0 ? round(($passed / count($students)) * 100) : 0,
         ];
+    }
+
+    /**
+     * Export grades to Excel (CSV)
+     */
+    private function exportExcel($subject, $students)
+    {
+        $csvData = [];
+        $csvData[] = ['الترتيب', 'الرقم الجامعي', 'اسم الطالب', 'أعمال السنة (40)', 'النهائي (60)', 'المجموع (100)', 'التقدير', 'الحالة'];
+
+        foreach ($students as $index => $student) {
+            $continuous = $student->continuous_grade->score ?? 0;
+            $final = $student->final_grade->score ?? 0;
+            $total = $student->total;
+
+            // Calculate Letter Grade
+            $letterLabel = 'راسب';
+            if ($total >= 90) $letterLabel = 'ممتاز';
+            elseif ($total >= 80) $letterLabel = 'جيد جداً';
+            elseif ($total >= 70) $letterLabel = 'جيد';
+            elseif ($total >= 60) $letterLabel = 'مقبول';
+
+            $status = $total >= 60 ? 'ناجح' : 'راسب';
+
+            $csvData[] = [
+                $index + 1,
+                $student->student_number ?? 'غير محدد',
+                $student->name,
+                $continuous,
+                $final,
+                $total,
+                $letterLabel,
+                $status
+            ];
+        }
+
+        $filename = "grade_report_" . $subject->id . "_" . date('Y-m-d') . ".csv";
+
+        $headers = [
+            "Content-type"        => "text/csv; charset=UTF-8",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function () use ($csvData) {
+            $file = fopen('php://output', 'w');
+            // Adding BOM for Arabic characters in Excel
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            foreach ($csvData as $row) {
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

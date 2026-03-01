@@ -14,7 +14,9 @@ use App\Models\Academic\Lecture;
 use App\Models\User;
 use App\Enums\UserRole;
 
-class QrAttendanceController extends Controller
+use App\Http\Controllers\Api\Delegate\DelegateApiController;
+
+class QrAttendanceController extends DelegateApiController
 {
     /**
      * ──────────────────────────────────────────────────
@@ -31,13 +33,13 @@ class QrAttendanceController extends Controller
         try {
             $user = $request->user();
 
-            // Only delegates can start sessions
+            // Only delegates or practical delegates can start sessions
             // Ensure $user is not null
             if (!$user) {
                 return response()->json(['message' => 'User not found. Please login.'], 401);
             }
 
-            if (!$user->hasRole(UserRole::DELEGATE)) {
+            if (!in_array($user->role, [UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
                 return response()->json(['message' => 'غير مصرح لك بهذا الإجراء.'], 403);
             }
 
@@ -285,14 +287,11 @@ class QrAttendanceController extends Controller
         $session->update(['status' => 'finalized']);
 
         // We do NOT mark absentees here anymore.
-        // We redirect to the manual attendance page for review and final saving.
+        // The mobile app will handle the transition to the review screen.
 
-        return response()->json([
-            'message'      => 'تم إنهاء المسح. جاري الانتقال للمراجعة...',
-            'redirect_url' => route('delegate.attendance.create', [
-                'subject'       => $session->subject_id,
-                'qr_session_id' => $session->id
-            ]),
-        ]);
+        return $this->success(
+            ['session_id' => $session->id, 'subject_id' => $session->subject_id],
+            'تم إنهاء المسح بنجاح. يمكنك الآن مراجعة قائمة الحضور.'
+        );
     }
 }

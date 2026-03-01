@@ -151,14 +151,14 @@
                 <label class="form-label">المركز التدريبي <span style="color:red">*</span></label>
                 <select name="training_center_id" class="form-select" required>
                     <option value="">-- اختر --</option>
-                    @foreach(\App\Models\Clinical\TrainingCenter::all() as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
+                    @foreach($trainingCenters as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach
                 </select>
             </div>
             <div class="form-group">
                 <label class="form-label">القسم <span style="color:red">*</span></label>
                 <select name="department_id" class="form-select" required>
                     <option value="">-- اختر --</option>
-                    @foreach(\App\Models\Clinical\ClinicalDepartment::all() as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach
+                    @foreach($departments as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach
                 </select>
             </div>
         </div>

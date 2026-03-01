@@ -121,16 +121,19 @@
     .assignment-card {
         background: white;
         border-radius: 20px;
-        border: 1px solid #e2e8f0;
+        border: 2px solid transparent;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         overflow: hidden;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         flex-direction: column;
+        position: relative;
     }
 
     .assignment-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-5px);
+        border-color: #e2e8f0;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 
     .card-stripe {
@@ -176,22 +179,25 @@
         font-size: 0.8rem;
         font-weight: 700;
         padding: 0.4rem 0.75rem;
-        border-radius: 8px;
+        border-radius: 999px;
     }
 
     .deadline-badge.urgent {
         background: #fef2f2;
         color: #dc2626;
+        border: 1px solid #fecaca;
     }
 
     .deadline-badge.soon {
         background: #fffbeb;
         color: #d97706;
+        border: 1px solid #fde68a;
     }
 
     .deadline-badge.normal {
         background: #f0fdf4;
         color: #16a34a;
+        border: 1px solid #bbf7d0;
     }
 
     .assignment-title {
@@ -230,15 +236,18 @@
         padding: 0.6rem 1.25rem;
         background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
         color: white;
-        border-radius: 10px;
+        border-radius: 12px;
         text-decoration: none;
         font-weight: 700;
         font-size: 0.85rem;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .details-btn:hover {
-        transform: scale(1.02);
+        transform: scale(1.05);
         box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.4);
         color: white;
     }

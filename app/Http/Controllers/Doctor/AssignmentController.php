@@ -37,7 +37,7 @@ class AssignmentController extends Controller
             $query->where('due_date', '<', now());
         }
 
-        $assignments = $query->latest()->get();
+        $assignments = $query->latest()->paginate(12)->withQueryString();
 
         // Stats
         $stats = [
@@ -69,7 +69,7 @@ class AssignmentController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'requires_submission' => $request->has('requires_submission'),
+            'requires_submission' => $request->has('requires_submission') && $request->requires_submission == '1',
             'created_by' => Auth::id(),
         ]);
 
@@ -93,7 +93,7 @@ class AssignmentController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'requires_submission' => $request->has('requires_submission'),
+            'requires_submission' => $request->has('requires_submission') && $request->requires_submission == '1',
         ]);
 
         return redirect()->back()->with('success', 'تم تحديث التكليف بنجاح.');

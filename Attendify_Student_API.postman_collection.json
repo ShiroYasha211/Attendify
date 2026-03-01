@@ -1,0 +1,704 @@
+{
+    "info": {
+        "_postman_id": "attendify-student-api",
+        "name": "Attendify - Student API",
+        "description": "واجهة برمجة التطبيقات (API) الخاصة بتطبيق الطالب في نظام Attendify.\n\nالمصادقة: يستخدم Laravel Sanctum (Bearer Token).\n- أولاً: استدعِ POST /api/student/login للحصول على token.\n- ثم: استخدم الـ token في جميع الطلبات الأخرى.\n\nالردود: جميع الردود بصيغة JSON موحدة:\n```json\n{\n  \"success\": true/false,\n  \"message\": \"...\",\n  \"data\": { ... }\n}\n```",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000/api/student",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "🔐 Authentication",
+            "description": "المصادقة وتسجيل الدخول/الخروج",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.success && jsonData.data.token) {",
+                                    "    pm.collectionVariables.set('token', jsonData.data.token);",
+                                    "    console.log('Token saved: ' + jsonData.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"student1@example.com\",\n    \"password\": \"password\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "login"
+                            ]
+                        },
+                        "description": "تسجيل الدخول كطالب للحصول على Bearer Token.\nيُحفظ الـ Token تلقائياً في المجموعة.\n\nالحقول المطلوبة:\n- email (string, required)\n- password (string, required)"
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "logout"
+                            ]
+                        },
+                        "description": "تسجيل الخروج وإلغاء الـ Token الحالي."
+                    }
+                },
+                {
+                    "name": "Get Profile (Me)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "me"
+                            ]
+                        },
+                        "description": "جلب بيانات الملف الشخصي للطالب المسجّل.\n\nيُعيد: id, name, email, role, status, university, college, major, level."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📊 Dashboard",
+            "description": "لوحة التحكم والإحصائيات",
+            "item": [
+                {
+                    "name": "Get Dashboard Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/dashboard",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "dashboard"
+                            ]
+                        },
+                        "description": "جلب إحصائيات لوحة التحكم (المواد، الحضور، التكاليف، الأنشطة الأخيرة)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📚 Subjects & Lectures (المواد)",
+            "description": "المواد الدراسية والمحاضرات والمكتبة",
+            "item": [
+                {
+                    "name": "List Subjects",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/subjects",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subjects"
+                            ]
+                        },
+                        "description": "جلب قائمة مواد الطالب."
+                    }
+                },
+                {
+                    "name": "Subject Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/subjects/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subjects",
+                                "1"
+                            ]
+                        },
+                        "description": "تفاصيل مادة محددة مع المحاضرات والتكاليف والموارد."
+                    }
+                },
+                {
+                    "name": "Toggle Listen to Lecture",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/lectures/1/toggle-listen",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "lectures",
+                                "1",
+                                "toggle-listen"
+                            ]
+                        },
+                        "description": "تبديل حالة الاستماع لمحاضرة (listened/not listened).\n\nURL: lectures/{lecture_id}/toggle-listen"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📝 Assignments (التكاليف)",
+            "description": "التكاليف والتسليمات",
+            "item": [
+                {
+                    "name": "Assignments List",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/assignments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assignments"
+                            ]
+                        },
+                        "description": "جلب قائمة التكاليف الدراسية."
+                    }
+                },
+                {
+                    "name": "Submit Assignment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "notes",
+                                    "value": "تم الحل",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "description": "ملف التسليم (اختياري)"
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assignments/1/submit",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assignments",
+                                "1",
+                                "submit"
+                            ]
+                        },
+                        "description": "تسليم تكليف.\n\nالحقول:\n- notes (optional): ملاحظات\n- file (optional): ملف التسليم\n\nURL: assignments/{assignment_id}/submit"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📋 Attendance (الحضور)",
+            "description": "سجل حضور الطالب",
+            "item": [
+                {
+                    "name": "Attendance History",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/attendance",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "attendance"
+                            ]
+                        },
+                        "description": "جلب سجل حضور الطالب لجميع المواد."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📱 QR Attendance",
+            "description": "تسجيل الحضور عبر QR",
+            "item": [
+                {
+                    "name": "Scan QR Code",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"token\": \"qr_code_token_from_camera\"\n}"
+                        },
+                        "url": {
+                            "raw": "http://127.0.0.1:8000/api/qr-attendance/scan",
+                            "host": [
+                                "http://127.0.0.1:8000"
+                            ],
+                            "path": [
+                                "api",
+                                "qr-attendance",
+                                "scan"
+                            ]
+                        },
+                        "description": "مسح رمز QR لتسجيل الحضور.\n\n⚠️ هذا الـ endpoint يستخدم Web Auth (Cookie) وليس Sanctum.\nURL كامل: /api/qr-attendance/scan"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Logbook",
+            "description": "الدفتر اليومي للتدريب العملي",
+            "item": [
+                {
+                    "name": "Logbook Dashboard",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook"
+                            ]
+                        },
+                        "description": "جلب سجلات الدفتر اليومي مع الإحصائيات."
+                    }
+                },
+                {
+                    "name": "Store Logbook Entry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"training_center_id\": 1,\n    \"department_id\": 1,\n    \"doctor_id\": 2,\n    \"histories\": [\n        {\"body_system_id\": 1}\n    ],\n    \"exams\": [\n        {\"body_system_id\": 2}\n    ],\n    \"did_round\": true,\n    \"rounds\": [\n        {\"case_name\": \"Appendicitis\"}\n    ],\n    \"round_notes\": \"Round was informative\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook"
+                            ]
+                        },
+                        "description": "إنشاء سجل يومي جديد مع الأنشطة."
+                    }
+                },
+                {
+                    "name": "Update Logbook Entry",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"training_center_id\": 1,\n    \"department_id\": 2,\n    \"doctor_id\": 2,\n    \"histories\": [\n        {\"body_system_id\": 3}\n    ],\n    \"exams\": [\n        {\"body_system_id\": 3}\n    ],\n    \"did_round\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook",
+                                "1"
+                            ]
+                        },
+                        "description": "تحديث سجل يومي موجود."
+                    }
+                },
+                {
+                    "name": "Delete Logbook Entry",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف سجل يومي (فقط إذا كان بحالة pending)."
+                    }
+                },
+                {
+                    "name": "Export Logbook PDF",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook/export-pdf",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook",
+                                "export-pdf"
+                            ]
+                        },
+                        "description": "تصدير الدفتر اليومي كملف PDF."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Evaluations",
+            "description": "نتائج تقييمات OSCE",
+            "item": [
+                {
+                    "name": "List My Evaluations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations"
+                            ]
+                        },
+                        "description": "جلب نتائج تقييمات الطالب."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Mock Exams",
+            "description": "الاختبارات التدريبية (التدرب على التقييمات)",
+            "item": [
+                {
+                    "name": "List Mock Exams",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/mock-exams",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "mock-exams"
+                            ]
+                        },
+                        "description": "جلب قائمة الاختبارات التدريبية المتاحة."
+                    }
+                },
+                {
+                    "name": "Create Custom Mock Exam",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"اختباري الشخصي\",\n    \"description\": \"تدريب على أخذ القصة المرضية\",\n    \"items\": [\n        {\"description\": \"التعريف بالنفس\", \"marks\": 2},\n        {\"description\": \"غسل اليدين\", \"marks\": 1}\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/mock-exams/custom",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "mock-exams",
+                                "custom"
+                            ]
+                        },
+                        "description": "إنشاء اختبار تدريبي مخصص."
+                    }
+                },
+                {
+                    "name": "Delete Custom Mock Exam",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/mock-exams/custom/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "mock-exams",
+                                "custom",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف اختبار تدريبي مخصص."
+                    }
+                },
+                {
+                    "name": "Take Mock Exam",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/mock-exams/1/take",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "mock-exams",
+                                "1",
+                                "take"
+                            ]
+                        },
+                        "description": "جلب بيانات اختبار تدريبي لبدء التدرب.\n\nURL: mock-exams/{checklist_id}/take"
+                    }
+                },
+                {
+                    "name": "Submit Mock Exam",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"time_taken\": 300,\n    \"scores\": {\n        \"1\": {\"score\": \"done\", \"notes\": \"ممتاز\"},\n        \"2\": {\"score\": \"partial\", \"notes\": \"نسيت القفازات\"}\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/mock-exams/1/submit",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "mock-exams",
+                                "1",
+                                "submit"
+                            ]
+                        },
+                        "description": "تسليم نتائج اختبار تدريبي.\n\nURL: mock-exams/{checklist_id}/submit"
+                    }
+                },
+                {
+                    "name": "Show Mock Exam Result",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/mock-exams/results/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "mock-exams",
+                                "results",
+                                "1"
+                            ]
+                        },
+                        "description": "عرض نتيجة اختبار تدريبي محدد.\n\nURL: mock-exams/results/{evaluation_id}"
+                    }
+                }
+            ]
+        }
+    ]
+}

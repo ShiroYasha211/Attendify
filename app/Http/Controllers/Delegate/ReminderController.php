@@ -9,16 +9,33 @@ use Illuminate\Support\Facades\Auth;
 
 class ReminderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $delegate = Auth::user();
+        $filter = $request->get('filter', 'upcoming');
 
-        $reminders = Reminder::where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)
-            ->orderBy('event_date', 'asc') // Sort by nearest event
-            ->paginate(10);
+        $query = Reminder::where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id);
 
-        return view('delegate.reminders.index', compact('reminders'));
+        if ($filter === 'upcoming') {
+            $query->where('notify_at', '>=', now())
+                ->orderBy('event_date', 'asc');
+        } elseif ($filter === 'past') {
+            $query->where('notify_at', '<', now())
+                ->orderBy('event_date', 'desc');
+        } else {
+            $query->orderBy('event_date', 'asc');
+        }
+
+        $reminders = $query->paginate(10);
+
+        $stats = [
+            'total' => Reminder::where('major_id', $delegate->major_id)->where('level_id', $delegate->level_id)->count(),
+            'upcoming' => Reminder::where('major_id', $delegate->major_id)->where('level_id', $delegate->level_id)->where('notify_at', '>=', now())->count(),
+            'past' => Reminder::where('major_id', $delegate->major_id)->where('level_id', $delegate->level_id)->where('notify_at', '<', now())->count(),
+        ];
+
+        return view('delegate.reminders.index', compact('reminders', 'filter', 'stats'));
     }
 
     public function store(Request $request)

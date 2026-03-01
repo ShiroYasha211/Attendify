@@ -260,14 +260,28 @@
                     <span>سجل الحضور</span>
                 </a>
 
-                <a href="{{ route('student.clinical.index') }}" class="nav-link {{ request()->routeIs('student.clinical.*') ? 'active' : '' }}" title="القسم السريري">
+                @if(Auth::user()->major && Auth::user()->major->has_clinical)
+                <div class="nav-group-label" title="القسم السريري/العملي">القسم السريري</div>
+
+                <a href="{{ route('student.clinical.index') }}" class="nav-link {{ request()->routeIs('student.clinical.*') && !request()->routeIs('student.clinical.mock.*') ? 'active' : '' }}" title="الرئيسية السريرية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"></path>
                         <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"></path>
                         <circle cx="20" cy="10" r="2"></circle>
                     </svg>
-                    <span>القسم السريري</span>
+                    <span>الرئيسية السريرية</span>
                 </a>
+
+                <a href="{{ route('student.clinical.mock.index') }}" class="nav-link {{ request()->routeIs('student.clinical.mock.*') ? 'active' : '' }}" title="الاختبارات التجريبية">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 16v-4"></path>
+                        <path d="M12 8h.01"></path>
+                    </svg>
+                    <span>الاختبارات التجريبية</span>
+                    <span style="background:#4f46e5; color:white; border-radius:12px; font-size:0.65rem; padding:0.15rem 0.4rem; margin-right:auto; font-weight: 700;">جديد</span>
+                </a>
+                @endif
 
                 <a href="{{ route('student.grades.index') }}" class="nav-link {{ request()->routeIs('student.grades.*') ? 'active' : '' }}" title="النتائج">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -340,7 +354,7 @@
                 <!-- User Profile Section -->
                 <div class="user-menu" style="display: flex; align-items: center; gap: 1rem;">
 
-                    @if(Auth::user()->role->value === 'delegate')
+                    @if(Auth::user()->role->value === 'delegate' || \App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists())
                     <a href="{{ route('delegate.dashboard') }}" class="btn-submit" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 8px; text-decoration: none; width: auto; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);" title="العودة للوحة المندوب">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M16 3h5v5"></path>
@@ -366,11 +380,22 @@
                     <div style="width: 1px; height: 24px; background-color: var(--border-color);"></div>
 
                     <div class="user-info">
-                        <span class="user-name">{{ Auth::user()->name }}</span>
+                        <span class="user-name">
+                            {{ Auth::user()->name }}
+                            @if(\App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists())
+                            <span style="background-color: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.70rem; margin-right: 4px; display: inline-flex; align-items: center; gap: 4px;" title="مندوب العملي">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
+                                    <path d="m9 12 2 2 4-4"></path>
+                                </svg>
+                                مندوب عملي
+                            </span>
+                            @endif
+                        </span>
                         <span class="user-role">{{ Auth::user()->student_number }}</span>
                     </div>
 
-                    <div class="user-avatar">
+                    <div class="user-avatar" style="@if(\App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists()) border: 2px solid #10b981; @endif">
                         {{ mb_substr(Auth::user()->name, 0, 1) }}
                     </div>
                 </div>

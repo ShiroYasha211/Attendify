@@ -33,12 +33,21 @@ class InquiryController extends Controller
 
         $inquiries = $query->paginate(15);
 
-        // Stats
+        // Stats — single optimized query (was 4 queries)
+        $statsRaw = Inquiry::whereIn('subject_id', $subjectIds)
+            ->where('status', '!=', 'pending')
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'forwarded' THEN 1 ELSE 0 END) as forwarded,
+                SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END) as answered,
+                SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed
+            ")->first();
+
         $stats = [
-            'total' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', '!=', 'pending')->count(),
-            'forwarded' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'forwarded')->count(),
-            'answered' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'answered')->count(),
-            'closed' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'closed')->count(),
+            'total' => $statsRaw->total ?? 0,
+            'forwarded' => $statsRaw->forwarded ?? 0,
+            'answered' => $statsRaw->answered ?? 0,
+            'closed' => $statsRaw->closed ?? 0,
         ];
 
         return view('doctor.inquiries.index', compact('inquiries', 'stats', 'status'));

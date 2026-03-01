@@ -45,6 +45,11 @@
         color: var(--text-primary);
     }
 
+    .stat-badge.all.active {
+        background: var(--text-primary);
+        color: white;
+    }
+
     .stat-badge.pending {
         background: #fef3c7;
         color: #92400e;
@@ -61,9 +66,24 @@
     }
 
     .stat-badge:hover,
-    .stat-badge.active {
+    .stat-badge.active:not(.all):not(.pending):not(.accepted):not(.rejected) {
         transform: scale(1.05);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-badge.pending.active {
+        background: #d97706;
+        color: white;
+    }
+
+    .stat-badge.accepted.active {
+        background: #059669;
+        color: white;
+    }
+
+    .stat-badge.rejected.active {
+        background: #dc2626;
+        color: white;
     }
 
     .excuses-list {
@@ -261,24 +281,53 @@
     </h1>
 </div>
 
-<!-- Stats Filter -->
-<div class="stats-row">
-    <a href="{{ route('doctor.excuses.index', ['status' => 'all']) }}" class="stat-badge all {{ $status == 'all' ? 'active' : '' }}">
-        <span>الكل</span>
-        <strong>{{ $stats['all'] }}</strong>
-    </a>
-    <a href="{{ route('doctor.excuses.index', ['status' => 'pending']) }}" class="stat-badge pending {{ $status == 'pending' ? 'active' : '' }}">
-        <span>معلق</span>
-        <strong>{{ $stats['pending'] }}</strong>
-    </a>
-    <a href="{{ route('doctor.excuses.index', ['status' => 'accepted']) }}" class="stat-badge accepted {{ $status == 'accepted' ? 'active' : '' }}">
-        <span>مقبول</span>
-        <strong>{{ $stats['accepted'] }}</strong>
-    </a>
-    <a href="{{ route('doctor.excuses.index', ['status' => 'rejected']) }}" class="stat-badge rejected {{ $status == 'rejected' ? 'active' : '' }}">
-        <span>مرفوض</span>
-        <strong>{{ $stats['rejected'] }}</strong>
-    </a>
+<!-- Filters -->
+<div style="background: white; padding: 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 2rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;">
+    <div class="stats-row" style="margin-bottom: 0;">
+        <a href="{{ route('doctor.excuses.index', ['status' => 'all', 'subject' => $subjectId, 'search' => $search]) }}" class="stat-badge all {{ $status == 'all' ? 'active' : '' }}">
+            <span>الكل</span>
+            <strong>{{ $stats['all'] }}</strong>
+        </a>
+        <a href="{{ route('doctor.excuses.index', ['status' => 'pending', 'subject' => $subjectId, 'search' => $search]) }}" class="stat-badge pending {{ $status == 'pending' ? 'active' : '' }}">
+            <span>معلق</span>
+            <strong>{{ $stats['pending'] }}</strong>
+        </a>
+        <a href="{{ route('doctor.excuses.index', ['status' => 'accepted', 'subject' => $subjectId, 'search' => $search]) }}" class="stat-badge accepted {{ $status == 'accepted' ? 'active' : '' }}">
+            <span>مقبول</span>
+            <strong>{{ $stats['accepted'] }}</strong>
+        </a>
+        <a href="{{ route('doctor.excuses.index', ['status' => 'rejected', 'subject' => $subjectId, 'search' => $search]) }}" class="stat-badge rejected {{ $status == 'rejected' ? 'active' : '' }}">
+            <span>مرفوض</span>
+            <strong>{{ $stats['rejected'] }}</strong>
+        </a>
+    </div>
+
+    <form method="GET" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <input type="hidden" name="status" value="{{ $status }}">
+        <select name="subject" onchange="this.form.submit()" style="padding: 0.6rem 1rem; border: 1px solid #e2e8f0; border-radius: 10px; background: white; font-weight: 600; outline: none;">
+            <option value="all">جميع المقررات</option>
+            @foreach($doctorSubjects as $subject)
+            <option value="{{ $subject->id }}" {{ $subjectId == $subject->id ? 'selected' : '' }}>{{ $subject->name }}</option>
+            @endforeach
+        </select>
+
+        <div style="position: relative; display: flex; align-items: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; right: 10px; color: var(--text-secondary);">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" name="search" value="{{ $search }}" placeholder="اكتب اسم الطالب أو رقمه..." style="padding: 0.6rem 1rem 0.6rem 2.5rem; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; outline: none; width: 200px;">
+            @if($search)
+            <a href="{{ route('doctor.excuses.index', ['status' => $status, 'subject' => $subjectId]) }}" style="position: absolute; left: 10px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; color: var(--text-secondary); text-decoration: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </a>
+            @endif
+        </div>
+        <button type="submit" style="display: none;">بحث</button>
+    </form>
 </div>
 
 @if(session('success'))
@@ -313,7 +362,7 @@
             </div>
             <div class="excuse-field">
                 <span class="field-label">تاريخ الغياب</span>
-                <span class="field-value">{{ $excuse->attendance->date ?? '-' }}</span>
+                <span class="field-value">{{ $excuse->attendance ? \Carbon\Carbon::parse($excuse->attendance->date)->format('Y-m-d') : '-' }}</span>
             </div>
             <div class="excuse-field">
                 <span class="field-label">تاريخ التقديم</span>
@@ -333,30 +382,34 @@
 
         <div class="excuse-actions">
             @if($excuse->status == 'pending')
-            <form action="{{ route('doctor.excuses.update', $excuse->id) }}" method="POST" style="display: contents;">
+            <form action="{{ route('doctor.excuses.update', $excuse->id) }}" method="POST" style="width: 100%;">
                 @csrf
                 @method('PUT')
-                <input type="hidden" name="status" value="accepted">
-                <button type="submit" class="btn-accept" onclick="return confirm('هل أنت متأكد من قبول العذر؟')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    قبول
-                </button>
-            </form>
+                <div style="margin-bottom: 1rem;">
+                    <textarea name="doctor_comment" placeholder="ملاحظات الطبيب (اختياري)... الإشعار سيصل للطالب" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; resize: vertical; min-height: 60px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="submit" name="status" value="accepted" class="btn-accept" onclick="return confirm('هل أنت متأكد من قبول العذر؟')" style="flex: 1; justify-content: center;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        قبول
+                    </button>
 
-            <form action="{{ route('doctor.excuses.update', $excuse->id) }}" method="POST" style="display: contents;">
-                @csrf
-                @method('PUT')
-                <input type="hidden" name="status" value="rejected">
-                <button type="submit" class="btn-reject" onclick="return confirm('هل أنت متأكد من رفض العذر؟')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                    رفض
-                </button>
+                    <button type="submit" name="status" value="rejected" class="btn-reject" onclick="return confirm('هل أنت متأكد من رفض العذر؟')" style="flex: 1; justify-content: center;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        رفض
+                    </button>
+                </div>
             </form>
+            @elseif($excuse->doctor_comment)
+            <div style="width: 100%; background: #f8fafc; border-radius: 8px; padding: 1rem; border-right: 3px solid var(--primary-color);">
+                <strong>ملاحظة الطبيب:</strong>
+                <p style="margin: 0.5rem 0 0; color: var(--text-secondary); font-size: 0.9rem;">{{ $excuse->doctor_comment }}</p>
+            </div>
             @endif
 
             @if($excuse->attachment)

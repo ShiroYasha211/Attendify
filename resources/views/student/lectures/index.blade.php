@@ -18,12 +18,21 @@
                 تتبع محاضراتك وتقدمك الدراسي
             </p>
         </div>
-        <div style="text-align: left;">
-            <div style="font-weight: 700; font-size: 1.25rem; color: var(--primary-color);" id="stat-percentage">
-                {{ $progressPercentage }}%
+        <div style="display: flex; align-items: center; gap: 1rem; background: white; padding: 1rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">معدل الإنجاز</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);" id="stat-count">
+                    تمت مذاكرة <span style="font-weight: 700; color: var(--text-primary);">{{ $studiedLectures }}</span> من {{ $totalLectures }}
+                </div>
             </div>
-            <div style="font-size: 0.85rem; color: var(--text-secondary);" id="stat-count">
-                تمت مذاكرة {{ $studiedLectures }} من {{ $totalLectures }}
+            <div class="progress-ring-mini">
+                <svg viewBox="0 0 36 36">
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f1f5f9" stroke-width="3" />
+                    <path id="progress-ring-path" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--primary-color)" stroke-width="3" stroke-dasharray="{{ $progressPercentage }}, 100" stroke-linecap="round" style="transition: stroke-dasharray 1s ease-out;" />
+                </svg>
+                <div class="progress-value-mini" id="stat-percentage">
+                    {{ $progressPercentage }}%
+                </div>
             </div>
         </div>
     </div>
@@ -277,6 +286,28 @@
 
 <style>
     /* ... existing styles ... */
+    .progress-ring-mini {
+        width: 60px;
+        height: 60px;
+        position: relative;
+    }
+
+    .progress-ring-mini svg {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+    }
+
+    .progress-value-mini {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: var(--primary-color);
+    }
+
     .timeline {
         position: relative;
         padding-left: 0;
@@ -587,9 +618,11 @@
         const percentage = totalLectures > 0 ? Math.round((studiedLectures / totalLectures) * 100) : 0;
         const statPercentage = document.getElementById('stat-percentage');
         const statCount = document.getElementById('stat-count');
+        const progressRingPath = document.getElementById('progress-ring-path');
 
         if (statPercentage) statPercentage.textContent = percentage + '%';
-        if (statCount) statCount.textContent = 'تمت مذاكرة ' + studiedLectures + ' من ' + totalLectures;
+        if (statCount) statCount.innerHTML = `تمت مذاكرة <span style="font-weight: 700; color: var(--text-primary);">${studiedLectures}</span> من ${totalLectures}`;
+        if (progressRingPath) progressRingPath.style.strokeDasharray = `${percentage}, 100`;
     }
 
     function filterLectures(filter) {

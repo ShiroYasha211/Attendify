@@ -94,28 +94,51 @@
     /* Alert Box */
     .alert-box {
         background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-        border: 1px solid #fca5a5;
-        border-radius: 16px;
-        padding: 1.25rem;
+        border: 2px solid #fecaca;
+        border-radius: 20px;
+        padding: 1.5rem;
         display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        margin-bottom: 1rem;
+        align-items: center;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1);
+        transition: transform 0.2s;
+    }
+
+    .alert-box:hover {
+        transform: scale(1.01);
     }
 
     .alert-box.warning {
         background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-        border-color: #fcd34d;
+        border-color: #fde68a;
+        box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.1);
     }
 
     .alert-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-title {
+        font-weight: 800;
+        font-size: 1.1rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .alert-desc {
+        margin: 0;
+        font-size: 0.95rem;
+        opacity: 0.9;
     }
 
     /* Section Card */
@@ -124,6 +147,7 @@
         border-radius: 20px;
         border: 1px solid #e2e8f0;
         overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
 
     .section-header {
@@ -132,7 +156,8 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        font-weight: 700;
+        font-weight: 800;
+        font-size: 1.1rem;
         color: var(--text-primary);
     }
 
@@ -278,13 +303,13 @@
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
         </div>
-        <div>
+        <div class="alert-content">
             @if($warn['status'] == 'banned')
-            <div style="font-weight: 700; color: #dc2626; margin-bottom: 0.25rem;">⚠️ تحذير شديد - حرمان!</div>
-            <p style="margin: 0; color: #7f1d1d;">لقد تجاوزت الحد المسموح للغياب في مقرر <strong>{{ $warn['subject'] }}</strong> ({{ $warn['absences'] }}/{{ $warn['max'] }})</p>
+            <div class="alert-title" style="color: #b91c1c;">قرار حرمان مؤكد 🚫</div>
+            <p class="alert-desc" style="color: #7f1d1d;">لقد تجاوزت الحد الأقصى المسموح للغياب في مقرر <strong>{{ $warn['subject'] }}</strong> (الغيابات: {{ $warn['absences'] }}/{{ $warn['max'] }}). يرجى مراجعة شؤون الطلاب.</p>
             @else
-            <div style="font-weight: 700; color: #dc2626; margin-bottom: 0.25rem;">⚠️ تحذير حرمان</div>
-            <p style="margin: 0; color: #7f1d1d;">بقي لك غياب واحد فقط في مقرر <strong>{{ $warn['subject'] }}</strong> قبل الحرمان ({{ $warn['absences'] }}/{{ $warn['max'] }})</p>
+            <div class="alert-title" style="color: #b91c1c;">الإنذار الأخير قبل الحرمان ⚠️</div>
+            <p class="alert-desc" style="color: #7f1d1d;">انتبه! تبقى لك غياب واحد فقط في مقرر <strong>{{ $warn['subject'] }}</strong> (الغيابات: {{ $warn['absences'] }}/{{ $warn['max'] }}).</p>
             @endif
         </div>
     </div>
@@ -300,9 +325,9 @@
                 <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
         </div>
-        <div style="flex: 1;">
-            <div style="font-weight: 700; color: #92400e; margin-bottom: 0.25rem;">⏰ مهلة تقديم عذر</div>
-            <p style="margin: 0; color: #78350f;">تنتهي مهلة تقديم العذر لغياب مادة <strong>{{ $warning->subject->name }}</strong> يوم {{ $warning->date->format('Y-m-d') }} قريباً</p>
+        <div class="alert-content">
+            <div class="alert-title" style="color: #a16207;">تذكير بمهلة تقديم عذر غياب ⏰</div>
+            <p class="alert-desc" style="color: #78350f;">اقتربت نهاية مهلة التبرير لغيابك في مادة <strong>{{ $warning->subject->name }}</strong> بتاريخ {{ $warning->date->format('Y-m-d') }}.</p>
         </div>
         <a href="{{ route('student.attendance.index') }}" style="background: #f59e0b; color: white; padding: 0.5rem 1rem; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">تقديم عذر</a>
     </div>
@@ -350,8 +375,8 @@
             </svg>
         </div>
         <div>
-            <div class="stat-value">{{ $totalAbsences }}</div>
-            <div class="stat-label">أيام الغياب</div>
+            <div class="stat-value" style="color: #dc2626;">{{ $totalAbsences }}</div>
+            <div class="stat-label">إجمالي أيام الغياب</div>
         </div>
     </div>
 
@@ -418,8 +443,7 @@
             @forelse($announcements as $post)
             <div class="announcement-item {{ $post->category }}">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.8rem; padding: 0.25rem 0.5rem; border-radius: 6px; font-weight: 600;
-                        {{ $post->category == 'urgent' ? 'background: #fee2e2; color: #dc2626;' : ($post->category == 'academic' ? 'background: #dbeafe; color: #2563eb;' : 'background: #f1f5f9; color: #64748b;') }}">
+                    <span style="font-size: 0.8rem; padding: 0.25rem 0.5rem; border-radius: 6px; font-weight: 600; {{ $post->category == 'urgent' ? 'background: #fee2e2; color: #dc2626;' : ($post->category == 'academic' ? 'background: #dbeafe; color: #2563eb;' : 'background: #f1f5f9; color: #64748b;') }}">
                         {{ $post->category == 'urgent' ? 'عاجل' : ($post->category == 'academic' ? 'أكاديمي' : 'عام') }}
                     </span>
                     <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ $post->created_at->diffForHumans() }}</span>

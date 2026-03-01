@@ -18,31 +18,40 @@ class NotificationController extends Controller
         $delegate = Auth::user();
         $filter = $request->get('filter', 'all');
 
-        // Get all students in scope
+        // Fetch students in scope
         $students = User::where('role', UserRole::STUDENT)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->get();
 
-        // Calculate absences per student per subject
-        $report = [];
+        $studentIds = $students->pluck('id');
+
+        // Fetch subjects in scope
         $subjects = Subject::where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)->get();
+            ->where('level_id', $delegate->level_id)
+            ->get()
+            ->keyBy('id');
 
-        foreach ($students as $student) {
-            foreach ($subjects as $subject) {
-                $absenceCount = Attendance::where('student_id', $student->id)
-                    ->where('subject_id', $subject->id)
-                    ->where('status', 'absent')
-                    ->count();
+        // Optimized Query: Get all absences for these students matching these subjects in ONE query
+        $absencesData = Attendance::whereIn('student_id', $studentIds)
+            ->whereIn('subject_id', $subjects->keys())
+            ->where('status', 'absent')
+            ->select('student_id', 'subject_id', DB::raw('count(*) as absence_count'))
+            ->groupBy('student_id', 'subject_id')
+            ->get();
 
-                if ($absenceCount > 0) {
-                    $report[] = [
-                        'student' => $student,
-                        'subject' => $subject,
-                        'absences' => $absenceCount,
-                    ];
-                }
+        $report = [];
+
+        foreach ($absencesData as $data) {
+            $student = $students->firstWhere('id', $data->student_id);
+            $subject = $subjects->get($data->subject_id);
+
+            if ($student && $subject && $data->absence_count > 0) {
+                $report[] = [
+                    'student' => $student,
+                    'subject' => $subject,
+                    'absences' => $data->absence_count,
+                ];
             }
         }
 
@@ -75,9 +84,9 @@ class NotificationController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(20)
             ->get()
-            ->map(function ($n) {
+            ->map(function ($n) use ($students) {
                 $data = json_decode($n->data, true);
-                $student = User::find($n->notifiable_id);
+                $student = $students->firstWhere('id', $n->notifiable_id);
                 return [
                     'id' => $n->id,
                     'student_name' => $student ? $student->name : 'غير معروف',

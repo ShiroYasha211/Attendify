@@ -1,0 +1,1893 @@
+{
+    "info": {
+        "_postman_id": "attendify-doctor-api",
+        "name": "Attendify - Doctor API",
+        "description": "واجهة برمجة التطبيقات (API) الخاصة بلوحة الدكتور في نظام Attendify.\n\nالمصادقة: يستخدم Laravel Sanctum (Bearer Token).\n- أولاً: استدعِ POST /api/doctor/login للحصول على token.\n- ثم: استخدم الـ token في جميع الطلبات الأخرى.\n\nالردود: جميع الردود بصيغة JSON موحدة:\n```json\n{\n  \"success\": true/false,\n  \"message\": \"...\",\n  \"data\": { ... }\n}\n```",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000/api/doctor",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "🔐 Authentication",
+            "description": "المصادقة وتسجيل الدخول/الخروج",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.success && jsonData.data.token) {",
+                                    "    pm.collectionVariables.set('token', jsonData.data.token);",
+                                    "    console.log('Token saved: ' + jsonData.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"doctor@example.com\",\n    \"password\": \"password\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "login"
+                            ]
+                        },
+                        "description": "تسجيل الدخول كدكتور للحصول على Bearer Token.\nيُحفظ الـ Token تلقائياً في المجموعة.\n\nالحقول المطلوبة:\n- email (string, required)\n- password (string, required)"
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "logout"
+                            ]
+                        },
+                        "description": "تسجيل الخروج وإلغاء الـ Token الحالي."
+                    }
+                },
+                {
+                    "name": "Get Profile (Me)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "me"
+                            ]
+                        },
+                        "description": "جلب بيانات الملف الشخصي للدكتور المسجّل.\n\nيُعيد: id, name, email, role, status, university, college, major."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📊 Dashboard",
+            "description": "لوحة التحكم والإحصائيات المجمّعة",
+            "item": [
+                {
+                    "name": "Get Dashboard Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/dashboard",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "dashboard"
+                            ]
+                        },
+                        "description": "جلب إحصائيات لوحة التحكم الرئيسية.\n\nيُعيد:\n- عدد المواد والطلاب\n- الأعذار المعلقة\n- الاستفسارات المعلقة\n- الرسائل غير المقروءة\n- عدد الدرجات المدخلة\n- مخطط الحضور (آخر 7 أيام)\n- قائمة المواد"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📋 Excuses (أعذار الغياب)",
+            "description": "إدارة أعذار الطلاب — عرض + قبول/رفض",
+            "item": [
+                {
+                    "name": "List Excuses",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/excuses?status=pending",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "excuses"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "description": "Filter: pending, accepted, rejected, all"
+                                },
+                                {
+                                    "key": "subject_id",
+                                    "value": "",
+                                    "description": "Filter by subject ID",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "description": "Search by student name/number",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب قائمة أعذار الغياب مع الإحصائيات.\n\nيُعيد:\n- stats: { total, pending, accepted, rejected }\n- excuses: مصفوفة الأعذار\n- pagination"
+                    }
+                },
+                {
+                    "name": "Update Excuse (Accept/Reject)",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"accepted\",\n    \"comment\": \"تم قبول العذر\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/excuses/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "excuses",
+                                "1"
+                            ]
+                        },
+                        "description": "قبول أو رفض عذر.\n\nالحقول:\n- status (required): accepted / rejected\n- comment (optional): تعليق الدكتور\n\nعند القبول: يتم تغيير حالة الحضور إلى 'excused' + إشعار الطالب."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📈 Reports (التقارير)",
+            "description": "تقارير الحضور والغياب",
+            "item": [
+                {
+                    "name": "Subjects Overview Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports"
+                            ]
+                        },
+                        "description": "تقرير إحصائي لجميع مواد الدكتور.\n\nيُعيد لكل مادة:\n- عدد الطلاب، المحاضرات\n- الحاضرين، الغائبين، المعفيين\n- نسبة الحضور"
+                    }
+                },
+                {
+                    "name": "Subject Detail Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "1"
+                            ]
+                        },
+                        "description": "تقرير تفصيلي لمادة محددة مع حضور كل طالب.\n\nالمعطيات: subject ID في الـ URL."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📝 Assignments (التكاليف)",
+            "description": "إدارة التكاليف الدراسية — CRUD + مراجعة التسليمات",
+            "item": [
+                {
+                    "name": "List Assignments",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/assignments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assignments"
+                            ],
+                            "query": [
+                                {
+                                    "key": "subject_id",
+                                    "value": "",
+                                    "description": "Filter by subject",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "",
+                                    "description": "upcoming / overdue",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب قائمة التكاليف مع الإحصائيات.\n\nيُعيد: stats + assignments + pagination"
+                    }
+                },
+                {
+                    "name": "Create Assignment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"subject_id\": 1,\n    \"title\": \"تكليف جديد\",\n    \"description\": \"وصف التكليف\",\n    \"due_date\": \"2026-04-01\",\n    \"requires_submission\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assignments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assignments"
+                            ]
+                        },
+                        "description": "إنشاء تكليف جديد.\n\nالحقول:\n- subject_id (required): معرف المادة\n- title (required): العنوان\n- description (required): الوصف\n- due_date (required): تاريخ التسليم\n- requires_submission (optional): هل يتطلب تسليم من الطالب"
+                    }
+                },
+                {
+                    "name": "Update Assignment",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"تكليف محدّث\",\n    \"description\": \"وصف محدّث\",\n    \"due_date\": \"2026-04-15\",\n    \"requires_submission\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assignments/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assignments",
+                                "1"
+                            ]
+                        },
+                        "description": "تحديث تكليف موجود."
+                    }
+                },
+                {
+                    "name": "Delete Assignment",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/assignments/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assignments",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف تكليف."
+                    }
+                },
+                {
+                    "name": "List Submissions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/assignments/1/submissions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assignments",
+                                "1",
+                                "submissions"
+                            ]
+                        },
+                        "description": "جلب تسليمات الطلاب لتكليف محدد."
+                    }
+                },
+                {
+                    "name": "Review Submission",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"accepted\",\n    \"feedback\": \"عمل ممتاز\",\n    \"grade\": 95\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/submissions/1/review",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "submissions",
+                                "1",
+                                "review"
+                            ]
+                        },
+                        "description": "مراجعة وتقييم تسليم طالب.\n\nالحقول:\n- status (required): accepted / rejected\n- feedback (optional): ملاحظات\n- grade (optional): الدرجة (0-100)"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "❓ Inquiries (الاستفسارات)",
+            "description": "إدارة استفسارات الطلاب المحوّلة للدكتور",
+            "item": [
+                {
+                    "name": "List Inquiries",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/inquiries",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inquiries"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "",
+                                    "description": "forwarded / answered / closed",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب الاستفسارات مع الإحصائيات."
+                    }
+                },
+                {
+                    "name": "Show Inquiry",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/inquiries/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inquiries",
+                                "1"
+                            ]
+                        },
+                        "description": "عرض استفسار محدد بالتفاصيل."
+                    }
+                },
+                {
+                    "name": "Answer Inquiry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"answer\": \"الإجابة على الاستفسار هنا...\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/inquiries/1/answer",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inquiries",
+                                "1",
+                                "answer"
+                            ]
+                        },
+                        "description": "الرد على استفسار.\n\nالحقول:\n- answer (required): نص الإجابة"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🎓 Grades (الدرجات)",
+            "description": "إدخال وعرض وتقارير الدرجات",
+            "item": [
+                {
+                    "name": "List Subjects for Grading",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/grades",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "grades"
+                            ]
+                        },
+                        "description": "جلب مواد الدكتور مع إحصائيات الدرجات (عدد الممتحنين، المعدل)."
+                    }
+                },
+                {
+                    "name": "Get Students Grades for Subject",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/grades/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "grades",
+                                "1"
+                            ]
+                        },
+                        "description": "جلب قائمة طلاب المادة مع درجاتهم."
+                    }
+                },
+                {
+                    "name": "Save Grades",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"grades\": [\n        {\n            \"student_id\": 1,\n            \"midterm\": 25,\n            \"practical\": 15,\n            \"homework\": 10,\n            \"final\": 40\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/grades/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "grades",
+                                "1"
+                            ]
+                        },
+                        "description": "حفظ درجات الطلاب لمادة محددة.\n\nالحقول:\n- grades (array): مصفوفة من الدرجات\n  - student_id, midterm, practical, homework, final"
+                    }
+                },
+                {
+                    "name": "Grade Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/grades/1/report",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "grades",
+                                "1",
+                                "report"
+                            ]
+                        },
+                        "description": "تقرير شامل لدرجات مادة.\n\nيُعيد: إحصائيات (معدل، أعلى، أدنى، نسبة النجاح) + جميع الطلاب."
+                    }
+                },
+                {
+                    "name": "Send Note to Student",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"note\": \"يرجى مراجعة الدرجات\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/grades/1/note/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "grades",
+                                "1",
+                                "note",
+                                "1"
+                            ]
+                        },
+                        "description": "إرسال ملاحظة لطالب.\n\nالمعطيات في الـ URL: subject_id / student_id\nالحقول: note (required)"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "💬 Messages (الرسائل)",
+            "description": "المحادثات مع المندوبين",
+            "item": [
+                {
+                    "name": "List Conversations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/messages",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "messages"
+                            ]
+                        },
+                        "description": "جلب قائمة المحادثات مع المندوبين.\n\nيُعيد لكل محادثة: delegate info, last message, unread count."
+                    }
+                },
+                {
+                    "name": "Show Conversation Messages",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/messages/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "messages",
+                                "1"
+                            ]
+                        },
+                        "description": "جلب رسائل محادثة محددة + تعليمها كمقروءة."
+                    }
+                },
+                {
+                    "name": "Start New Conversation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"delegate_id\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/messages",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "messages"
+                            ]
+                        },
+                        "description": "إنشاء محادثة جديدة مع مندوب.\n\nالحقول: delegate_id (required)"
+                    }
+                },
+                {
+                    "name": "Send Message",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"body\": \"مرحباً، كيف حال الطلاب؟\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/messages/1/send",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "messages",
+                                "1",
+                                "send"
+                            ]
+                        },
+                        "description": "إرسال رسالة في محادثة.\n\nالحقول: body (required, max 2000)"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🔔 Notifications (الإشعارات)",
+            "description": "إدارة الإشعارات",
+            "item": [
+                {
+                    "name": "List Notifications",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/notifications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "notifications"
+                            ]
+                        },
+                        "description": "جلب الإشعارات مع عدد غير المقروءة."
+                    }
+                },
+                {
+                    "name": "Mark as Read",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/notifications/1/read",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "notifications",
+                                "1",
+                                "read"
+                            ]
+                        },
+                        "description": "تعليم إشعار واحد كمقروء."
+                    }
+                },
+                {
+                    "name": "Mark All as Read",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/notifications/mark-all-read",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "notifications",
+                                "mark-all-read"
+                            ]
+                        },
+                        "description": "تعليم جميع الإشعارات كمقروءة."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Overview",
+            "description": "نظرة عامة على القسم العملي",
+            "item": [
+                {
+                    "name": "Clinical Overview Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/overview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "overview"
+                            ]
+                        },
+                        "description": "إحصائيات القسم العملي (عدد الحالات الكلي، النشطة، المخرجة)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Training Centers",
+            "description": "إدارة المراكز التدريبية (CRUD)",
+            "item": [
+                {
+                    "name": "List Training Centers",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/training-centers",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "training-centers"
+                            ],
+                            "query": [
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب قائمة المراكز التدريبية."
+                    }
+                },
+                {
+                    "name": "Create Training Center",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"مشفى الأسد الجامعي\",\n    \"location\": \"دمشق\",\n    \"description\": \"مركز تدريب رئيسي\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/training-centers",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "training-centers"
+                            ]
+                        },
+                        "description": "إضافة مركز تدريبي جديد."
+                    }
+                },
+                {
+                    "name": "Update Training Center",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"مشفى محدّث\",\n    \"location\": \"حماة\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/training-centers/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "training-centers",
+                                "1"
+                            ]
+                        },
+                        "description": "تحديث بيانات مركز تدريبي."
+                    }
+                },
+                {
+                    "name": "Delete Training Center",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/training-centers/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "training-centers",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف مركز تدريبي (يفشل إذا كان لديه حالات مرتبطة)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Departments",
+            "description": "إدارة الأقسام السريرية (CRUD)",
+            "item": [
+                {
+                    "name": "List Departments",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments"
+                            ]
+                        },
+                        "description": "جلب قائمة الأقسام."
+                    }
+                },
+                {
+                    "name": "Create Department",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"قسم الباطنية\",\n    \"description\": \"قسم الأمراض الباطنية\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments"
+                            ]
+                        },
+                        "description": "إضافة قسم سريري."
+                    }
+                },
+                {
+                    "name": "Update Department",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"قسم محدّث\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments",
+                                "1"
+                            ]
+                        },
+                        "description": "تحديث قسم."
+                    }
+                },
+                {
+                    "name": "Delete Department",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف قسم."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Body Systems",
+            "description": "إدارة الأجهزة المرضية (CRUD)",
+            "item": [
+                {
+                    "name": "List Body Systems",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems"
+                            ]
+                        },
+                        "description": "جلب الأجهزة المرضية."
+                    }
+                },
+                {
+                    "name": "Create Body System",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"جهاز تنفسي\",\n    \"description\": \"الجهاز التنفسي\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems"
+                            ]
+                        },
+                        "description": "إضافة جهاز مرضي."
+                    }
+                },
+                {
+                    "name": "Update Body System",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"جهاز محدّث\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems",
+                                "1"
+                            ]
+                        },
+                        "description": "تحديث جهاز."
+                    }
+                },
+                {
+                    "name": "Delete Body System",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف جهاز."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Cases (الحالات)",
+            "description": "إدارة الحالات المرضية — CRUD كامل مع فلاتر",
+            "item": [
+                {
+                    "name": "List Cases",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/cases",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "cases"
+                            ],
+                            "query": [
+                                {
+                                    "key": "patient_name",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "training_center_id",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "",
+                                    "description": "active/discharged/transferred",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب حالات الدكتور مع فلاتر."
+                    }
+                },
+                {
+                    "name": "Create Case",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"patient_name\": \"محمد أحمد\",\n    \"age\": 45,\n    \"gender\": \"male\",\n    \"training_center_id\": 1,\n    \"clinical_department_id\": 1,\n    \"body_system_id\": 1,\n    \"diagnosis_or_description\": \"التهاب رئوي\",\n    \"status\": \"active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/cases",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "cases"
+                            ]
+                        },
+                        "description": "إدراج حالة مرضية جديدة."
+                    }
+                },
+                {
+                    "name": "Show Case",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/cases/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "cases",
+                                "1"
+                            ]
+                        },
+                        "description": "عرض تفاصيل حالة."
+                    }
+                },
+                {
+                    "name": "Update Case",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"patient_name\": \"محمد أحمد\",\n    \"age\": 46,\n    \"gender\": \"male\",\n    \"training_center_id\": 1,\n    \"clinical_department_id\": 1,\n    \"body_system_id\": 1,\n    \"status\": \"discharged\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/cases/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "cases",
+                                "1"
+                            ]
+                        },
+                        "description": "تحديث حالة."
+                    }
+                },
+                {
+                    "name": "Delete Case",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/cases/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "cases",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف حالة."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Case Assignments",
+            "description": "تكليف الطلاب بالحالات المرضية",
+            "item": [
+                {
+                    "name": "List Case Assignments",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/assignments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "assignments"
+                            ],
+                            "query": [
+                                {
+                                    "key": "student_id",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "task_type",
+                                    "value": "",
+                                    "description": "history_taking / clinical_examination / follow_up",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب تكليفات الحالات."
+                    }
+                },
+                {
+                    "name": "Assign Case to Student",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"student_id\": 1,\n    \"clinical_case_id\": 1,\n    \"task_type\": \"history_taking\",\n    \"instructions\": \"قم بأخذ قصة مرضية كاملة\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/assignments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "assignments"
+                            ]
+                        },
+                        "description": "تكليف طالب بحالة.\n\nالحقول:\n- student_id, clinical_case_id, task_type (required)\n- instructions (optional)"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Logbook / QR",
+            "description": "ماسح QR وسجلات الدفتر اليومي",
+            "item": [
+                {
+                    "name": "Scan QR Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"qr_token\": \"TOKEN_HERE\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook/scan",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook",
+                                "scan"
+                            ]
+                        },
+                        "description": "مسح رمز QR الخاص بالطالب وعرض بيانات السجل."
+                    }
+                },
+                {
+                    "name": "Confirm/Reject Log",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"log_id\": 1,\n    \"action\": \"confirm\",\n    \"doctor_notes\": \"عمل ممتاز\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook/confirm",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook",
+                                "confirm"
+                            ]
+                        },
+                        "description": "تأكيد أو رفض سجل يومي.\n\nالحقول:\n- log_id (required)\n- action (required): confirm / reject\n- doctor_notes (optional)"
+                    }
+                },
+                {
+                    "name": "List Logbook Records",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook/records",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook",
+                                "records"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "",
+                                    "description": "pending / confirmed / rejected",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "date",
+                                    "value": "",
+                                    "description": "YYYY-MM-DD",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب سجلات الدفتر اليومي مع فلاتر."
+                    }
+                },
+                {
+                    "name": "Manual Attendance",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"student_id\": 1,\n    \"training_center_id\": 1,\n    \"department_id\": 1,\n    \"doctor_notes\": \"حضور يدوي\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/logbook/manual",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "logbook",
+                                "manual"
+                            ]
+                        },
+                        "description": "تسجيل حضور طالب يدوياً بدون QR."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical — Evaluations (التقييمات)",
+            "description": "إدارة قوائم التقييم (OSCE) وتنفيذ التقييمات وعرض النتائج",
+            "item": [
+                {
+                    "name": "List Checklists",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/checklists",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "checklists"
+                            ],
+                            "query": [
+                                {
+                                    "key": "skill_type",
+                                    "value": "",
+                                    "description": "history_taking / clinical_examination / procedure / communication",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب قوائم التقييم الخاصة بالدكتور."
+                    }
+                },
+                {
+                    "name": "Create Checklist",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"قائمة فحص أخذ القصة المرضية\",\n    \"description\": \"تقييم مهارة أخذ القصة\",\n    \"skill_type\": \"history_taking\",\n    \"time_limit_minutes\": 15,\n    \"is_practice_allowed\": true,\n    \"items\": [\n        { \"description\": \"التعريف بالنفس\", \"marks\": 5 },\n        { \"description\": \"سؤال عن الشكوى الرئيسية\", \"marks\": 10 },\n        { \"description\": \"السوابق المرضية\", \"marks\": 10 }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/checklists",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "checklists"
+                            ]
+                        },
+                        "description": "إنشاء قائمة تقييم جديدة.\n\nالحقول:\n- title, skill_type (required)\n- time_limit_minutes, is_practice_allowed (optional)\n- items[]: description + marks (required)"
+                    }
+                },
+                {
+                    "name": "Update Checklist",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"قائمة محدّثة\",\n    \"skill_type\": \"history_taking\",\n    \"time_limit_minutes\": 20,\n    \"is_practice_allowed\": false,\n    \"items\": [\n        { \"description\": \"عنصر 1\", \"marks\": 15 },\n        { \"description\": \"عنصر 2\", \"marks\": 10 }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/checklists/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "checklists",
+                                "1"
+                            ]
+                        },
+                        "description": "تحديث قائمة تقييم (يتم استبدال العناصر بالكامل)."
+                    }
+                },
+                {
+                    "name": "Delete Checklist",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/checklists/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "checklists",
+                                "1"
+                            ]
+                        },
+                        "description": "حذف قائمة تقييم مع عناصرها."
+                    }
+                },
+                {
+                    "name": "Get Start Data",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/start-data",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "start-data"
+                            ]
+                        },
+                        "description": "جلب البيانات اللازمة لبدء تقييم (قوائم، طلاب، أجهزة مرضية)."
+                    }
+                },
+                {
+                    "name": "Submit Evaluation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"checklist_id\": 1,\n    \"student_id\": 1,\n    \"body_system_id\": 1,\n    \"timer_type\": \"fixed\",\n    \"time_taken_seconds\": 600,\n    \"scores\": {\n        \"1\": { \"score\": \"done\" },\n        \"2\": { \"score\": \"partial\" },\n        \"3\": { \"score\": \"not_done\" }\n    },\n    \"doctor_feedback\": \"أداء جيد بشكل عام\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/submit",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "submit"
+                            ]
+                        },
+                        "description": "تقديم نتائج تقييم مباشر.\n\nالحقول:\n- checklist_id, student_id (required)\n- scores: { item_id: { score: done/partial/not_done } }\n- timer_type, time_taken_seconds, doctor_feedback (optional)\n\nيتم حساب الدرجة والنتيجة تلقائياً:\n- done = full marks\n- partial = half marks\n- not_done = 0\n\nالتقييم: ≥90% ممتاز، ≥75% جيد جداً، ≥60% جيد، ≥50% ناجح، <50% راسب"
+                    }
+                },
+                {
+                    "name": "List Results",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/results",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "results"
+                            ],
+                            "query": [
+                                {
+                                    "key": "checklist_id",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "student_id",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "grade",
+                                    "value": "",
+                                    "description": "excellent/very_good/good/pass/fail",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "جلب نتائج التقييمات مع فلاتر."
+                    }
+                },
+                {
+                    "name": "Show Result Detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/evaluations/results/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "evaluations",
+                                "results",
+                                "1"
+                            ]
+                        },
+                        "description": "عرض تفاصيل نتيجة تقييم واحدة مع درجات كل عنصر."
+                    }
+                }
+            ]
+        }
+    ]
+}

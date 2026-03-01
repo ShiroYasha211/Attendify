@@ -194,17 +194,23 @@
     }
 </style>
 
+@php
+$timerTypeVal = $request->timer_type ?? 'fixed';
+$timeLimitMin = $checklist->time_limit_minutes ?? 15;
+$timeLimitSec = $timeLimitMin * 60;
+@endphp
+
 <div class="live-header">
     <div class="info">
         <h2>🎯 تقييم مباشر: {{ $checklist->title }}</h2>
-        <p><span class="student-badge">👤 {{ $student->name }}</span> · {{ $bodySystem->name ?? '' }} · {{ $checklist->skill_label }} · {{ $checklist->items->count() }} عنصر · <span style="background:#dbeafe;color:#1d4ed8;padding:0.15rem 0.5rem;border-radius:5px;font-weight:700;font-size:0.78rem;">{{ $request->timer_type == 'open' ? '🔓 وقت مفتوح' : '⏱ وقت محدد' }}</span></p>
+        <p><span class="student-badge">👤 {{ $student->name }}</span> · {{ $bodySystem->name ?? '' }} · {{ $checklist->skill_label }} · {{ $checklist->items->count() }} عنصر · <span style="background:#dbeafe;color:#1d4ed8;padding:0.15rem 0.5rem;border-radius:5px;font-weight:700;font-size:0.78rem;">{{ $timerTypeVal == 'open' ? '🔓 وقت مفتوح' : '⏱ وقت محدد' }}</span></p>
     </div>
     <div class="timer-box" id="timer">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
-        <span id="timer-display">{{ sprintf('%02d', $checklist->time_limit_minutes) }}:00</span>
+        <span id="timer-display">{{ $timerTypeVal == 'open' ? '00:00' : sprintf('%02d', $timeLimitMin) . ':00' }}</span>
     </div>
 </div>
 
@@ -215,7 +221,7 @@
     <input type="hidden" name="clinical_case_id" value="{{ $request->clinical_case_id }}">
     <input type="hidden" name="procedure_type" value="{{ $request->procedure_type }}">
     <input type="hidden" name="body_system_id" value="{{ $request->body_system_id }}">
-    <input type="hidden" name="timer_type" value="{{ $request->timer_type }}">
+    <input type="hidden" name="timer_type" value="{{ $timerTypeVal }}">
     <input type="hidden" name="time_taken_seconds" id="time-taken" value="0">
 
     <div class="card-section">
@@ -239,7 +245,7 @@
         <textarea name="doctor_feedback" class="feedback-area" placeholder="ملاحظات عن أداء الطالب أو نقاط تحتاج تحسين..."></textarea>
     </div>
 
-    <button type="submit" class="btn-submit-eval" onclick="document.getElementById('time-taken').value = elapsedSeconds;">
+    <button type="submit" class="btn-submit-eval">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 11l3 3L22 4"></path>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
@@ -250,14 +256,9 @@
 @endsection
 
 @push('scripts')
-@php $timeLimitMin = $checklist->time_limit_minutes; $timerType = $request->timer_type; @endphp
 <script>
-    const timeLimitSeconds = {
-        {
-            $timeLimitMin
-        }
-    }* 60;
-    const timerType = '{{ $timerType }}';
+    const timerType = '@php echo $timerTypeVal @endphp';
+    const timeLimitSeconds = @php echo $timeLimitSec @endphp;
     let elapsedSeconds = 0;
 
     function updateTimer() {
@@ -266,7 +267,7 @@
         const box = document.getElementById('timer');
 
         if (timerType === 'open') {
-            // Count up
+            // Count up (stopwatch)
             const m = Math.floor(elapsedSeconds / 60);
             const s = elapsedSeconds % 60;
             display.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');

@@ -311,6 +311,29 @@
                     }
                 },
                 {
+                    "name": "Show College",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/colleges/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "colleges",
+                                "1"
+                            ]
+                        },
+                        "description": "عرض تفاصيل كلية محددة."
+                    }
+                },
+                {
                     "name": "Create College",
                     "request": {
                         "method": "POST",

@@ -210,13 +210,35 @@
             </div>
         </div>
         <div class="form-row">
-            <div class="form-group">
-                <label class="form-label">المدة الزمنية (بالدقائق) <span style="color:red">*</span></label>
-                <input type="number" name="time_limit_minutes" class="form-control" value="{{ old('time_limit_minutes', $checklist->time_limit_minutes ?? 15) }}" min="1" max="120" required>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label" style="margin-bottom: 0.75rem;">إعدادات الوقت <span style="color:red">*</span></label>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; background: white; padding: 0.75rem 1rem; border-radius: 10px; border: 1.5px solid #e2e8f0; flex: 1; transition: all 0.2s;" id="label-timer-fixed">
+                        <input type="radio" name="timer_type" value="fixed" style="accent-color: var(--primary-color); width: 18px; height: 18px;" onchange="toggleTimerInput()" {{ old('timer_type', 'fixed') == 'fixed' ? 'checked' : '' }}>
+                        <span style="font-weight: 600; color: var(--text-primary);">وقت محدد (OSCE)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 10px; border: 1.5px solid transparent; flex: 1; transition: all 0.2s;" id="label-timer-open">
+                        <input type="radio" name="timer_type" value="open" style="accent-color: var(--primary-color); width: 18px; height: 18px;" onchange="toggleTimerInput()" {{ old('timer_type') == 'open' ? 'checked' : '' }}>
+                        <span style="font-weight: 600; color: var(--text-primary);">وقت مفتوح (مراقب)</span>
+                    </label>
+                </div>
+                <!-- The actual time input -->
+                <div id="time-limit-wrapper" style="margin-top: 1rem;">
+                    <label class="form-label">المدة الزمنية (بالدقائق) <span style="color:red">*</span></label>
+                    <input type="number" name="time_limit_minutes" id="time_limit_minutes" class="form-control" value="{{ old('time_limit_minutes', $checklist->time_limit_minutes ?? 15) }}" min="1" max="120">
+                </div>
             </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column: 1 / -1;">
                 <label class="form-label">وصف (اختياري)</label>
                 <input type="text" name="description" class="form-control" value="{{ old('description', $checklist->description ?? '') }}" placeholder="وصف مختصر...">
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 1.5rem; background: #fafbfe; padding: 1rem; border-radius: 10px; border: 1px dashed #c7d2fe;">
+                <input type="checkbox" name="is_practice_allowed" id="is_practice_allowed" value="1" style="width: 20px; height: 20px; accent-color: var(--primary-color); cursor: pointer;" {{ old('is_practice_allowed', isset($checklist) ? $checklist->is_practice_allowed : true) ? 'checked' : '' }}>
+                <div style="flex: 1;">
+                    <label for="is_practice_allowed" style="font-weight: 700; color: var(--text-primary); cursor: pointer; display: block; margin-bottom: 0.25rem;">السماح للطلاب بالتدرب (Practice Mode) 🎓</label>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">عند تفعيل هذا الخيار، سيتمكن الطلاب من تقييم أنفسهم ذاتياً باستخدام هذه القائمة من حساباتهم للتدريب واكتساب المهارة.</span>
+                </div>
             </div>
         </div>
     </div>
@@ -228,6 +250,7 @@
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
             </svg>
             عناصر التقييم
+            <span id="total-marks-badge" style="margin-right: auto; background: #dbeafe; color: #1e40af; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; font-weight: 800; border: 1px solid #bfdbfe;">إجمالي الدرجات: 0</span>
         </h3>
         <div class="items-container" id="items-container">
             <!-- Items will be added here by JS -->
@@ -261,10 +284,47 @@
         <span style="font-weight:700; color:var(--text-secondary); min-width:28px; text-align:center;">${itemIndex + 1}</span>
         <input type="text" name="items[${itemIndex}][description]" class="form-control" placeholder="وصف عنصر التقييم..." value="${desc}" required>
         <input type="number" name="items[${itemIndex}][marks]" class="form-control marks-input" placeholder="الدرجة" value="${marks}" min="1" max="100" required>
-        <button type="button" class="btn-remove-item" onclick="this.parentElement.remove()">×</button>
+        <button type="button" class="btn-remove-item" onclick="this.parentElement.remove(); calculateTotalMarks()">×</button>
     `;
         container.appendChild(div);
         itemIndex++;
+        calculateTotalMarks(); // Recalculate total marks when an item is added
+    }
+
+    function calculateTotalMarks() {
+        let total = 0;
+        document.querySelectorAll('.marks-input').forEach(input => {
+            const val = parseInt(input.value);
+            if (!isNaN(val)) {
+                total += val;
+            }
+        });
+        document.getElementById('total-marks-badge').textContent = `إجمالي الدرجات: ${total}`;
+    }
+
+    function toggleTimerInput() {
+        const type = document.querySelector('input[name="timer_type"]:checked').value;
+        const wrapper = document.getElementById('time-limit-wrapper');
+        const input = document.getElementById('time_limit_minutes');
+
+        const labelFixed = document.getElementById('label-timer-fixed');
+        const labelOpen = document.getElementById('label-timer-open');
+
+        if (type === 'fixed') {
+            wrapper.style.display = 'block';
+            input.setAttribute('required', 'required');
+            labelFixed.style.borderColor = 'var(--primary-color)';
+            labelFixed.style.background = '#f0fdf4';
+            labelOpen.style.borderColor = 'transparent';
+            labelOpen.style.background = '#f8fafc';
+        } else {
+            wrapper.style.display = 'none';
+            input.removeAttribute('required');
+            labelOpen.style.borderColor = 'var(--primary-color)';
+            labelOpen.style.background = '#f0fdf4';
+            labelFixed.style.borderColor = 'transparent';
+            labelFixed.style.background = '#f8fafc';
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -273,6 +333,17 @@
         } else {
             addItem();
         }
+
+        // Listen to score changes manually using event delegation
+        document.getElementById('items-container').addEventListener('input', function(e) {
+            if (e.target && e.target.classList.contains('marks-input')) {
+                calculateTotalMarks();
+            }
+        });
+
+        // Initialize timer toggle view
+        toggleTimerInput();
+        calculateTotalMarks();
     });
 </script>
 @endpush

@@ -7,64 +7,44 @@
 <style>
     /* Premium Feed Styles */
     .feed-container {
-        max-width: 800px;
+        max-width: 680px;
+        /* narrowed for a better feed feel */
         margin: 0 auto;
     }
 
     .news-card {
         background: white;
-        border-radius: 20px;
-        border: 1px solid rgba(226, 232, 240, 0.6);
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
         padding: 0;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-        transition: all 0.3s ease;
-        overflow: hidden;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        /* Softer shadow */
         position: relative;
     }
 
-    .news-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.01);
-    }
-
     .news-card.pinned {
-        border: 2px solid #f59e0b;
-        background: linear-gradient(135deg, #fffbeb 0%, #ffffff 20%);
+        border-color: #fbd38d;
+        background: #fffdf5;
     }
 
-    /* Category Strip */
+    /* Remove the colored side strip, we'll use a badge instead to look cleaner */
     .news-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 6px;
-        background: var(--primary-color);
-        z-index: 1;
-    }
-
-    .news-card.type-academic::before {
-        background: var(--info-color);
-    }
-
-    .news-card.type-urgent::before {
-        background: var(--danger-color);
-    }
-
-    .news-card.type-general::before {
-        background: var(--secondary-color);
+        display: none;
     }
 
     .card-body {
-        padding: 1.5rem 2rem;
+        padding: 1.25rem 1.5rem;
+        /* Adjusted padding */
     }
 
     .news-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
+        flex-wrap: wrap;
+        /* Prevents overlap on small screens */
+        gap: 1rem;
         margin-bottom: 1rem;
     }
 
@@ -106,10 +86,10 @@
     }
 
     .news-title {
-        font-size: 1.2rem;
+        font-size: 1.15rem;
         font-weight: 800;
         color: var(--text-primary);
-        margin-bottom: 0.75rem;
+        margin: 0.5rem 0;
         line-height: 1.4;
     }
 
@@ -125,8 +105,11 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding-top: 1rem;
+        padding: 1rem 1.5rem;
         border-top: 1px solid #f1f5f9;
+        background: #f8fafc;
+        border-bottom-left-radius: 16px;
+        border-bottom-right-radius: 16px;
     }
 
     .category-badge {
@@ -249,27 +232,27 @@
 
     /* Attachment Preview */
     .attachment-preview {
-        margin: 1rem 0;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #e2e8f0;
+        border-top: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
         display: flex;
         justify-content: center;
-        background: #f8fafc;
+        overflow: hidden;
     }
 
     .attachment-preview img {
-        max-width: 100%;
-        max-height: 300px;
-        object-fit: cover;
+        width: 100%;
+        max-height: 400px;
+        object-fit: contain;
         display: block;
     }
 
     .attachment-document {
         display: flex;
         align-items: center;
+        width: 100%;
         gap: 0.75rem;
-        padding: 1rem;
+        padding: 1rem 1.5rem;
         background: #f8fafc;
         color: var(--text-primary);
         text-decoration: none;
@@ -443,7 +426,7 @@
         <a href="{{ route('delegate.announcements.index') }}" class="filter-tab {{ $category == 'all' ? 'active' : '' }}">
             الكل
         </a>
-        <a href="{{ route('delegate.announcements.index', ['category' => 'urgent']) }}" class="filter-tab {{ $category == 'urgent' ? 'active' : '' }}" style="{{ $category == 'urgent' ? '' : 'border-color: #fecaca; color: #ef4444;' }}">
+        <a href="{{ route('delegate.announcements.index', ['category' => 'urgent']) }}" class="filter-tab {{ $category == 'urgent' ? 'active' : '' }}" @if($category !='urgent' ) style="border-color: #fecaca; color: #ef4444;" @endif>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                 <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -451,14 +434,14 @@
             </svg>
             عاجل
         </a>
-        <a href="{{ route('delegate.announcements.index', ['category' => 'academic']) }}" class="filter-tab {{ $category == 'academic' ? 'active' : '' }}" style="{{ $category == 'academic' ? '' : 'border-color: #bfdbfe; color: #3b82f6;' }}">
+        <a href="{{ route('delegate.announcements.index', ['category' => 'academic']) }}" class="filter-tab {{ $category == 'academic' ? 'active' : '' }}" @if($category !='academic' ) style="border-color: #bfdbfe; color: #3b82f6;" @endif>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
             </svg>
             أكاديمي
         </a>
-        <a href="{{ route('delegate.announcements.index', ['category' => 'general']) }}" class="filter-tab {{ $category == 'general' ? 'active' : '' }}" style="{{ $category == 'general' ? '' : 'border-color: #d1d5db; color: #6b7280;' }}">
+        <a href="{{ route('delegate.announcements.index', ['category' => 'general']) }}" class="filter-tab {{ $category == 'general' ? 'active' : '' }}" @if($category !='general' ) style="border-color: #d1d5db; color: #6b7280;" @endif>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
             </svg>
@@ -497,7 +480,7 @@
                     </div>
 
                     @if($post->created_by == auth()->id())
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; flex-shrink: 0; align-items: center; background: #f8fafc; padding: 0.25rem; border-radius: 10px;">
                         <!-- Pin Button -->
                         <form action="{{ route('delegate.announcements.togglePin', $post->id) }}" method="POST" style="margin: 0;">
                             @csrf
@@ -533,46 +516,46 @@
 
                 <h3 class="news-title">{{ $post->title }}</h3>
                 <div class="news-content">{{ $post->content }}</div>
+            </div> <!-- End Card Body -->
 
-                <!-- Attachment Display -->
-                @if($post->attachment_path)
-                <div class="attachment-preview">
-                    @if($post->attachment_type == 'image')
-                    <img src="{{ $post->attachment_url }}" alt="صورة مرفقة">
-                    @else
-                    <a href="{{ $post->attachment_url }}" target="_blank" class="attachment-document">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                        </svg>
-                        <span style="font-weight: 600;">عرض المرفق</span>
-                    </a>
-                    @endif
-                </div>
+            <!-- Attachment Display (Bleeds to edges) -->
+            @if($post->attachment_path)
+            <div class="attachment-preview">
+                @if($post->attachment_type == 'image')
+                <img src="{{ $post->attachment_url }}" alt="صورة مرفقة">
+                @else
+                <a href="{{ $post->attachment_url }}" target="_blank" class="attachment-document">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    <span style="font-weight: 600;">عرض المرفق</span>
+                </a>
                 @endif
+            </div>
+            @endif
 
-                <div class="news-footer">
-                    <div class="category-badge">
-                        @if($post->category == 'urgent')
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                            <line x1="12" y1="9" x2="12" y2="13"></line>
-                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                        </svg>
-                        عاجل
-                        @elseif($post->category == 'academic')
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                        </svg>
-                        أكاديمي
-                        @else
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                        </svg>
-                        عام
-                        @endif
-                    </div>
+            <div class="news-footer">
+                <div class="category-badge">
+                    @if($post->category == 'urgent')
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    عاجل
+                    @elseif($post->category == 'academic')
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    أكاديمي
+                    @else
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                    </svg>
+                    عام
+                    @endif
                 </div>
             </div>
         </div>

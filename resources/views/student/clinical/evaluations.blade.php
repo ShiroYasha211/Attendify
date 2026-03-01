@@ -222,6 +222,15 @@
     </div>
 </div>
 
+@if(count($radarLabels) > 0)
+<div class="card-section" style="margin-bottom: 1.75rem;">
+    <h3 style="font-weight: 700; margin-bottom: 1rem; text-align: center; color: var(--text-primary);">تحليل المهارات السريرية (OSCE Radar)</h3>
+    <div style="position: relative; height: 350px; width: 100%; display: flex; justify-content: center;">
+        <canvas id="skillsRadarChart"></canvas>
+    </div>
+</div>
+@endif
+
 <div class="card-section">
     @forelse($evaluations as $ev)
     <div class="eval-card">
@@ -248,4 +257,82 @@
     </div>
     @endforelse
 </div>
+
+@if(count($radarLabels) > 0)
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('skillsRadarChart').getContext('2d');
+        const data = {
+            labels: @json($radarLabels),
+            datasets: [{
+                label: 'مستوى إتقان المهارة (%)',
+                data: @json($radarData),
+                fill: true,
+                backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                borderColor: 'rgba(79, 70, 229, 1)',
+                pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(79, 70, 229, 1)',
+                borderWidth: 2,
+            }]
+        };
+
+        const config = {
+            type: 'radar',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        pointLabels: {
+                            font: {
+                                family: "'Cairo', sans-serif",
+                                size: 13,
+                                weight: 'bold'
+                            },
+                            color: '#475569'
+                        },
+                        ticks: {
+                            min: 0,
+                            max: 100,
+                            stepSize: 20,
+                            display: false // Hide numbers on web axes for cleaner look
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false // Hide legend to save space
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.parsed.r + '%';
+                            }
+                        },
+                        titleFont: {
+                            family: "'Cairo', sans-serif"
+                        },
+                        bodyFont: {
+                            family: "'Cairo', sans-serif",
+                            size: 14
+                        }
+                    }
+                }
+            }
+        };
+
+        new Chart(ctx, config);
+    });
+</script>
+@endif
 @endsection

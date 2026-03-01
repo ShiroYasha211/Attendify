@@ -88,12 +88,10 @@ class DashboardController extends Controller
             ->where('status', 'forwarded')
             ->count();
 
-        // Unread messages count
-        $unreadMessagesCount = DoctorConversation::where('doctor_id', $doctor->id)
-            ->get()
-            ->sum(function ($conv) use ($doctor) {
-                return $conv->unreadCountFor($doctor->id);
-            });
+        // Unread messages count (optimized: avoid loading all conversations)
+        $unreadMessagesCount = \App\Models\DoctorMessage::whereHas('conversation', function ($q) use ($doctor) {
+            $q->where('doctor_id', $doctor->id);
+        })->where('sender_id', '!=', $doctor->id)->whereNull('read_at')->count();
 
         // Recent activities (last 5)
         $recentExcuses = Excuse::whereHas('attendance', function ($q) use ($subjectIds) {
@@ -133,26 +131,33 @@ class DashboardController extends Controller
             ->take(5)
             ->values();
 
-        // Attendance chart data (last 7 days)
-        $attendanceChartData = [];
+        // Attendance chart data (last 7 days) — single optimized query
+        $startDate = Carbon::now()->subDays(6)->startOfDay();
+        $endDate = Carbon::now()->endOfDay();
+
+        $dailyStats = Attendance::whereIn('subject_id', $subjectIds)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->selectRaw('DATE(date) as day, status, COUNT(*) as count')
+            ->groupBy('day', 'status')
+            ->get()
+            ->groupBy('day');
+
+        $attendanceChartData = ['present' => [], 'absent' => []];
         $attendanceLabels = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
+            $dateKey = $date->format('Y-m-d');
             $attendanceLabels[] = $date->format('m/d');
 
-            $dayStats = Attendance::whereIn('subject_id', $subjectIds)
-                ->whereDate('date', $date)
-                ->selectRaw('status, COUNT(*) as count')
-                ->groupBy('status')
-                ->pluck('count', 'status')
-                ->toArray();
-
-            $attendanceChartData['present'][] = $dayStats['present'] ?? 0;
-            $attendanceChartData['absent'][] = $dayStats['absent'] ?? 0;
+            $dayData = $dailyStats->get($dateKey, collect());
+            $attendanceChartData['present'][] = $dayData->where('status', 'present')->sum('count');
+            $attendanceChartData['absent'][] = $dayData->where('status', 'absent')->sum('count');
         }
 
-        // Grades stats
-        $gradesEntered = Grade::whereIn('subject_id', $subjectIds)->count();
+        // Grades stats — students with grades entered
+        $gradesCount = Grade::whereIn('subject_id', $subjectIds)
+            ->distinct('student_id')
+            ->count('student_id');
 
         return view('doctor.dashboard', compact(
             'doctor',
@@ -164,7 +169,7 @@ class DashboardController extends Controller
             'recentActivities',
             'attendanceChartData',
             'attendanceLabels',
-            'gradesEntered'
+            'gradesCount'
         ));
     }
 

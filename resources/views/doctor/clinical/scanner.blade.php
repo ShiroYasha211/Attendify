@@ -279,7 +279,7 @@
 </div>
 
 <div class="scanner-card">
-    <video id="scanner-video" autoplay playsinline></video>
+    <div id="scanner-container" style="width: 100%; max-width: 400px; margin: 0 auto 1rem; border: 2px solid #e2e8f0; border-radius: 14px; overflow: hidden;"></div>
     <div id="manual-input">
         <input type="text" id="qr-input" placeholder="أو أدخل رمز QR يدوياً...">
         <button onclick="processManualInput()">بحث</button>
@@ -309,20 +309,30 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         try {
-            const scanner = new Html5Qrcode("scanner-video");
-            Html5Qrcode.getCameras().then(cameras => {
-                if (cameras.length) {
-                    const cameraId = cameras.length > 1 ? cameras[1].id : cameras[0].id;
-                    scanner.start(cameraId, {
-                        fps: 10,
-                        qrbox: 250
-                    }, onScanSuccess, () => {});
-                }
-            }).catch(err => console.log('Camera not available:', err));
+            // Use Html5QrcodeScanner for automatic camera handling and UI
+            const html5QrcodeScanner = new Html5QrcodeScanner(
+                "scanner-container", {
+                    fps: 10,
+                    qrbox: {
+                        width: 250,
+                        height: 250
+                    },
+                    rememberLastUsedCamera: true
+                },
+                /* verbose= */
+                false);
+
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
         } catch (e) {
             console.log('Scanner init error:', e);
+            showAlert('error', 'فشل في تهيئة الكاميرا. الرجاء التأكد من الأذونات.');
         }
     });
+
+    function onScanFailure(error) {
+        // handle scan failure, usually better to ignore and keep scanning
+        // console.warn(`Code scan error = ${error}`);
+    }
 
     function onScanSuccess(token) {
         processToken(token);
@@ -374,15 +384,15 @@
         `;
 
                 let acts = '';
-                if (d.histories.length) {
+                if (d.histories && d.histories.length) {
                     acts += '<strong>📋 القصص:</strong>';
                     d.histories.forEach(h => acts += `<div class="activity-item"><span>•</span>${h.body_system}</div>`);
                 }
-                if (d.exams.length) {
+                if (d.exams && d.exams.length) {
                     acts += '<strong style="display:block;margin-top:0.5rem;">🩺 الفحوصات:</strong>';
                     d.exams.forEach(e => acts += `<div class="activity-item"><span>•</span>${e.body_system}</div>`);
                 }
-                if (d.rounds.length) {
+                if (d.rounds && d.rounds.length) {
                     acts += '<strong style="display:block;margin-top:0.5rem;">🔄 المرور:</strong>';
                     d.rounds.forEach(r => acts += `<div class="activity-item"><span>•</span>${r.case_name}</div>`);
                 }

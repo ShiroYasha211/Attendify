@@ -140,8 +140,8 @@
     }
 
     .progress-ring {
-        width: 100px;
-        height: 100px;
+        width: 120px;
+        height: 120px;
         margin: 0 auto 1rem;
         position: relative;
     }
@@ -150,6 +150,7 @@
         width: 100%;
         height: 100%;
         transform: rotate(-90deg);
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.05));
     }
 
     .progress-value {
@@ -157,34 +158,47 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 1.5rem;
+        font-size: 1.75rem;
         font-weight: 800;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        line-height: 1;
+    }
+
+    .progress-value-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+        margin-top: 0.25rem;
     }
 
     .stat-box {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 1.25rem;
     }
 
     .stat-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 16px;
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
     .stat-number {
-        font-size: 2rem;
-        font-weight: 800;
+        font-size: 2.25rem;
+        font-weight: 900;
         line-height: 1;
+        margin-bottom: 0.25rem;
     }
 
     .stat-label {
         color: var(--text-secondary);
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+        font-weight: 600;
     }
 
     /* Content Card */
@@ -404,10 +418,13 @@
             <div class="stat-card">
                 <div class="progress-ring">
                     <svg viewBox="0 0 36 36">
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" stroke-width="3" />
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="{{ $attendancePercentage >= 75 ? '#10b981' : ($attendancePercentage >= 50 ? '#f59e0b' : '#ef4444') }}" stroke-width="3" stroke-dasharray="{{ $attendancePercentage }}, 100" stroke-linecap="round" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f1f5f9" stroke-width="3" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="{{ $attendancePercentage >= 75 ? '#10b981' : ($attendancePercentage >= 50 ? '#f59e0b' : '#ef4444') }}" stroke-width="3" stroke-dasharray="{{ $attendancePercentage }}, 100" stroke-linecap="round" style="transition: stroke-dasharray 1s ease-out;" />
                     </svg>
-                    <div class="progress-value" style="color: {{ $attendancePercentage >= 75 ? '#10b981' : ($attendancePercentage >= 50 ? '#f59e0b' : '#ef4444') }}">{{ $attendancePercentage }}%</div>
+                    <div class="progress-value" style="color: {{ $attendancePercentage >= 75 ? '#10b981' : ($attendancePercentage >= 50 ? '#f59e0b' : '#ef4444') }}">
+                        {{ $attendancePercentage }}%
+                        <span class="progress-value-label">حضور</span>
+                    </div>
                 </div>
                 <div style="font-weight: 700; color: var(--text-primary);">نسبة الحضور</div>
             </div>
@@ -617,21 +634,34 @@
 
                     <!-- Total -->
                     @if($totalGradePercentage !== null)
-                    <div style="padding: 1.5rem; background: linear-gradient(135deg, {{ $totalGradePercentage >= 85 ? '#dcfce7, #bbf7d0' : ($totalGradePercentage >= 70 ? '#dbeafe, #bfdbfe' : ($totalGradePercentage >= 50 ? '#fef3c7, #fde68a' : '#fee2e2, #fecaca')) }}); border-radius: 16px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-weight: 700; font-size: 1.2rem; color: var(--text-primary);">المجموع الكلي</div>
-                            <div style="display: flex; align-items: center; gap: 1rem;">
-                                <div style="font-size: 2.5rem; font-weight: 800; color: {{ $totalGradePercentage >= 85 ? '#16a34a' : ($totalGradePercentage >= 70 ? '#2563eb' : ($totalGradePercentage >= 50 ? '#d97706' : '#dc2626')) }};">{{ $totalGradePercentage }}%</div>
-                                <div style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.7); border-radius: 10px; font-weight: 700; color: {{ $totalGradePercentage >= 85 ? '#16a34a' : ($totalGradePercentage >= 70 ? '#2563eb' : ($totalGradePercentage >= 50 ? '#d97706' : '#dc2626')) }};">
-                                    @if($totalGradePercentage >= 85)
-                                    ممتاز
-                                    @elseif($totalGradePercentage >= 70)
-                                    جيد جداً
-                                    @elseif($totalGradePercentage >= 50)
-                                    مقبول
-                                    @else
-                                    راسب
-                                    @endif
+                    <div style="padding: 2rem; background: linear-gradient(135deg, {{ $totalGradePercentage >= 60 ? '#f0fdf4 0%, #dcfce7 100%' : '#fef2f2 0%, #fee2e2 100%' }}); border-radius: 20px; border: 2px solid {{ $totalGradePercentage >= 60 ? '#bbf7d0' : '#fecaca' }}; margin-top: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <div style="font-weight: 800; font-size: 1.4rem; color: var(--text-primary); margin-bottom: 0.5rem;">النتيجة النهائية</div>
+                                <div style="font-size: 0.95rem; color: var(--text-secondary);">مجموع الأعمال الفصلية والاختبار النهائي</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 1.5rem; background: white; padding: 1rem 1.5rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                                <div style="display: flex; flex-direction: column; align-items: center;">
+                                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.25rem;">المعدل</span>
+                                    <div style="font-size: 3rem; font-weight: 900; line-height: 1; color: {{ $totalGradePercentage >= 60 ? '#16a34a' : '#dc2626' }};">{{ $totalGradePercentage }}%</div>
+                                </div>
+                                <div style="width: 2px; height: 50px; background: #e2e8f0;"></div>
+                                <div style="display: flex; flex-direction: column; align-items: center;">
+                                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">التقدير</span>
+                                    <div style="padding: 0.5rem 1.5rem; border-radius: 999px; font-weight: 800; font-size: 1.1rem; 
+                                        {{ $totalGradePercentage >= 85 ? 'background: #dcfce7; color: #15803d;' : 
+                                        ($totalGradePercentage >= 70 ? 'background: #dbeafe; color: #1d4ed8;' : 
+                                        ($totalGradePercentage >= 60 ? 'background: #fef3c7; color: #b45309;' : 'background: #fee2e2; color: #b91c1c;')) }}">
+                                        @if($totalGradePercentage >= 85)
+                                        ممتاز 🌟
+                                        @elseif($totalGradePercentage >= 70)
+                                        جيد جداً 👍
+                                        @elseif($totalGradePercentage >= 60)
+                                        مقبول ✔️
+                                        @else
+                                        رسوب ❌
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -12,7 +12,8 @@
         height: calc(100vh - 180px);
         background: white;
         border-radius: 20px;
-        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        /* Soft shadow instead of border */
         overflow: hidden;
     }
 
@@ -43,14 +44,15 @@
     }
 
     .conversations-list {
-        border-left: 1px solid #e2e8f0;
+        border-left: 1px solid #f1f5f9;
         overflow-y: auto;
-        background: #f8fafc;
+        background: #ffffff;
+        /* Cleaner white background */
     }
 
     .conversations-header {
-        padding: 1.25rem;
-        border-bottom: 1px solid #e2e8f0;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
         background: white;
         position: sticky;
         top: 0;
@@ -71,36 +73,44 @@
     }
 
     .new-chat-btn {
-        padding: 0.5rem;
-        background: var(--primary-color);
-        color: white;
+        width: 36px;
+        height: 36px;
+        background: #f1f5f9;
+        color: var(--primary-color);
         border: none;
-        border-radius: 10px;
+        border-radius: 12px;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .new-chat-btn:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
     }
 
     .conversation-item {
-        padding: 1rem 1.25rem;
+        padding: 1.25rem 1.5rem;
         display: flex;
-        gap: 0.75rem;
+        gap: 1rem;
         cursor: pointer;
-        transition: background 0.2s;
-        border-bottom: 1px solid #f1f5f9;
+        transition: all 0.2s;
+        border-bottom: 1px solid #f8fafc;
         text-decoration: none;
         color: inherit;
     }
 
     .conversation-item:hover {
-        background: white;
+        background: #f8fafc;
     }
 
     .conversation-item.active {
-        background: white;
-        border-right: 3px solid var(--primary-color);
+        background: #f8fafc;
+        border-right: 4px solid var(--primary-color);
     }
 
     .conv-avatar {
@@ -163,12 +173,16 @@
     }
 
     .chat-header {
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid #e2e8f0;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
         display: flex;
         align-items: center;
         gap: 1rem;
-        background: white;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
 
     .chat-header-avatar {
@@ -216,6 +230,7 @@
         color: white;
         align-self: flex-start;
         border-bottom-right-radius: 4px;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
     }
 
     .message-bubble.received {
@@ -223,7 +238,8 @@
         color: var(--text-primary);
         align-self: flex-end;
         border-bottom-left-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid #f1f5f9;
     }
 
     .message-time {
@@ -241,9 +257,9 @@
     }
 
     .chat-input-area {
-        padding: 1rem 1.5rem;
-        border-top: 1px solid #e2e8f0;
+        padding: 1.25rem 1.5rem;
         background: white;
+        border-top: 1px solid #f1f5f9;
     }
 
     .chat-input-form {

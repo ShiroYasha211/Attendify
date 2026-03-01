@@ -120,8 +120,30 @@ class LogbookScannerController extends Controller
      */
     public function manualAttendance()
     {
-        $students = User::where('role', 'student')->orderBy('name')->get();
-        return view('doctor.clinical.manual_attendance', compact('students'));
+        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+
+        $studentsQuery = User::where('role', 'student');
+        if ($doctorSubjects->isNotEmpty()) {
+            $studentsQuery->where(function ($query) use ($doctorSubjects) {
+                foreach ($doctorSubjects as $subject) {
+                    $query->orWhere(function ($q) use ($subject) {
+                        $q->where('major_id', $subject->major_id)
+                            ->where('level_id', $subject->level_id);
+                    });
+                }
+            });
+        } else {
+            $studentsQuery->whereRaw('1 = 0');
+        }
+        $students = $studentsQuery->orderBy('name')->get();
+
+        $trainingCenters = \App\Models\Clinical\TrainingCenter::all();
+        $departments = \App\Models\Clinical\ClinicalDepartment::all();
+
+        return view('doctor.clinical.manual_attendance', compact('students', 'trainingCenters', 'departments'));
     }
 
     /**

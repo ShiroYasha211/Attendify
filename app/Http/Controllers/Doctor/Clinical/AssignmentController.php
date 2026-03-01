@@ -22,8 +22,26 @@ class AssignmentController extends Controller
             ->where('status', 'active')
             ->get();
 
-        // Get all students (ideally filtered by doctor's subjects, but for now we get all students or students in same college)
-        $students = User::where('role', UserRole::STUDENT)->get();
+        // Get students filtered by doctor's subjects
+        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', $doctor->id)
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+
+        $studentsQuery = User::where('role', UserRole::STUDENT);
+        if ($doctorSubjects->isNotEmpty()) {
+            $studentsQuery->where(function ($query) use ($doctorSubjects) {
+                foreach ($doctorSubjects as $subject) {
+                    $query->orWhere(function ($q) use ($subject) {
+                        $q->where('major_id', $subject->major_id)
+                            ->where('level_id', $subject->level_id);
+                    });
+                }
+            });
+        } else {
+            $studentsQuery->whereRaw('1 = 0'); // No subjects = no students
+        }
+        $students = $studentsQuery->orderBy('name')->get();
 
         // Get existing assignments by this doctor
         $query = CaseAssignment::with(['student', 'clinicalCase'])

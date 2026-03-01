@@ -318,6 +318,10 @@
 
 </div>
 
+<!-- Pagination -->
+<div style="margin-top: 2rem; display: flex; justify-content: center;">
+    {{ $assignments->links() }}
+</div>
 <!-- Alpine Modal -->
 <div x-show="showModal" class="modal-overlay" style="display: none;" x-transition.opacity>
     <div class="modal-container" @click.away="showModal = false" x-transition.scale>
@@ -363,7 +367,8 @@
 
                 <div class="col-12 mb-3">
                     <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; user-select: none;">
-                        <input type="checkbox" name="requires_submission" x-model="formData.requires_submission" style="width: 20px; height: 20px; accent-color: #4f46e5;">
+                        <input type="hidden" name="requires_submission" value="0">
+                        <input type="checkbox" name="requires_submission" value="1" x-model="formData.requires_submission" style="width: 20px; height: 20px; accent-color: #4f46e5;">
                         <div>
                             <strong>يتطلب تسليم ملف</strong>
                             <div style="font-size: 0.85rem; color: var(--text-secondary);">السماح للطالب برفع ملف PDF أو ZIP كتسليم</div>

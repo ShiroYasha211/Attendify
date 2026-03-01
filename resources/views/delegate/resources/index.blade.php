@@ -559,7 +559,7 @@
         <!-- Search Input -->
         <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
             <div style="position: relative;">
-                <input type="text" x-model="searchQuery" @input.debounce.500ms="fetchResults()" placeholder="أدخل اسم الملف أو המادة للبحث..." style="width: 100%; height: 50px; background: #f1f5f9; border: 2px solid transparent; border-radius: 12px; padding: 0 3rem 0 1rem; font-size: 1rem; font-weight: 600; outline: none; transition: 0.2s;" onfocus="this.style.background='white'; this.style.borderColor='var(--primary-color)';">
+                <input type="text" x-model="searchQuery" @input.debounce.500ms="fetchResults()" placeholder="أدخل اسم المادة للبحث..." style="width: 100%; height: 50px; background: #f1f5f9; border: 2px solid transparent; border-radius: 12px; padding: 0 3rem 0 1rem; font-size: 1rem; font-weight: 600; outline: none; transition: 0.2s;" onfocus="this.style.background='white'; this.style.borderColor='var(--primary-color)';">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" style="position: absolute; right: 1rem; top: 15px;">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>

@@ -37,7 +37,8 @@ class EvaluationController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'skill_type' => 'required|in:history_taking,clinical_examination,procedure,communication',
-            'time_limit_minutes' => 'required|integer|min:1|max:120',
+            'timer_type' => 'required|in:fixed,open',
+            'time_limit_minutes' => 'required_if:timer_type,fixed|nullable|integer|min:1|max:120',
             'description' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:500',
@@ -49,7 +50,8 @@ class EvaluationController extends Controller
             'description' => $request->description,
             'doctor_id' => Auth::id(),
             'skill_type' => $request->skill_type,
-            'time_limit_minutes' => $request->time_limit_minutes,
+            'time_limit_minutes' => $request->timer_type === 'fixed' ? $request->time_limit_minutes : null,
+            'is_practice_allowed' => $request->has('is_practice_allowed'),
             'total_marks' => collect($request->items)->sum('marks'),
         ]);
 
@@ -82,7 +84,8 @@ class EvaluationController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'skill_type' => 'required|in:history_taking,clinical_examination,procedure,communication',
-            'time_limit_minutes' => 'required|integer|min:1|max:120',
+            'timer_type' => 'required|in:fixed,open',
+            'time_limit_minutes' => 'required_if:timer_type,fixed|nullable|integer|min:1|max:120',
             'description' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:500',
@@ -93,7 +96,8 @@ class EvaluationController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'skill_type' => $request->skill_type,
-            'time_limit_minutes' => $request->time_limit_minutes,
+            'is_practice_allowed' => $request->has('is_practice_allowed'),
+            'time_limit_minutes' => $request->timer_type === 'fixed' ? $request->time_limit_minutes : null,
             'total_marks' => collect($request->items)->sum('marks'),
         ]);
 
@@ -124,7 +128,27 @@ class EvaluationController extends Controller
     public function startEvaluation()
     {
         $checklists = EvaluationChecklist::where('doctor_id', Auth::id())->where('is_active', true)->get();
-        $students = User::where('role', 'student')->orderBy('name')->get();
+
+        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+
+        $studentsQuery = User::where('role', 'student');
+        if ($doctorSubjects->isNotEmpty()) {
+            $studentsQuery->where(function ($query) use ($doctorSubjects) {
+                foreach ($doctorSubjects as $subject) {
+                    $query->orWhere(function ($q) use ($subject) {
+                        $q->where('major_id', $subject->major_id)
+                            ->where('level_id', $subject->level_id);
+                    });
+                }
+            });
+        } else {
+            $studentsQuery->whereRaw('1 = 0');
+        }
+        $students = $studentsQuery->orderBy('name')->get();
+
         $cases = ClinicalCase::where('doctor_id', Auth::id())->where('status', 'active')->get();
 
         return view('doctor.clinical.evaluations.start', compact('checklists', 'students', 'cases'));
@@ -160,7 +184,9 @@ class EvaluationController extends Controller
             'scores.*.score' => 'required|in:done,partial,not_done',
         ]);
 
-        $checklist = EvaluationChecklist::with('items')->findOrFail($request->checklist_id);
+        $checklist = EvaluationChecklist::with('items')
+            ->where('doctor_id', Auth::id()) // Ownership check!
+            ->findOrFail($request->checklist_id);
 
         // Calculate scores
         $totalScore = 0;
@@ -233,7 +259,26 @@ class EvaluationController extends Controller
         }
 
         $evaluations = $query->latest()->paginate(20)->withQueryString();
-        $students = User::where('role', 'student')->orderBy('name')->get();
+
+        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+
+        $studentsQuery = User::where('role', 'student');
+        if ($doctorSubjects->isNotEmpty()) {
+            $studentsQuery->where(function ($query) use ($doctorSubjects) {
+                foreach ($doctorSubjects as $subject) {
+                    $query->orWhere(function ($q) use ($subject) {
+                        $q->where('major_id', $subject->major_id)
+                            ->where('level_id', $subject->level_id);
+                    });
+                }
+            });
+        } else {
+            $studentsQuery->whereRaw('1 = 0');
+        }
+        $students = $studentsQuery->orderBy('name')->get();
 
         return view('doctor.clinical.evaluations.results', compact('evaluations', 'students'));
     }

@@ -22,19 +22,21 @@ class CheckUserRole
 
         $userRole = Auth::user()->role->value;
 
+        $isClinicalDelegate = \App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists();
+
         // Delegate context switching logic
-        // Allow practical_delegate to access delegate routes
-        if ($role === 'delegate' && $userRole === 'practical_delegate') {
+        // Allow clinical delegates to access delegate routes
+        if ($role === 'delegate' && $isClinicalDelegate) {
             return $next($request);
         }
 
-        // Allow delegate and practical_delegate to access student routes
-        if ($role === 'student' && in_array($userRole, ['delegate', 'practical_delegate'])) {
+        // Allow delegate and clinical_delegate to access student routes
+        if ($role === 'student' && ($userRole === 'delegate' || $isClinicalDelegate)) {
             return $next($request);
         }
 
-        // If the route requires 'student' but user is 'practical_delegate', it's allowed above.
-        // If the route requires 'delegate' but user is 'practical_delegate', it's allowed above.
+        // If the route requires 'student' but user is clinical delegate, it's allowed above.
+        // If the route requires 'delegate' but user is clinical delegate, it's allowed above.
 
         if ($userRole !== $role) {
             abort(403, 'غير مصرح لك بالوصول لهذه الصفحة.');

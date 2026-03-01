@@ -15,9 +15,15 @@ class EvaluationChecklist extends Model
         'time_limit_minutes',
         'total_marks',
         'is_active',
+        'is_practice_allowed',
+        'creator_type',
+        'creator_id',
     ];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = [
+        'is_active' => 'boolean',
+        'is_practice_allowed' => 'boolean'
+    ];
 
     public function doctor()
     {
@@ -43,5 +49,21 @@ class EvaluationChecklist extends Model
             'communication' => 'مهارات تواصل',
             default => $this->skill_type,
         };
+    }
+
+    public function creator()
+    {
+        return $this->morphTo();
+    }
+
+    public function scopeForStudent($query, $studentId)
+    {
+        return $query->where(function ($q) use ($studentId) {
+            $q->whereNull('creator_id') // Official checklists
+                ->orWhere(function ($subq) use ($studentId) {
+                    $subq->where('creator_type', User::class)
+                        ->where('creator_id', $studentId);
+                });
+        });
     }
 }

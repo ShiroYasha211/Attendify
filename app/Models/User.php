@@ -105,4 +105,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\Grade::class, 'student_id');
     }
+
+    /**
+     * Get the student notes.
+     */
+    public function studentNotes()
+    {
+        return $this->hasMany(\App\Models\StudentNote::class, 'student_id');
+    }
 }

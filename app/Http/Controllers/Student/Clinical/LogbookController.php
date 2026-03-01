@@ -189,4 +189,28 @@ class LogbookController extends Controller
         return redirect()->route('student.clinical.index')
             ->with('success', 'تم حذف السجل بنجاح ✅');
     }
+
+    /**
+     * Export the student's confirmed logbook as a PDF document.
+     */
+    public function exportPdf()
+    {
+        $student = Auth::user();
+
+        $entries = StudentDailyLog::with(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem'])
+            ->where('student_id', $student->id)
+            ->where('status', 'confirmed')
+            ->orderBy('log_date', 'asc')
+            ->get();
+
+        if ($entries->isEmpty()) {
+            return redirect()->back()->with('error', 'لا يوجد أي سجلات معتمدة لتصديرها.');
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('student.clinical.pdf.student_logbook', compact('student', 'entries'));
+
+        // Optional: configure PDF for Arabic (RTL) support if needed, DomPDF needs specific font setup for Arabic which should be configured in laravel-dompdf config.
+
+        return $pdf->download('Clinical_Logbook_' . $student->university_id . '.pdf');
+    }
 }
