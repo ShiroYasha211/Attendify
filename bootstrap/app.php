@@ -17,6 +17,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'status' => \App\Http\Middleware\CheckUserStatus::class,
         ]);
         $middleware->redirectGuestsTo(fn() => route('admin.login'));
+        $middleware->redirectUsersTo(function () {
+            $user = \Illuminate\Support\Facades\Auth::user();
+            if ($user && $user->role) {
+                return match ($user->role->value) {
+                    \App\Enums\UserRole::ADMIN->value => route('admin.dashboard'),
+                    \App\Enums\UserRole::DOCTOR->value => route('doctor.dashboard'),
+                    \App\Enums\UserRole::DELEGATE->value, \App\Enums\UserRole::PRACTICAL_DELEGATE->value => route('delegate.dashboard'),
+                    \App\Enums\UserRole::STUDENT->value => route('student.dashboard'),
+                    default => route('admin.login'),
+                };
+            }
+            return route('admin.login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

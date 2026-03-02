@@ -15,6 +15,8 @@ class Subject extends Model
         'level_id',
         'term_id',
         'doctor_id',
+        'max_absences',
+        'lecture_count',
     ];
 
     public function major()

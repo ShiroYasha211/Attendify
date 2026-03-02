@@ -30,7 +30,18 @@ class SubjectController extends AdminApiController
             'max_absences' => 'required|integer|min:1',
             'lecture_count' => 'nullable|integer|min:0',
         ]);
-        $subject = Subject::create($request->only('name', 'term_id', 'doctor_id', 'max_absences', 'lecture_count'));
+
+        $term = \App\Models\Academic\Term::with('level')->findOrFail($request->term_id);
+
+        $subject = Subject::create([
+            'name' => $request->name,
+            'term_id' => $term->id,
+            'level_id' => $term->level_id,
+            'major_id' => $term->level->major_id,
+            'doctor_id' => $request->doctor_id,
+            'max_absences' => $request->max_absences,
+            'lecture_count' => $request->lecture_count ?? 0,
+        ]);
         return $this->success($subject->load('term', 'doctor'), 'تم إنشاء المادة بنجاح', 201);
     }
 
@@ -43,7 +54,19 @@ class SubjectController extends AdminApiController
             'max_absences' => 'required|integer|min:1',
             'lecture_count' => 'nullable|integer|min:0',
         ]);
-        $subject->update($request->only('name', 'term_id', 'doctor_id', 'max_absences', 'lecture_count'));
+
+        $term = \App\Models\Academic\Term::with('level')->findOrFail($request->term_id);
+
+        $subject->update([
+            'name' => $request->name,
+            'term_id' => $term->id,
+            'level_id' => $term->level_id,
+            'major_id' => $term->level->major_id,
+            'doctor_id' => $request->doctor_id,
+            'max_absences' => $request->max_absences,
+            'lecture_count' => $request->lecture_count ?? 0,
+        ]);
+
         return $this->success($subject->fresh()->load('term', 'doctor'), 'تم تحديث المادة بنجاح');
     }
 
