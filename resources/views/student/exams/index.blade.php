@@ -348,7 +348,8 @@
     <div class="schedule-content">
         <!-- Main Table -->
         <div class="exam-table-container">
-            <table class="exam-table">
+            <div class="table-responsive">
+<table class="exam-table">
                 <thead>
                     <tr>
                         <th>المادة</th>
@@ -404,6 +405,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
 
         <!-- Info Sidebar -->

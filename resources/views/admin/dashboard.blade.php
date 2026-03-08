@@ -274,7 +274,8 @@
             آخر سجلات الحضور
         </h3>
 
-        <table style="width: 100%; border-collapse: collapse;">
+        <div class="table-responsive">
+<table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="text-align: right; color: var(--text-secondary); font-size: 0.9rem;">
                     <th style="padding-bottom: 0.5rem;">المادة</th>
@@ -312,6 +313,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
 
         <div style="margin-top: 1.5rem; text-align: center;">
             <a href="{{ route('admin.reports.index') }}" style="color: var(--primary-color); font-weight: 600; font-size: 0.9rem;">عرض كل التقارير &larr;</a>

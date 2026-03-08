@@ -72,6 +72,7 @@ class ExcuseController extends Controller
 
     public function update(Request $request, Excuse $excuse)
     {
+        \Log::info('Excuse Update Request', $request->all());
         $request->validate([
             'status' => 'required|in:accepted,rejected',
             'comment' => 'nullable|string|max:255',
@@ -83,8 +84,8 @@ class ExcuseController extends Controller
         }
 
         $excuse->update([
-            'status' => $request->status,
-            'doctor_comment' => $request->comment,
+            'status' => $request->input('status'),
+            'doctor_comment' => $request->input('comment'),
         ]);
 
         if ($request->status === 'accepted') {
@@ -96,15 +97,20 @@ class ExcuseController extends Controller
         $statusLabel = $request->status === 'accepted' ? 'قبول' : 'رفض';
         $statusIcon = $request->status === 'accepted' ? '✅' : '❌';
 
+        $message = "تم {$statusLabel} عذرك في مادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')}.";
+        if ($request->input('comment')) {
+            $message .= "\nملاحظة الدكتور: " . $request->input('comment');
+        }
+
         StudentNotification::create([
             'user_id' => $excuse->student_id,
             'type'    => 'excuse',
             'title'   => "{$statusIcon} تم {$statusLabel} العذر",
-            'message' => "تم {$statusLabel} عذرك في مادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')}.",
+            'message' => $message,
             'data'    => [
                 'excuse_id'  => $excuse->id,
                 'status'     => $request->status,
-                'action_url' => route('student.attendance.index'),
+                'action_url' => route('student.subjects.show', $excuse->attendance->subject_id),
             ],
         ]);
 

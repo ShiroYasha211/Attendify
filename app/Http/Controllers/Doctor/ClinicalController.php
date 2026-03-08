@@ -16,10 +16,8 @@ class ClinicalController extends Controller
     {
         $doctor = Auth::user();
 
-        $totalCases = ClinicalCase::where('doctor_id', $doctor->id)->count();
-        $activeCases = ClinicalCase::where('doctor_id', $doctor->id)
-            ->where('status', 'active')
-            ->count();
+        $totalCases = ClinicalCase::count();
+        $activeCases = ClinicalCase::where('status', 'active')->count();
 
         return view('doctor.clinical.index', compact(
             'totalCases',

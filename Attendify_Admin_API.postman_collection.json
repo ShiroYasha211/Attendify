@@ -1442,6 +1442,223 @@
             ]
         },
         {
+            "name": "🏥 Clinical Constants",
+            "item": [
+                {
+                    "name": "List Departments (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Department (Global)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"قسم الجراحة العامة\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Department (Global)",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"قسم الجراحة العامة المعدّل\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Department (Global)",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/departments/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "departments",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Body Systems (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Body System (Global)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"الجهاز التنفسي\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Body System (Global)",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"الجهاز التنفسي المعدّل\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems",
+                                "1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Body System (Global)",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/clinical/body-systems/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "clinical",
+                                "body-systems",
+                                "1"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
             "name": "⚙️ Settings",
             "item": [
                 {

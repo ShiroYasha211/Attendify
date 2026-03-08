@@ -10,6 +10,7 @@ class Attendance extends Model
     protected $fillable = [
         'student_id',
         'subject_id',
+        'lecture_id',
         'status',
         'date',
         'recorded_by',
@@ -28,6 +29,11 @@ class Attendance extends Model
     public function subject()
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    public function lecture()
+    {
+        return $this->belongsTo(\App\Models\Academic\Lecture::class);
     }
 
     public function recorder()

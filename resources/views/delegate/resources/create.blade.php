@@ -5,11 +5,26 @@
 @section('content')
 
 <div style="max-width: 800px; margin: 0 auto;" x-data="{ 
-    file: null, 
+    selectedFile: null, 
     fileName: '', 
     fileSize: '', 
+    fileError: null,
     category: 'lectures', 
     dragActive: false,
+    handleFile(f) {
+        if (!f) return;
+        if (f.size > 20 * 1024 * 1024) {
+            this.fileError = 'حجم الملف (' + this.formatSize(f.size) + ') يتجاوز الحد المسموح به (20MB)';
+            this.selectedFile = null;
+            this.fileName = '';
+            this.fileSize = '';
+            return;
+        }
+        this.fileError = null;
+        this.selectedFile = f;
+        this.fileName = f.name;
+        this.fileSize = this.formatSize(f.size);
+    },
     formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -43,19 +58,19 @@
             </div>
 
             <input type="file" name="file" id="file" style="display: none;"
-                @change="file = $event.target.files[0]; fileName = file.name; fileSize = formatSize(file.size)"
+                @change="handleFile($event.target.files[0])"
                 required accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
 
             <label for="file"
                 style="display: block; padding: 3rem 2rem; cursor: pointer; transition: all 0.3s ease; text-align: center;"
-                :style="file ? 'background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);' : (dragActive ? 'background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);' : 'background: #fafbfc;')"
+                :style="fileError ? 'background: #fff1f2; border: 2px dashed #fb7185;' : (selectedFile ? 'background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);' : (dragActive ? 'background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);' : 'background: #fafbfc;'))"
                 @dragover.prevent="dragActive = true"
                 @dragleave.prevent="dragActive = false"
-                @drop.prevent="dragActive = false; file = $event.dataTransfer.files[0]; fileName = file.name; fileSize = formatSize(file.size)">
+                @drop.prevent="dragActive = false; handleFile($event.dataTransfer.files[0])">
 
                 <!-- Animated Upload Icon -->
                 <div style="margin-bottom: 1.5rem; display: flex; justify-content: center;">
-                    <template x-if="!file">
+                    <template x-if="!selectedFile">
                         <div style="width: 110px; height: 110px; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -64,7 +79,7 @@
                             </svg>
                         </div>
                     </template>
-                    <template x-if="file">
+                    <template x-if="selectedFile">
                         <div style="width: 110px; height: 110px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -73,13 +88,21 @@
                     </template>
                 </div>
 
-                <h4 x-show="!file" style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; text-align: center;">اسحب الملفات هنا أو اضغط للاختيار</h4>
-                <p x-show="!file" style="color: var(--text-secondary); margin: 0; font-size: 0.95rem; text-align: center;">
+                <h4 x-show="!selectedFile && !fileError" style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; text-align: center;">اسحب الملفات هنا أو اضغط للاختيار</h4>
+                <p x-show="!selectedFile && !fileError" style="color: var(--text-secondary); margin: 0; font-size: 0.95rem; text-align: center;">
                     يدعم: PDF, PowerPoint, Word, Excel, صور, ملفات مضغوطة<br>
-                    <span style="color: #94a3b8;">(الحد الأقصى: 10MB)</span>
+                    <span style="color: #94a3b8;">(الحد الأقصى: 20MB)</span>
                 </p>
 
-                <div x-show="file" x-cloak style="background: white; padding: 1rem 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; margin: 0 auto; display: inline-block;">
+                <div x-show="fileError" x-cloak style="text-align: center; margin-bottom: 1rem;">
+                    <div style="width: 60px; height: 60px; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    </div>
+                    <h4 style="font-size: 1.1rem; font-weight: 700; color: #b91c1c; margin: 0;" x-text="fileError"></h4>
+                    <p style="color: #ef4444; font-size: 0.9rem; margin-top: 0.25rem;">يرجى اختيار ملف أصغر</p>
+                </div>
+
+                <div x-show="selectedFile" x-cloak style="background: white; padding: 1rem 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; margin: 0 auto; display: inline-block;">
                     <h4 style="font-size: 1.2rem; font-weight: 700; color: #10b981; margin: 0 0 0.25rem 0;" x-text="fileName"></h4>
                     <p style="color: #64748b; margin: 0; font-size: 0.9rem;">
                         ✓ تم اختيار الملف بنجاح (<span x-text="fileSize"></span>)
@@ -220,7 +243,7 @@
         </div>
 
         <!-- Submit Button -->
-        <button type="submit" class="upload-btn"
+        <button type="submit" class="upload-btn" :disabled="!selectedFile || !!fileError" :style="(!selectedFile || !!fileError) ? 'opacity: 0.6; cursor: not-allowed; filter: grayscale(1);' : ''"
             style="width: 100%; height: 60px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; border-radius: 16px; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: 0 15px 35px -5px rgba(79, 70, 229, 0.4); transition: all 0.3s ease;">
             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

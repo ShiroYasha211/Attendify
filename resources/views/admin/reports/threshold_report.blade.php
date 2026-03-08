@@ -251,7 +251,8 @@
             </div>
             @else
             <!-- Detailed Table -->
-            <table class="table">
+            <div class="table-responsive">
+<table class="table">
                 <thead>
                     <tr>
                         <th style="width: 15%;">الرقم الجامعي</th>
@@ -283,6 +284,7 @@
                     @endforeach
                 </tbody>
             </table>
+</div>
             @endif
 
             <!-- Footer Signatures -->

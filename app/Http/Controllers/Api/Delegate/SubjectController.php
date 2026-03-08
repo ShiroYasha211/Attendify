@@ -18,11 +18,13 @@ class SubjectController extends DelegateApiController
 
         $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->with(['doctor:id,name', 'term:id,name'])
-            ->orderBy('name')
-            ->get();
+            ->with(['doctor:id,name', 'term:id,name', 'semester:id,name']);
 
-        return $this->success($subjects, 'تم جلب المواد بنجاح');
+        if ($request->semester_id) {
+            $subjects->where('semester_id', $request->semester_id);
+        }
+
+        return $this->success($subjects->orderBy('name')->get(), 'تم جلب المواد بنجاح');
     }
 
     /**
@@ -36,7 +38,7 @@ class SubjectController extends DelegateApiController
         $subject = Subject::where('id', $id)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->with(['doctor:id,name', 'term:id,name', 'resources', 'grades']) // Using grades for assignments as in web view
+            ->with(['doctor:id,name', 'term:id,name', 'semester:id,name', 'resources', 'grades']) // Using grades for assignments as in web view
             ->first();
 
         if (!$subject) {

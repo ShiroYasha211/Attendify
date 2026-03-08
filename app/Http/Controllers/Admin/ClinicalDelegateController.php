@@ -25,7 +25,7 @@ class ClinicalDelegateController extends Controller
             ->get();
 
         // الطلاب المتاحين — مجمّعين حسب التخصص
-        $studentsByMajor = User::where('role', UserRole::STUDENT)
+        $studentsByMajor = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->select('id', 'name', 'student_number', 'major_id')
             ->orderBy('name')
             ->get()
@@ -51,7 +51,7 @@ class ClinicalDelegateController extends Controller
         $major = Major::where('has_clinical', true)->findOrFail($request->major_id);
 
         // Verify user is a student
-        $student = User::where('role', UserRole::STUDENT)->findOrFail($request->student_id);
+        $student = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->findOrFail($request->student_id);
 
         // Create or update (each major has at most one clinical delegate)
         $delegate = ClinicalDelegate::updateOrCreate(

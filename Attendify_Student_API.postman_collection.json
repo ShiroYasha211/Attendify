@@ -200,7 +200,7 @@
                                 "1"
                             ]
                         },
-                        "description": "تفاصيل مادة محددة مع المحاضرات والتكاليف والموارد."
+                        "description": "تفاصيل مادة محددة مع المحاضرات، التكاليف، وسجل الحضور التفصيلي.\n\nالبيانات الجديدة المضافة:\n- attendance_history: قائمة بجميع سجلات الحضور مع تفاصيل الأعذار (reason, status, doctor_comment, attachment_url).\n- deprivation_info: حالة الحرمان (warning_level, absence_percent, is_banned).\n- can_submit_excuse: هل يمكن للطالب تقديم عذر لهذا السجل بناءً على المهلة الزمنية."
                     }
                 },
                 {
@@ -319,7 +319,51 @@
                                 "attendance"
                             ]
                         },
-                        "description": "جلب سجل حضور الطالب لجميع المواد."
+                        "description": "جلب سجل حضور الطالب لجميع المواد (نظرة عامة)."
+                    }
+                },
+                {
+                    "name": "Submit Excuse",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "attendance_id",
+                                    "value": "1",
+                                    "type": "text",
+                                    "description": "معرف سجل الحضور (الغائب)"
+                                },
+                                {
+                                    "key": "reason",
+                                    "value": "مرض مفاجئ",
+                                    "type": "text",
+                                    "description": "سبب العذر"
+                                },
+                                {
+                                    "key": "attachment",
+                                    "type": "file",
+                                    "description": "المرفق (PDF/Image) - اختياري"
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/excuse",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "excuse"
+                            ]
+                        },
+                        "description": "تقديم عذر طبي لغياب محدد.\n\nالحقول:\n- attendance_id (required): معرف السجل.\n- reason (required): نص السبب.\n- attachment (optional): ملف المرفق."
                     }
                 }
             ]

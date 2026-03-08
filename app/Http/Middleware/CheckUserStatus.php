@@ -24,6 +24,16 @@ class CheckUserStatus
             ]);
         }
 
+        // Check if user was kicked by Admin
+        if (Auth::check() && \Illuminate\Support\Facades\Cache::has('kick_user_' . Auth::id())) {
+            \Illuminate\Support\Facades\Cache::forget('kick_user_' . Auth::id());
+            Auth::logout();
+
+            return redirect()->route('admin.login')->withErrors([
+                'email' => 'تم تسجيل خروجك من النظام بواسطة مسؤول النظام.',
+            ]);
+        }
+
         return $next($request);
     }
 }

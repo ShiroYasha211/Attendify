@@ -225,18 +225,47 @@ $timeLimitSec = $timeLimitMin * 60;
     <input type="hidden" name="time_taken_seconds" id="time-taken" value="0">
 
     <div class="card-section">
-        @foreach($checklist->items as $item)
-        <div class="checklist-item" id="item-{{ $item->id }}">
-            <span class="item-number">{{ $loop->iteration }}</span>
-            <span class="item-desc">{{ $item->description }}</span>
-            <span class="item-marks">{{ $item->marks }} د</span>
-            <div class="score-btns">
-                <input type="hidden" name="scores[{{ $item->id }}][score]" value="not_done" id="score-input-{{ $item->id }}">
-                <button type="button" class="score-btn done" onclick="setScore({{ $item->id }}, 'done', this)">✓ كامل</button>
-                <button type="button" class="score-btn partial" onclick="setScore({{ $item->id }}, 'partial', this)">½ جزئي</button>
-                <button type="button" class="score-btn not_done active" onclick="setScore({{ $item->id }}, 'not_done', this)">✗ لا</button>
+        @php
+            $mainItems = $checklist->items->whereNull('parent_id');
+        @endphp
+
+        @foreach($mainItems as $mainItem)
+            @php
+                $subItems = $checklist->items->where('parent_id', $mainItem->id);
+                $hasSubitems = $subItems->count() > 0;
+            @endphp
+            <div class="checklist-item" id="item-{{ $mainItem->id }}" style="margin-top: 1rem; {{ $hasSubitems ? 'background: #f8fafc; border: 1.5px solid #cbd5e1; border-right: 4px solid var(--primary-color);' : '' }}">
+                <span class="item-number" style="{{ $hasSubitems ? 'color: var(--primary-color); font-size: 1rem;' : '' }}">{{ $loop->iteration }}</span>
+                <span class="item-desc" style="{{ $hasSubitems ? 'font-size: 1.05rem;' : '' }}">{{ $mainItem->description }}</span>
+                <span class="item-marks" style="{{ $hasSubitems ? 'font-weight: 800; color: var(--primary-color);' : '' }}">{{ $mainItem->marks }} د</span>
+                
+                @if(!$hasSubitems)
+                <div class="score-btns">
+                    <input type="hidden" name="scores[{{ $mainItem->id }}][score]" value="not_done" id="score-input-{{ $mainItem->id }}">
+                    <button type="button" class="score-btn done" onclick="setScore({{ $mainItem->id }}, 'done', this)">✓ كامل</button>
+                    <button type="button" class="score-btn partial" onclick="setScore({{ $mainItem->id }}, 'partial', this)">½ جزئي</button>
+                    <button type="button" class="score-btn not_done active" onclick="setScore({{ $mainItem->id }}, 'not_done', this)">✗ لا</button>
+                </div>
+                @endif
             </div>
-        </div>
+
+            @if($hasSubitems)
+                <div style="padding-right: 2.5rem; border-right: 2px dashed #e2e8f0; margin-right: 1.5rem; margin-bottom: 1.5rem;">
+                @foreach($subItems as $subItem)
+                    <div class="checklist-item" id="item-{{ $subItem->id }}" style="background: white; border: 1px solid #e2e8f0; margin-top: 0.25rem;">
+                        <span style="color:#94a3b8; font-weight:bold;">↳</span>
+                        <span class="item-desc" style="font-size: 0.88rem; color: #475569;">{{ $subItem->description }}</span>
+                        <span class="item-marks" style="color: #64748b;">{{ $subItem->marks }} د</span>
+                        <div class="score-btns">
+                            <input type="hidden" name="scores[{{ $subItem->id }}][score]" value="not_done" id="score-input-{{ $subItem->id }}">
+                            <button type="button" class="score-btn done" onclick="setScore({{ $subItem->id }}, 'done', this)">✓ كامل</button>
+                            <button type="button" class="score-btn partial" onclick="setScore({{ $subItem->id }}, 'partial', this)">½ جزئي</button>
+                            <button type="button" class="score-btn not_done active" onclick="setScore({{ $subItem->id }}, 'not_done', this)">✗ لا</button>
+                        </div>
+                    </div>
+                @endforeach
+                </div>
+            @endif
         @endforeach
     </div>
 

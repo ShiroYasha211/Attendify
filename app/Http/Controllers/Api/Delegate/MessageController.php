@@ -79,7 +79,7 @@ class MessageController extends DelegateApiController
 
         // Validate receiver is a student in the batch
         $receiver = User::where('id', $request->receiver_id)
-            ->where('role', UserRole::STUDENT)
+            ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->first();

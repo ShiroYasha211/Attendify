@@ -7,6 +7,7 @@ use App\Services\AcademicService;
 use App\Models\Academic\Major;
 use App\Models\Academic\College;
 use App\Models\Academic\University;
+use App\Models\Academic\Semester;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,7 @@ class MajorController extends Controller
             ],
             'levels_count' => 'required|integer|min:1|max:8',
             'terms_count' => 'required|integer|min:1|max:4',
+            'semesters_per_term' => 'nullable|integer|min:1|max:10',
         ], [
             'college_id.required' => 'يرجى اختيار الكلية.',
             'name.unique' => 'اسم التخصص مسجل بالفعل في هذه الكلية.',
@@ -65,6 +67,7 @@ class MajorController extends Controller
             $major = $this->academicService->createMajor($college, [
                 'name' => $request->name,
                 'has_clinical' => $request->boolean('has_clinical'),
+                'has_semesters' => $request->boolean('has_semesters'),
             ]);
 
             // 2. Loop to create Levels (Years)
@@ -78,8 +81,15 @@ class MajorController extends Controller
                 for ($j = 1; $j <= $request->terms_count; $j++) {
                     $termName = "الترم $j";
 
-                    // Optional: You could set default start/end dates here if needed logic existed
-                    $this->academicService->createTerm($level, ['name' => $termName]);
+                    $term = $this->academicService->createTerm($level, ['name' => $termName]);
+
+                    // 4. Loop to create Semesters if major has them
+                    if ($major->has_semesters && $request->semesters_per_term > 0) {
+                        for ($k = 1; $k <= $request->semesters_per_term; $k++) {
+                            $semesterName = "سيمستر $k";
+                            $this->academicService->createSemester($term, ['name' => $semesterName]);
+                        }
+                    }
                 }
             }
         });
@@ -113,6 +123,7 @@ class MajorController extends Controller
             'college_id' => $request->college_id,
             'name' => $request->name,
             'has_clinical' => $request->boolean('has_clinical'),
+            'has_semesters' => $request->boolean('has_semesters'),
         ]);
 
         return redirect()->route('admin.majors.index')

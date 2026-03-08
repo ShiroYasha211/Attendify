@@ -15,8 +15,7 @@ class CaseController extends DoctorApiController
     /** GET /api/doctor/clinical/cases */
     public function index(Request $request)
     {
-        $query = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem'])
-            ->where('doctor_id', Auth::id());
+        $query = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor']);
 
         if ($request->filled('patient_name')) {
             $query->where('patient_name', 'like', "%{$request->patient_name}%");
@@ -58,15 +57,15 @@ class CaseController extends DoctorApiController
     /** GET /api/doctor/clinical/cases/{id} */
     public function show($id)
     {
-        $case = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem'])
-            ->where('doctor_id', Auth::id())->findOrFail($id);
+        $case = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])
+            ->findOrFail($id);
         return $this->success($case);
     }
 
     /** PUT /api/doctor/clinical/cases/{id} */
     public function update(Request $request, $id)
     {
-        $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
+        $case = ClinicalCase::findOrFail($id);
         $validated = $request->validate([
             'patient_name' => 'required|string|max:255',
             'age' => 'nullable|integer|min:0|max:150',
@@ -78,13 +77,13 @@ class CaseController extends DoctorApiController
             'status' => 'required|in:active,discharged,transferred',
         ]);
         $case->update($validated);
-        return $this->success($case->load(['trainingCenter', 'clinicalDepartment', 'bodySystem']), 'تم تحديث الحالة بنجاح.');
+        return $this->success($case->load(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor']), 'تم تحديث الحالة بنجاح.');
     }
 
     /** DELETE /api/doctor/clinical/cases/{id} */
     public function destroy($id)
     {
-        $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
+        $case = ClinicalCase::findOrFail($id);
         $case->delete();
         return $this->success(null, 'تم مسح الحالة بنجاح.');
     }

@@ -22,12 +22,15 @@ class SubjectController extends Controller
 
         $subjects = Subject::where('major_id', $student->major_id)
             ->where('level_id', $student->level_id)
-            ->with('doctor:id,name,avatar')
-            ->get();
+            ->with(['doctor:id,name,avatar', 'term:id,name', 'semester:id,name']);
+
+        if ($request->semester_id) {
+            $subjects->where('semester_id', $request->semester_id);
+        }
 
         return response()->json([
             'success' => true,
-            'data' => $subjects
+            'data' => $subjects->get()
         ], 200);
     }
 
@@ -41,7 +44,7 @@ class SubjectController extends Controller
         $subject = Subject::where('id', $id)
             ->where('major_id', $student->major_id)
             ->where('level_id', $student->level_id)
-            ->with(['doctor:id,name,avatar', 'resources'])
+            ->with(['doctor:id,name,avatar', 'resources', 'term:id,name', 'semester:id,name'])
             ->firstOrFail();
 
         // 1. Fetch Lectures with Study Status
@@ -85,27 +88,117 @@ class SubjectController extends Controller
                 ];
             });
 
-        // 3. Attendance Stats
+        // 3. Attendance Stats & History
         $attendanceRecords = Attendance::where('student_id', $student->id)
             ->where('subject_id', $subject->id)
+            ->with('excuse')
+            ->orderBy('date', 'desc')
             ->get();
 
         $presentCount = $attendanceRecords->where('status', 'present')->count();
         $absentCount = $attendanceRecords->where('status', 'absent')->count();
-        $totalLectures = $attendanceRecords->count();
-        $attendancePercentage = $totalLectures > 0 ? round(($presentCount / $totalLectures) * 100) : 0;
+        $lateCount = $attendanceRecords->where('status', 'late')->count();
+        $excusedCount = $attendanceRecords->where('status', 'excused')->count();
+        $totalLecturesHeld = $attendanceRecords->count();
+        
+        $attendancePercentage = $totalLecturesHeld > 0 
+            ? round((($presentCount + $lateCount) / $totalLecturesHeld) * 100) 
+            : 0;
+
+        // 4. Deprivation Warning Logic
+        $maxAbsences = (int) Setting::get('default_max_absences', 3);
+        $deprivationThreshold = (int) Setting::get('deprivation_threshold', 25);
+        $excuseDeadlineDays = (int) Setting::get('excuse_deadline_days', 3);
+
+        $absencePercent = $totalLecturesHeld > 0 ? round(($absentCount / $totalLecturesHeld) * 100) : 0;
+        $warningLevel = null;
+
+        if ($absencePercent >= $deprivationThreshold) {
+            $warningLevel = 'danger'; // Deprivation zone
+        } elseif ($absentCount >= $maxAbsences) {
+            $warningLevel = 'danger'; // Exceeded max allowed
+        } elseif ($absentCount >= ($maxAbsences - 1)) {
+            $warningLevel = 'warning'; // One absence away from max
+        }
+
+        $history = $attendanceRecords->map(function ($rec) use ($excuseDeadlineDays) {
+            $canSubmit = false;
+            $daysSince = 0;
+            if ($rec->status == 'absent' && !$rec->excuse) {
+                $daysSince = now()->diffInDays($rec->date);
+                $canSubmit = $daysSince <= $excuseDeadlineDays;
+            }
+
+            return [
+                'id' => $rec->id,
+                'date' => $rec->date,
+                'status' => $rec->status,
+                'is_excused' => $rec->status == 'excused' || ($rec->excuse && $rec->excuse->status == 'accepted'),
+                'excuse' => $rec->excuse ? [
+                    'id' => $rec->excuse->id,
+                    'reason' => $rec->excuse->reason,
+                    'status' => $rec->excuse->status,
+                    'attachment_url' => $rec->excuse->attachment ? asset('storage/' . $rec->excuse->attachment) : null,
+                    'doctor_comment' => $rec->excuse->doctor_comment,
+                    'created_at' => $rec->excuse->created_at->format('Y-m-d H:i'),
+                ] : null,
+                'can_submit_excuse' => $canSubmit,
+                'deadline_info' => [
+                    'days_since_absence' => $daysSince,
+                    'max_deadline_days' => $excuseDeadlineDays,
+                    'is_expired' => !$canSubmit && $rec->status == 'absent' && !$rec->excuse
+                ]
+            ];
+        });
+
+        // 4. Fetch Grades
+        $grades = \App\Models\Grade::where('student_id', $student->id)
+            ->where('subject_id', $subject->id)
+            ->get();
+
+        $continuousGrade = $grades->where('type', 'continuous')->first();
+        $finalGrade = $grades->where('type', 'final')->first();
+
+        // Calculate total percentage
+        $totalGradePercentage = null;
+        if ($continuousGrade || $finalGrade) {
+            $cWeight = $continuousGrade ? ($continuousGrade->score / $continuousGrade->max_score) * 40 : 0;
+            $fWeight = $finalGrade ? ($finalGrade->score / $finalGrade->max_score) * 60 : 0;
+            $totalGradePercentage = round($cWeight + $fWeight, 1);
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
                 'subject' => $subject,
+                'grades' => [
+                    'continuous' => $continuousGrade ? [
+                        'score' => $continuousGrade->score,
+                        'max_score' => $continuousGrade->max_score,
+                    ] : null,
+                    'final' => $finalGrade ? [
+                        'score' => $finalGrade->score,
+                        'max_score' => $finalGrade->max_score,
+                    ] : null,
+                    'total_percentage' => $totalGradePercentage,
+                ],
                 'progress' => [
                     'attendance_percentage' => $attendancePercentage,
-                    'total_lectures_held' => $totalLectures,
-                    'absences' => $absentCount
+                    'total_lectures_held' => $totalLecturesHeld,
+                    'absences' => $absentCount,
+                    'presents' => $presentCount,
+                    'lates' => $lateCount,
+                    'excused' => $excusedCount,
+                ],
+                'deprivation_info' => [
+                    'warning_level' => $warningLevel,
+                    'absence_percent' => $absencePercent,
+                    'max_absences_allowed' => $maxAbsences,
+                    'is_banned' => $warningLevel === 'danger',
                 ],
                 'lectures' => $lectures,
                 'assignments' => $assignments,
+                'attendance_history' => $history,
             ]
         ], 200);
     }

@@ -624,7 +624,8 @@
                 <p>ابدأ بإضافة طلاب جدد من النموذج</p>
             </div>
             @else
-            <table class="students-table">
+            <div class="table-responsive">
+<table class="students-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -712,6 +713,7 @@
                     @endforeach
                 </tbody>
             </table>
+</div>
 
             @if($students->hasPages())
             <div class="pagination-wrapper">

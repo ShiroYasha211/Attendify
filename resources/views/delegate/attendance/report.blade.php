@@ -235,7 +235,8 @@
             </div>
 
             <!-- Students Table -->
-            <table class="table">
+            <div class="table-responsive">
+<table class="table">
                 <thead>
                     <tr>
                         <th style="width: 50px;">#</th>
@@ -274,6 +275,7 @@
                     @endforeach
                 </tbody>
             </table>
+</div>
 
             <!-- Summary -->
             <div style="margin-top: 1rem; border: 1px solid #000; padding: 1rem; display: flex; justify-content: space-around; background: #f8f9fa;">

@@ -152,7 +152,8 @@
             <p style="color: var(--text-secondary); margin-top: 1rem;">لا يوجد طلاب في هذه الدفعة.</p>
         </div>
         @else
-        <table class="grades-table">
+        <div class="table-responsive">
+<table class="grades-table">
             <thead>
                 <tr>
                     <th style="width: 50px;">#</th>
@@ -231,6 +232,7 @@
                 @endforeach
             </tbody>
         </table>
+</div>
         @endif
     </div>
 

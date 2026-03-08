@@ -146,7 +146,20 @@
 </div>
 
 <!-- Users Table Card -->
-<div class="card" x-data="{ selectedUsers: [], selectAll: false }">
+<div class="card" x-data="{
+    selectedUsers: [],
+    selectAll: false,
+    resetModalOpen: false,
+    resetUserId: null,
+    resetUserName: '',
+    newPassword: '',
+    generatePassword() {
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+        let pass = '';
+        for(let i=0; i<8; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        this.newPassword = pass;
+    }
+}">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
         <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">قائمة المستخدمين</h3>
         <span class="badge badge-info" style="font-size: 0.85rem;">العدد: {{ $users->total() }}</span>
@@ -193,7 +206,8 @@
     </div>
 
     <div class="table-container">
-        <table>
+        <div class="table-responsive">
+<table>
             <thead>
                 <tr>
                     <th style="width: 50px;">
@@ -219,7 +233,7 @@
                     <td>
                         <div style="display: flex; align-items: center; gap: 1rem;">
                             <!-- Improved Avatar -->
-                            <div style="width: 38px; height: 38px; border-radius: 50%; 
+                            <div style="width: 38px; height: 38px; border-radius: 50%;
                                       background: {{ $user->role->value == 'admin' ? '#1f2937' : ($user->role->value == 'doctor' ? 'var(--primary-color)' : ($user->role->value == 'delegate' ? 'var(--info-color)' : '#9ca3af')) }};
                                       color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">
                                 {{ mb_substr($user->name, 0, 1) }}
@@ -254,6 +268,26 @@
                     <td>
                         @if($user->id !== auth()->id())
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <!-- Reset Password Button -->
+                            <button type="button" @click="resetUserId = {{ $user->id }}; resetUserName = '{{ str_replace("'", "\'", $user->name) }}'; newPassword = ''; resetModalOpen = true;" class="btn" style="padding: 0.4rem; background: #e0e7ff; color: #4338ca;" title="تمهيد كلمة المرور">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"></path>
+                                    <circle cx="16.5" cy="7.5" r=".5"></circle>
+                                </svg>
+                            </button>
+
+                            <!-- Kick Session Button -->
+                            <form action="{{ route('admin.users.kick', $user->id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من طرد هذا المستخدم من الجلسة؟ سيتم تسجيل خروجه فوراً.');">
+                                @csrf
+                                <button type="submit" class="btn" style="padding: 0.4rem; background: #fee2e2; color: #991b1b;" title="طرد من الجلسة">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                        <polyline points="16 17 21 12 16 7"></polyline>
+                                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </form>
+
                             <form action="{{ route('admin.users.status', $user->id) }}" method="POST">
                                 @csrf
                                 @method('PATCH')
@@ -300,6 +334,55 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div x-show="resetModalOpen" x-cloak class="modal-overlay" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;">
+        <div @click.outside="resetModalOpen = false" class="modal-content" style="background:#fff; border-radius:12px; padding:2rem; width:100%; max-width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="margin:0; font-size:1.2rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                       <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"></path>
+                       <circle cx="16.5" cy="7.5" r=".5"></circle>
+                    </svg>
+                    تغيير كلمة المرور
+                </h3>
+                <button type="button" @click="resetModalOpen = false" style="background:none; border:none; color:#999; cursor:pointer; font-size:1.5rem;">&times;</button>
+            </div>
+            
+            <p style="color:var(--text-secondary); margin-bottom:1.5rem; font-size:0.95rem;">
+                إعادة تعيين كلمة المرور للمستخدم: <strong x-text="resetUserName" style="color:var(--text-primary);"></strong>
+            </p>
+
+            <form :action="`{{ url('admin/users') }}/${resetUserId}/reset-password`" method="POST">
+                @csrf
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-primary);">كلمة المرور الجديدة</label>
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="text" name="new_password" required x-model="newPassword" minlength="8"
+                            style="flex:1; padding:0.75rem; border:1px solid var(--border-color); border-radius:8px; outline:none; font-family:monospace; font-size:1.1rem; letter-spacing:1px;"
+                            placeholder="أدخل كلمة المرور الجديدة">
+                        
+                        <button type="button" @click="generatePassword()" class="btn" style="background:#f1f5f9; color:#475569; padding:0.75rem; border-radius:8px; border:1px solid var(--border-color);" title="توليد عشوائي">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="16 3 21 3 21 8"></polyline>
+                                <line x1="4" y1="20" x2="21" y2="3"></line>
+                                <polyline points="21 16 21 21 16 21"></polyline>
+                                <line x1="15" y1="15" x2="21" y2="21"></line>
+                                <line x1="4" y1="4" x2="9" y2="9"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <small style="color:var(--text-light); margin-top:0.5rem; display:block;">الحد الأدنى 8 أحرف. يمكنك كتابة كلمة مرور مخصصة أو الضغط على زر التوليد العشوائي لتوليد كلمة سر آمنة.</small>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:1rem;">
+                    <button type="button" @click="resetModalOpen = false" class="btn btn-secondary" style="padding:0.7rem 1.25rem; border-radius:8px; border:1px solid var(--border-color); background: #fff; cursor:pointer;">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" style="padding:0.7rem 1.25rem; background:var(--primary-color); color:#fff; border-radius:8px; border:none; cursor:pointer;">تحديث الكلمة والنسخ</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Pagination -->

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Major extends Model
 {
-    protected $fillable = ['college_id', 'name', 'has_clinical'];
+    protected $fillable = ['college_id', 'name', 'has_clinical', 'has_semesters'];
 
     protected $casts = [
         'has_clinical' => 'boolean',

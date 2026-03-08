@@ -7,6 +7,8 @@ use App\Models\Academic\College;
 use App\Models\Academic\Major;
 use App\Models\Academic\Level;
 use App\Models\Academic\Term;
+use App\Models\Academic\Semester;
+use App\Models\Academic\Subject;
 use Illuminate\Database\Eloquent\Collection;
 
 class AcademicService
@@ -74,6 +76,13 @@ class AcademicService
     public function createTerm(Level $level, array $data): Term
     {
         return $level->terms()->create($data);
+    }
+
+    // --- Semester Operations ---
+
+    public function createSemester(Term $term, array $data): Semester
+    {
+        return $term->semesters()->create($data);
     }
 
     // --- Subject Operations ---

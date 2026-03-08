@@ -28,7 +28,7 @@ class AssignmentController extends Controller
             ->distinct()
             ->get();
 
-        $studentsQuery = User::where('role', UserRole::STUDENT);
+        $studentsQuery = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE]);
         if ($doctorSubjects->isNotEmpty()) {
             $studentsQuery->where(function ($query) use ($doctorSubjects) {
                 foreach ($doctorSubjects as $subject) {

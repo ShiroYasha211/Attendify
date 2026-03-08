@@ -26,7 +26,7 @@ class DashboardController extends DelegateApiController
             ->count();
 
         // 2. Total Students in the delegate's batch
-        $totalStudents = User::where('role', UserRole::STUDENT)
+        $totalStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->count();

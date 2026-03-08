@@ -22,7 +22,7 @@ class ReportController extends AdminApiController
         $totalAttendance = Attendance::count();
 
         return $this->success([
-            'total_students' => User::where('role', UserRole::STUDENT)->count(),
+            'total_students' => User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->count(),
             'total_doctors' => User::where('role', UserRole::DOCTOR)->count(),
             'total_subjects' => Subject::count(),
             'total_attendance' => $totalAttendance,
@@ -85,7 +85,7 @@ class ReportController extends AdminApiController
         $threshold = $request->threshold ?? 25;
         $level = \App\Models\Academic\Level::with('terms.subjects')->findOrFail($request->level_id);
 
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('level_id', $level->id)->get();
 
         $subjectIds = $level->terms->flatMap->subjects->pluck('id');
@@ -154,7 +154,7 @@ class ReportController extends AdminApiController
         return $this->success([
             'users' => [
                 'total' => User::count(),
-                'students' => User::where('role', UserRole::STUDENT)->count(),
+                'students' => User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->count(),
                 'doctors' => User::where('role', UserRole::DOCTOR)->count(),
                 'delegates' => User::where('role', UserRole::DELEGATE)->count(),
                 'active' => User::where('status', 'active')->count(),

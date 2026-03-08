@@ -192,7 +192,8 @@
         قائمة التكاليف
     </h3>
 
-    <table class="modern-table">
+    <div class="table-responsive">
+<table class="modern-table">
         <thead>
             <tr>
                 <th>#</th>
@@ -238,6 +239,7 @@
             @endforelse
         </tbody>
     </table>
+</div>
 </div>
 
 @endsection

@@ -113,4 +113,59 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\StudentNote::class, 'student_id');
     }
+
+    // --- Clinical Constants Customizations (For Doctors) ---
+    
+    public function customClinicalDepartments()
+    {
+        return $this->hasMany(\App\Models\Clinical\ClinicalDepartment::class, 'doctor_id');
+    }
+
+    public function hiddenClinicalDepartments()
+    {
+        return $this->belongsToMany(\App\Models\Clinical\ClinicalDepartment::class, 'doctor_hidden_departments', 'doctor_id', 'department_id')->withTimestamps();
+    }
+
+    public function customBodySystems()
+    {
+        return $this->hasMany(\App\Models\Clinical\BodySystem::class, 'doctor_id');
+    }
+
+    public function hiddenBodySystems()
+    {
+        return $this->belongsToMany(\App\Models\Clinical\BodySystem::class, 'doctor_hidden_body_systems', 'doctor_id', 'body_system_id')->withTimestamps();
+    }
+
+    public function hiddenChecklists()
+    {
+        return $this->belongsToMany(\App\Models\Clinical\EvaluationChecklist::class, 'doctor_hidden_checklists', 'doctor_id', 'checklist_id')->withTimestamps();
+    }
+
+    /**
+     * Check if the user is assigned as a clinical delegate.
+     */
+    public function clinicalDelegateAssignment()
+    {
+        return $this->hasOne(\App\Models\ClinicalDelegate::class, 'student_id');
+    }
+
+    public function isClinicalDelegate(): bool
+    {
+        return $this->clinicalDelegateAssignment()->exists();
+    }
+
+    public function receivedSubDelegations()
+    {
+        return $this->hasMany(\App\Models\Clinical\ClinicalSubDelegation::class, 'student_id');
+    }
+
+    public function isClinicalSubDelegate()
+    {
+        return $this->receivedSubDelegations()
+            ->where('is_revoked', false)
+            ->where(function ($query) {
+                $query->whereNull('expires_at')
+                      ->orWhere('expires_at', '>', now());
+            })->exists();
+    }
 }

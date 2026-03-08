@@ -111,7 +111,8 @@
             </div>
 
             <div class="table-container">
-                <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                <div class="table-responsive">
+<table style="width: 100%; border-collapse: separate; border-spacing: 0;">
                     <thead>
                         <tr style="background: #f8fafc;">
                             <th style="padding: 1rem 1.5rem; text-align: right; color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border-color);">المادة</th>
@@ -167,6 +168,7 @@
                         @endforelse
                     </tbody>
                 </table>
+</div>
             </div>
         </div>
     </div>

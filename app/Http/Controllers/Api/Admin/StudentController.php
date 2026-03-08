@@ -14,7 +14,7 @@ class StudentController extends AdminApiController
 
     public function index(Request $request)
     {
-        $query = User::where('role', UserRole::STUDENT)
+        $query = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->with(['university', 'college', 'major', 'level'])
             ->latest();
 
@@ -99,7 +99,7 @@ class StudentController extends AdminApiController
 
     public function destroy(User $student)
     {
-        if ($student->role !== UserRole::STUDENT) {
+        if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE])) {
             return $this->error('المستخدم ليس طالباً.', 422);
         }
         $this->logDelete('Student', $student, "تم حذف الطالب: {$student->name}");

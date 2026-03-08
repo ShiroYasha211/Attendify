@@ -23,7 +23,7 @@ class GradeController extends DoctorApiController
             ->select('subject_id', DB::raw('AVG(total) as avg_grade'), DB::raw('COUNT(DISTINCT student_id) as graded_students'))
             ->groupBy('subject_id')->get()->keyBy('subject_id');
 
-        $studentsCountMap = User::where('role', UserRole::STUDENT)
+        $studentsCountMap = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', DB::raw('count(*) as count'))
@@ -52,7 +52,7 @@ class GradeController extends DoctorApiController
     {
         $subject = Subject::where('doctor_id', Auth::id())->findOrFail($id);
 
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['grades' => fn($q) => $q->where('subject_id', $subject->id)])
@@ -115,7 +115,7 @@ class GradeController extends DoctorApiController
     {
         $subject = Subject::where('doctor_id', Auth::id())->with(['major', 'level'])->findOrFail($id);
 
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['grades' => fn($q) => $q->where('subject_id', $subject->id)])

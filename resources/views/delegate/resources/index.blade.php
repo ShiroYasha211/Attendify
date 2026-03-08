@@ -237,7 +237,8 @@
     @if(($viewMode ?? 'table') == 'table')
     <!-- Table View -->
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <div class="table-responsive">
+<table class="table table-hover align-middle mb-0">
             <thead class="bg-light text-muted small text-uppercase" style="border-top: 1px solid #f1f5f9;">
                 <tr>
                     <th style="padding: 1.25rem 1.5rem; width: 40%;">اسم الملف</th>
@@ -370,6 +371,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
     </div>
 
     <!-- Pagination -->

@@ -40,6 +40,7 @@ class SubjectController extends Controller
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:50',
             'term_id' => 'required|exists:terms,id',
+            'semester_id' => 'nullable|exists:semesters,id',
             'doctor_id' => 'nullable|exists:users,id',
         ], [
             'term_id.required' => 'يرجى اختيار الترم (الفصل الدراسي) لهذه المادة.',
@@ -52,6 +53,7 @@ class SubjectController extends Controller
             'code' => $request->code,
             'description' => $request->description,
             'term_id' => $term->id,
+            'semester_id' => $request->semester_id,
             'level_id' => $term->level_id,
             'major_id' => $term->level->major_id,
             'doctor_id' => $request->doctor_id,
@@ -72,12 +74,14 @@ class SubjectController extends Controller
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:50',
             'term_id' => 'required|exists:terms,id',
+            'semester_id' => 'nullable|exists:semesters,id',
             'doctor_id' => 'nullable|exists:users,id',
         ]);
 
         $updateData = [
             'name' => $request->name,
             'code' => $request->code,
+            'semester_id' => $request->semester_id,
             'doctor_id' => $request->doctor_id,
         ];
 

@@ -260,7 +260,8 @@
         <h3 style="font-weight: 700;">التسليمات ({{ $submissions->count() }})</h3>
     </div>
 
-    <table class="submissions-table">
+    <div class="table-responsive">
+<table class="submissions-table">
         <thead>
             <tr>
                 <th>#</th>
@@ -341,6 +342,7 @@
             @endforelse
         </tbody>
     </table>
+</div>
 </div>
 
 <!-- Review Modal -->

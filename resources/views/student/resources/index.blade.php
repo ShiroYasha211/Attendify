@@ -233,7 +233,8 @@
     @if(($viewMode ?? 'table') == 'table')
     <!-- Table View -->
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <div class="table-responsive">
+<table class="table table-hover align-middle mb-0">
             <thead class="bg-light text-muted small text-uppercase" style="border-top: 1px solid #f1f5f9;">
                 <tr>
                     <th style="padding: 1.25rem 1.5rem; width: 40%;">اسم الملف</th>
@@ -324,7 +325,9 @@
                             @php $isScheduled = in_array($resource->id, $scheduledResourceIds); @endphp
                             <button onclick="openScheduleModal('App\\Models\\CourseResource', {{ $resource->id }}, '{{ $resource->title }}')"
                                 style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; {{ $isScheduled ? 'background: var(--primary-color); color: white;' : 'background: white; color: var(--primary-color);' }} border: 1px solid #e2e8f0; border-radius: 10px; transition: all 0.2s; cursor: pointer;"
-                                title="{{ $isScheduled ? 'مجدول' : 'إضافة لجدولي' }}">
+                            <button onclick="openScheduleModal('App\\Models\\CourseResource', {{ $resource->id }}, '{{ $resource->title }}')"
+                            style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; {{ $isScheduled ? 'background: var(--primary-color); color: white;' : 'background: white; color: var(--text-secondary);' }} border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                            title="{{ $isScheduled ? 'مجدول' : 'إضافة لجدولي' }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                                     <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -360,6 +363,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
     </div>
 
     <!-- Pagination -->
@@ -396,24 +400,27 @@
                 @foreach($subjectResources as $resource)
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-radius: 8px; transition: background 0.2s;" class="resource-item-hover">
                     <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
-                        @php
-                        $ext = strtolower($resource->file_type);
-                        $iconColor = '#64748b';
-                        if(in_array($ext, ['pdf'])) { $iconColor = '#ef4444'; }
-                        elseif(in_array($ext, ['ppt','pptx'])) { $iconColor = '#f59e0b'; }
-                        elseif(in_array($ext, ['doc','docx'])) { $iconColor = '#3b82f6'; }
-                        elseif(in_array($ext, ['xls','xlsx'])) { $iconColor = '#10b981'; }
                         @endphp
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $iconColor }}" stroke-width="2">
                             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                             <polyline points="13 2 13 9 20 9"></polyline>
                         </svg>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">{{ $resource->title }}</div>
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                {{ $resource->title }}
+                                @if($resource->uploader && $resource->uploader->role->value === 'doctor')
+                                <span title="عضو هيئة تدريس" style="color: #f59e0b; display: flex;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10v6M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M6 15v-2a6 6 0 1 1 12 0v2"/></svg>
+                                </span>
+                                @endif
+                            </div>
                             <div style="font-size: 0.75rem; color: var(--text-secondary);">
-                                {{ strtoupper($resource->file_type) }} • {{ $resource->created_at->format('Y/m/d') }}
+                                {{ strtoupper($resource->file_type) }} • {{ $resource->uploader->name ?? 'غير معروف' }} • {{ $resource->created_at->format('Y/m/d') }}
                                 @if(in_array($resource->id, $scheduledResourceIds))
                                 <span class="badge" style="background-color: #dbeafe; color: #1e40af; margin-right: 0.5rem; font-size: 0.7rem;">مجدول</span>
+                                @endif
+                                @if($resource->uploader && $resource->uploader->role->value === 'doctor')
+                                <span style="color: #f59e0b; font-weight: 700; margin-right: 0.25rem;">(عضو هيئة تدريس)</span>
                                 @endif
                             </div>
                         </div>
@@ -422,15 +429,6 @@
                         @php $isScheduled = in_array($resource->id, $scheduledResourceIds); @endphp
                         <button onclick="openScheduleModal('App\\Models\\CourseResource', {{ $resource->id }}, '{{ $resource->title }}')"
                             style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; {{ $isScheduled ? 'background: var(--primary-color); color: white;' : 'background: white; color: var(--text-secondary);' }} border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
-                            title="{{ $isScheduled ? 'مجدول' : 'إضافة لجدولي' }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                                <line x1="12" y1="15" x2="12" y2="15"></line>
-                            </svg>
-                        </button>
                         <a href="{{ Storage::url($resource->file_path) }}" target="_blank" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary-color); border-radius: 8px;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

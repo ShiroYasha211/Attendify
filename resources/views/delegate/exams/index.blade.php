@@ -660,7 +660,8 @@
     <!-- Calendar View -->
     <div x-show="viewMode === 'calendar'" style="display: none;">
         <div style="background: white; border-radius: 20px; border: 1px solid var(--border-color); padding: 1.5rem; overflow-x: auto;">
-            <table style="width: 100%; min-width: 800px; border-collapse: collapse;">
+            <div class="table-responsive">
+<table style="width: 100%; min-width: 800px; border-collapse: collapse;">
                 <thead>
                     <tr>
                         <th style="padding: 1rem; border-bottom: 2px solid var(--border-color); text-align: right; color: var(--text-secondary);">التاريخ</th>
@@ -716,6 +717,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
     </div>
 

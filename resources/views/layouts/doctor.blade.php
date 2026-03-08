@@ -143,6 +143,9 @@
 
     <div class="admin-wrapper">
 
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" :class="{ 'active': sidebarOpen }" @click="sidebarOpen = false"></div>
+
         <!-- Sidebar -->
         <aside class="sidebar" :class="{ 'open': sidebarOpen, 'collapsed': sidebarCollapsed }">
             <div class="sidebar-brand">
@@ -188,6 +191,17 @@
                     <span>أعذار الغياب</span>
                 </a>
 
+                <!-- Attendance -->
+                <a href="{{ route('doctor.attendance.index') }}" class="nav-link {{ request()->routeIs('doctor.attendance.*') ? 'active' : '' }}" title="رصد الحضور">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="17" y1="11" x2="23" y2="11"></line>
+                    </svg>
+                    <span>رصد الحضور</span>
+                </a>
+
                 <!-- Reports -->
                 <a href="{{ route('doctor.reports.index') }}" class="nav-link {{ request()->routeIs('doctor.reports.*') ? 'active' : '' }}" title="التقارير">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -217,6 +231,14 @@
                         <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
                     </svg>
                     <span>إدارة الدرجات</span>
+                </a>
+
+                <!-- Resources -->
+                <a href="{{ route('doctor.resources.index') }}" class="nav-link {{ request()->routeIs('doctor.resources.*') ? 'active' : '' }}" title="المصادر التعليمية">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>المصادر التعليمية</span>
                 </a>
 
                 <div class="nav-group-label" title="التواصل">التواصل</div>
@@ -252,6 +274,15 @@
                     @if($doctorUnreadCount > 0)
                     <span style="background: #ef4444; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $doctorUnreadCount }}</span>
                     @endif
+                </a>
+
+                <div class="nav-group-label" title="الحساب">الحساب</div>
+                <a href="{{ route('doctor.profile.password') }}" class="nav-link {{ request()->routeIs('doctor.profile.password') ? 'active' : '' }}" title="تغيير كلمة المرور">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>تغيير كلمة المرور</span>
                 </a>
 
             </nav>

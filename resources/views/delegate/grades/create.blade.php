@@ -231,7 +231,8 @@
                     </div>
 
                     <div class="table-wrapper">
-                        <table class="quick-entry-table">
+                        <div class="table-responsive">
+<table class="quick-entry-table">
                             <thead>
                                 <tr>
                                     <th style="width: 50px;">#</th>
@@ -254,6 +255,7 @@
                                 @endforeach
                             </tbody>
                         </table>
+</div>
                     </div>
 
                     <div style="display: flex; justify-content: flex-end; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px dashed #e2e8f0;">
@@ -349,7 +351,8 @@
                     <div x-show="excelData.length > 0" style="margin-top: 2rem;">
                         <h4 style="font-weight: 700; margin-bottom: 1rem;">معاينة البيانات (أول 10 سجلات)</h4>
                         <div class="table-wrapper" style="max-height: 300px;">
-                            <table class="preview-table">
+                            <div class="table-responsive">
+<table class="preview-table">
                                 <thead>
                                     <tr>
                                         <th>#</th>
@@ -367,6 +370,7 @@
                                     </template>
                                 </tbody>
                             </table>
+</div>
                         </div>
                         <div x-show="excelData.length > 10" style="text-align: center; padding: 0.75rem; background: #f8fafc; color: var(--text-secondary); font-size: 0.9rem;">
                             ... و <span x-text="excelData.length - 10"></span> سجل آخر

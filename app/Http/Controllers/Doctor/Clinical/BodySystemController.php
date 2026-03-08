@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Doctor\Clinical;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Clinical\BodySystem;
+use Illuminate\Support\Facades\Auth;
 
 class BodySystemController extends Controller
 {
@@ -12,7 +14,17 @@ class BodySystemController extends Controller
      */
     public function index(Request $request)
     {
-        $query = \App\Models\Clinical\BodySystem::latest();
+        $user = Auth::user();
+        $hiddenIds = $user->hiddenBodySystems()->pluck('body_systems.id')->toArray();
+
+        $query = BodySystem::where(function ($q) use ($user, $hiddenIds) {
+            // Global constants not hidden by the doctor
+            $q->whereNull('doctor_id');
+            if (!empty($hiddenIds)) {
+                $q->whereNotIn('id', $hiddenIds);
+            }
+        })->orWhere('doctor_id', $user->id)->latest();
+
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->search . '%');
         }
@@ -38,7 +50,9 @@ class BodySystemController extends Controller
             'description' => 'nullable|string|max:1000'
         ]);
 
-        \App\Models\Clinical\BodySystem::create($validated);
+        $validated['doctor_id'] = Auth::id(); // Assign to current doctor
+
+        BodySystem::create($validated);
 
         return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم إضافة الجهاز المرضي بنجاح.');
     }
@@ -56,7 +70,11 @@ class BodySystemController extends Controller
      */
     public function edit(string $id)
     {
-        $bodySystem = \App\Models\Clinical\BodySystem::findOrFail($id);
+        $user = Auth::user();
+        $bodySystem = BodySystem::where(function ($q) use ($user) {
+            $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id);
+        })->findOrFail($id);
+
         return view('doctor.clinical.body_systems.edit', compact('bodySystem'));
     }
 
@@ -70,10 +88,24 @@ class BodySystemController extends Controller
             'description' => 'nullable|string|max:1000'
         ]);
 
-        $bodySystem = \App\Models\Clinical\BodySystem::findOrFail($id);
-        $bodySystem->update($validated);
+        $user = Auth::user();
+        $bodySystem = BodySystem::where(function ($q) use ($user) {
+            $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id);
+        })->findOrFail($id);
 
-        return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم تعديل الجهاز المرضي بنجاح.');
+        if (is_null($bodySystem->doctor_id)) {
+            // Editing a global constant -> hide the global one and create a personal one
+            $user->hiddenBodySystems()->syncWithoutDetaching([$bodySystem->id]);
+
+            $validated['doctor_id'] = $user->id;
+            BodySystem::create($validated);
+
+            return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم إنشاء نسخة مخصصة من الجهاز العام بنجاح.');
+        } else {
+            // Updating their own custom constant
+            $bodySystem->update($validated);
+            return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم تعديل الجهاز المرضي بنجاح.');
+        }
     }
 
     /**
@@ -81,14 +113,33 @@ class BodySystemController extends Controller
      */
     public function destroy(string $id)
     {
-        $bodySystem = \App\Models\Clinical\BodySystem::findOrFail($id);
+        $user = Auth::user();
+        $bodySystem = BodySystem::where(function ($q) use ($user) {
+            $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id);
+        })->findOrFail($id);
 
-        // Prevent deletion if it has cases
-        if ($bodySystem->cases()->exists()) {
-            return back()->with('error', 'لا يمكن حذف هذا الجهاز لوجود حالات سريرية مرتبطة به.');
+        // Prevent deletion if it has cases attached by THIS doctor
+        if ($bodySystem->cases()->where('doctor_id', $user->id)->exists()) {
+            return back()->with('error', 'لا يمكن إخفاء/حذف هذا الجهاز لوجود حالات سريرية خاصة بك مرتبطة به.');
         }
 
-        $bodySystem->delete();
-        return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم مسح الجهاز المرضي بنجاح.');
+        if (is_null($bodySystem->doctor_id)) {
+            // Deleting a global constant -> simply hide it
+            $user->hiddenBodySystems()->syncWithoutDetaching([$bodySystem->id]);
+            return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم إخفاء الجهاز العام من قائمتك بنجاح.');
+        } else {
+            // Deleting their own constant -> actually delete
+            $bodySystem->delete();
+            return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم مسح الجهاز المرضي المخصص بنجاح.');
+        }
+    }
+
+    /**
+     * Restore standard hidden body systems.
+     */
+    public function restoreDefaults()
+    {
+        Auth::user()->hiddenBodySystems()->detach();
+        return redirect()->route('doctor.clinical.body-systems.index')->with('success', 'تم استرداد الأجهزة المرضية الأساسية بنجاح.');
     }
 }

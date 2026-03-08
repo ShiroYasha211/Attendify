@@ -23,7 +23,7 @@ class ReportController extends Controller
         $subjects = Subject::with(['level', 'major'])->get();
 
         // إحصائيات سريعة — استعلام واحد مجمع بدلاً من N+1
-        $totalStudents = User::where('role', UserRole::STUDENT)->count();
+        $totalStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->count();
         $totalDoctors = User::where('role', UserRole::DOCTOR)->count();
         $totalSubjects = Subject::count();
         $totalAttendance = Attendance::count();
@@ -80,7 +80,7 @@ class ReportController extends Controller
         $subject = Subject::with(['major', 'level', 'doctor'])->findOrFail($request->subject_id);
 
         // جلب جميع الطلاب المسجلين
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->orderBy('name')
@@ -143,7 +143,7 @@ class ReportController extends Controller
         })->get();
 
         // 2. جلب طلاب هذا المستوى
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('level_id', $level->id)
             ->get();
 
@@ -205,7 +205,7 @@ class ReportController extends Controller
 
         $level = \App\Models\Academic\Level::with(['major.college.university', 'terms.subjects.doctor'])->findOrFail($request->level_id);
 
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('level_id', $level->id)
             ->get();
 
@@ -300,7 +300,7 @@ class ReportController extends Controller
     public function systemOverview()
     {
         $stats = [
-            'students' => User::where('role', UserRole::STUDENT)->count(),
+            'students' => User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->count(),
             'doctors' => User::where('role', UserRole::DOCTOR)->count(),
             'delegates' => User::where('role', UserRole::DELEGATE)->count(),
             'universities' => \App\Models\Academic\University::count(),

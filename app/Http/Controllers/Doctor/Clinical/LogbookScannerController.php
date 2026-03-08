@@ -125,7 +125,7 @@ class LogbookScannerController extends Controller
             ->distinct()
             ->get();
 
-        $studentsQuery = User::where('role', 'student');
+        $studentsQuery = User::whereIn('role', ['student', 'delegate']);
         if ($doctorSubjects->isNotEmpty()) {
             $studentsQuery->where(function ($query) use ($doctorSubjects) {
                 foreach ($doctorSubjects as $subject) {

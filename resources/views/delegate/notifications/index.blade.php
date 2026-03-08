@@ -401,7 +401,8 @@
             </div>
             @else
             <div class="table-container">
-                <table class="alerts-table">
+                <div class="table-responsive">
+<table class="alerts-table">
                     <thead>
                         <tr>
                             <th>الطالب</th>
@@ -471,6 +472,7 @@
                         @endforeach
                     </tbody>
                 </table>
+</div>
             </div>
             @endif
         </div>

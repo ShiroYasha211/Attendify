@@ -18,13 +18,25 @@ class EvaluationController extends DoctorApiController
     /** GET /api/doctor/clinical/evaluations/checklists */
     public function checklists(Request $request)
     {
-        $query = EvaluationChecklist::where('doctor_id', Auth::id())->with('items');
+        $user = Auth::user();
+        $hiddenIds = $user->hiddenChecklists()->pluck('evaluation_checklists.id')->toArray();
+
+        $query = EvaluationChecklist::with('items')->where(function ($q) use ($user, $hiddenIds) {
+            $q->whereNull('doctor_id');
+            if (!empty($hiddenIds)) {
+                $q->whereNotIn('id', $hiddenIds);
+            }
+        })->orWhere('doctor_id', $user->id);
 
         if ($request->filled('skill_type')) {
             $query->where('skill_type', $request->skill_type);
         }
 
         $checklists = $query->latest()->paginate(15);
+        $checklists->getCollection()->transform(function ($checklist) {
+            $checklist->is_standard = is_null($checklist->doctor_id);
+            return $checklist;
+        });
 
         return $this->success([
             'checklists' => $checklists->items(),
@@ -49,9 +61,21 @@ class EvaluationController extends DoctorApiController
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:500',
             'items.*.marks' => 'required|integer|min:1|max:100',
+            'items.*.sub_items' => 'nullable|array',
+            'items.*.sub_items.*.description' => 'required_with:items.*.sub_items|string|max:500',
+            'items.*.sub_items.*.marks' => 'required_with:items.*.sub_items|integer|min:1|max:100',
         ]);
 
-        $totalMarks = collect($request->items)->sum('marks');
+        $totalMarks = 0;
+        foreach ($request->items as $item) {
+            $totalMarks += (int)$item['marks'];
+            if (!empty($item['sub_items'])) {
+                $subTotal = collect($item['sub_items'])->sum('marks');
+                if ($subTotal !== (int)$item['marks']) {
+                    return $this->error("مجموع درجات العناصر الفرعية يجب أن يساوي درجة العنصر الرئيسي '{$item['description']}' ({$item['marks']}).", 422);
+                }
+            }
+        }
 
         $checklist = EvaluationChecklist::create([
             'title' => $request->title,
@@ -64,12 +88,24 @@ class EvaluationController extends DoctorApiController
         ]);
 
         foreach ($request->items as $i => $item) {
-            ChecklistItem::create([
+            $mainItem = ChecklistItem::create([
                 'checklist_id' => $checklist->id,
                 'description' => $item['description'],
                 'marks' => $item['marks'],
                 'sort_order' => $i + 1,
             ]);
+
+            if (!empty($item['sub_items'])) {
+                foreach ($item['sub_items'] as $j => $subItem) {
+                    ChecklistItem::create([
+                        'checklist_id' => $checklist->id,
+                        'parent_id' => $mainItem->id,
+                        'description' => $subItem['description'],
+                        'marks' => $subItem['marks'],
+                        'sort_order' => $j + 1,
+                    ]);
+                }
+            }
         }
 
         return $this->success($checklist->load('items'), 'تم إنشاء قائمة التقييم بنجاح.', 201);
@@ -78,7 +114,10 @@ class EvaluationController extends DoctorApiController
     /** PUT /api/doctor/clinical/evaluations/checklists/{id} */
     public function updateChecklist(Request $request, $id)
     {
-        $checklist = EvaluationChecklist::where('doctor_id', Auth::id())->findOrFail($id);
+        $user = Auth::user();
+        $checklist = EvaluationChecklist::where(function ($q) use ($user) {
+            $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id);
+        })->findOrFail($id);
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -89,39 +128,116 @@ class EvaluationController extends DoctorApiController
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:500',
             'items.*.marks' => 'required|integer|min:1|max:100',
+            'items.*.sub_items' => 'nullable|array',
+            'items.*.sub_items.*.description' => 'required_with:items.*.sub_items|string|max:500',
+            'items.*.sub_items.*.marks' => 'required_with:items.*.sub_items|integer|min:1|max:100',
         ]);
 
-        $totalMarks = collect($request->items)->sum('marks');
+        $totalMarks = 0;
+        foreach ($request->items as $item) {
+            $totalMarks += (int)$item['marks'];
+            if (!empty($item['sub_items'])) {
+                $subTotal = collect($item['sub_items'])->sum('marks');
+                if ($subTotal !== (int)$item['marks']) {
+                    return $this->error("مجموع درجات العناصر الفرعية يجب أن يساوي درجة العنصر الرئيسي '{$item['description']}' ({$item['marks']}).", 422);
+                }
+            }
+        }
 
-        $checklist->update([
-            'title' => $request->title,
-            'description' => $request->description,
-            'skill_type' => $request->skill_type,
-            'time_limit_minutes' => $request->time_limit_minutes,
-            'is_practice_allowed' => $request->boolean('is_practice_allowed'),
-            'total_marks' => $totalMarks,
-        ]);
+        if (is_null($checklist->doctor_id)) {
+            // Hide standard and create personal copy
+            $user->hiddenChecklists()->syncWithoutDetaching([$checklist->id]);
 
-        $checklist->items()->delete();
+            $newChecklist = EvaluationChecklist::create([
+                'title' => $request->title,
+                'description' => $request->description,
+                'doctor_id' => $user->id,
+                'skill_type' => $request->skill_type,
+                'time_limit_minutes' => $request->time_limit_minutes,
+                'is_practice_allowed' => $request->boolean('is_practice_allowed'),
+                'total_marks' => $totalMarks,
+            ]);
+
+            foreach ($request->items as $i => $item) {
+                $mainItem = ChecklistItem::create([
+                    'checklist_id' => $newChecklist->id,
+                    'description' => $item['description'],
+                    'marks' => $item['marks'],
+                    'sort_order' => $i + 1,
+                ]);
+
+                if (!empty($item['sub_items'])) {
+                    foreach ($item['sub_items'] as $j => $subItem) {
+                        ChecklistItem::create([
+                            'checklist_id' => $newChecklist->id,
+                            'parent_id' => $mainItem->id,
+                            'description' => $subItem['description'],
+                            'marks' => $subItem['marks'],
+                            'sort_order' => $j + 1,
+                        ]);
+                    }
+                }
+            }
+
+            return $this->success($newChecklist->load('items'), 'تم إنشاء نسخة مخصصة من القائمة الأساسية بنجاح.', 201);
+        } else {
+            $checklist->update([
+                'title' => $request->title,
+                'description' => $request->description,
+                'skill_type' => $request->skill_type,
+                'time_limit_minutes' => $request->time_limit_minutes,
+                'is_practice_allowed' => $request->boolean('is_practice_allowed'),
+                'total_marks' => $totalMarks,
+            ]);
+
+            $checklist->items()->delete();
         foreach ($request->items as $i => $item) {
-            ChecklistItem::create([
+            $mainItem = ChecklistItem::create([
                 'checklist_id' => $checklist->id,
                 'description' => $item['description'],
                 'marks' => $item['marks'],
                 'sort_order' => $i + 1,
             ]);
+
+            if (!empty($item['sub_items'])) {
+                foreach ($item['sub_items'] as $j => $subItem) {
+                    ChecklistItem::create([
+                        'checklist_id' => $checklist->id,
+                        'parent_id' => $mainItem->id,
+                        'description' => $subItem['description'],
+                        'marks' => $subItem['marks'],
+                        'sort_order' => $j + 1,
+                    ]);
+                }
+            }
         }
 
+        }
         return $this->success($checklist->load('items'), 'تم تحديث قائمة التقييم بنجاح.');
     }
 
     /** DELETE /api/doctor/clinical/evaluations/checklists/{id} */
     public function destroyChecklist($id)
     {
-        $checklist = EvaluationChecklist::where('doctor_id', Auth::id())->findOrFail($id);
-        $checklist->items()->delete();
-        $checklist->delete();
-        return $this->success(null, 'تم حذف قائمة التقييم بنجاح.');
+        $user = Auth::user();
+        $checklist = EvaluationChecklist::where(function ($q) use ($user) {
+            $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id);
+        })->findOrFail($id);
+
+        if (is_null($checklist->doctor_id)) {
+            $user->hiddenChecklists()->syncWithoutDetaching([$checklist->id]);
+            return $this->success(null, 'تم إخفاء القائمة الأساسية من مساحتك.');
+        } else {
+            $checklist->items()->delete();
+            $checklist->delete();
+            return $this->success(null, 'تم حذف قائمة التقييم بنجاح.');
+        }
+    }
+
+    public function restoreDefaults()
+    {
+        Auth::user()->hiddenChecklists()->detach();
+        return $this->success(null, 'تم استرداد قوائم التقييم الأساسية بنجاح.');
     }
 
     /** GET /api/doctor/clinical/evaluations/start-data */
@@ -133,7 +249,7 @@ class EvaluationController extends DoctorApiController
         $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', $doctorId)
             ->select('major_id', 'level_id')->distinct()->get();
 
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where(function ($q) use ($doctorSubjects) {
                 foreach ($doctorSubjects as $ds) {
                     $q->orWhere(function ($sq) use ($ds) {
@@ -174,6 +290,11 @@ class EvaluationController extends DoctorApiController
         $totalMax = $checklist->total_marks;
 
         foreach ($checklist->items as $item) {
+            // Skip parent items, score is derived
+            if ($item->subItems()->count() > 0) {
+                continue;
+            }
+
             $scoreValue = $request->scores[$item->id]['score'] ?? 'not_done';
             $marks = match ($scoreValue) {
                 'done' => $item->marks,
@@ -210,6 +331,10 @@ class EvaluationController extends DoctorApiController
 
         // Save individual scores
         foreach ($checklist->items as $item) {
+            if ($item->subItems()->count() > 0) {
+                continue;
+            }
+
             $scoreValue = $request->scores[$item->id]['score'] ?? 'not_done';
             $marks = match ($scoreValue) {
                 'done' => $item->marks,

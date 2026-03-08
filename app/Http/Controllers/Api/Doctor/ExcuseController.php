@@ -79,17 +79,30 @@ class ExcuseController extends DoctorApiController
         }
 
         $subjectName = $excuse->attendance->subject->name ?? 'غير محدد';
-        $statusLabel = $request->status === 'accepted' ? 'قبول' : 'رفض';
         $statusIcon = $request->status === 'accepted' ? '✅' : '❌';
+        $statusLabel = $request->status === 'accepted' ? 'قبول' : 'رفض';
+
+        $message = "تم {$statusLabel} عذرك في مادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')}.";
+        if ($request->comment) {
+            $message .= "\nملاحظة الدكتور: " . $request->comment;
+        }
 
         StudentNotification::create([
             'user_id' => $excuse->student_id,
             'type' => 'excuse',
             'title' => "{$statusIcon} تم {$statusLabel} العذر",
-            'message' => "تم {$statusLabel} عذرك في مادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')}.",
-            'data' => ['excuse_id' => $excuse->id, 'status' => $request->status],
+            'message' => $message,
+            'data' => [
+                'excuse_id' => $excuse->id,
+                'status' => $request->status,
+                'action_url' => route('student.subjects.show', $excuse->attendance->subject_id),
+            ],
         ]);
 
-        return $this->success(null, 'تم تحديث حالة العذر بنجاح.');
+        return $this->success([
+            'excuse_id' => $excuse->id,
+            'status' => $request->status,
+            'doctor_comment' => $request->doctor_comment,
+        ], 'تم تحديث حالة العذر بنجاح.');
     }
 }

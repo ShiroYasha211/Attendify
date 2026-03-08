@@ -479,7 +479,8 @@
                 <span class="count-badge">{{ $doctors->total() }} دكتور</span>
             </div>
 
-            <table class="modern-table">
+            <div class="table-responsive">
+<table class="modern-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -578,6 +579,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
 
             <div style="margin-top: 1.5rem;">
                 {{ $doctors->links() }}
@@ -669,7 +671,8 @@
             <h4 style="font-size: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #06b6d4; display: inline-block; padding-bottom: 0.25rem;">المواد الدراسية المسندة</h4>
 
             <div style="max-height: 250px; overflow-y: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <div class="table-responsive">
+<table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background-color: #f1f5f9;">
                             <th style="padding: 0.75rem; text-align: right; font-size: 0.9rem;">المادة</th>
@@ -700,6 +703,7 @@
                         </tr>
                     </tbody>
                 </table>
+</div>
             </div>
 
             <div class="modal-actions" style="margin-top: 2rem;">

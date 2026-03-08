@@ -267,6 +267,16 @@
         <p>إضافة وتعديل الأقسام الطبية السريرية (باطنة، جراحة، أطفال...)</p>
     </div>
     <div class="left-side">
+        <form action="{{ route('doctor.clinical.departments.restore') }}" method="POST" style="display: inline;" onsubmit="return confirm('هل أنت متأكد من رغبتك في استرداد الأقسام الأساسية المخفية؟');">
+            @csrf
+            <button type="submit" class="btn-primary-action" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <polyline points="3 3 3 8 8 8"></polyline>
+                </svg>
+                استرداد الثوابت
+            </button>
+        </form>
         <a href="{{ route('doctor.clinical.departments.create') }}" class="btn-primary-action">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -306,7 +316,8 @@
         </h3>
     </div>
     <div style="overflow-x: auto;">
-        <table class="table-modern">
+        <div class="table-responsive">
+<table class="table-modern">
             <thead>
                 <tr>
                     <th width="5%">#</th>
@@ -319,7 +330,12 @@
                 @forelse($departments as $index => $department)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td class="name-text">{{ $department->name }}</td>
+                    <td class="name-text">
+                        {{ $department->name }}
+                        @if(is_null($department->doctor_id))
+                            <span style="background: #e0e7ff; color: #4338ca; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; margin-right: 0.5rem; font-weight: 700;">أساسي</span>
+                        @endif
+                    </td>
                     <td style="color: var(--text-secondary); font-size: 0.85rem;">{{ Str::limit($department->description, 60) ?? '-' }}</td>
                     <td style="text-align: center;">
                         <a href="{{ route('doctor.clinical.departments.edit', $department->id) }}" class="action-btn edit" title="تعديل">
@@ -346,6 +362,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
     </div>
     @if($departments->hasPages())<div style="margin-top:1.5rem;">{{ $departments->links() }}</div>@endif
 </div>

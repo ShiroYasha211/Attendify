@@ -142,6 +142,9 @@
 
     <div class="admin-wrapper">
 
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" :class="{ 'active': sidebarOpen }" @click="sidebarOpen = false"></div>
+
         <!-- Sidebar -->
         <aside class="sidebar" :class="{ 'open': sidebarOpen, 'collapsed': sidebarCollapsed }">
             <div class="sidebar-brand">
@@ -182,6 +185,16 @@
                         <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
                     </svg>
                     <span>مركز الدراسة</span>
+                </a>
+
+                <a href="{{ route('student.schedules.index') }}" class="nav-link {{ request()->routeIs('student.schedules.index') ? 'active' : '' }}" title="الجدول الدراسي للدفعة">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>الجدول الدراسي للدفعة</span>
                 </a>
 
                 <a href="{{ route('student.announcements.index') }}" class="nav-link {{ request()->routeIs('student.announcements.*') ? 'active' : '' }}" title="الأخبار والإعلانات">
@@ -252,14 +265,6 @@
                     <span>مسح الكود (QR)</span>
                 </a>
 
-                <a href="{{ route('student.attendance.index') }}" class="nav-link {{ request()->routeIs('student.attendance.*') ? 'active' : '' }}" title="سجل الحضور">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    <span>سجل الحضور</span>
-                </a>
-
                 @if(Auth::user()->major && Auth::user()->major->has_clinical)
                 <div class="nav-group-label" title="القسم السريري/العملي">القسم السريري</div>
 
@@ -283,14 +288,31 @@
                 </a>
                 @endif
 
-                <a href="{{ route('student.grades.index') }}" class="nav-link {{ request()->routeIs('student.grades.*') ? 'active' : '' }}" title="النتائج">
+                @if(Auth::user()->isClinicalDelegate() || Auth::user()->isClinicalSubDelegate())
+                <div class="nav-group-label" title="القسم العملي (خاص)">القسم العملي (خاص)</div>
+
+                <a href="{{ route('student.clinical.cases.index') }}" class="nav-link {{ request()->is('*/clinical/cases') ? 'active' : '' }}" title="إدارة الحالات السريرية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="20" x2="18" y2="10"></line>
-                        <line x1="12" y1="20" x2="12" y2="4"></line>
-                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                     </svg>
-                    <span>النتائج</span>
+                    <span>الحالات المعتمدة</span>
                 </a>
+
+                <a href="{{ route('student.clinical.cases.pending') }}" class="nav-link {{ request()->routeIs('student.clinical.cases.pending') ? 'active' : '' }}" title="الحالات المعلقة">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    <span>الحالات المعلقة</span>
+                    @php
+                        $myPendingCount = \App\Models\Clinical\ClinicalCase::where('doctor_id', Auth::id())->whereIn('approval_status', ['pending', 'rejected'])->count();
+                    @endphp
+                    @if($myPendingCount > 0)
+                        <span style="background: #f59e0b; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 800; margin-right: auto;">{{ $myPendingCount }}</span>
+                    @endif
+                </a>
+                @endif
+
 
                 <a href="{{ route('student.reminders.index') }}" class="nav-link {{ request()->routeIs('student.reminders.*') ? 'active' : '' }}" title="التذكيرات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -325,6 +347,15 @@
                         <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
                     <span>استفسارات الدكتور</span>
+                </a>
+
+                <div class="nav-group-label" title="الحساب">الحساب</div>
+                <a href="{{ route('student.profile.password') }}" class="nav-link {{ request()->routeIs('student.profile.password') ? 'active' : '' }}" title="تغيير كلمة المرور">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>تغيير كلمة المرور</span>
                 </a>
             </nav>
         </aside>
@@ -382,20 +413,20 @@
                     <div class="user-info">
                         <span class="user-name">
                             {{ Auth::user()->name }}
-                            @if(\App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists())
-                            <span style="background-color: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.70rem; margin-right: 4px; display: inline-flex; align-items: center; gap: 4px;" title="مندوب العملي">
+                            @if(\App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists() || Auth::user()->isClinicalSubDelegate())
+                            <span style="background-color: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.70rem; margin-right: 4px; display: inline-flex; align-items: center; gap: 4px;" title="{{ Auth::user()->isClinicalSubDelegate() ? 'مندوب فرعي مؤقت' : 'مندوب العملي' }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
                                     <path d="m9 12 2 2 4-4"></path>
                                 </svg>
-                                مندوب عملي
+                                {{ Auth::user()->isClinicalSubDelegate() ? 'مندوب فرعي' : 'مندوب عملي' }}
                             </span>
                             @endif
                         </span>
                         <span class="user-role">{{ Auth::user()->student_number }}</span>
                     </div>
 
-                    <div class="user-avatar" style="@if(\App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists()) border: 2px solid #10b981; @endif">
+                    <div class="user-avatar" style="@if(\App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists() || Auth::user()->isClinicalSubDelegate()) border: 2px solid #10b981; @endif">
                         {{ mb_substr(Auth::user()->name, 0, 1) }}
                     </div>
                 </div>

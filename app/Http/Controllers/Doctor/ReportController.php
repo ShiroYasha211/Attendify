@@ -18,7 +18,7 @@ class ReportController extends Controller
             ->get();
 
         // Students count per subject (by major/level)
-        $studentsCountPerSubject = User::where('role', UserRole::STUDENT)
+        $studentsCountPerSubject = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))

@@ -686,7 +686,8 @@
                 </h3>
                 <a href="{{ route('delegate.subjects.index') }}" class="btn btn-sm btn-secondary" style="font-size: 0.8rem;">عرض الكل</a>
             </div>
-            <table class="subjects-table">
+            <div class="table-responsive">
+<table class="subjects-table">
                 <thead>
                     <tr>
                         <th>المادة</th>
@@ -724,6 +725,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
 
         <!-- Sidebar -->

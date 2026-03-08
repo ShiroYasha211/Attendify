@@ -143,6 +143,38 @@
         border-color: #86efac;
     }
 
+    .sub-item-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        background: white;
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        margin-top: 0.5rem;
+    }
+
+    .btn-add-sub {
+        background: transparent;
+        color: #64748b;
+        border: 1px dashed #cbd5e1;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+        transition: all 0.2s;
+    }
+
+    .btn-add-sub:hover {
+        background: white;
+        color: #4f46e5;
+        border-color: #4f46e5;
+    }
+
     .error-text {
         color: #ef4444;
         font-size: 0.85rem;
@@ -198,22 +230,46 @@
             <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">أضف الخطوات أو المهارات المراد التدرب عليها وتقييمها، مع تحديد العلامة العظمى لكل عنصر.</p>
 
             <template x-for="(item, index) in items" :key="item.id">
-                <div class="item-row">
-                    <div style="flex: 1;">
-                        <label class="form-label" x-text="`وصف البند رقم ${index + 1}`"></label>
-                        <input type="text" class="form-control" x-model="item.description" :name="`items[${index}][description]`" required placeholder="مثال: إلقاء التحية والتعريف بالنفس، تعقيم اليدين..." oninvalid="this.setCustomValidity('يرجى وصف البند')" oninput="this.setCustomValidity('')">
+                <div class="item-row" style="flex-direction: column;">
+                    <div style="display: flex; gap: 1rem; width: 100%; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <label class="form-label" x-text="`عنوان رئيسي رقم ${index + 1}`"></label>
+                            <input type="text" class="form-control" x-model="item.description" :name="`items[${index}][description]`" required placeholder="مثال: الفحص العام، استجواب المريض..." oninvalid="this.setCustomValidity('يرجى وصف البند')" oninput="this.setCustomValidity('')">
+                        </div>
+
+                        <div style="width: 120px;">
+                            <label class="form-label">الدرجة الكلية</label>
+                            <input type="number" class="form-control" x-model="item.marks" :name="`items[${index}][marks]`" :class="{'border-red-500': !isSubmarksValid(index)}" required min="1" step="0.5">
+                        </div>
+
+                        <button type="button" class="btn-remove-item" @click="removeItem(item.id)" x-show="items.length > 1" title="حذف هذا البند">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18"></path>
+                                <path d="M19 6L18 20a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                            </svg>
+                        </button>
                     </div>
 
-                    <div style="width: 120px;">
-                        <label class="form-label">الدرجة</label>
-                        <input type="number" class="form-control" x-model="item.marks" :name="`items[${index}][marks]`" required min="1" step="0.5">
+                    <div style="width: 100%; padding-right: 2rem; border-right: 2px dashed #cbd5e1; margin-top: 0.5rem;" x-show="item.sub_items.length > 0">
+                        <template x-for="(sub, sIndex) in item.sub_items" :key="sub.id">
+                            <div class="sub-item-row">
+                                <span style="color:#94a3b8; font-weight:bold;">↳</span>
+                                <input type="text" class="form-control" style="font-size: 0.85rem; padding: 0.5rem;" x-model="sub.description" :name="`items[${index}][sub_items][${sIndex}][description]`" required placeholder="بند فرعي (مثال: غسيل اليدين)...">
+                                <input type="number" class="form-control" style="width: 80px; font-size: 0.85rem; padding: 0.5rem;" x-model="sub.marks" :name="`items[${index}][sub_items][${sIndex}][marks]`" required min="1" step="0.5" placeholder="الدرجة">
+                                <button type="button" class="btn-remove-item" style="width: 28px; height: 28px; margin-top: 0;" @click="removeSubItem(index, sub.id)" title="حذف الفرع">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6L18 20a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </template>
+                        
+                        <div x-show="!isSubmarksValid(index)" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.5rem;">
+                            ⚠️ مجموع درجات البنود الفرعية لا يطابق الدرجة الكلية للبند الرئيسي!
+                        </div>
                     </div>
 
-                    <button type="button" class="btn-remove-item" @click="removeItem(item.id)" x-show="items.length > 1" title="حذف هذا البند">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18"></path>
-                            <path d="M19 6L18 20a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                        </svg>
+                    <button type="button" class="btn-add-sub" @click="addSubItem(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        إضافة تفصيل فرعي
                     </button>
                 </div>
             </template>
@@ -255,17 +311,8 @@
             items: [{
                     id: Date.now(),
                     description: '',
-                    marks: 1
-                },
-                {
-                    id: Date.now() + 1,
-                    description: '',
-                    marks: 1
-                },
-                {
-                    id: Date.now() + 2,
-                    description: '',
-                    marks: 1
+                    marks: 10,
+                    sub_items: []
                 }
             ],
 
@@ -273,7 +320,8 @@
                 this.items.push({
                     id: ++this.nextId,
                     description: '',
-                    marks: 1
+                    marks: 10,
+                    sub_items: []
                 });
             },
 
@@ -281,6 +329,25 @@
                 if (this.items.length > 1) {
                     this.items = this.items.filter(item => item.id !== id);
                 }
+            },
+
+            addSubItem(index) {
+                this.items[index].sub_items.push({
+                    id: ++this.nextId,
+                    description: '',
+                    marks: 2
+                });
+            },
+
+            removeSubItem(itemIndex, subId) {
+                this.items[itemIndex].sub_items = this.items[itemIndex].sub_items.filter(sub => sub.id !== subId);
+            },
+
+            isSubmarksValid(index) {
+                const item = this.items[index];
+                if (item.sub_items.length === 0) return true;
+                const subTotal = item.sub_items.reduce((sum, sub) => sum + (parseFloat(sub.marks) || 0), 0);
+                return subTotal === parseFloat(item.marks);
             },
 
             get totalMarks() {

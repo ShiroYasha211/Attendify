@@ -27,7 +27,7 @@ class ReportController extends DoctorApiController
                 DB::raw('COUNT(DISTINCT date) as lectures_count')
             )->groupBy('subject_id')->get()->keyBy('subject_id');
 
-        $studentsCountPerSubject = User::where('role', UserRole::STUDENT)
+        $studentsCountPerSubject = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', DB::raw('count(*) as count'))
@@ -61,7 +61,7 @@ class ReportController extends DoctorApiController
             return $this->error('غير مصرح لك.', 403);
         }
 
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['attendances' => fn($q) => $q->where('subject_id', $subject->id)])

@@ -19,7 +19,7 @@ class StudentController extends Controller
     {
         $delegate = Auth::user();
 
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->with(['university', 'college', 'major', 'level.terms.subjects.doctor'])

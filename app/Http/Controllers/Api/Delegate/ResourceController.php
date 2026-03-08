@@ -42,7 +42,7 @@ class ResourceController extends DelegateApiController
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
             'type' => 'required|in:lecture,summary,book,other',
-            'file' => 'required|file|max:51200', // 50MB max
+            'file' => 'required|file|max:20480', // 20MB max
             'description' => 'nullable|string',
         ]);
 

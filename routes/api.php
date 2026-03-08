@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\QrAttendanceController;
+use App\Http\Controllers\Api\RegisterController as ApiRegisterController;
 
 // Admin API Controllers
 use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
@@ -34,12 +35,19 @@ use App\Http\Controllers\Api\Delegate\InquiryController as DelegateInquiryContro
 use App\Http\Controllers\Api\Delegate\DoctorChatController as DelegateDoctorChatController;
 use App\Http\Controllers\Api\Delegate\AttendanceController as DelegateAttendanceController;
 use App\Http\Controllers\Api\Delegate\NotificationController as DelegateNotificationController;
+use App\Http\Controllers\Api\Delegate\Clinical\SubDelegationController as DelegateSubDelegationController;
+use App\Http\Controllers\Api\Delegate\Clinical\ClinicalCaseController as DelegateClinicalCaseController;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
 */
+
+// ══════════════════════════════════════════════════════════════
+// Public API Routes (No Auth Required)
+// ══════════════════════════════════════════════════════════════
+Route::post('register', [ApiRegisterController::class, 'register']);
 
 // ══════════════════════════════════════════════════════════════
 // Admin API — Public (No Auth Required)
@@ -75,6 +83,8 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     // User Management
     Route::get('users', [AdminUserController::class, 'index']);
     Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus']);
+    Route::post('users/{user}/reset-password', [AdminUserController::class, 'resetPassword']);
+    Route::post('users/{user}/kick', [AdminUserController::class, 'kickSession']);
     Route::delete('users/{user}', [AdminUserController::class, 'destroy']);
     Route::post('users/bulk-activate', [AdminUserController::class, 'bulkActivate']);
     Route::post('users/bulk-deactivate', [AdminUserController::class, 'bulkDeactivate']);
@@ -158,10 +168,22 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     // Tracking
     Route::get('attendances', [DelegateAttendanceController::class, 'index']);
     Route::post('attendances', [DelegateAttendanceController::class, 'store']);
-    Route::get('attendances/{subject}/{date}', [DelegateAttendanceController::class, 'show']);
+    Route::get('attendances/{lecture}', [DelegateAttendanceController::class, 'show']);
 
     Route::get('notifications', [DelegateNotificationController::class, 'index']);
     Route::post('notifications', [DelegateNotificationController::class, 'store']);
+
+    // Clinical - Sub-Delegation & Case Review
+    Route::prefix('clinical')->group(function () {
+        Route::get('delegations', [DelegateSubDelegationController::class, 'index']);
+        Route::get('delegations/students', [DelegateSubDelegationController::class, 'getStudents']);
+        Route::post('delegations', [DelegateSubDelegationController::class, 'store']);
+        Route::delete('delegations/{id}', [DelegateSubDelegationController::class, 'revoke']);
+
+        Route::get('cases/pending', [DelegateClinicalCaseController::class, 'pending']);
+        Route::post('cases/{id}/approve', [DelegateClinicalCaseController::class, 'approve']);
+        Route::post('cases/{id}/reject', [DelegateClinicalCaseController::class, 'reject']);
+    });
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -190,6 +212,8 @@ use App\Http\Controllers\Api\Student\AttendanceController as StudentAttendanceCo
 use App\Http\Controllers\Api\Student\Clinical\LogbookController as StudentLogbookController;
 use App\Http\Controllers\Api\Student\Clinical\EvaluationController as StudentEvaluationController;
 use App\Http\Controllers\Api\Student\Clinical\MockExamController as StudentMockExamController;
+use App\Http\Controllers\Api\Student\Clinical\ClinicalCaseController as StudentClinicalCaseController;
+use App\Http\Controllers\Api\Student\ScheduleController as StudentBatchScheduleController;
 
 // ══════════════════════════════════════════════════════════════
 // Student API — Public (No Auth Required)
@@ -215,12 +239,16 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('subjects/{subject_id}', [StudentSubjectController::class, 'show']);
     Route::post('lectures/{lecture_id}/toggle-listen', [StudentSubjectController::class, 'toggleListen']);
 
+    // Batch Study Schedule (Read-Only)
+    Route::get('schedules', [StudentBatchScheduleController::class, 'index']);
+
     // Assignments
     Route::get('assignments', [StudentAssignmentController::class, 'index']);
     Route::post('assignments/{assignment_id}/submit', [StudentAssignmentController::class, 'submit']);
 
     // Attendance Info
     Route::get('attendance', [StudentAttendanceController::class, 'index']);
+    Route::post('excuse', [ExcuseController::class, 'store']);
 
     // Clinical Section
     Route::prefix('clinical')->group(function () {
@@ -242,6 +270,9 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
         Route::get('mock-exams/{checklist_id}/take', [StudentMockExamController::class, 'take']);
         Route::post('mock-exams/{checklist_id}/submit', [StudentMockExamController::class, 'submit']);
         Route::get('mock-exams/results/{evaluation_id}', [StudentMockExamController::class, 'showResult']);
+
+        // Pending Cases for Sub-Delegates
+        Route::get('cases/pending', [StudentClinicalCaseController::class, 'pending']);
     });
 });
 
@@ -249,6 +280,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
 // Doctor API Controllers
 // ══════════════════════════════════════════════════════════════
 use App\Http\Controllers\Api\Doctor\AuthController as DoctorAuthController;
+use App\Http\Controllers\Api\Doctor\AttendanceController as DoctorAttendanceController;
 use App\Http\Controllers\Api\Doctor\DashboardController as DoctorDashboardController;
 use App\Http\Controllers\Api\Doctor\ExcuseController as DoctorExcuseController;
 use App\Http\Controllers\Api\Doctor\ReportController as DoctorReportController;
@@ -284,6 +316,11 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
 
     // Dashboard
     Route::get('dashboard', [DoctorDashboardController::class, 'index']);
+
+    // Attendance
+    Route::get('attendances', [DoctorAttendanceController::class, 'index']);
+    Route::post('attendances', [DoctorAttendanceController::class, 'store']);
+    Route::get('attendances/{lecture}', [DoctorAttendanceController::class, 'show']);
 
     // Excuses
     Route::get('excuses', [DoctorExcuseController::class, 'index']);
@@ -337,12 +374,14 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::delete('training-centers/{id}', [DoctorTrainingCenterController::class, 'destroy']);
 
         // Departments
+        Route::post('departments/restore', [DoctorDepartmentController::class, 'restoreDefaults']);
         Route::get('departments', [DoctorDepartmentController::class, 'index']);
         Route::post('departments', [DoctorDepartmentController::class, 'store']);
         Route::put('departments/{id}', [DoctorDepartmentController::class, 'update']);
         Route::delete('departments/{id}', [DoctorDepartmentController::class, 'destroy']);
 
         // Body Systems
+        Route::post('body-systems/restore', [DoctorBodySystemController::class, 'restoreDefaults']);
         Route::get('body-systems', [DoctorBodySystemController::class, 'index']);
         Route::post('body-systems', [DoctorBodySystemController::class, 'store']);
         Route::put('body-systems/{id}', [DoctorBodySystemController::class, 'update']);
@@ -366,6 +405,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::post('logbook/manual', [DoctorLogbookController::class, 'manualAttendance']);
 
         // Evaluations
+        Route::post('evaluations/checklists/restore', [DoctorEvaluationController::class, 'restoreDefaults']);
         Route::get('evaluations/checklists', [DoctorEvaluationController::class, 'checklists']);
         Route::post('evaluations/checklists', [DoctorEvaluationController::class, 'storeChecklist']);
         Route::put('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'updateChecklist']);

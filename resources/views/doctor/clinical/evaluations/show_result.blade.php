@@ -176,13 +176,45 @@
 
 <div class="card-section">
     <h3 style="font-weight:700; margin-bottom:1rem;">عناصر التقييم</h3>
-    @foreach($evaluation->scores as $sc)
-    <div class="score-row">
-        <span class="num">{{ $loop->iteration }}</span>
-        <span class="desc">{{ $sc->checklistItem->description ?? '-' }}</span>
-        <span class="marks">{{ $sc->marks_obtained }}/{{ $sc->checklistItem->marks ?? 0 }}</span>
-        <span class="score-badge {{ $sc->score }}">{{ $sc->score_label }}</span>
-    </div>
+    @php
+        // Organize items into a tree for display
+        $mainItems = $evaluation->checklist->items->whereNull('parent_id');
+        $scoresMap = $evaluation->scores->keyBy('checklist_item_id');
+    @endphp
+
+    @foreach($mainItems as $mainItem)
+        @php
+            $subItems = $evaluation->checklist->items->where('parent_id', $mainItem->id);
+            $hasSubitems = $subItems->count() > 0;
+            // If it's a main item with NO children, it should have a score itself
+            $mainScore = $scoresMap->get($mainItem->id);
+        @endphp
+        
+        <div class="score-row" style="{{ $hasSubitems ? 'background: #f8fafc; border: 1.5px solid #cbd5e1; border-right: 4px solid var(--primary-color); padding: 1rem;' : '' }}">
+            <span class="num">{{ $loop->iteration }}</span>
+            <span class="desc" style="{{ $hasSubitems ? 'font-size: 1.05rem; font-weight: 800;' : '' }}">{{ $mainItem->description }}</span>
+            
+            @if($hasSubitems)
+                <span class="marks" style="font-weight: 800; color: var(--primary-color);">{{ $mainItem->marks }} د</span>
+            @else
+                <span class="marks">{{ $mainScore->marks_obtained ?? 0 }}/{{ $mainItem->marks }}</span>
+                <span class="score-badge {{ $mainScore->score ?? 'not_done' }}">{{ $mainScore ? $mainScore->score_label : 'لم يقيّم' }}</span>
+            @endif
+        </div>
+
+        @if($hasSubitems)
+            <div style="padding-right: 2.5rem; border-right: 2px dashed #e2e8f0; margin-right: 1.5rem; margin-bottom: 1rem;">
+                @foreach($subItems as $subItem)
+                    @php $subScore = $scoresMap->get($subItem->id); @endphp
+                    <div class="score-row" style="background: white; border: 1px solid #e2e8f0; margin-top: 0.25rem;">
+                        <span style="color:#94a3b8; font-weight:bold;">↳</span>
+                        <span class="desc" style="font-size: 0.88rem; color: #475569;">{{ $subItem->description }}</span>
+                        <span class="marks">{{ $subScore->marks_obtained ?? 0 }}/{{ $subItem->marks }}</span>
+                        <span class="score-badge {{ $subScore->score ?? 'not_done' }}">{{ $subScore ? $subScore->score_label : 'لم يقيّم' }}</span>
+                    </div>
+                @endforeach
+            </div>
+        @endif
     @endforeach
 </div>
 

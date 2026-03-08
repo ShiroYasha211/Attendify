@@ -286,6 +286,19 @@
         font-weight: 600;
         margin-top: 0.25rem;
     }
+
+    .semester-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #f3e8ff;
+        color: #7e22ce;
+        padding: 0.15rem 0.4rem;
+        border-radius: 5px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        margin-top: 0.25rem;
+    }
 </style>
 
 <div x-data="{ 
@@ -298,7 +311,35 @@
     editName: '',
     editCode: '',
     editTermId: '',
-    editDoctorId: ''
+    editSemesterId: '',
+    editDoctorId: '',
+    
+    // Terms data for dynamic semester filtering
+    terms: [
+        @foreach($terms as $term)
+        {
+            id: '{{ $term->id }}',
+            has_semesters: {{ $term->level->major->has_semesters ? 'true' : 'false' }},
+            semesters: [
+                @foreach($term->semesters as $semester)
+                { id: '{{ $semester->id }}', name: '{{ $semester->name }}' },
+                @endforeach
+            ]
+        },
+        @endforeach
+    ],
+
+    // State for create form
+    selectedTermId: '',
+    get selectedTerm() {
+        return this.terms.find(t => t.id == this.selectedTermId);
+    },
+
+    // State for edit form
+    editSelectedTermId: '',
+    get editSelectedTerm() {
+        return this.terms.find(t => t.id == this.editSelectedTermId);
+    }
 }">
 
     <!-- Page Header -->
@@ -436,7 +477,7 @@
                                 <line x1="3" y1="10" x2="21" y2="10"></line>
                             </svg>
                         </span>
-                        <select name="term_id" id="term_id" class="form-control" required>
+                        <select name="term_id" id="term_id" class="form-control" required x-model="selectedTermId">
                             <option value="">اختر الترم...</option>
                             @foreach($terms as $term)
                             <option value="{{ $term->id }}">
@@ -446,9 +487,26 @@
                             @endforeach
                         </select>
                     </div>
-                    <small style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.25rem; display: block;">
-                        سيتم ربط المادة بتخصص ومستوى هذا الترم تلقائياً
-                    </small>
+                </div>
+
+                {{-- Dynamic Semester Selection --}}
+                <div x-show="selectedTerm && selectedTerm.has_semesters" x-transition class="form-group" style="margin-top: 1rem; padding: 1rem; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px;">
+                    <label for="semester_id" class="form-label" style="color: #6b21a8; font-weight: 700;">السيمستر</label>
+                    <div class="input-with-icon">
+                        <span class="icon" style="color: #a855f7;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"></path>
+                                <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+                            </svg>
+                        </span>
+                        <select name="semester_id" id="semester_id" class="form-control" style="border-color: #d8b4fe;" :required="selectedTerm && selectedTerm.has_semesters">
+                            <option value="">اختر السيمستر...</option>
+                            <template x-for="sem in (selectedTerm ? selectedTerm.semesters : [])" :key="sem.id">
+                                <option :value="sem.id" x-text="sem.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <small style="color: #7e22ce; font-size: 0.8rem; margin-top: 0.25rem; display: block;">يرجى تحديد السيمستر الصحيح داخل هذا الترم</small>
                 </div>
 
                 <div class="form-group">
@@ -512,7 +570,8 @@
                 </select>
             </div>
 
-            <table class="modern-table">
+            <div class="table-responsive">
+<table class="modern-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -533,8 +592,17 @@
                             @endif
                         </td>
                         <td>
-                            <div style="font-size: 0.9rem;">{{ $subject->term->name ?? '-' }}</div>
-                            <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ $subject->major->name ?? '-' }}</div>
+                            <div style="font-size: 0.9rem; font-weight: 600;">{{ $subject->term->name ?? '-' }}</div>
+                            @if($subject->semester)
+                            <div class="semester-badge">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"></path>
+                                    <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+                                </svg>
+                                {{ $subject->semester->name }}
+                            </div>
+                            @endif
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ $subject->major->name ?? '-' }}</div>
                         </td>
                         <td>
                             @if($subject->doctor)
@@ -558,6 +626,12 @@
                                         editName = '{{ $subject->name }}';
                                         editCode = '{{ $subject->code }}';
                                         editTermId = '{{ $subject->term_id }}';
+                                        editSelectedTermId = '{{ $subject->term_id }}';
+                                        @if($subject->semester_id)
+                                        editSemesterId = '{{ $subject->semester_id }}';
+                                        @else
+                                        editSemesterId = '';
+                                        @endif
                                         editDoctorId = '{{ $subject->doctor_id }}';
                                     ">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -595,6 +669,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
 
             <!-- Pagination -->
             <div style="margin-top: 1.5rem;">
@@ -613,8 +688,18 @@
             @method('PUT')
 
             <div class="form-group">
+                <label for="edit_name" class="form-label">اسم المادة</label>
+                <input type="text" name="name" id="edit_name" class="form-control" x-model="editName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit_code" class="form-label">كود المادة</label>
+                <input type="text" name="code" id="edit_code" class="form-control" x-model="editCode">
+            </div>
+
+            <div class="form-group">
                 <label for="edit_term_id" class="form-label">الفصل الدراسي</label>
-                <select name="term_id" id="edit_term_id" class="form-control" x-model="editTermId" required>
+                <select name="term_id" id="edit_term_id" class="form-control" x-model="editSelectedTermId" required>
                     <option value="">اختر الترم...</option>
                     @foreach($terms as $term)
                     <option value="{{ $term->id }}">
@@ -625,14 +710,23 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="edit_name" class="form-label">اسم المادة</label>
-                <input type="text" name="name" id="edit_name" class="form-control" x-model="editName" required>
-            </div>
-
-            <div class="form-group">
-                <label for="edit_code" class="form-label">كود المادة</label>
-                <input type="text" name="code" id="edit_code" class="form-control" x-model="editCode">
+            {{-- Dynamic Semester Selection Edit --}}
+            <div x-show="editSelectedTerm && editSelectedTerm.has_semesters" x-transition class="form-group" style="margin-top: 1rem; padding: 1rem; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px;">
+                <label for="edit_semester_id" class="form-label" style="color: #6b21a8; font-weight: 700;">السيمستر</label>
+                <div class="input-with-icon">
+                    <span class="icon" style="color: #a855f7;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"></path>
+                            <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+                        </svg>
+                    </span>
+                    <select name="semester_id" id="edit_semester_id" class="form-control" style="border-color: #d8b4fe;" x-model="editSemesterId" :required="editSelectedTerm && editSelectedTerm.has_semesters">
+                        <option value="">اختر السيمستر...</option>
+                        <template x-for="sem in (editSelectedTerm ? editSelectedTerm.semesters : [])" :key="sem.id">
+                            <option :value="sem.id" x-text="sem.name"></option>
+                        </template>
+                    </select>
+                </div>
             </div>
 
             <div class="form-group">

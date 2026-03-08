@@ -339,7 +339,33 @@
     }
 </style>
 
-<div x-data="{ activeTab: 'overview' }">
+<div x-data="{ 
+    activeTab: 'overview',
+    showExcuseModal: false,
+    showDetailsModal: false,
+    attendanceId: null,
+    lectureDate: '',
+    excuseDetails: {
+        reason: '',
+        attachment: '',
+        status: '',
+        doctorComment: ''
+    },
+    openModal(id, date) {
+        this.attendanceId = id;
+        this.lectureDate = date;
+        this.showExcuseModal = true;
+    },
+    openDetails(reason, attachment, status, comment) {
+        this.excuseDetails = {
+            reason: reason,
+            attachment: attachment,
+            status: status,
+            doctorComment: comment
+        };
+        this.showDetailsModal = true;
+    }
+}">
 
     <!-- Header Card -->
     <div class="header-card">
@@ -524,8 +550,25 @@
                 </svg>
                 سجل الحضور التفصيلي
             </div>
+
+            @if(isset($subjectWarning) && $subjectWarning['warning_level'])
+            <div style="padding: 1rem 1.5rem; margin: 1.5rem 1.5rem 0.5rem 1.5rem; border-radius: 12px;
+                    {{ $subjectWarning['warning_level'] === 'danger' ? 'background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; color: #991b1b;' : 'background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; color: #92400e;' }}
+                    display: flex; align-items: center; gap: 0.75rem; font-size: 0.95rem; font-weight: 600;">
+                <span style="font-size: 1.5rem;">{{ $subjectWarning['warning_level'] === 'danger' ? '🚫' : '⚠️' }}</span>
+                <div>
+                    @if($subjectWarning['warning_level'] === 'danger')
+                    <strong>تحذير حرمان!</strong> عدد الغيابات ({{ $subjectWarning['absent_count'] }}) تجاوز الحد المسموح ({{ $subjectWarning['max_absences'] }}) أو نسبة الغياب ({{ $subjectWarning['absence_percent'] }}%) تجاوزت حد الحرمان ({{ $subjectWarning['threshold'] }}%)
+                    @else
+                    <strong>تنبيه مسبق:</strong> أنت على بعد غياب واحد من الحد الأقصى المسموح ({{ $subjectWarning['max_absences'] }} غيابات).
+                    @endif
+                </div>
+            </div>
+            @endif
+
             <div style="overflow-x: auto;">
-                <table class="attendance-table">
+                <div class="table-responsive">
+<table class="attendance-table">
                     <thead>
                         <tr>
                             <th style="width: 60px;">#</th>
@@ -541,8 +584,69 @@
                             <td style="text-align: center;">
                                 @if($record->status == 'present')
                                 <span class="status-badge present">حاضر</span>
+                                @elseif(in_array($record->status, ['absent', 'excused']))
+                                    @if($record->status == 'excused')
+                                    <span class="status-badge" style="background: #e0f2fe; color: #0284c7;">معذور</span>
+                                    @else
+                                    <span class="status-badge absent">غائب</span>
+                                    @endif
+
+                                @php
+                                $canExcuse = false;
+                                $excuseDeadlineDays = (int) \App\Models\Setting::get('excuse_deadline_days', 7);
+                                $deadline = \Carbon\Carbon::parse($record->date)->addDays($excuseDeadlineDays);
+                                if(now()->lte($deadline) && !$record->excuse) {
+                                    $canExcuse = true;
+                                }
+                                @endphp
+
+                                @if($record->excuse)
+                                <div style="margin-top: 0.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
+                                    @if($record->excuse->status == 'pending')
+                                    <span style="color: #d97706; font-size: 0.8rem; font-weight: 600;">⏳ العذر قيد المراجعة</span>
+                                    @elseif($record->excuse->status == 'accepted')
+                                    <span style="color: #16a34a; font-size: 0.8rem; font-weight: 600;">✅ تم قبول العذر</span>
+                                    @elseif($record->excuse->status == 'rejected')
+                                    <span style="color: #dc2626; font-size: 0.8rem; font-weight: 600;">❌ تم رفض العذر</span>
+                                    @endif
+                                    
+                                    <button type="button" 
+                                            @click="openDetails('{{ addslashes($record->excuse->reason) }}', '{{ $record->excuse->attachment ? asset('storage/' . $record->excuse->attachment) : '' }}', '{{ $record->excuse->status }}', '{{ addslashes($record->excuse->doctor_comment ?? '') }}')"
+                                            style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                        عرض التفاصيل
+                                    </button>
+
+                                    @if($record->excuse->doctor_comment)
+                                    <div style="font-size: 0.75rem; color: #b45309; background: #fffbeb; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #fde68a; max-width: 150px; text-align: center; margin-top: 0.2rem;">
+                                        <strong>ملاحظة الدكتور:</strong> {{ $record->excuse->doctor_comment }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @elseif($canExcuse && $record->status == 'absent')
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem; margin-top: 0.5rem;">
+                                    <button @click="openModal({{ $record->id }}, '{{ $record->date->format('Y-m-d') }}')"
+                                            style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: white; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="12" y1="18" x2="12" y2="12"></line>
+                                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                                        </svg>
+                                        تقديم عذر
+                                    </button>
+                                    @php
+                                        $daysLeft = (int) ceil(now()->floatDiffInDays($deadline, false));
+                                    @endphp
+                                    @if($daysLeft <= 2)
+                                    <span style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">⚠️ باقي {{ $daysLeft < 1 ? 'أقل من يوم' : $daysLeft . ' يوم' }}</span>
+                                    @else
+                                    <span style="font-size: 0.75rem; color: #64748b;">آخر موعد: {{ $deadline->format('Y-m-d') }}</span>
+                                    @endif
+                                </div>
                                 @elseif($record->status == 'absent')
-                                <span class="status-badge absent">غائب</span>
+                                <span style="display: block; font-size: 0.75rem; color: #ef4444; margin-top: 0.35rem; font-weight: 600;">انتهت فترة تقديم العذر</span>
+                                @endif
+
                                 @elseif($record->status == 'late')
                                 <span class="status-badge late">متأخر</span>
                                 @elseif($record->status == 'excused')
@@ -561,6 +665,7 @@
                         @endforelse
                     </tbody>
                 </table>
+</div>
             </div>
         </div>
     </div>
@@ -681,6 +786,84 @@
                     <p>لم يتم إدخال درجات لهذا المقرر بعد</p>
                 </div>
                 @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Excuse Submission Modal -->
+    <div x-show="showExcuseModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;" x-transition style="display: flex;">
+        <div class="modal-container" @click.away="showExcuseModal = false" style="background: white; border-radius: 20px; width: 100%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); margin: 1rem;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 class="modal-title" style="font-size: 1.25rem; font-weight: 700; margin: 0;">تقديم عذر غياب</h3>
+                <button @click="showExcuseModal = false" style="width: 36px; height: 36px; background: #f1f5f9; border: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <form action="{{ route('student.excuse.store') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <input type="hidden" name="attendance_id" :value="attendanceId">
+
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">تاريخ المحاضرة</label>
+                    <input type="text" :value="lectureDate" disabled style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 10px; background: #f8fafc; font-family: inherit;">
+                </div>
+
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">سبب الغياب <span style="color: #ef4444;">*</span></label>
+                    <textarea name="reason" rows="3" required placeholder="اشرح سبب الغياب بالتفصيل..." style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 1rem;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">مرفق (اختياري)</label>
+                    <input type="file" name="attachment" accept=".pdf,.jpg,.png,.jpeg" style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 10px; font-family: inherit;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem;">صورة أو ملف PDF يثبت العذر (الحد الأقصى 2 ميجابايت)</div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                    <button type="button" @click="showExcuseModal = false" style="padding: 0.75rem 1.25rem; background: #f1f5f9; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;">إلغاء</button>
+                    <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;">إرسال العذر</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Excuse Details Modal -->
+    <div x-show="showDetailsModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;" x-transition style="display: flex;">
+        <div class="modal-container" @click.away="showDetailsModal = false" style="background: white; border-radius: 20px; width: 100%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); margin: 1rem;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 class="modal-title" style="font-size: 1.25rem; font-weight: 700; margin: 0;">تفاصيل العذر</h3>
+                <button @click="showDetailsModal = false" style="width: 36px; height: 36px; background: #f1f5f9; border: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #e2e8f0;">
+                <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.5rem 0; font-weight: 600;">سبب الغياب المرسل:</h4>
+                <p style="margin: 0; color: var(--text-primary); line-height: 1.5;" x-text="excuseDetails.reason"></p>
+                
+                <template x-if="excuseDetails.attachment">
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cbd5e1;">
+                        <a :href="excuseDetails.attachment" target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                            عرض المرفق المرسل
+                        </a>
+                    </div>
+                </template>
+            </div>
+
+            <template x-if="excuseDetails.doctorComment">
+                <div style="background: #fffbeb; padding: 1rem; border-radius: 12px; border: 1px solid #fde68a; margin-bottom: 1rem;">
+                    <h4 style="font-size: 0.9rem; color: #92400e; margin: 0 0 0.5rem 0; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        ملاحظة الدكتور:
+                    </h4>
+                    <p style="margin: 0; color: #b45309; line-height: 1.5;" x-text="excuseDetails.doctorComment"></p>
+                </div>
+            </template>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" @click="showDetailsModal = false" style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #475569; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;">أغلق التقرير</button>
             </div>
         </div>
     </div>

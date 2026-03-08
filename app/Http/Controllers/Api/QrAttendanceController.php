@@ -39,7 +39,7 @@ class QrAttendanceController extends DelegateApiController
                 return response()->json(['message' => 'User not found. Please login.'], 401);
             }
 
-            if (!in_array($user->role, [UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
+            if (!in_array($user->role, [UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE, UserRole::DOCTOR])) {
                 return response()->json(['message' => 'غير مصرح لك بهذا الإجراء.'], 403);
             }
 
@@ -50,23 +50,31 @@ class QrAttendanceController extends DelegateApiController
                 'lecture_number' => 'nullable|string|max:50',
             ]);
 
-            // Check if session already exists for this subject+date
+            $subject = \App\Models\Academic\Subject::findOrFail($validated['subject_id']);
+
+            // Verify if the doctor has allowed the delegate to take attendance
+            // Skip this check if the user IS the doctor (doctors can always take their own attendance)
+            if (!in_array($user->role, [UserRole::DOCTOR]) && !$subject->allow_delegate_attendance) {
+                return response()->json(['message' => 'التحضير مغلق من قبل الدكتور المشرف على المادة.'], 403);
+            }
+
+            // Check if session already exists for this subject+date+title
             $existing = QrAttendanceSession::where('subject_id', $validated['subject_id'])
                 ->where('date', $validated['date'])
+                ->where('title', $validated['title'])
                 ->first();
 
             if ($existing) {
-                // If already finalized, can't restart
+                // If it was previously finalized, reactivate it
                 if ($existing->status === 'finalized') {
-                    return response()->json([
-                        'message' => 'تم إنهاء جلسة الحضور لهذا اليوم بالفعل. لا يمكن إعادة البدء.',
-                    ], 409);
+                    $existing->status = 'active';
+                    $existing->save();
                 }
 
                 // If active, return existing session
                 $existing->rotateToken(); // Generate fresh token
                 return response()->json([
-                    'message'    => 'الجلسة موجودة مسبقاً، تم تجديد الكود.',
+                    'message'    => 'الجلسة موجودة مسبقاً، تم إعادة تفعيل الكود.',
                     'session_id' => $existing->id,
                     'token'      => $existing->current_token,
                     'expires_at' => $existing->token_expires_at->toIso8601String(),
@@ -76,16 +84,36 @@ class QrAttendanceController extends DelegateApiController
             // Generate first token
             $firstToken = Str::random(48) . bin2hex(random_bytes(8));
 
-            $session = QrAttendanceSession::create([
-                'subject_id'       => $validated['subject_id'],
-                'delegate_id'      => $user->id,
-                'date'             => $validated['date'],
-                'title'            => $validated['title'],
-                'lecture_number'   => $validated['lecture_number'] ?? null,
-                'current_token'    => $firstToken,
-                'token_expires_at' => Carbon::now()->addSeconds(30),
-                'status'           => 'active',
-            ]);
+            try {
+                $session = QrAttendanceSession::create([
+                    'subject_id'       => $validated['subject_id'],
+                    'delegate_id'      => $user->id,
+                    'date'             => $validated['date'],
+                    'title'            => $validated['title'],
+                    'lecture_number'   => $validated['lecture_number'] ?? null,
+                    'current_token'    => $firstToken,
+                    'token_expires_at' => Carbon::now()->addSeconds(30),
+                    'status'           => 'active',
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Handle duplicate key — find existing session and reuse it
+                $session = QrAttendanceSession::where('subject_id', $validated['subject_id'])
+                    ->where('date', $validated['date'])
+                    ->first();
+
+                if ($session) {
+                    // Reactivate and update
+                    $session->update([
+                        'title'            => $validated['title'],
+                        'lecture_number'   => $validated['lecture_number'] ?? null,
+                        'current_token'    => $firstToken,
+                        'token_expires_at' => Carbon::now()->addSeconds(30),
+                        'status'           => 'active',
+                    ]);
+                } else {
+                    throw $e; // Re-throw if it's a different error
+                }
+            }
 
             return response()->json([
                 'message'    => 'تم بدء جلسة الحضور بنجاح.',
@@ -114,8 +142,8 @@ class QrAttendanceController extends DelegateApiController
     {
         $user = $request->user();
 
-        // Verify ownership
-        if ($session->delegate_id !== $user->id) {
+        // Verify ownership (delegate_id stores the creator, could be doctor or delegate)
+        if ((int) $session->delegate_id !== (int) $user->id) {
             return response()->json(['message' => 'غير مصرح لك.'], 403);
         }
 
@@ -143,14 +171,17 @@ class QrAttendanceController extends DelegateApiController
     {
         $user = $request->user();
 
-        if ($session->delegate_id !== $user->id) {
+        if ((int) $session->delegate_id !== (int) $user->id) {
             return response()->json(['message' => 'غير مصرح لك.'], 403);
         }
 
-        // Get all students in the same scope
-        $allStudents = User::where('role', UserRole::STUDENT)
-            ->where('major_id', $user->major_id)
-            ->where('level_id', $user->level_id)
+        // Get the subject to determine the academic scope (works for both doctor and delegate)
+        $subject = $session->subject;
+
+        // Get all students in the same scope using the SUBJECT's major/level
+        $allStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+            ->where('major_id', $subject->major_id)
+            ->where('level_id', $subject->level_id)
             ->orderBy('name')
             ->get(['id', 'name', 'student_number']);
 
@@ -195,7 +226,7 @@ class QrAttendanceController extends DelegateApiController
         $user = $request->user();
 
         // Only students can scan
-        if (!$user->hasRole(UserRole::STUDENT)) {
+        if (!in_array($user->role->value, [UserRole::STUDENT->value, UserRole::DELEGATE->value])) {
             return response()->json(['message' => 'هذه الميزة متاحة للطلاب فقط.'], 403);
         }
 
@@ -221,9 +252,9 @@ class QrAttendanceController extends DelegateApiController
             ], 410);
         }
 
-        // Verify student is in the same academic scope
-        $delegate = $session->delegate;
-        if ($user->major_id !== $delegate->major_id || $user->level_id !== $delegate->level_id) {
+        // Verify student is in the same academic scope (using subject, not delegate)
+        $subject = $session->subject;
+        if ($user->major_id !== $subject->major_id || $user->level_id !== $subject->level_id) {
             return response()->json([
                 'message' => 'أنت لست ضمن هذه الدفعة.',
             ], 403);
@@ -275,7 +306,7 @@ class QrAttendanceController extends DelegateApiController
     {
         $user = $request->user();
 
-        if ($session->delegate_id !== $user->id) {
+        if ((int) $session->delegate_id !== (int) $user->id) {
             return response()->json(['message' => 'غير مصرح لك.'], 403);
         }
 
@@ -286,11 +317,19 @@ class QrAttendanceController extends DelegateApiController
         // Lock the session to prevent further scans
         $session->update(['status' => 'finalized']);
 
-        // We do NOT mark absentees here anymore.
-        // The mobile app will handle the transition to the review screen.
+        // We do NOT mark absentees here.
+        // The delegate will review and finalize on the manual attendance form.
+
+        // Build redirect URL back to the manual attendance form with QR session context
+        $redirectUrl = route('delegate.attendance.create', $session->subject_id)
+            . '?qr_session_id=' . $session->id;
 
         return $this->success(
-            ['session_id' => $session->id, 'subject_id' => $session->subject_id],
+            [
+                'session_id'   => $session->id,
+                'subject_id'   => $session->subject_id,
+                'redirect_url' => $redirectUrl,
+            ],
             'تم إنهاء المسح بنجاح. يمكنك الآن مراجعة قائمة الحضور.'
         );
     }

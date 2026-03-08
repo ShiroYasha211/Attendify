@@ -21,7 +21,7 @@ class AssignmentObserver
 
         // Find all students in the same Major + Level
         // Adjust logic if enrollment table exists, but based on current analysis it's Major/Level based.
-        $students = User::where('role', 'student')
+        $students = User::whereIn('role', ['student', 'delegate'])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->get();

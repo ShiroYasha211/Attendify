@@ -12,6 +12,10 @@ Route::prefix('admin')
         Route::get('login', [App\Http\Controllers\Admin\AuthController::class, 'showLoginForm'])
             ->name('login');
         Route::post('login', [App\Http\Controllers\Admin\AuthController::class, 'login']);
+
+        Route::get('register', [App\Http\Controllers\Auth\RegisterController::class, 'showRegistrationForm'])
+            ->name('register');
+        Route::post('register', [App\Http\Controllers\Auth\RegisterController::class, 'register']);
     });
 
 Route::prefix('admin')
@@ -20,6 +24,10 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])
             ->name('dashboard');
+
+        // Profile & Password
+        Route::get('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('profile.password');
+        Route::put('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('profile.password.update');
 
         Route::get('about', [App\Http\Controllers\Admin\DashboardController::class, 'about'])
             ->name('about');
@@ -30,15 +38,22 @@ Route::prefix('admin')
         Route::resource('universities', App\Http\Controllers\Admin\Academic\UniversityController::class);
         Route::resource('colleges', App\Http\Controllers\Admin\Academic\CollegeController::class);
         Route::resource('majors', App\Http\Controllers\Admin\Academic\MajorController::class);
-        // Route::resource('levels', App\Http\Controllers\Admin\Academic\LevelController::class); // Managed automatically by Major
-        // Route::resource('terms', App\Http\Controllers\Admin\Academic\TermController::class);   // Managed automatically by Major
         Route::resource('subjects', App\Http\Controllers\Admin\Academic\SubjectController::class);
+
+        // Clinical Constants
+        Route::prefix('clinical')->name('clinical.')->group(function () {
+            Route::resource('departments', App\Http\Controllers\Admin\Clinical\ClinicalDepartmentController::class)->except(['show']);
+            Route::resource('body-systems', App\Http\Controllers\Admin\Clinical\BodySystemController::class)->except(['show']);
+            Route::resource('checklists', App\Http\Controllers\Admin\Clinical\EvaluationChecklistController::class);
+        });
 
 
         // User Management Routes
         Route::get('users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
         Route::get('users/export', [App\Http\Controllers\Admin\UserController::class, 'export'])->name('users.export');
         Route::patch('users/{user}/status', [App\Http\Controllers\Admin\UserController::class, 'updateStatus'])->name('users.status');
+        Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::post('users/{user}/kick', [App\Http\Controllers\Admin\UserController::class, 'kickSession'])->name('users.kick');
         Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
 
         // Bulk Actions
@@ -53,6 +68,14 @@ Route::prefix('admin')
         // Clinical Delegate Management
         Route::resource('clinical-delegates', App\Http\Controllers\Admin\ClinicalDelegateController::class)
             ->only(['index', 'store', 'destroy']);
+
+        // Registration Requests
+        Route::get('registration-requests', [App\Http\Controllers\Admin\RegistrationRequestController::class, 'index'])
+            ->name('registration_requests.index');
+        Route::post('registration-requests/{user}/approve', [App\Http\Controllers\Admin\RegistrationRequestController::class, 'approve'])
+            ->name('registration_requests.approve');
+        Route::post('registration-requests/{user}/reject', [App\Http\Controllers\Admin\RegistrationRequestController::class, 'reject'])
+            ->name('registration_requests.reject');
 
         // Attendance Routes - REMOVED (Delegate Duty Only)
         // Route::get('attendance/create', [App\Http\Controllers\Admin\AttendanceController::class, 'create'])->name('attendance.create');
@@ -73,6 +96,10 @@ Route::prefix('admin')
         Route::get('activities', [App\Http\Controllers\Admin\ActivityController::class, 'index'])->name('activities.index');
         Route::delete('activities/cleanup', [App\Http\Controllers\Admin\ActivityController::class, 'cleanup'])->name('activities.cleanup');
 
+        // Storage Management Routes
+        Route::get('storage', [App\Http\Controllers\Admin\StorageController::class, 'index'])->name('storage.index');
+        Route::delete('storage/{type}/{id}', [App\Http\Controllers\Admin\StorageController::class, 'destroy'])->name('storage.destroy');
+
         // Settings Routes
         Route::get('settings', [App\Http\Controllers\Admin\SettingController::class, 'index'])->name('settings.index');
         Route::put('settings', [App\Http\Controllers\Admin\SettingController::class, 'update'])->name('settings.update');
@@ -83,6 +110,10 @@ Route::prefix('doctor')
     ->middleware(['auth', 'role:doctor', 'status'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Doctor\DashboardController::class, 'index'])->name('dashboard');
+
+        // Profile & Password
+        Route::get('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('profile.password');
+        Route::put('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('profile.password.update');
 
         // Excuses Routes
         Route::get('excuses', [App\Http\Controllers\Doctor\ExcuseController::class, 'index'])->name('excuses.index');
@@ -109,6 +140,13 @@ Route::prefix('doctor')
         Route::get('grades/{subject}/report', [App\Http\Controllers\Doctor\GradeController::class, 'report'])->name('grades.report');
         Route::post('grades/{subject}/note/{student}', [App\Http\Controllers\Doctor\GradeController::class, 'storeNote'])->name('grades.storeNote');
 
+        // Attendance Routes
+        Route::get('attendance', [App\Http\Controllers\Doctor\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/{subject}/create', [App\Http\Controllers\Doctor\AttendanceController::class, 'create'])->name('attendance.create');
+        Route::post('attendance/{subject}', [App\Http\Controllers\Doctor\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('attendance/{subject}/toggle-delegate', [App\Http\Controllers\Doctor\AttendanceController::class, 'toggleDelegateAttendance'])->name('attendance.toggle-delegate');
+        Route::get('attendance/{subject}/{date}/report', [App\Http\Controllers\Doctor\AttendanceController::class, 'showReport'])->name('attendance.report');
+
         // Messages (Chat with Delegates)
         Route::get('messages', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'index'])->name('messages.index');
         Route::get('messages/create', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'create'])->name('messages.create');
@@ -130,9 +168,11 @@ Route::prefix('doctor')
             Route::resource('training-centers', App\Http\Controllers\Doctor\Clinical\TrainingCenterController::class)->except(['show']);
 
             // Manage Clinical Departments
+            Route::post('departments/restore', [App\Http\Controllers\Doctor\Clinical\ClinicalDepartmentController::class, 'restoreDefaults'])->name('departments.restore');
             Route::resource('departments', App\Http\Controllers\Doctor\Clinical\ClinicalDepartmentController::class)->except(['show']);
 
             // Manage Body Systems
+            Route::post('body-systems/restore', [App\Http\Controllers\Doctor\Clinical\BodySystemController::class, 'restoreDefaults'])->name('body-systems.restore');
             Route::resource('body-systems', App\Http\Controllers\Doctor\Clinical\BodySystemController::class)->except(['show']);
 
             // Manage Clinical Cases
@@ -152,6 +192,7 @@ Route::prefix('doctor')
 
             // OSCE Evaluations
             Route::prefix('evaluations')->name('evaluations.')->group(function () {
+                Route::post('checklists/restore', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'restoreDefaults'])->name('checklists.restore');
                 Route::get('checklists', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'checklists'])->name('checklists');
                 Route::get('checklists/create', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'createChecklist'])->name('checklists.create');
                 Route::post('checklists', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'storeChecklist'])->name('checklists.store');
@@ -165,6 +206,14 @@ Route::prefix('doctor')
                 Route::get('results/{id}', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'showResult'])->name('results.show');
             });
         });
+
+        // Course Resources
+        Route::get('resources', [App\Http\Controllers\Doctor\ResourceController::class, 'index'])->name('resources.index');
+        Route::get('resources/create', [App\Http\Controllers\Doctor\ResourceController::class, 'create'])->name('resources.create');
+        Route::post('resources', [App\Http\Controllers\Doctor\ResourceController::class, 'store'])->name('resources.store');
+        Route::get('resources/{resource}/edit', [App\Http\Controllers\Doctor\ResourceController::class, 'edit'])->name('resources.edit');
+        Route::put('resources/{resource}', [App\Http\Controllers\Doctor\ResourceController::class, 'update'])->name('resources.update');
+        Route::delete('resources/{resource}', [App\Http\Controllers\Doctor\ResourceController::class, 'destroy'])->name('resources.destroy');
     });
 
 Route::prefix('student')
@@ -173,12 +222,20 @@ Route::prefix('student')
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
 
+        // Profile & Password
+        Route::get('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('profile.password');
+        Route::put('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('profile.password.update');
+
         Route::resource('subjects', App\Http\Controllers\Student\SubjectController::class)->only(['index', 'show']);
 
         Route::get('assignments', [App\Http\Controllers\Student\AssignmentController::class, 'index'])->name('assignments.index');
+        Route::post('assignments/preference', [App\Http\Controllers\Student\AssignmentController::class, 'updatePreference'])->name('assignments.updatePreference');
+        Route::get('assignments/{assignment}/details', [App\Http\Controllers\Student\AssignmentController::class, 'getDetails'])->name('assignments.getDetails');
         Route::get('assignments/{assignment}', [App\Http\Controllers\Student\AssignmentController::class, 'show'])->name('assignments.show');
         Route::post('assignments/{assignment}/submit', [App\Http\Controllers\Student\AssignmentController::class, 'submit'])->name('assignments.submit');
-        Route::get('attendance', [App\Http\Controllers\Student\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::post('assignments/{assignment}/priority', [App\Http\Controllers\Student\AssignmentController::class, 'updatePriority'])->name('assignments.updatePriority');
+        // Deprecated: Global Attendance page is merged into Subject Details
+        // Route::get('attendance', [App\Http\Controllers\Student\AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/scan', function () {
             return view('student.attendance.scan');
         })->name('attendance.scan');
@@ -192,8 +249,8 @@ Route::prefix('student')
         // Exam Schedules
         Route::get('exams', [App\Http\Controllers\Student\ExamScheduleController::class, 'index'])->name('exams.index');
 
-        // Grades
-        Route::get('grades', [App\Http\Controllers\Student\GradeController::class, 'index'])->name('grades.index');
+        // Grades - MOVED to Subject Details
+        // Route::get('grades', [App\Http\Controllers\Student\GradeController::class, 'index'])->name('grades.index');
 
         // Notifications
         Route::get('notifications', [App\Http\Controllers\Student\NotificationController::class, 'index'])->name('notifications.index');
@@ -245,6 +302,9 @@ Route::prefix('student')
         Route::get('lectures/{subject}', [App\Http\Controllers\Student\LectureController::class, 'index'])->name('lectures.index');
         Route::post('lectures/toggle/{lecture}', [App\Http\Controllers\Student\LectureController::class, 'toggleStatus'])->name('lectures.toggle');
 
+        // Study Schedule (Read-Only Mirror of Delegate's Schedule)
+        Route::get('schedules', [App\Http\Controllers\Student\ScheduleController::class, 'index'])->name('schedules.index');
+
         // Student Schedule (Smart Study Hub)
         Route::get('schedule', [App\Http\Controllers\Student\StudentScheduleController::class, 'index'])->name('schedule.index');
         Route::post('schedule', [App\Http\Controllers\Student\StudentScheduleController::class, 'store'])->name('schedule.store');
@@ -264,6 +324,10 @@ Route::prefix('delegate')
     ->middleware(['auth', 'role:delegate', 'status'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Delegate\DashboardController::class, 'index'])->name('dashboard');
+
+        // Profile & Password
+        Route::get('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('profile.password');
+        Route::put('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('profile.password.update');
 
         // Doctor Chat
         Route::post('doctor-chat/{conversation}/send', [App\Http\Controllers\Delegate\DoctorChatController::class, 'send'])->name('doctor-chat.send');
@@ -346,4 +410,31 @@ Route::prefix('delegate')
         Route::post('doctor-chat/start', [App\Http\Controllers\Delegate\DoctorChatController::class, 'store'])->name('doctor-chat.store');
         Route::get('doctor-chat/{conversation}', [App\Http\Controllers\Delegate\DoctorChatController::class, 'show'])->name('doctor-chat.show');
         Route::post('doctor-chat/{conversation}/send', [App\Http\Controllers\Delegate\DoctorChatController::class, 'send'])->name('doctor-chat.send');
+
+        // Clinical Access for Practical Delegates (Delegate Role)
+        Route::middleware('clinical_delegate')->group(function () {
+            Route::prefix('clinical')->name('clinical.')->group(function () {
+                // Sub-delegations management
+                Route::get('delegations', [App\Http\Controllers\Delegate\Clinical\SubDelegationController::class, 'index'])->name('delegations.index');
+                Route::post('delegations', [App\Http\Controllers\Delegate\Clinical\SubDelegationController::class, 'store'])->name('delegations.store');
+                Route::patch('delegations/{delegation}/revoke', [App\Http\Controllers\Delegate\Clinical\SubDelegationController::class, 'revoke'])->name('delegations.revoke');
+
+                Route::get('cases/pending', [App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class, 'pending'])->name('cases.pending');
+                Route::post('cases/{case}/approve', [App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class, 'approve'])->name('cases.approve');
+                Route::post('cases/{case}/reject', [App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class, 'reject'])->name('cases.reject');
+
+                Route::resource('cases', App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class);
+            });
+        });
+    });
+
+// Separate Clinical Access for Students who are Practical Delegates
+Route::prefix('student')
+    ->name('student.')
+    ->middleware(['auth', 'role:student', 'status', 'clinical_delegate'])
+    ->group(function () {
+        Route::prefix('clinical')->name('clinical.')->group(function () {
+            Route::get('cases/pending', [App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class, 'pending'])->name('cases.pending');
+            Route::resource('cases', App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class);
+        });
     });

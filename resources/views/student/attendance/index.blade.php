@@ -391,6 +391,201 @@
 
     @media (max-width: 600px) {
         .stats-grid {
+
+    .attendance-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+
+    .status-badge.present {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-badge.absent {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .status-badge.late {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .status-badge.excused {
+        background: #dbeafe;
+        color: #2563eb;
+    }
+
+    /* Excuse Status */
+    .excuse-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+    }
+
+    .excuse-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 0.5rem;
+        transition: all 0.2s;
+    }
+
+    .excuse-btn:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.4);
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 1rem;
+    }
+
+    .modal-container {
+        background: white;
+        border-radius: 20px;
+        width: 100%;
+        max-width: 500px;
+        padding: 2rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .modal-close {
+        width: 36px;
+        height: 36px;
+        background: #f1f5f9;
+        border: none;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+        background: #e2e8f0;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .form-hint {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-top: 0.35rem;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .btn-cancel {
+        padding: 0.75rem 1.25rem;
+        background: #f1f5f9;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+        background: #e2e8f0;
+    }
+
+    .btn-submit {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-submit:hover {
+        box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.5);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 1100px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .stats-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -399,8 +594,15 @@
 <div x-data="{
     openSubject: null,
     showExcuseModal: false,
+    showDetailsModal: false,
     attendanceId: null,
     lectureDate: '',
+    excuseDetails: {
+        reason: '',
+        attachment: '',
+        status: '',
+        doctorComment: ''
+    },
     toggleSubject(id) {
         this.openSubject = this.openSubject === id ? null : id;
     },
@@ -408,6 +610,15 @@
         this.attendanceId = id;
         this.lectureDate = date;
         this.showExcuseModal = true;
+    },
+    openDetails(reason, attachment, status, comment) {
+        this.excuseDetails = {
+            reason: reason,
+            attachment: attachment,
+            status: status,
+            doctorComment: comment
+        };
+        this.showDetailsModal = true;
     }
 }">
 
@@ -531,7 +742,8 @@
                     </div>
                 </div>
                 @endif
-                <table class="attendance-table">
+                <div class="table-responsive">
+<table class="attendance-table">
                     <thead>
                         <tr>
                             <th>التاريخ</th>
@@ -558,14 +770,20 @@
                                 @endphp
 
                                 @if($record->excuse)
-                                <div class="excuse-status">
+                                <div class="excuse-status" style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem; margin-top: 0.5rem;">
                                     @if($record->excuse->status == 'pending')
-                                    <span style="color: #d97706;">⏳ العذر قيد المراجعة</span>
+                                    <span style="color: #d97706; font-size: 0.8rem; font-weight: 600;">⏳ العذر قيد المراجعة</span>
                                     @elseif($record->excuse->status == 'accepted')
-                                    <span style="color: #16a34a;">✅ تم قبول العذر</span>
+                                    <span style="color: #16a34a; font-size: 0.8rem; font-weight: 600;">✅ تم قبول العذر</span>
                                     @elseif($record->excuse->status == 'rejected')
-                                    <span style="color: #dc2626;">❌ تم رفض العذر</span>
+                                    <span style="color: #dc2626; font-size: 0.8rem; font-weight: 600;">❌ تم رفض العذر</span>
                                     @endif
+
+                                    <button type="button" 
+                                            @click="openDetails('{{ addslashes($record->excuse->reason) }}', '{{ $record->excuse->attachment ? asset('storage/' . $record->excuse->attachment) : '' }}', '{{ $record->excuse->status }}', '{{ addslashes($record->excuse->doctor_comment ?? '') }}')"
+                                            style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                        عرض التفاصيل
+                                    </button>
                                 </div>
                                 @elseif($canExcuse)
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
@@ -603,6 +821,7 @@
                         @endforeach
                     </tbody>
                 </table>
+</div>
             </div>
         </div>
         @endforeach
@@ -655,6 +874,46 @@
                     <button type="submit" class="btn-submit">إرسال العذر</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Excuse Details Modal -->
+    <div x-show="showDetailsModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;" x-transition style="display: flex;">
+        <div class="modal-container" @click.away="showDetailsModal = false" style="background: white; border-radius: 20px; width: 100%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); margin: 1rem;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 class="modal-title" style="font-size: 1.25rem; font-weight: 700; margin: 0;">تفاصيل العذر</h3>
+                <button @click="showDetailsModal = false" style="width: 36px; height: 36px; background: #f1f5f9; border: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #e2e8f0;">
+                <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.5rem 0; font-weight: 600;">سبب الغياب المرسل:</h4>
+                <p style="margin: 0; color: var(--text-primary); line-height: 1.5;" x-text="excuseDetails.reason"></p>
+                
+                <template x-if="excuseDetails.attachment">
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cbd5e1;">
+                        <a :href="excuseDetails.attachment" target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                            عرض المرفق المرسل
+                        </a>
+                    </div>
+                </template>
+            </div>
+
+            <template x-if="excuseDetails.doctorComment">
+                <div style="background: #fffbeb; padding: 1rem; border-radius: 12px; border: 1px solid #fde68a; margin-bottom: 1rem;">
+                    <h4 style="font-size: 0.9rem; color: #92400e; margin: 0 0 0.5rem 0; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        ملاحظة الدكتور:
+                    </h4>
+                    <p style="margin: 0; color: #b45309; line-height: 1.5;" x-text="excuseDetails.doctorComment"></p>
+                </div>
+            </template>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" @click="showDetailsModal = false" style="padding: 0.75rem 1.5rem; background: #e2e8f0; color: #475569; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;">أغلق التقرير</button>
+            </div>
         </div>
     </div>
 

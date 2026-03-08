@@ -19,7 +19,8 @@
     </div>
 
     <div class="card">
-        <table style="width: 100%; border-collapse: collapse;">
+        <div class="table-responsive">
+<table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background: #f8f9fa; text-align: right;">
                     <th style="padding: 1rem; border-bottom: 2px solid #dee2e6;">الرقم الجامعي</th>
@@ -65,6 +66,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
 
         <div style="padding: 1rem; color: #666; font-size: 0.9em;">
             * إجمالي عدد المحاضرات المسجلة لهذه المادة: {{ $reportData->first()['total_sessions'] ?? 0 }}

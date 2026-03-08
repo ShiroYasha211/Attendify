@@ -38,7 +38,7 @@ class AttendanceController extends Controller
 
         // جلب الطلاب المسجلين في نفس مستوى وتخصص المادة
         // ملاحظة: هذا المنطق بسيط،، يمكن تطويره للتحقق من تسجيل الطلاب في مواد محددة لو كان النظام يدعم جداول مخصصة
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->orderBy('name')

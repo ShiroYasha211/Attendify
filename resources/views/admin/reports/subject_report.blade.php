@@ -223,7 +223,8 @@
         <h2 class="report-title">تقرير الحضور والغياب والحرمان</h2>
 
         <!-- Subject Meta -->
-        <table class="table" style="margin-bottom: 20px;">
+        <div class="table-responsive">
+<table class="table" style="margin-bottom: 20px;">
             <tr>
                 <th width="15%">المقرر</th>
                 <td width="35%">{{ $subject->name }} ({{ $subject->code }})</td>
@@ -238,10 +239,12 @@
                 <td>{{ $subject->max_absences }} محاضرات</td>
             </tr>
         </table>
+</div>
 
         <!-- Students Table -->
         <div style="flex-grow: 1;">
-            <table class="table">
+            <div class="table-responsive">
+<table class="table">
                 <thead>
                     <tr>
                         <th width="5%">#</th>
@@ -287,6 +290,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
 
         <!-- Signatures (Pinned to Bottom) -->

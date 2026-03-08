@@ -19,7 +19,7 @@ class NotificationController extends Controller
         $filter = $request->get('filter', 'all');
 
         // Fetch students in scope
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->get();

@@ -18,7 +18,7 @@ class DashboardController extends AdminApiController
     public function index()
     {
         $userStats = [
-            'students_count' => User::where('role', UserRole::STUDENT)->count(),
+            'students_count' => User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->count(),
             'doctors_count' => User::where('role', UserRole::DOCTOR)->count(),
             'delegates_count' => User::where('role', UserRole::DELEGATE)->count(),
             'pending_users' => User::where('status', 'inactive')->count(),

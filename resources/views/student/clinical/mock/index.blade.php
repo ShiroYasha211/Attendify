@@ -284,7 +284,12 @@
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
             </div>
-            <div class="opt-title" style="padding-left: {{ $chk->creator_id ? '4rem' : '0' }};">{{ $chk->title }}</div>
+            <div class="opt-title" style="padding-left: {{ $chk->creator_id ? '4rem' : '0' }}; display: flex; align-items: center;">
+                {{ $chk->title }}
+                @if(is_null($chk->doctor_id) && is_null($chk->creator_id))
+                    <span style="background: #e0e7ff; color: #4338ca; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; margin-right: 0.5rem; font-weight: 700;">أساسي</span>
+                @endif
+            </div>
             <div class="opt-desc">{{ $chk->description ?? 'نموذج تقييم سريري شامل لتدريب المهارات الأساسية والمتقدمة.' }}</div>
         </div>
         <a href="{{ route('student.clinical.mock.take', $chk->id) }}" class="btn-start" style="{{ $chk->creator_id ? 'background: #c026d3;' : '' }}">

@@ -66,6 +66,11 @@ class MockExamController extends Controller
         // Calculate scores
         $calculatedScores = [];
         foreach ($checklist->items as $item) {
+            // Skip parent items, their score is derived from children
+            if ($item->subItems()->count() > 0) {
+                continue;
+            }
+
             $maxMarks = is_numeric($item->marks) ? $item->marks : 1;
 
             // Updated expecting array shape: scores[item_id] = ['score' => 'done|partial|not_done', 'notes' => 'text']
@@ -195,12 +200,24 @@ class MockExamController extends Controller
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string',
             'items.*.marks' => 'required|numeric|min:1',
+            'items.*.sub_items' => 'nullable|array',
+            'items.*.sub_items.*.description' => 'required_with:items.*.sub_items|string',
+            'items.*.sub_items.*.marks' => 'required_with:items.*.sub_items|numeric|min:1',
         ]);
 
         $student = Auth::user();
 
         // Calculate total marks from items
-        $totalMarks = collect($request->items)->sum('marks');
+        $totalMarks = 0;
+        foreach ($request->items as $item) {
+            $totalMarks += (float)$item['marks'];
+            if (!empty($item['sub_items'])) {
+                $subTotal = collect($item['sub_items'])->sum('marks');
+                if ($subTotal !== (float)$item['marks']) {
+                    return back()->withInput()->withErrors(['items' => "مجموع درجات العناصر الفرعية يجب أن يساوي درجة العنصر الرئيسي '{$item['description']}' ({$item['marks']})."]);
+                }
+            }
+        }
 
         $checklist = EvaluationChecklist::create([
             'title' => $request->title,
@@ -215,12 +232,24 @@ class MockExamController extends Controller
         ]);
 
         foreach ($request->items as $index => $item) {
-            ChecklistItem::create([
+            $mainItem = ChecklistItem::create([
                 'checklist_id' => $checklist->id,
                 'description' => $item['description'],
                 'marks' => $item['marks'],
                 'sort_order' => $index + 1,
             ]);
+
+            if (!empty($item['sub_items'])) {
+                foreach ($item['sub_items'] as $j => $subItem) {
+                    ChecklistItem::create([
+                        'checklist_id' => $checklist->id,
+                        'parent_id' => $mainItem->id,
+                        'description' => $subItem['description'],
+                        'marks' => $subItem['marks'],
+                        'sort_order' => $j + 1,
+                    ]);
+                }
+            }
         }
 
         return redirect()->route('student.clinical.mock.index')->with('success', 'تم إنشاء النموذج التجريبي بنجاح!');

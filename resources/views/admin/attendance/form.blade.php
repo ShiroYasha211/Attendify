@@ -25,7 +25,8 @@
         <input type="hidden" name="date" value="{{ $date }}">
 
         <div class="card">
-            <table style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive">
+<table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #f8f9fa; text-align: right;">
                         <th style="padding: 1rem; border-bottom: 2px solid #dee2e6;">الرقم الجامعي</th>
@@ -77,6 +78,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
 
         @if($students->count() > 0)

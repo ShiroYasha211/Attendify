@@ -1463,7 +1463,7 @@
                                     }
                                 ],
                                 "url": {
-                                    "raw": "{{base_url}}/api/delegate/attendances/1/2024-05-18",
+                                    "raw": "{{base_url}}/api/delegate/attendances/7",
                                     "host": [
                                         "{{base_url}}"
                                     ],
@@ -1471,11 +1471,10 @@
                                         "api",
                                         "delegate",
                                         "attendances",
-                                        "1",
-                                        "2024-05-18"
+                                        "7"
                                     ]
                                 },
-                                "description": "عرض تفاصيل جلسة حضور محددة (حسب المادة والتاريخ).\nالصيغة: /attendances/{subject_id}/{date}"
+                                "description": "عرض تفاصيل جلسة حضور محددة حسب معرّف المحاضرة.\nالصيغة: /attendances/{lecture_id}\nيتضمن الرد: بيانات المادة + بيانات المحاضرة (عنوان، رقم، أوقات) + سجلات الطلاب."
                             }
                         },
                         {
@@ -1494,7 +1493,7 @@
                                 ],
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n    \"date\": \"2024-05-18\",\n    \"subject_id\": 1,\n    \"students\": [\n        {\"id\": 2, \"status\": \"present\"},\n        {\"id\": 3, \"status\": \"late\"},\n        {\"id\": 4, \"status\": \"absent\"},\n        {\"id\": 5, \"status\": \"excused\"}\n    ]\n}",
+                                    "raw": "{\n    \"date\": \"2024-05-18\",\n    \"subject_id\": 1,\n    \"title\": \"مقدمة في الميكانيكا\",\n    \"lecture_number\": \"1\",\n    \"start_time\": \"08:00\",\n    \"end_time\": \"10:00\",\n    \"students\": [\n        {\"id\": 2, \"status\": \"present\"},\n        {\"id\": 3, \"status\": \"late\"},\n        {\"id\": 4, \"status\": \"absent\"},\n        {\"id\": 5, \"status\": \"excused\"}\n    ]\n}",
                                     "options": {
                                         "raw": {
                                             "language": "json"
@@ -1512,7 +1511,7 @@
                                         "attendances"
                                     ]
                                 },
-                                "description": "تسجيل حضور وغياب الطلاب لمادة في تاريخ محدد.\nstatus: present | absent | late | excused\nملاحظة: لا يمكن تسجيل نفس المادة/التاريخ مرتين."
+                                "description": "تسجيل حضور وغياب الطلاب لمادة في تاريخ محدد.\nالحقول المطلوبة: date, subject_id, title, students\nالحقول الاختيارية: lecture_number, start_time, end_time\nstatus: present | absent | late | excused\nيمكن تسجيل محاضرات متعددة بنفس اليوم بعناوين/أرقام مختلفة.\nيتم إنشاء سجل محاضرة (Lecture) تلقائياً وإشعار الدكتور."
                             }
                         }
                     ]

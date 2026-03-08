@@ -196,34 +196,88 @@
 <div class="card-section">
     <h3 style="font-weight: 800; margin-bottom: 1.5rem; color: var(--text-primary);">تفصيل الدرجات حسب البنود</h3>
     <div class="checklist-breakdown">
-        @foreach($evaluation->scores as $score)
-        <div class="breakdown-item" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="item-desc">{{ $score->checklistItem->description ?? 'بند مجهول' }}</div>
-                <div class="item-score score-{{ $score->score_label }}">
-                    @if($score->score_label == 'done')
-                    أُنجِز بالكامل ({{ $score->marks_obtained }}/{{ $score->checklistItem->marks }})
-                    @elseif($score->score_label == 'partial')
-                    أُنجِز جزئياً ({{ $score->marks_obtained }}/{{ $score->checklistItem->marks }})
+        @php
+            $mainItems = $evaluation->checklist->items->whereNull('parent_id');
+            $scoresMap = $evaluation->scores->keyBy('checklist_item_id');
+        @endphp
+
+        @foreach($mainItems as $mainItem)
+            @php
+                $subItems = $evaluation->checklist->items->where('parent_id', $mainItem->id);
+                $hasSubitems = $subItems->count() > 0;
+                $mainScore = $scoresMap->get($mainItem->id);
+            @endphp
+            
+            <div class="breakdown-item" style="flex-direction: column; align-items: stretch; gap: 0.5rem; {{ $hasSubitems ? 'background: #f8fafc; border: 1.5px solid #cbd5e1; border-right: 4px solid var(--primary-color); padding: 1rem;' : '' }}">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="item-desc" style="{{ $hasSubitems ? 'font-size: 1.05rem; font-weight: 800;' : '' }}">{{ $mainItem->description }}</div>
+                    
+                    @if($hasSubitems)
+                        <div class="item-score" style="color: var(--primary-color);">العلامة القصوى: {{ $mainItem->marks }}</div>
                     @else
-                    لم يُنجَز (0/{{ $score->checklistItem->marks }})
+                        <div class="item-score score-{{ $mainScore->score_label ?? 'not_done' }}">
+                            @if(($mainScore->score_label ?? '') == 'done')
+                                أُنجِز بالكامل ({{ $mainScore->marks_obtained ?? 0 }}/{{ $mainItem->marks }})
+                            @elseif(($mainScore->score_label ?? '') == 'partial')
+                                أُنجِز جزئياً ({{ $mainScore->marks_obtained ?? 0 }}/{{ $mainItem->marks }})
+                            @else
+                                لم يُنجَز (0/{{ $mainItem->marks }})
+                            @endif
+                        </div>
                     @endif
                 </div>
+
+                @if(!$hasSubitems && $mainScore && $mainScore->notes)
+                <div style="background: #f1f5f9; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; color: #475569; display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.5rem;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 0.1rem; color: #64748b;">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <div>
+                        <strong>ملاحظاتك الذاتية:</strong>
+                        <span style="font-style: italic;">"{{ $mainScore->notes }}"</span>
+                    </div>
+                </div>
+                @endif
             </div>
 
-            @if($score->notes)
-            <div style="background: #f1f5f9; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; color: #475569; display: flex; gap: 0.5rem; align-items: flex-start;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 0.1rem; color: #64748b;">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-                <div>
-                    <strong>ملاحظاتك الذاتية:</strong>
-                    <span style="font-style: italic;">"{{ $score->notes }}"</span>
+            @if($hasSubitems)
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; padding-right: 2.5rem; border-right: 2px dashed #e2e8f0; margin-right: 1.5rem; margin-bottom: 1rem;">
+                    @foreach($subItems as $subItem)
+                        @php $subScore = $scoresMap->get($subItem->id); @endphp
+                        <div class="breakdown-item" style="background: white; border: 1px solid #e2e8f0; flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 0.75rem 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div class="item-desc" style="font-size: 0.9rem; color: #475569;">
+                                    <span style="color:#94a3b8; font-weight:bold; margin-left: 0.25rem;">↳</span>
+                                    {{ $subItem->description }}
+                                </div>
+                                <div class="item-score score-{{ $subScore->score_label ?? 'not_done' }}" style="font-size: 0.85rem;">
+                                    @if(($subScore->score_label ?? '') == 'done')
+                                    كامل ({{ $subScore->marks_obtained ?? 0 }}/{{ $subItem->marks }})
+                                    @elseif(($subScore->score_label ?? '') == 'partial')
+                                    جزئي ({{ $subScore->marks_obtained ?? 0 }}/{{ $subItem->marks }})
+                                    @else
+                                    لا (0/{{ $subItem->marks }})
+                                    @endif
+                                </div>
+                            </div>
+                            
+                            @if($subScore && $subScore->notes)
+                            <div style="background: #f1f5f9; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem; color: #475569; display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.25rem;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 0.1rem; color: #64748b;">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                <div>
+                                    <strong>ملاحظة:</strong>
+                                    <span style="font-style: italic;">"{{ $subScore->notes }}"</span>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
-            </div>
             @endif
-        </div>
         @endforeach
     </div>
 </div>

@@ -242,8 +242,12 @@
             </h3>
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                 <div>
-                    <strong>{{ $submission->file_name }}</strong>
-                    <span style="color: var(--text-secondary); font-size: 0.85rem;">({{ $submission->formatted_file_size }})</span>
+                    @if($submission->file_name)
+                        <strong>{{ $submission->file_name }}</strong>
+                        <span style="color: var(--text-secondary); font-size: 0.85rem;">({{ $submission->formatted_file_size }})</span>
+                    @else
+                        <strong style="color: #10b981;">✅ تم الإنجاز (بدون مرفق)</strong>
+                    @endif
                     <div style="font-size: 0.85rem; color: var(--text-secondary);">
                         تم التسليم: {{ $submission->submitted_at->format('Y-m-d H:i') }}
                         @if($submission->isLate())
@@ -278,8 +282,7 @@
         </div>
         @endif
 
-        <!-- Upload Form (only if requires_submission and not overdue) -->
-        @if($assignment->requires_submission)
+        <!-- Upload Form (only if not overdue or re-submitting) -->
         @if(!$assignment->isOverdue() || !$submission)
         <div>
             <h3 class="section-title">
@@ -288,55 +291,53 @@
                     <polyline points="17 8 12 3 7 8"></polyline>
                     <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
-                {{ $submission ? 'إعادة تسليم التكليف' : 'تسليم التكليف' }}
+                {{ $submission ? 'تحديث التسليم' : 'تسليم التكليف' }}
             </h3>
 
             <form action="{{ route('student.assignments.submit', $assignment->id) }}" method="POST" enctype="multipart/form-data" id="submitForm">
                 @csrf
 
-                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click();">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #cbd5e1; margin-bottom: 1rem;">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    <p style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">اضغط لاختيار ملف أو اسحب الملف هنا</p>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary);">PDF أو ZIP • الحد الأقصى 10MB</p>
-                </div>
-
-                <input type="file" name="file" id="fileInput" class="file-input" accept=".pdf,.zip,.rar" required>
-
-                <div id="selectedFile" class="selected-file" style="display: none;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                    </svg>
-                    <div>
-                        <div id="fileName" style="font-weight: 600;"></div>
-                        <div id="fileSize" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                @if($assignment->requires_submission)
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click();">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #cbd5e1; margin-bottom: 1rem;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">اضغط لاختيار ملف أو اسحب الملف هنا</p>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);">PDF أو ZIP • الحد الأقصى 10MB</p>
                     </div>
-                </div>
+
+                    <input type="file" name="file" id="fileInput" class="file-input" accept=".pdf,.zip,.rar" required>
+
+                    <div id="selectedFile" class="selected-file" style="display: none;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <div>
+                            <div id="fileName" style="font-weight: 600;"></div>
+                            <div id="fileSize" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+                        </div>
+                    </div>
+                @else
+                    <div style="background: #f0fdf4; border: 1px dashed #22c55e; border-radius: 12px; padding: 1.5rem; text-align: center; margin-bottom: 1rem;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #22c55e; margin-bottom: 0.5rem;">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <p style="font-weight: 600; color: #166534;">هذا التكليف لا يتطلب ملفاً. يمكنك فقط الضغط على "تحديد كمكتمل".</p>
+                    </div>
+                @endif
 
                 <textarea name="notes" class="notes-input" rows="2" placeholder="ملاحظات إضافية (اختياري)..."></textarea>
 
-                <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                <button type="submit" class="btn-submit" id="submitBtn" {{ $assignment->requires_submission ? 'disabled' : '' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    {{ $submission ? 'إعادة التسليم' : 'تسليم التكليف' }}
+                    {{ $submission ? 'تحديث التسليم' : ($assignment->requires_submission ? 'تسليم التكليف' : 'تحديد كمكتمل') }}
                 </button>
             </form>
-        </div>
-        @endif
-        @else
-        <!-- No submission required message -->
-        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 1.25rem; text-align: center;">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #22c55e; margin-bottom: 0.75rem;">
-                <path d="M9 11l3 3L22 4"></path>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-            </svg>
-            <p style="font-weight: 700; color: #166534; margin-bottom: 0.25rem;">لا يتطلب تسليم ملف</p>
-            <p style="font-size: 0.9rem; color: #16a34a;">هذا التكليف للاطلاع فقط ولا يحتاج إلى رفع أي ملفات</p>
         </div>
         @endif
     </div>

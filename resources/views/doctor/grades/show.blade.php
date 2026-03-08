@@ -395,7 +395,8 @@
             </div>
         </div>
 
-        <table class="grades-table">
+        <div class="table-responsive">
+<table class="grades-table">
             <thead>
                 <tr>
                     <th style="width: 40px;">#</th>
@@ -475,6 +476,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
 
         @if($students->count() > 0)
         <div class="grades-footer">

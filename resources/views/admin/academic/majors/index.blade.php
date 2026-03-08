@@ -317,7 +317,8 @@
     editUrl: '',
     editName: '',
     editCollegeId: '',
-    editHasClinical: false
+    editHasClinical: false,
+    editHasSemesters: false
 }">
 
     <!-- Page Header -->
@@ -491,6 +492,26 @@
                     <small style="display: block; margin-top: 0.5rem; color: #3b82f6; font-size: 0.78rem;">فعّل هذا الخيار إذا كان التخصص يتطلب تدريباً عملياً ويحتاج مندوب عملي</small>
                 </div>
 
+                {{-- Semester System Toggle --}}
+                <div x-data="{ hasSemesters: false }" style="margin-top: 1rem; padding: 0.875rem; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 600; color: #6b21a8; font-size: 0.9rem;">
+                        <input type="checkbox" name="has_semesters" value="1" x-model="hasSemesters" style="width: 18px; height: 18px; accent-color: #a855f7;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"></path>
+                            <path d="M9 2v4"></path>
+                            <path d="M15 2v4"></path>
+                            <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+                            <path d="M2 12h20"></path>
+                        </svg>
+                        يحتوي على نظام سيمسترات (داخل الأترام)
+                    </label>
+                    <div x-show="hasSemesters" x-transition style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #d8b4fe;">
+                        <label for="semesters_per_term" class="form-label" style="color: #6b21a8;">عدد السيمسترات في كل ترم</label>
+                        <input type="number" name="semesters_per_term" id="semesters_per_term" class="form-control" value="0" min="0" max="10" style="border-color: #d8b4fe;">
+                        <small style="display: block; margin-top: 0.5rem; color: #7e22ce; font-size: 0.78rem;">سيتم تقسيم كل ترم إلى هذا العدد من السيمسترات</small>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-submit">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -513,7 +534,8 @@
                 <span class="count-badge">{{ $majors->count() }} تخصص</span>
             </div>
 
-            <table class="modern-table">
+            <div class="table-responsive">
+<table class="modern-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -531,6 +553,9 @@
                             {{ $major->name }}
                             @if($major->has_clinical)
                             <span style="display: inline-flex; align-items: center; gap: 0.2rem; background: #dbeafe; color: #1d4ed8; padding: 0.15rem 0.4rem; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-right: 0.35rem;">🏥 عملي</span>
+                            @endif
+                            @if($major->has_semesters)
+                            <span style="display: inline-flex; align-items: center; gap: 0.2rem; background: #f3e8ff; color: #7e22ce; padding: 0.15rem 0.4rem; border-radius: 5px; font-size: 0.7rem; font-weight: 700; margin-right: 0.35rem;">🗓️ سيمسترات</span>
                             @endif
                         </td>
                         <td>
@@ -567,6 +592,7 @@
                                         editName = '{{ $major->name }}';
                                         editCollegeId = '{{ $major->college_id }}';
                                         editHasClinical = {{ $major->has_clinical ? 'true' : 'false' }};
+                                        editHasSemesters = {{ $major->has_semesters ? 'true' : 'false' }};
                                     ">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -602,6 +628,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
 
     </div>
@@ -648,6 +675,19 @@
                     </svg>
                     يحتوي على تدريب عملي (سريري)
                 </label>
+            </div>
+
+            {{-- Semester System Toggle Edit --}}
+            <div style="margin-top: 1rem; padding: 0.875rem; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px;">
+                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 600; color: #6b21a8; font-size: 0.9rem;">
+                    <input type="checkbox" name="has_semesters" value="1" :checked="editHasSemesters" style="width: 18px; height: 18px; accent-color: #a855f7;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"></path>
+                        <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+                    </svg>
+                    يحتوي على نظام سيمسترات
+                </label>
+                <small style="display: block; margin-top: 0.5rem; color: #7e22ce; font-size: 0.75rem;">تنبيه: تغيير هذا الخيار لن يغير الهيكل المنشأ مسبقاً.</small>
             </div>
 
             <div class="modal-actions">

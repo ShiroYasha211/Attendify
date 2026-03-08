@@ -556,10 +556,12 @@ $groupedSchedules = $schedules->groupBy('day_of_week');
                 <div class="college-info">المستوى: {{ Auth::user()->level->name ?? '-' }}</div>
                 <div class="schedule-title">📅 الجدول الدراسي الأسبوعي</div>
             </div>
-            <table>
+            <div class="table-responsive">
+<table>
                 <thead><tr><th>اليوم</th><th>المادة</th><th>الدكتور</th><th>الوقت</th><th>القاعة</th></tr></thead>
                 <tbody>${tableRows}</tbody>
             </table>
+</div>
             <div class="footer">تم الطباعة بتاريخ: ${new Date().toLocaleDateString('ar-SA')} | نظام إدارة الحضور الجامعي</div>
             <script>window.onload = function() { window.print(); }<\/script>
         </body>

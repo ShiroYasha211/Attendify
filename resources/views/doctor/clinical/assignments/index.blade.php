@@ -480,7 +480,8 @@
                 </h3>
             </div>
             <div style="overflow-x: auto;">
-                <table class="table-modern">
+                <div class="table-responsive">
+<table class="table-modern">
                     <thead>
                         <tr>
                             <th width="5%">#</th>
@@ -533,6 +534,7 @@
                         @endforelse
                     </tbody>
                 </table>
+</div>
             </div>
             @if($assignments->hasPages())<div style="margin-top:1.5rem;">{{ $assignments->links() }}</div>@endif
         </div>

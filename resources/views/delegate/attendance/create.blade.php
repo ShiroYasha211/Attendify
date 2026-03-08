@@ -4,7 +4,7 @@
 
 @section('content')
 
-<div class="container" style="max-width: 100%;">
+<div class="container" style="max-width: 100%;" x-data="attendancePage()" x-cloak>
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
@@ -22,8 +22,12 @@
         </a>
     </div>
 
-    <form action="{{ route('delegate.attendance.store', $subject->id) }}" method="POST">
+    <form id="attendance-form" action="{{ route('delegate.attendance.store', $subject->id) }}" method="POST">
         @csrf
+
+        @if(!empty($prefill['from_qr']))
+        <input type="hidden" name="qr_session_id" value="{{ request('qr_session_id') }}">
+        @endif
 
         <!-- Date Selection Card -->
         <div class="card" style="margin-bottom: 1.5rem;">
@@ -32,7 +36,7 @@
                 <!-- Date Input -->
                 <div style="flex: 1; min-width: 200px;">
                     <label for="date" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">تاريخ المحاضرة:</label>
-                    <input type="date" name="date" id="date" value="{{ date('Y-m-d') }}" required class="form-control" style="width: 100%;">
+                    <input type="date" name="date" id="date" value="{{ $prefill['date'] ?? date('Y-m-d') }}" required class="form-control" style="width: 100%;">
                 </div>
 
                 <!-- Lecture Title Input -->
@@ -50,13 +54,13 @@
                 <!-- Start Time Input (Optional) -->
                 <div style="flex: 0 0 150px;">
                     <label for="start_time" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">وقت البداية: <span style="color: var(--text-secondary); font-size: 0.8rem;">(اختياري)</span></label>
-                    <input type="time" name="start_time" id="start_time" value="{{ old('start_time') }}" class="form-control" style="width: 100%;">
+                    <input type="time" name="start_time" id="start_time" value="{{ $prefill['start_time'] ?? old('start_time') }}" class="form-control" style="width: 100%;">
                 </div>
 
                 <!-- End Time Input (Optional) -->
                 <div style="flex: 0 0 150px;">
                     <label for="end_time" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">وقت الانتهاء: <span style="color: var(--text-secondary); font-size: 0.8rem;">(اختياري)</span></label>
-                    <input type="time" name="end_time" id="end_time" value="{{ old('end_time') }}" class="form-control" style="width: 100%;">
+                    <input type="time" name="end_time" id="end_time" value="{{ $prefill['end_time'] ?? old('end_time') }}" class="form-control" style="width: 100%;">
                 </div>
 
             </div>
@@ -72,6 +76,14 @@
 
                 <!-- Bulk Selection Buttons -->
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" @click="openQrModal()" class="btn btn-sm" style="background: #6366f1; color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                        </svg>
+                        تحضير بـ QR
+                    </button>
                     <button type="button" onclick="selectAll('present')" class="btn btn-sm" style="background: var(--success-color); color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="20 6 9 17 4 12"></polyline>
@@ -101,7 +113,8 @@
             </div>
             @else
             <div class="table-container">
-                <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                <div class="table-responsive">
+<table style="width: 100%; border-collapse: separate; border-spacing: 0;">
                     <thead>
                         <tr style="background-color: #f8fafc; text-align: right;">
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); width: 60px;">#</th>
@@ -156,6 +169,7 @@
                         @endforeach
                     </tbody>
                 </table>
+</div>
             </div>
 
             <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
@@ -187,6 +201,71 @@
             @endif
         </div>
     </form>
+
+    <!-- QR Code Modal (Integrated into Create Page) -->
+    <div x-show="showQrModal" style="display: none;"
+        class="qr-modal-overlay"
+        x-transition.opacity>
+        <div @click.away="closeQrModal()"
+            style="background: white; border-radius: 16px; width: 100%; max-width: 480px; padding: 2rem; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+
+            <!-- QR Active Phase -->
+            <div style="text-align: center;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">تحضير سريع بـ QR</h3>
+                    <button @click="closeQrModal()" style="background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-secondary);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                {{-- Loading State --}}
+                <div x-show="qrLoading" style="padding: 3rem; display: none;">
+                    <div style="color: var(--text-secondary); font-size: 0.95rem;">جاري بدء الجلسة...</div>
+                </div>
+
+                {{-- Active QR State --}}
+                <div x-show="qrActive && !qrLoading" style="display: none;">
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">اعرض الكود للطلاب لمسحه — يتجدد كل 10 ثواني</p>
+
+                    <!-- QR Code Display -->
+                    <div id="qrcode" style="display: flex; justify-content: center; margin-bottom: 1.5rem;"></div>
+
+                    <!-- Timer Bar -->
+                    <div style="height: 4px; background: #e2e8f0; border-radius: 2px; margin-bottom: 1.5rem; overflow: hidden;">
+                        <div style="height: 100%; background: #6366f1; transition: width 0.1s linear;" :style="'width: ' + timerWidth + '%'"></div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" x-text="scannedCount"></div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">حضور</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);" x-text="totalStudents"></div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">إجمالي الطلاب</div>
+                        </div>
+                    </div>
+
+                    <button @click="finalizeQrSession()" class="btn btn-danger" :disabled="qrFinalizing"
+                        style="width: 100%; padding: 0.65rem; font-weight: 600;">
+                        <span x-show="qrFinalizing" style="display: none;">جاري الإنهاء...</span>
+                        <span x-show="!qrFinalizing" style="display: inline;">إنهاء المسح وتعبئة القائمة</span>
+                    </button>
+                </div>
+
+                {{-- Error State --}}
+                <div x-show="qrError" style="padding: 2rem; display: none;">
+                    <div style="color: var(--danger-color); font-size: 0.95rem; margin-bottom: 1rem;" x-text="qrError"></div>
+                    <button @click="showQrModal = false" class="btn btn-secondary">إغلاق</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- Overwrite Confirmation Modal -->
@@ -205,9 +284,25 @@
             <button onclick="confirmOverwrite()" class="btn btn-primary">نعم، استبدال</button>
         </div>
     </div>
-</div>
 
 <style>
+    /* QR Modal Overlay - centered */
+    .qr-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+    .qr-modal-overlay[style*="display: none"] {
+        display: none !important;
+    }
+
     /* Custom Radio Styling */
     .status-label {
         display: inline-block;
@@ -278,7 +373,231 @@
     }
 </style>
 
+<!-- QR Code Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 <script>
+    function attendancePage() {
+        return {
+            showQrModal: false,
+            qrLoading: false,
+            qrActive: false,
+            qrFinalizing: false,
+            qrError: '',
+            sessionId: null,
+            qrObject: null,
+            timerWidth: 100,
+            scannedCount: 0,
+            totalStudents: {{ $students->count() }},
+            tokenInterval: null,
+            statusInterval: null,
+            animationInterval: null,
+
+            openQrModal() {
+                const title = document.getElementById('title').value;
+                if (!title) {
+                    showToast('يرجى إدخال عنوان المحاضرة أولاً ⚠️');
+                    document.getElementById('title').focus();
+                    return;
+                }
+
+                this.showQrModal = true;
+                this.qrError = '';
+                this.qrActive = false;
+                this.qrLoading = true;
+                this.scannedCount = 0;
+
+                this.startQrSession();
+            },
+
+            closeQrModal() {
+                if (this.qrActive) {
+                    if (!confirm('هل أنت متأكد من إغلاق نافذة QR؟ سيتم إيقاف الجلسة.')) return;
+                    this.stopIntervals();
+                }
+                this.showQrModal = false;
+                this.qrActive = false;
+            },
+
+            async startQrSession() {
+                const formData = {
+                    subject_id: '{{ $subject->id }}',
+                    date: document.getElementById('date').value,
+                    title: document.getElementById('title').value,
+                    lecture_number: document.getElementById('lecture_number').value || null,
+                };
+
+                try {
+                    const response = await fetch('/api/qr-attendance/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        this.qrLoading = false;
+                        this.qrError = data.message || 'حدث خطأ ما';
+                        return;
+                    }
+
+                    this.sessionId = data.session_id;
+                    this.qrLoading = false;
+                    this.qrActive = true;
+
+                    // Initialize QR code
+                    this.$nextTick(() => {
+                        const qrContainer = document.getElementById('qrcode');
+                        if (qrContainer) qrContainer.innerHTML = '';
+                        this.qrObject = new QRCode(document.getElementById("qrcode"), {
+                            text: data.token,
+                            width: 256,
+                            height: 256,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+
+                        this.startRotation();
+                        this.startPollingStatus();
+                    });
+
+                } catch (error) {
+                    console.error(error);
+                    this.qrLoading = false;
+                    this.qrError = 'حدث خطأ في الاتصال بالخادم';
+                }
+            },
+
+            startRotation() {
+                let seconds = 10;
+                this.timerWidth = 100;
+
+                // Token rotation every 10 seconds
+                this.tokenInterval = setInterval(async () => {
+                    this.timerWidth = 100;
+                    seconds = 10;
+
+                    try {
+                        const response = await fetch(`/api/qr-attendance/${this.sessionId}/token`);
+                        const data = await response.json();
+
+                        if (response.ok && this.qrObject) {
+                            this.qrObject.clear();
+                            this.qrObject.makeCode(data.token);
+                        }
+                    } catch (e) {
+                        console.error('Failed to rotate token', e);
+                    }
+                }, 10000);
+
+                // Animation interval for progress bar (saved reference for cleanup)
+                this.animationInterval = setInterval(() => {
+                    seconds -= 0.1;
+                    if (seconds < 0) seconds = 0;
+                    this.timerWidth = (seconds / 10) * 100;
+                }, 100);
+            },
+
+            startPollingStatus() {
+                this.statusInterval = setInterval(async () => {
+                    try {
+                        const response = await fetch(`/api/qr-attendance/${this.sessionId}/status`);
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            this.scannedCount = data.scanned_count;
+                            this.totalStudents = data.total_students;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch status', e);
+                    }
+                }, 3000);
+            },
+
+            stopIntervals() {
+                if (this.tokenInterval) clearInterval(this.tokenInterval);
+                if (this.statusInterval) clearInterval(this.statusInterval);
+                if (this.animationInterval) clearInterval(this.animationInterval);
+                this.tokenInterval = null;
+                this.statusInterval = null;
+                this.animationInterval = null;
+            },
+
+            async finalizeQrSession() {
+                if (!confirm('هل أنت متأكد من إنهاء جلسة QR؟ سيتم تعيين الطلاب الذين لم يمسحوا الكود كـ "غائبين" تلقائياً.')) return;
+
+                this.qrFinalizing = true;
+                this.stopIntervals();
+
+                try {
+                    // First finalize the session
+                    const finalizeResponse = await fetch(`/api/qr-attendance/${this.sessionId}/finalize`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    });
+
+                    const finalizeData = await finalizeResponse.json();
+
+                    if (!finalizeResponse.ok) {
+                        this.qrError = finalizeData.message || 'حدث خطأ أثناء الإنهاء';
+                        this.qrFinalizing = false;
+                        this.qrActive = false;
+                        return;
+                    }
+
+                    // Then fetch the final status to update the attendance form
+                    const statusResponse = await fetch(`/api/qr-attendance/${this.sessionId}/status`);
+                    const statusData = await statusResponse.json();
+
+                    if (statusResponse.ok && statusData.students) {
+                        // Update radio buttons based on QR scan results
+                        statusData.students.forEach(student => {
+                            const presentRadio = document.querySelector(`input[name="attendance[${student.id}]"][value="present"]`);
+                            const absentRadio = document.querySelector(`input[name="attendance[${student.id}]"][value="absent"]`);
+
+                            if (student.status === 'present' && presentRadio) {
+                                presentRadio.checked = true;
+                            } else if (absentRadio) {
+                                absentRadio.checked = true;
+                            }
+                        });
+
+                        showToast(`✅ تم تحديث القائمة: ${statusData.scanned_count} حاضر — ${statusData.total_students - statusData.scanned_count} غائب. يمكنك التعديل قبل الحفظ.`);
+                    }
+
+                    // Add hidden field for QR session tracking
+                    let hiddenInput = document.querySelector('input[name="qr_session_id"]');
+                    if (!hiddenInput) {
+                        hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'qr_session_id';
+                        document.getElementById('attendance-form').appendChild(hiddenInput);
+                    }
+                    hiddenInput.value = this.sessionId;
+
+                    // Close modal
+                    this.showQrModal = false;
+                    this.qrActive = false;
+                    this.qrFinalizing = false;
+
+                } catch (error) {
+                    console.error(error);
+                    this.qrError = 'حدث خطأ أثناء الإنهاء';
+                    this.qrFinalizing = false;
+                    this.qrActive = false;
+                }
+            }
+        }
+    }
+
     function selectAll(status) {
         // Get all radio buttons with the specified value
         const radios = document.querySelectorAll('input[type="radio"][value="' + status + '"]');

@@ -380,13 +380,25 @@
             <p style="margin: 0; color: var(--text-primary);">{{ $excuse->reason }}</p>
         </div>
 
+        @if($excuse->doctor_comment)
+        <div style="background: #f8fafc; border-radius: 12px; padding: 1.25rem; border-right: 4px solid var(--primary-color); margin-bottom: 1rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--primary-color); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+                ملاحظتك السابقة
+            </div>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5;">{{ $excuse->doctor_comment }}</p>
+        </div>
+        @endif
+
         <div class="excuse-actions">
             @if($excuse->status == 'pending')
             <form action="{{ route('doctor.excuses.update', $excuse->id) }}" method="POST" style="width: 100%;">
                 @csrf
                 @method('PUT')
                 <div style="margin-bottom: 1rem;">
-                    <textarea name="doctor_comment" placeholder="ملاحظات الطبيب (اختياري)... الإشعار سيصل للطالب" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; resize: vertical; min-height: 60px;"></textarea>
+                    <textarea name="comment" placeholder="ملاحظات الطبيب (اختياري)... الإشعار سيصل للطالب" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; resize: vertical; min-height: 60px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
                     <button type="submit" name="status" value="accepted" class="btn-accept" onclick="return confirm('هل أنت متأكد من قبول العذر؟')" style="flex: 1; justify-content: center;">
@@ -405,11 +417,6 @@
                     </button>
                 </div>
             </form>
-            @elseif($excuse->doctor_comment)
-            <div style="width: 100%; background: #f8fafc; border-radius: 8px; padding: 1rem; border-right: 3px solid var(--primary-color);">
-                <strong>ملاحظة الطبيب:</strong>
-                <p style="margin: 0.5rem 0 0; color: var(--text-secondary); font-size: 0.9rem;">{{ $excuse->doctor_comment }}</p>
-            </div>
             @endif
 
             @if($excuse->attachment)

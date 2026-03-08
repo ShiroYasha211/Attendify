@@ -216,6 +216,16 @@
         <p>إنشاء وإدارة قوائم الفحص المعيارية للتقييم السريري المباشر</p>
     </div>
     <div class="left-side">
+        <form action="{{ route('doctor.clinical.evaluations.checklists.restore') }}" method="POST" style="display: inline;" onsubmit="return confirm('هل أنت متأكد من رغبتك في استرداد القوائم الأساسية المخفية؟');">
+            @csrf
+            <button type="submit" class="btn-primary-action" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <polyline points="3 3 3 8 8 8"></polyline>
+                </svg>
+                استرداد الثوابت
+            </button>
+        </form>
         <a href="{{ route('doctor.clinical.evaluations.checklists.create') }}" class="btn-primary-action">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -254,7 +264,12 @@
     <div class="checklist-grid">
         @forelse($checklists as $cl)
         <div class="checklist-card">
-            <h4>{{ $cl->title }}</h4>
+            <h4 style="display: flex; align-items: center; justify-content: space-between;">
+                {{ $cl->title }}
+                @if(is_null($cl->doctor_id))
+                    <span style="background: #e0e7ff; color: #4338ca; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">أساسي</span>
+                @endif
+            </h4>
             <div class="checklist-meta">
                 <span class="meta-badge skill">{{ $cl->skill_label }}</span>
                 <span class="meta-badge time">⏱ {{ $cl->time_limit_minutes }} دقيقة</span>

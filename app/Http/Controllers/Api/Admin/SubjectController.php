@@ -9,16 +9,19 @@ class SubjectController extends AdminApiController
 {
     public function index(Request $request)
     {
-        $query = Subject::with(['term.level.major', 'doctor']);
+        $query = Subject::with(['term.level.major', 'semester', 'doctor']);
         if ($request->term_id) {
             $query->where('term_id', $request->term_id);
+        }
+        if ($request->semester_id) {
+            $query->where('semester_id', $request->semester_id);
         }
         return $this->success($query->latest()->get());
     }
 
     public function show(Subject $subject)
     {
-        return $this->success($subject->load('term.level.major.college', 'doctor'));
+        return $this->success($subject->load('term.level.major.college', 'semester', 'doctor'));
     }
 
     public function store(Request $request)
@@ -26,6 +29,7 @@ class SubjectController extends AdminApiController
         $request->validate([
             'name' => 'required|string|max:255',
             'term_id' => 'required|exists:terms,id',
+            'semester_id' => 'nullable|exists:semesters,id',
             'doctor_id' => 'nullable|exists:users,id',
             'max_absences' => 'required|integer|min:1',
             'lecture_count' => 'nullable|integer|min:0',
@@ -36,13 +40,14 @@ class SubjectController extends AdminApiController
         $subject = Subject::create([
             'name' => $request->name,
             'term_id' => $term->id,
+            'semester_id' => $request->semester_id,
             'level_id' => $term->level_id,
             'major_id' => $term->level->major_id,
             'doctor_id' => $request->doctor_id,
             'max_absences' => $request->max_absences,
             'lecture_count' => $request->lecture_count ?? 0,
         ]);
-        return $this->success($subject->load('term', 'doctor'), 'تم إنشاء المادة بنجاح', 201);
+        return $this->success($subject->load('term', 'semester', 'doctor'), 'تم إنشاء المادة بنجاح', 201);
     }
 
     public function update(Request $request, Subject $subject)
@@ -50,6 +55,7 @@ class SubjectController extends AdminApiController
         $request->validate([
             'name' => 'required|string|max:255',
             'term_id' => 'required|exists:terms,id',
+            'semester_id' => 'nullable|exists:semesters,id',
             'doctor_id' => 'nullable|exists:users,id',
             'max_absences' => 'required|integer|min:1',
             'lecture_count' => 'nullable|integer|min:0',
@@ -60,6 +66,7 @@ class SubjectController extends AdminApiController
         $subject->update([
             'name' => $request->name,
             'term_id' => $term->id,
+            'semester_id' => $request->semester_id,
             'level_id' => $term->level_id,
             'major_id' => $term->level->major_id,
             'doctor_id' => $request->doctor_id,
@@ -67,7 +74,7 @@ class SubjectController extends AdminApiController
             'lecture_count' => $request->lecture_count ?? 0,
         ]);
 
-        return $this->success($subject->fresh()->load('term', 'doctor'), 'تم تحديث المادة بنجاح');
+        return $this->success($subject->fresh()->load('term', 'semester', 'doctor'), 'تم تحديث المادة بنجاح');
     }
 
     public function destroy(Subject $subject)

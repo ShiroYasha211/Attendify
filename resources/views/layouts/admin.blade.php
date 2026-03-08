@@ -142,6 +142,9 @@
 
     <div class="admin-wrapper">
 
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" :class="{ 'active': sidebarOpen }" @click="sidebarOpen = false"></div>
+
         <!-- Sidebar -->
         <aside class="sidebar" :class="{ 'open': sidebarOpen, 'collapsed': sidebarCollapsed }">
             <div class="sidebar-brand">
@@ -194,6 +197,22 @@
                 </a>
 
                 <div class="nav-group-label" title="إدارة المستخدمين">إدارة المستخدمين</div>
+
+                  <a href="{{ route('admin.registration_requests.index') }}" class="nav-link {{ request()->routeIs('admin.registration_requests.*') ? 'active' : '' }}" title="طلبات إنشاء حساب">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="8.5" cy="7" r="4"></circle>
+                      <line x1="20" y1="8" x2="20" y2="14"></line>
+                      <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
+                    <span>طلبات إنشاء حساب</span>
+                     @php
+                        $pendingCount = \App\Models\User::where('status', 'pending')->count();
+                     @endphp
+                     @if($pendingCount > 0)
+                        <span class="badge" style="background: var(--danger-color); color: white; border-radius: 50%; padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-right: auto;">{{ $pendingCount }}</span>
+                     @endif
+                </a>
 
                 <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" title="كل المستخدمين">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -259,6 +278,44 @@
                     </svg>
                     <span>سجل الأنشطة</span>
                 </a>
+                <a href="{{ route('admin.storage.index') }}" class="nav-link {{ request()->routeIs('admin.storage.*') ? 'active' : '' }}" title="إدارة المساحة">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>إدارة المساحة</span>
+                </a>
+
+                <div class="nav-group-label" title="الثوابت الطبية">الثوابت الطبية</div>
+
+                <a href="{{ route('admin.clinical.departments.index') }}" class="nav-link {{ request()->routeIs('admin.clinical.departments.*') ? 'active' : '' }}" title="الأقسام الطبية (عام)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+                    <span>الأقسام الطبية (عام)</span>
+                </a>
+                <a href="{{ route('admin.clinical.body-systems.index') }}" class="nav-link {{ request()->routeIs('admin.clinical.body-systems.*') ? 'active' : '' }}" title="الأجهزة المرضية (عام)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <span>الأجهزة المرضية (عام)</span>
+                </a>
+                <a href="{{ route('admin.clinical.checklists.index') }}" class="nav-link {{ request()->routeIs('admin.clinical.checklists.*') ? 'active' : '' }}" title="قوائم التقييم (عام)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                        <path d="M8 14h.01"></path>
+                        <path d="M12 14h.01"></path>
+                        <path d="M16 14h.01"></path>
+                        <path d="M8 18h.01"></path>
+                        <path d="M12 18h.01"></path>
+                        <path d="M16 18h.01"></path>
+                    </svg>
+                    <span>قوائم التقييم (عام)</span>
+                </a>
 
                 <div class="nav-group-label" title="أخرى">أخرى</div>
 
@@ -268,6 +325,13 @@
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                     <span>إعدادات النظام</span>
+                </a>
+                <a href="{{ route('admin.profile.password') }}" class="nav-link {{ request()->routeIs('admin.profile.password') ? 'active' : '' }}" title="تغيير كلمة المرور">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>تغيير كلمة المرور</span>
                 </a>
                 <a href="{{ route('admin.about') }}" class="nav-link {{ request()->routeIs('admin.about') ? 'active' : '' }}" title="عن المطور">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

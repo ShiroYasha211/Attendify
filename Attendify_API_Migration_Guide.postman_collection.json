@@ -1,0 +1,776 @@
+{
+    "info": {
+        "_postman_id": "migration-guide-2026-03-04",
+        "name": "Attendify - دليل ترحيل API الحضور (Migration Guide)",
+        "description": "# 📋 دليل تحديث واجهات API الحضور\n\nهذا الملف يوثّق التغييرات التي طرأت على واجهات API الحضور الخاصة بالمندوب.\n\n## لماذا هذا التحديث؟\nتم إعادة هيكلة نظام الحضور ليدعم:\n1. **محاضرات متعددة بنفس اليوم** — تمييز كل محاضرة بعنوان ورقم\n2. **ربط كل تحضير بسجل محاضرة (Lecture)** — لتتبع أفضل\n3. **إشعارات تلقائية للدكتور** — عند رصد الحضور\n4. **جدولة تلقائية للطلاب** — إضافة المحاضرة لجدول دراسة الطالب\n\n## كيفية الاستخدام\n- المجلد الأول (❌ القديم) يحتوي الـ API كما كان قبل التحديث\n- المجلد الثاني (✅ الجديد) يحتوي الـ API بعد التحديث\n- لكل endpoint وصف مفصّل يشرح الفرق بالضبط\n\n## ⚠️ ملاحظات مهمة\n- الحقول الجديدة `title` و `lecture_number` أصبحت مطلوبة في `store`\n- مسار `show` تغيّر من `/{subject_id}/{date}` إلى `/{lecture_id}`\n- الاستجابات (Responses) تحتوي الآن على بيانات المحاضرة إضافية",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{delegate_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "🆕 تسجيل الحسابات (Registration)",
+            "description": "# 🆕 ميزة تسجيل الحسابات وتوحيد الصلاحيات لمطوري الفرونت إند\n\nتمت إضافة مسار برمجي (API Endpoint) عام لا يتطلب التحقق (No Auth) لتمكين المستخدمين (طلاب، مندوبين، دكاترة) من إنشاء تفضيلات حسابات جديدة في النظام.\n\n## 🚀 الميزة الأهم: توحيد الصلاحيات للمندوبين والطلاب\nتم القضاء على فكرة \"إنشاء حساب مندوب ثم حساب طالب مكرر بنفس البيانات\". الآن المندوب يُعامل كطالب بصورة طبيعية في كل مسارات النظام. الحساب الواحد سيظهر تلقائياً في:\n- كشوف تحضير الدكتور.\n- جداول الدرجات.\n- إحصائيات الغياب.\n\n> 💡 **ملاحظة للفرونت إند:** لا داعي لبرمجة شاشات إنشاء حسابات مزدوجة للمندوب. يتم إرسال طلب الإنشاء بصلاحية `delegate` والنظام سيتعرف عليه كطالب ومندوب فوراً.\n\n## مسار إنشاء الحساب الجديد:\n- **المسار:** `POST /api/register`\n- **نوع الطلب:** العام (بلا Token مدعوم مباشرة)\n- **شكل الاستجابة عند النجاح (201):**\n```json\n{\n  \"success\": true,\n  \"message\": \"تم إرسال طلب إنشاء الحساب بنجاح. حسابك الآن قيد المراجعة وسنقوم بإعلامك فور الموافقة عليه.\",\n  \"data\": null\n}\n```",
+            "item": [
+                {
+                    "name": "📝 إنشاء حساب جديد",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"أحمد عبدالله\",\n  \"email\": \"ahmed@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"role\": \"student\",\n  \"student_number\": \"20230001\",\n  \"university_id\": 1,\n  \"college_id\": 1,\n  \"major_id\": 1,\n  \"level_id\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "register"
+                            ]
+                        },
+                        "description": "## 📝 إنشاء حساب جديد (Registration)\n\nيقوم هذا المسار بإنشاء حساب جديد، ويضعه مباشرة في حالة `pending` (قيد المراجعة) إلى أن تقبل الإدارة الطلب.\n\n### 🔐 بارامترات الإرسال (Payload)\nجميع الحسابات تحتاج إلى:\n- `name` (مطلوب)\n- `email` (مطلوب، فريد)\n- `password` (مطلوب، 8 أحرف)\n- `password_confirmation` (مطلوب، مطابق للرقم السري)\n- `role` (مطلوب، القيم المقبولة: `student`, `delegate`, `doctor`)\n\n**اذا كان الـ `role` هو `student` أو `delegate`، فيجب أيضاً إرسال الحقول التالية:**\n- `student_number` (مطلوب، فريد)\n- `university_id` (مطلوب، أرقام ID موجودة)\n- `college_id` (مطلوب)\n- `major_id` (مطلوب)\n- `level_id` (مطلوب)\n\n### 🚨 أنواع الأخطاء المرجعة (422) للـ Validation:\nسيقوم النظام بإرجاع رسائل الخطأ **باللغة العربية** لتتمكن كفرونت إند من عرضها مباشرة للمستخدم بجانب كل حقل.\n\nمثال على الاستجابة للخطأ 422:\n```json\n{\n  \"message\": \"يرجى إدخال بريد إلكتروني صحيح. (and 1 more error)\",\n  \"errors\": {\n    \"email\": [\n      \"البريد الإلكتروني هذا مسجل مسبقاً، يرجى الاسترجاع أو استخدام بريد آخر.\"\n    ],\n    \"student_number\": [\n      \"رقم القيد الجامعي هذا مسجل مسبقاً.\"\n    ]\n  }\n}\n```"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "🔐 الحساب (Profile & Security)",
+            "description": "مسارات تتعلق بإدارة حساب المستخدم الحالي.",
+            "item": [
+                {
+                    "name": "🔑 تغيير كلمة المرور",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"current_password\": \"oldpassword123\",\n    \"password\": \"newpassword123\",\n    \"password_confirmation\": \"newpassword123\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/profile/password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "profile",
+                                "password"
+                            ]
+                        },
+                        "description": "## 🔑 تغيير كلمة المرور (Change Password)\n\nيسمح هذا المسار للمستخدم المسجل الدخول (Auth) بتغيير كلمة المرور الخاصة به. **هذا المسار متاح لجميع الأدوار** (Admin, Doctor, Delegate, Student).\n\n### 🔐 بارامترات الإرسال (Payload)\n- `current_password` (مطلوب، يجب أن تطابق كلمة المرور الحالية)\n- `password` (مطلوب، يجب أن تتكون من 8 أحرف على الأقل)\n- `password_confirmation` (مطلوب، يجب أن تطابق الحقل السابق)\n\n### الاستجابة عند النجاح (200 OK)\n```json\n{\n    \"status\": \"success\",\n    \"message\": \"تم تغيير كلمة المرور بنجاح.\"\n}\n```"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "🔑 صلاحيات الإدارة (Admin Powers)",
+            "description": "مسارات مخصصة للإدارة للتحكم في حسابات المستخدمين (طلاب، مندوبين، دكاترة) ومعالجة المشاكل الطارئة كفقدان كلمة المرور أو اختراق الجلسات.",
+            "item": [
+                {
+                    "name": "🔄 إعادة تعيين كلمة المرور (Admin)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"new_password\": \"securePass123!\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/admin/users/1/reset-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "users",
+                                "1",
+                                "reset-password"
+                            ]
+                        },
+                        "description": "## 🔄 إعادة تعيين كلمة المرور بواسطة الإدارة (Admin Password Reset)\n\nيسمح هذا المسار للأدمن بإعادة تعيين كلمة مرور أي مستخدم في النظام بقوة.\n\n### 🔐 بارامترات الإرسال (Payload)\n- `new_password` (مطلوب، يجب أن تتكون من 8 أحرف على الأقل)\n\n### الاستجابة عند النجاح (200 OK)\n```json\n{\n    \"status\": \"success\",\n    \"message\": \"تم إعادة تعيين كلمة المرور بنجاح للمستخدم اسم_المستخدم\"\n}\n```"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "🚪 طرد من الجلسة (Kick Session)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/admin/users/1/kick",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "users",
+                                "1",
+                                "kick"
+                            ]
+                        },
+                        "description": "## 🚪 الطرد من الجلسة (Kick User from Session)\n\nيسمح هذا المسار للأدمن بطرد أي مستخدم من الجلسة الحالية وتسجيل خروجه فورًا من النظام (عبر الـ Cache و Middleware) لمواجهة اختراق الحسابات أو إيقاف وصول سريع.\n\n### 🔐 لا يوجد بارامترات للإرسال\n\n### الاستجابة عند النجاح (200 OK)\n```json\n{\n    \"status\": \"success\",\n    \"message\": \"تم طرد المستخدم اسم_المستخدم من الجلسة بنجاح.\"\n}\n```"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "❌ القديم (Deprecated) — كيف كان الـ API",
+            "description": "هذا المجلد يوضّح كيف كانت واجهات الحضور **قبل** التحديث.\n\n> ⚠️ هذه الواجهات لم تعد تعمل بنفس الشكل. استخدم المجلد الجديد بدلاً منها.",
+            "item": [
+                {
+                    "name": "📋 List Sessions (القديم)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/attendances",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "attendances"
+                            ]
+                        },
+                        "description": "## ❌ الإصدار القديم\n\n**المسار:** `GET /api/delegate/attendances`\n\n**الاستجابة القديمة:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2024-05-18\",\n      \"subject_id\": 1,\n      \"recorded_by\": 5,\n      \"subject\": { \"id\": 1, \"name\": \"فيزياء\" },\n      \"recorder\": { \"id\": 5, \"name\": \"أحمد\" }\n    }\n  ]\n}\n```\n\n### ❗ المشاكل:\n- لا يوجد `lecture_id` — لا يمكن التمييز بين محاضرتين بنفس اليوم\n- لا يوجد عنوان أو رقم محاضرة\n- التجميع كان بحسب `date + subject_id + recorded_by` فقط"
+                    }
+                },
+                {
+                    "name": "🔍 Show Session Details (القديم)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/attendances/1/2024-05-18",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "attendances",
+                                "1",
+                                "2024-05-18"
+                            ]
+                        },
+                        "description": "## ❌ الإصدار القديم\n\n**المسار القديم:** `GET /api/delegate/attendances/{subject_id}/{date}`\n\n**مثال:** `/api/delegate/attendances/1/2024-05-18`\n\n**الاستجابة القديمة:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"subject\": { \"id\": 1, \"name\": \"فيزياء\" },\n    \"date\": \"2024-05-18\",\n    \"records\": [\n      { \"student_id\": 2, \"status\": \"present\", \"student\": { \"id\": 2, \"name\": \"محمد\" } }\n    ]\n  }\n}\n```\n\n### ❗ المشاكل:\n- المسار يستخدم `subject_id + date` — لا يميّز بين محاضرتين بنفس اليوم\n- لا يُرجع بيانات المحاضرة (عنوان، رقم، أوقات)"
+                    }
+                },
+                {
+                    "name": "💾 Store Attendance (القديم)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"date\": \"2024-05-18\",\n    \"subject_id\": 1,\n    \"students\": [\n        {\"id\": 2, \"status\": \"present\"},\n        {\"id\": 3, \"status\": \"late\"},\n        {\"id\": 4, \"status\": \"absent\"},\n        {\"id\": 5, \"status\": \"excused\"}\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/attendances",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "attendances"
+                            ]
+                        },
+                        "description": "## ❌ الإصدار القديم\n\n**المسار:** `POST /api/delegate/attendances`\n\n**الحقول القديمة:**\n| الحقل | النوع | مطلوب | الوصف |\n|-------|-------|-------|-------|\n| `date` | date | ✅ | تاريخ المحاضرة |\n| `subject_id` | integer | ✅ | معرّف المادة |\n| `students` | array | ✅ | قائمة الطلاب |\n| `students.*.id` | integer | ✅ | معرّف الطالب |\n| `students.*.status` | string | ✅ | present/absent/late/excused |\n\n### ❗ المشاكل:\n1. **لا ينشئ سجل محاضرة (Lecture)** — البيانات غير مرتبطة\n2. **يمنع التحضير مرتين بنفس اليوم لنفس المادة** — حتى لو كانت محاضرة مختلفة\n3. **لا يرسل إشعار للدكتور**\n4. **لا يضيف المحاضرة لجدول دراسة الطالب**\n5. **لا يتحقق من إذن الدكتور** (allow_delegate_attendance)"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "✅ الجديد (Updated) — الـ API المحدّث",
+            "description": "هذا المجلد يحتوي الواجهات **بعد** التحديث.\n\n> ✅ استخدم هذه الواجهات في تطبيق الجوال.",
+            "item": [
+                {
+                    "name": "📋 List Sessions (الجديد)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/attendances",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "attendances"
+                            ]
+                        },
+                        "description": "## ✅ الإصدار الجديد\n\n**المسار:** `GET /api/delegate/attendances` _(لم يتغير)_\n\n**الاستجابة الجديدة:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"subject_id\": 1,\n      \"date\": \"2024-05-18\",\n      \"lecture_id\": 7,\n      \"recorded_by\": 5,\n      \"total_records\": 25,\n      \"subject\": { \"id\": 1, \"name\": \"فيزياء\" },\n      \"recorder\": { \"id\": 5, \"name\": \"أحمد\" },\n      \"lecture\": {\n        \"id\": 7,\n        \"title\": \"مقدمة في الميكانيكا\",\n        \"lecture_number\": \"1\",\n        \"start_time\": \"08:00\",\n        \"end_time\": \"10:00\"\n      }\n    }\n  ]\n}\n```\n\n### 🔄 ما تغيّر:\n- أُضيف `lecture_id` في كل سجل\n- أُضيف كائن `lecture` مع (العنوان، الرقم، الأوقات)\n- التجميع أصبح بحسب `lecture_id` — يدعم محاضرتين بنفس اليوم\n- أُضيف `total_records` لعدد سجلات الحضور"
+                    }
+                },
+                {
+                    "name": "🔍 Show Session Details (الجديد)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/attendances/7",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "attendances",
+                                "7"
+                            ]
+                        },
+                        "description": "## ✅ الإصدار الجديد\n\n**المسار الجديد:** `GET /api/delegate/attendances/{lecture_id}`\n\n**مثال:** `/api/delegate/attendances/7`\n\n### ⚠️ تغيير جذري (Breaking Change)\n| | القديم | الجديد |\n|--|--------|--------|\n| المسار | `/attendances/{subject_id}/{date}` | `/attendances/{lecture_id}` |\n| المعامل | subject_id + date (2 params) | lecture_id (1 param) |\n\n**الاستجابة الجديدة:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"subject\": { \"id\": 1, \"name\": \"فيزياء\" },\n    \"lecture\": {\n      \"id\": 7,\n      \"title\": \"مقدمة في الميكانيكا\",\n      \"lecture_number\": \"1\",\n      \"date\": \"2024-05-18\",\n      \"start_time\": \"08:00\",\n      \"end_time\": \"10:00\"\n    },\n    \"records\": [\n      {\n        \"student_id\": 2,\n        \"status\": \"present\",\n        \"student\": { \"id\": 2, \"name\": \"محمد\", \"university_id\": \"202400123\" }\n      }\n    ]\n  }\n}\n```\n\n### 🔄 ما تغيّر:\n- المسار تغيّر بالكامل — استخدم `lecture_id` من استجابة `List Sessions`\n- أُضيف كائن `lecture` كامل في الاستجابة\n- بدلاً من `date` المنفصل، التاريخ الآن داخل كائن `lecture`"
+                    }
+                },
+                {
+                    "name": "💾 Store Attendance (الجديد)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"date\": \"2024-05-18\",\n    \"subject_id\": 1,\n    \"title\": \"مقدمة في الميكانيكا\",\n    \"lecture_number\": \"1\",\n    \"start_time\": \"08:00\",\n    \"end_time\": \"10:00\",\n    \"students\": [\n        {\"id\": 2, \"status\": \"present\"},\n        {\"id\": 3, \"status\": \"late\"},\n        {\"id\": 4, \"status\": \"absent\"},\n        {\"id\": 5, \"status\": \"excused\"}\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/attendances",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "attendances"
+                            ]
+                        },
+                        "description": "## ✅ الإصدار الجديد\n\n**المسار:** `POST /api/delegate/attendances` _(لم يتغير)_\n\n### حقول الطلب (مقارنة)\n| الحقل | النوع | القديم | الجديد | ملاحظة |\n|-------|-------|--------|--------|--------|\n| `date` | date | ✅ مطلوب | ✅ مطلوب | لم يتغير |\n| `subject_id` | integer | ✅ مطلوب | ✅ مطلوب | لم يتغير |\n| `title` | string | ❌ غير موجود | ✅ **مطلوب** | 🆕 عنوان المحاضرة |\n| `lecture_number` | string | ❌ غير موجود | اختياري | 🆕 رقم المحاضرة |\n| `start_time` | time (HH:mm) | ❌ غير موجود | اختياري | 🆕 وقت البداية |\n| `end_time` | time (HH:mm) | ❌ غير موجود | اختياري | 🆕 وقت الانتهاء |\n| `students` | array | ✅ مطلوب | ✅ مطلوب | لم يتغير |\n| `students.*.id` | integer | ✅ مطلوب | ✅ مطلوب | لم يتغير |\n| `students.*.status` | string | ✅ مطلوب | ✅ مطلوب | لم يتغير |\n\n### استجابة النجاح الجديدة:\n```json\n{\n  \"success\": true,\n  \"message\": \"تم حفظ سجل الحضور والغياب بنجاح\",\n  \"data\": {\n    \"lecture_id\": 7\n  }\n}\n```\n\n### 🔄 ما تغيّر:\n1. ✅ **حقل `title` أصبح مطلوباً** — يجب إضافة حقل إدخال في التطبيق\n2. ✅ **حقول اختيارية جديدة** — `lecture_number`, `start_time`, `end_time`\n3. ✅ **يمكن تسجيل محاضرتين بنفس اليوم** — بعناوين/أرقام مختلفة\n4. ✅ **الاستجابة تُرجع `lecture_id`** — يمكنك استخدامه لاحقاً في `show`\n5. ✅ **ينشئ سجل محاضرة تلقائياً** في جدول `lectures`\n6. ✅ **يرسل إشعار تلقائي للدكتور** بتقرير الحضور\n7. ✅ **يضيف المحاضرة لجدول دراسة الطالب** تلقائياً\n\n### 🛑 أذونات التحضير (تنبيه للفرونت إند):\nإذا قام الدكتور بإغلاق التحضير للمادة، سيعيد هذا الـ API خطأ `403`. \n\n**كيف تتعامل مع هذا في التطبيق (UX)؟**\n1. يجب التحقق من حقل `allow_delegate_attendance` الموجود داخل كائن الـ `Subject` (من مسار جلب المواد `GET /api/delegate/subjects`).\n2. إذا كان `allow_delegate_attendance == 0` (أو `false`): **قم بإخفاء أو تعطيل زر بدء التحضير** لهذه المادة، لكي لا يحاول المندوب التحضير ويتلقى خطأ الـ 403.\n\n### أخطاء محتملة (Error Responses):\n| الكود | السبب |\n|-------|-------|\n| 403 | المادة غير مصرح بها / التحضير مغلق من الدكتور |\n| 409 | تم رصد الحضور لهذه المحاضرة مسبقاً |\n| 422 | حقول مفقودة أو غير صالحة |"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📱 QR Attendance (لم يتغير)",
+            "description": "واجهات الـ QR لم تتغير من ناحية الطلب والاستجابة.\n\n> ℹ️ ملاحظة: هذه الواجهات تستخدم `middleware(['web', 'auth'])` وليس Sanctum، لذا هي مخصصة حالياً لواجهة الويب فقط.",
+            "item": [
+                {
+                    "name": "ℹ️ ملاحظة عن QR API",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/qr-attendance/1/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "qr-attendance",
+                                "1",
+                                "status"
+                            ]
+                        },
+                        "description": "## ℹ️ ملاحظة مهمة\n\nواجهات الـ QR Attendance الحالية:\n- `POST /api/qr-attendance/start` — بدء جلسة\n- `GET /api/qr-attendance/{session}/token` — تدوير الكود\n- `GET /api/qr-attendance/{session}/status` — حالة الجلسة\n- `POST /api/qr-attendance/{session}/finalize` — إنهاء الجلسة\n- `POST /api/qr-attendance/scan` — مسح الكود (للطالب)\n\n### الوضع الحالي:\nهذه المسارات تستخدم `middleware(['web', 'auth'])` وبالتالي:\n- ✅ تعمل بشكل ممتاز من واجهة الويب\n- ❌ **لا تعمل مع Sanctum Bearer Token** من تطبيق الجوال\n\n### الحل المستقبلي:\nإذا أردت تفعيل QR من تطبيق الجوال، يجب:\n1. إنشاء مسارات بديلة بـ `middleware(['auth:sanctum'])`\n2. تحديث الطلبات لتستخدم `delegate_token` بدل session cookies\n\n> 💡 حالياً يتم التحضير بـ QR من الويب فقط، والحفظ النهائي يدوي."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "�‍⚕️ Doctor API (جديد)",
+            "description": "هذا المجلد يحتوي واجهات الحضور الخاصة بالدكتور.\n\n> 🆕 **ملحوظة:** لم يكن هناك API خاص للدكتور لرصد الحضور من قبل (كان يتم من الويب فقط). تمت إضافة هذه الواجهات الآن بنفس هيكلية المندوب لتستخدم في التطبيق.",
+            "item": [
+                {
+                    "name": "📋 List Doctor Sessions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/doctor/attendances",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "doctor",
+                                "attendances"
+                            ]
+                        },
+                        "description": "## ✅ جلب جلسات حضوره (جديد)\n\n**المسار:** `GET /api/doctor/attendances`\n\nنفس هيكل استجابة المندوب تماماً. يجلب جميع تقارير الحضور للمواد التي يُدرّسها الدكتور."
+                    }
+                },
+                {
+                    "name": "🔍 Show Doctor Session Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/doctor/attendances/7",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "doctor",
+                                "attendances",
+                                "7"
+                            ]
+                        },
+                        "description": "## ✅ تفاصيل الجلسة (جديد)\n\n**المسار:** `GET /api/doctor/attendances/{lecture_id}`\n\nنفس هيكل استجابة المندوب تماماً. يُرجع كائن المحاضرة وتفاصيل الطلاب."
+                    }
+                },
+                {
+                    "name": "💾 Store Doctor Attendance",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"date\": \"2024-05-18\",\n    \"subject_id\": 1,\n    \"title\": \"مقدمة في الميكانيكا\",\n    \"lecture_number\": \"1\",\n    \"start_time\": \"08:00\",\n    \"end_time\": \"10:00\",\n    \"students\": [\n        {\"id\": 2, \"status\": \"present\"}\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/doctor/attendances",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "doctor",
+                                "attendances"
+                            ]
+                        },
+                        "description": "## ✅ رصد الغياب للدكتور (جديد)\n\n**المسار:** `POST /api/doctor/attendances`\n\nنفس الحقول المطلوبة للمندوب. يختلف فقط في أنه لا يحتاج `allow_delegate_attendance`، ولا يرسل إشعاراً لنفسه."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🧑‍🎓 Student API (إضافات جديدة)",
+            "description": "هذا المجلد يحتوي الواجهات التي تمت إضافتها مؤخراً لخدمة الطالب بناءً على التحديثات الأكاديمية.\n\n> 🆕 **ملحوظة:** هذه الواجهات مخصصة لتطبيق الطالب.",
+            "item": [
+                {
+                    "name": "📅 الجدول الدراسي للدفعة (Study Schedule)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedules",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedules"
+                            ]
+                        },
+                        "description": "## ✅ جلب الجدول الدراسي للدفعة (Read-Only)\n\n**المسار:** `GET /api/student/schedules`\n\nيُرجع هذا المسار الجدول الدراسي الموحد لدفعة الطالب (بناءً على التخصص والمستوى). الجدول يتم إعداده حصرياً من قبل مندوب الدفعة، وهو للطالب يظهر **للقراءة فقط**.\n\n### الاستجابة (Response):\n```json\n{\n    \"success\": true,\n    \"message\": \"Study schedule retrieved successfully\",\n    \"data\": {\n        \"1\": [\n            {\n                \"id\": 15,\n                \"subject_id\": 2,\n                \"day_of_week\": 1,\n                \"start_time\": \"08:00:00\",\n                \"end_time\": \"10:00:00\",\n                \"hall_name\": \"قاعة 302\",\n                \"subject\": {\n                    \"id\": 2,\n                    \"name\": \"كيمياء عضوية\",\n                    \"doctor\": {\n                        \"id\": 14,\n                        \"name\": \"د. خالد عبدالله\"\n                    }\n                }\n            }\n        ],\n        \"3\": [\n            // ... محاضرات الأربعاء\n        ]\n    }\n}\n```\n\n### 💡 ملاحظات (UX/UI):\n- البيانات مجمعة (Grouped) حسب أيام الأسبوع (`day_of_week` مفاتيح تبدأ من 1 إلى 7).\n- الترقيم: 1 = الإثنين، 2 = الثلاثاء، 3 = الأربعاء، 4 = الخميس، 5 = الجمعة، 6 = السبت، 7 = الأحد.\n- الجدول للعرض فقط، لا تعرض أي أزرار أو خيارات (تعديل، حذف، إضافة) في واجهة الطالب، فهي غير مدعومة برمجياً."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🏥 Clinical Constants API (جديد للدكاترة)",
+            "description": "# 🏥 تخصيص الثوابت السريرية للدكاترة\n\nتمت إضافة مسارات جديدة تسمح للدكتور بإدارة الأقسام الطبية والأجهزة المرضية وقوائم التقييم الخاصة به بحرية، مع إمكانية إخفاء الثوابت العامة للمنظومة (Standard Items).\n\n## 🔄 إسترداد الثوابت العامة (Restore Defaults)\nتتيح هذه المسارات للدكتور إرجاع كافة الثوابت العامة التي قام بمسحها أو التعديل عليها (إخفائها) للظهور مجدداً في حسابه. جميعها تقبل طلب من نوع `POST` وبدون أي Payload:\n- **`POST /api/doctor/clinical/departments/restore`**\n- **`POST /api/doctor/clinical/body-systems/restore`**\n- **`POST /api/doctor/clinical/evaluations/checklists/restore`**\n\n## 1️⃣ مسارات الأقسام الطبية (Clinical Departments):\n- **`GET /api/doctor/clinical/departments`**: يجلب الأقسام العامة + أقسام الدكتور.\n- **`POST /api/doctor/clinical/departments`**: ينشئ قسماً مخصصاً للدكتور.\n- **`PUT /api/doctor/clinical/departments/{id}`**: يحدّث قسماً مخصصاً، أو ينسخ الثابت العام ويخصصه للدكتور مع إخفاء الأساسي.\n- **`DELETE /api/doctor/clinical/departments/{id}`**: يمسح القسم المخصص، أو يخفي الثابت العام من قائمة الدكتور.\n\n## 2️⃣ مسارات الأجهزة المرضية (Body Systems):\n- **`GET /api/doctor/clinical/body-systems`**: يجلب الأجهزة العامة + أجهزة الدكتور.\n- **`POST /api/doctor/clinical/body-systems`**: ينشئ جهازاً مخصصاً للدكتور.\n- **`PUT /api/doctor/clinical/body-systems/{id}`**: يحدّث جهازاً مخصصاً، أو ينسخ الثابت العام ويخصصه للدكتور مع إخفاء الأساسي.\n- **`DELETE /api/doctor/clinical/body-systems/{id}`**: يمسح الجهاز المخصص، أو يخفي الثابت العام من قائمة الدكتور.\n\n## 3️⃣ مسارات قوائم التقييم السريري (Evaluation Checklists):\nنفس الآلية تماماً تنطبق على مسارات الـ Checklists، بالإضافة لميزة أن القوائم الأساسية تعود بخاصية `is_standard: true` من الباك إند.",
+            "item": []
+        },
+        {
+            "name": "📋 عناصر التقييم السريري المتداخلة (جديد)",
+            "description": "# 📋 ميزة قوائم التقييم السريرية المتداخلة\n\nتم تغيير استراتيجية حفظ وتقييم قوائم الفحص السريري (Checklists) لتكون عبارة عن نظام شجري يدعم \"عنصر رئيسي\" يندرج تحته عدة \"عناصر فرعية\".\n\n## ما الذي اختلف في الـ API؟\n\n### 1. الإضافة والتعديل (`POST/PUT checklsts`):\nبدلاً من مصفوفة `items` البسيطة، أصبح يمكن إرسال حقل `sub_items` داخل أي عنصر.\n```json\n{\n  \"items\": [\n    {\n      \"description\": \"الفحص العام\",\n      \"marks\": 10,\n      \"sub_items\": [\n        { \"description\": \"غسل اليدين\", \"marks\": 2 },\n        { \"description\": \"التعريف بالنفس\", \"marks\": 8 }\n      ]\n    },\n    {\n      \"description\": \"عنصر مسطح بدون فرعيات\",\n      \"marks\": 5\n    }\n  ]\n}\n```\n⚠️ **ملاحظة:** سيقوم الـ API برفض الطلب (422) إذا كان مجموع درجات الـ `sub_items` لا يساوي الدرجة الكلية `marks` للعنصر الأب.\n\n### 2. التقييم أثناء الحضور (`POST submit`):\nفي مسار إرسال التقييم للطالب، **يجب تقييم العناصر الفرعية (أوراق الشجرة) فقط**، أو تقييم العناصر الرئيسية التي لا تملك تفرعات، تماماً كما هو موضح بالاستجابة الخاصة ببيانات التشيك ليست.\n```json\n{\n  \"scores\": {\n    \"104\": { \"score\": \"done\", \"notes\": \"\" }, // تقييم فرعي\n    \"105\": { \"score\": \"partial\", \"notes\": \"\" } // تقييم فرعي\n  }\n}\n``` \nلا تقم بإرسال نتيجة التقييم للعنصر الرئيسي إذا كان يملك فرعيات، فسيقوم الخادم بتجاهلها تلقائياً وجلب العلامة من جمع فروعها.",
+            "item": []
+        },
+        {
+            "name": "🏥 التفويض السريري والمراجعة (New)",
+            "description": "# 🏥 نظام التفويض السريري ومراجعة الحالات\n\nتمت إضافة مجموعة من المسارات (Endpoints) الجديدة لتمكين المندوب العملي من تفويض طلاب آخرين (مناديب فرعيين) وإدارة عملية مراجعة الحالات.\n\n## 1️⃣ مسارات المندوب العملي (Delegate Endpoints):\n- **`GET /api/delegate/clinical/delegations`**: عرض قائمة بجميع الطلاب المفوّضين حالياً وتاريخ انتهاء صلاحياتهم.\n- **`GET /api/delegate/clinical/delegations/students`**: جلب قائمة الطلاب المتاحين للتفويض (يتم تصفيتهم تلقائياً بناءً على الجامعة والكلية والتخصص والمستوى ليكونوا من نفس الدفعة).\n- **`POST /api/delegate/clinical/delegations`**: منح صلاحية \"مندوب فرعي\" لطالب معين لفترة زمنية محددة (بالساعات).\n- **`DELETE /api/delegate/clinical/delegations/{id}`**: سحب الصلاحية فوراً من الطالب قبل انتهاء مدتها.\n\n### ⚖️ مراجعة الحالات (Case Review):\n- **`GET /api/delegate/clinical/cases/pending`**: جلب كافة الحالات التي أضافها المناديب الفرعيون وتنتظر المراجعة.\n- **`POST /api/delegate/clinical/cases/{id}/approve`**: اعتماد الحالة لتصبح مرئية للجميع.\n- **`POST /api/delegate/clinical/cases/{id}/reject`**: رفض الحالة مع إرسال سبب الرفض للطالب.\n\n## 2️⃣ مسارات المندوب الفرعي (Sub-Delegate Endpoints):\n- **`GET /api/student/clinical/cases/pending`**: يسمح للطالب (المفوّض) بمتابعة حالاته التي في وضع الانتظار أو التي تم رفضها لمراجعة الأسباب.",
+            "item": [
+                {
+                    "name": "👥 جلب التفويضات الفعالة",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/clinical/delegations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "clinical",
+                                "delegations"
+                            ]
+                        },
+                        "description": "يجلب قائمة بالطلاب الذين لديهم صلاحيات \"مندوب فرعي\" قام المندوب الحالي بمنحهم إياها."
+                    }
+                },
+                {
+                    "name": "🎓 جلب طلاب الدفعة للتفويض",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/clinical/delegations/students",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "clinical",
+                                "delegations",
+                                "students"
+                            ]
+                        },
+                        "description": "يجلب الطلاب المتواجدين في نفس دفعة المندوب الحالي (نفس التخصص والمستوى) ليتم اختيار أحدهم للتفويض."
+                    }
+                },
+                {
+                    "name": "➕ منح تفويض جديد",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"student_id\": 15,\n    \"duration_hours\": 24\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/clinical/delegations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "clinical",
+                                "delegations"
+                            ]
+                        },
+                        "description": "منح صلاحية التفويض السريري لطالب معين. مدة الصلاحية القصوى هي 168 ساعة (أسبوع واحد)."
+                    }
+                },
+                {
+                    "name": "⏳ الحالات المعلقة للمراجعة",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/clinical/cases/pending",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "clinical",
+                                "cases",
+                                "pending"
+                            ]
+                        },
+                        "description": "جلب قائمة بجميع الحالات السريرية التي تمت إضافتها بواسطة المناديب الفرعيين وتنتظر المراجعة والاعتماد."
+                    }
+                },
+                {
+                    "name": "✅ اعتماد حالة سريرية",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/clinical/cases/10/approve",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "clinical",
+                                "cases",
+                                "10",
+                                "approve"
+                            ]
+                        },
+                        "description": "تغيير حالة المراجعة إلى (Approved) لتظهر الحالة في السجل العام."
+                    }
+                },
+                {
+                    "name": "❌ رفض حالة سريرية",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"rejection_reason\": \"يرجى إضافة تفاصيل أكثر عن التاريخ المرضي للحالة.\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/clinical/cases/10/reject",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "clinical",
+                                "cases",
+                                "10",
+                                "reject"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "🗓️ نظام السيمسترات (v2026-03-08)",
+            "description": "# 🗓️ التحديث الأكاديمي: نظام السيمسترات\n\nتم تحديث الهيكل التنظيمي للمواد ليدعم السيمسترات (Semesters) داخل الأترام (Terms). هذا التغيير يؤثر بشكل أساسي على كيفية إنشاء وجلب المواد.\n\n## ما الجديد؟\n1. **حقل `semester_id`**: أصبح متاحاً (واختيارياً لمن لا يستخدم السيمسترات) في عمليات إنشاء وتعديل المواد.\n2. **تداخل العلاقات**: استجابة الـ API للمواد تحتوي الآن على كائن `semester` كامل إذا كانت المادة مرتبطة بسيمستر.\n3. **تصفية إضافية**: يمكن الآن تصفية المواد بواسطة `semester_id` في مسار جلب قائمة المواد.\n\n## 🔄 التغييرات في الـ API:\n- **`GET /api/admin/subjects`**: أضيف بارامتر `semester_id` للتصفية.\n- **`POST /api/admin/subjects`**: أضيف حقل `semester_id` (إلزامي في حالة التخصصات التي تتبع نظام السيمسترات).\n- **`PUT /api/admin/subjects/{id}`**: أضيف حقل `semester_id` للتحديث.",
+            "item": [
+                {
+                    "name": "📋 جلب المواد مع تصفية السيمستر",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/admin/subjects?term_id=1&semester_id=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "query": [
+                                {
+                                    "key": "term_id",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "semester_id",
+                                    "value": "1"
+                                }
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "subjects"
+                            ]
+                        },
+                        "description": "يمكنك الآن إرسال `semester_id` للحصول على مواد سيمستر محدد فقط."
+                    }
+                },
+                {
+                    "name": "💾 إنشاء مادة في سيمستر",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"مادة تجريبية\",\n    \"term_id\": 1,\n    \"semester_id\": 1,\n    \"doctor_id\": 5,\n    \"max_absences\": 3,\n    \"lecture_count\": 12\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/admin/subjects",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "subjects"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📊 ملخص التغييرات",
+            "description": "## ملخص سريع لجميع التغييرات\n\n### تغييرات جذرية (Breaking Changes) ⚠️\n| الواجهة | التغيير |\n|---------|---------|\n| `POST attendances` | حقل `title` أصبح **مطلوباً** |\n| `GET attendances/{subject}/{date}` | المسار تغيّر إلى `attendances/{lecture_id}` |\n| `POST/PUT subjects` | حقل `semester_id` أضيف في الـ Admin API |\n\n### تغييرات إضافية (Non-Breaking) ✅\n| الواجهة | التغيير |\n|---------|---------|\n| `GET subjects` | أُضيف كائن `semester` في الاستجابة (Admin API) |\n| `GET subjects` | بارامتر تصفية جديد `semester_id` |\n| `GET attendances` | أُضيف `lecture_id` + كائن `lecture` في الاستجابة |\n| `POST attendances` | حقول اختيارية جديدة: `lecture_number`, `start_time`, `end_time` |\n| `POST attendances` | الاستجابة تُرجع `lecture_id` |\n\n### سلوكيات وميزات جديدة 🆕\n| السلوك/الميزة | الوصف |\n|--------|-------|\n| نظام السيمسترات | دعم كامل للهيكلية الأكاديمية (سنة -> ترم -> سيمستر -> مادة) |\n| محاضرات متعددة | يمكن تسجيل أكثر من محاضرة بنفس اليوم لنفس المادة |\n| إشعار الدكتور | يتم إرسال إشعار تلقائي للدكتور عند تحضير المندوب |\n| جدولة الطالب | تُضاف المحاضرة تلقائياً لجدول دراسة الطالب |\n| 🛑 أذونات التحضير (UX) | يجب التحقق من حقل `allow_delegate_attendance` للمادة. إذا كان `0` يجب إخفاء زر التحضير في التطبيق |\n| API الدكتور | تمت إضافة جميع واجهات التحضير للدكتور (لم تكن موجودة) |\n| API الطالب | تمت إضافة مسار `/api/student/schedules` لعرض الجدول الدراسي للطالب (Read-Only) |",
+            "item": []
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000",
+            "type": "string"
+        },
+        {
+            "key": "delegate_token",
+            "value": "",
+            "type": "string"
+        }
+    ]
+}

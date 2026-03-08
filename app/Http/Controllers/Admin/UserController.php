@@ -185,4 +185,56 @@ class UserController extends Controller
 
         return back()->with('success', "تم حذف {$count} مستخدم بنجاح.");
     }
+
+    /**
+     * إعادة تعيين كلمة المرور بواسطة الإدارة
+     */
+    public function resetPassword(Request $request, User $user)
+    {
+        $request->validate([
+            'new_password' => 'required|min:8'
+        ]);
+
+        $user->update([
+            'password' => \Illuminate\Support\Facades\Hash::make($request->new_password)
+        ]);
+
+        // Log activity
+        ActivityLog::log(
+            'update',
+            'User',
+            $user->id,
+            $user->name,
+            "إعادة تعيين كلمة المرور للمستخدم: {$user->name}"
+        );
+
+        return back()->with('success', 'تم إعادة تعيين كلمة المرور بنجاح للمستخدم ' . $user->name);
+    }
+
+    /**
+     * طرد المستخدم من الجلسة الحالية
+     */
+    public function kickSession(User $user)
+    {
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'لا يمكنك طرد نفسك من الجلسة!');
+        }
+
+        // Store a flag in the cache for 2 hours
+        \Illuminate\Support\Facades\Cache::put('kick_user_' . $user->id, true, now()->addMinutes(120));
+
+        // Clear remember token to prevent auto-login
+        $user->update(['remember_token' => null]);
+
+        // Log activity
+        ActivityLog::log(
+            'update',
+            'User',
+            $user->id,
+            $user->name,
+            "تم طرد المستخدم من الجلسة: {$user->name}"
+        );
+
+        return back()->with('success', 'تم طرد المستخدم ' . $user->name . ' من الجلسة بنجاح.');
+    }
 }

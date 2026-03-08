@@ -156,6 +156,59 @@
         border-color: var(--primary-color);
     }
 
+    .main-item-block {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .main-item-header {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .sub-items-container {
+        margin-top: 0.75rem;
+        padding-right: 2rem;
+        border-right: 2px dashed #cbd5e1;
+    }
+
+    .sub-item-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        background: white;
+        padding: 0.6rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn-add-sub-item {
+        background: transparent;
+        color: #64748b;
+        border: 1px dashed #cbd5e1;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.5rem;
+        transition: all 0.2s;
+    }
+
+    .btn-add-sub-item:hover {
+        background: white;
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
     .btn-submit {
         background: linear-gradient(135deg, #4f46e5, #6366f1);
         color: white;
@@ -189,7 +242,7 @@
     </div>
 </div>
 
-<form action="{{ isset($checklist) ? route('doctor.clinical.evaluations.checklists.update', $checklist->id) : route('doctor.clinical.evaluations.checklists.store') }}" method="POST">
+<form action="{{ isset($checklist) ? route('doctor.clinical.evaluations.checklists.update', $checklist->id) : route('doctor.clinical.evaluations.checklists.store') }}" method="POST" onsubmit="return validateAllMarks(event)">
     @csrf
     @if(isset($checklist)) @method('PUT') @endif
 
@@ -249,13 +302,13 @@
                 <path d="M9 11l3 3L22 4"></path>
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
             </svg>
-            عناصر التقييم
+            عناصر التقييم الرئيسية والفرعية
             <span id="total-marks-badge" style="margin-right: auto; background: #dbeafe; color: #1e40af; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; font-weight: 800; border: 1px solid #bfdbfe;">إجمالي الدرجات: 0</span>
         </h3>
         <div class="items-container" id="items-container">
             <!-- Items will be added here by JS -->
         </div>
-        <button type="button" class="btn-add-item" onclick="addItem()">+ إضافة عنصر تقييم</button>
+        <button type="button" class="btn-add-item" onclick="addMainItem()">+ إضافة عنصر رئيسي جديد</button>
     </div>
 
     <div style="text-align: left; margin-top: 1rem;">
@@ -273,33 +326,122 @@
 @push('scripts')
 @php $existingItemsJson = isset($checklist) ? $checklist->items->toArray() : []; @endphp
 <script>
-    let itemIndex = 0;
-    const existingItems = @json($existingItemsJson);
+    let mainItemIndex = 0;
+    
+    // We expect existing items to be passed correctly from Edit view if needed
+    // However, for creation, we start empty.
+    const existingItems = @json($existingItemsJson); // Will remain flat or tree depending on backend later
 
-    function addItem(desc = '', marks = 5) {
+    function addMainItem() {
         const container = document.getElementById('items-container');
         const div = document.createElement('div');
-        div.className = 'item-row';
+        div.className = 'main-item-block';
+        div.dataset.index = mainItemIndex;
         div.innerHTML = `
-        <span style="font-weight:700; color:var(--text-secondary); min-width:28px; text-align:center;">${itemIndex + 1}</span>
-        <input type="text" name="items[${itemIndex}][description]" class="form-control" placeholder="وصف عنصر التقييم..." value="${desc}" required>
-        <input type="number" name="items[${itemIndex}][marks]" class="form-control marks-input" placeholder="الدرجة" value="${marks}" min="1" max="100" required>
-        <button type="button" class="btn-remove-item" onclick="this.parentElement.remove(); calculateTotalMarks()">×</button>
-    `;
+            <div class="main-item-header item-row" style="margin-bottom:0; background:white;">
+                <span style="font-weight:700; color:var(--text-secondary); min-width:28px; text-align:center;">${mainItemIndex + 1}</span>
+                <input type="text" name="items[${mainItemIndex}][description]" class="form-control" placeholder="عنوان العنصر الرئيسي..." required>
+                <input type="number" name="items[${mainItemIndex}][marks]" class="form-control marks-input main-mark" placeholder="الدرجة الكلية" min="1" max="100" required>
+                <button type="button" class="btn-remove-item" onclick="this.closest('.main-item-block').remove(); calculateTotalMarks()">×</button>
+            </div>
+            
+            <div class="sub-items-container" id="sub-items-${mainItemIndex}">
+                <!-- Sub items injected here -->
+            </div>
+            
+            <button type="button" class="btn-add-sub-item" onclick="addSubItem(${mainItemIndex})">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                إضافة عنصر فرعي
+            </button>
+        `;
         container.appendChild(div);
-        itemIndex++;
-        calculateTotalMarks(); // Recalculate total marks when an item is added
+        mainItemIndex++;
+        calculateTotalMarks();
+    }
+
+    function addSubItem(parentIndex) {
+        const container = document.getElementById(`sub-items-${parentIndex}`);
+        const subIndex = container.children.length;
+        
+        const div = document.createElement('div');
+        div.className = 'sub-item-row item-row';
+        div.style.marginBottom = '0.5rem';
+        
+        div.innerHTML = `
+            <span style="color:#94a3b8;">↳</span>
+            <input type="text" name="items[${parentIndex}][sub_items][${subIndex}][description]" class="form-control" placeholder="وصف العنصر الفرعي..." style="font-size:0.85rem; padding:0.5rem;" required>
+            <input type="number" name="items[${parentIndex}][sub_items][${subIndex}][marks]" class="form-control marks-input sub-mark-${parentIndex}" placeholder="الدرجة" style="width:70px; font-size:0.85rem; padding:0.5rem;" min="1" max="100" required>
+            <button type="button" class="btn-remove-item" style="width:28px; height:28px; font-size:1rem;" onclick="this.parentElement.remove(); validateSubMarks(${parentIndex})">×</button>
+        `;
+        
+        container.appendChild(div);
     }
 
     function calculateTotalMarks() {
         let total = 0;
-        document.querySelectorAll('.marks-input').forEach(input => {
+        // We only sum up the Main Items to get the checklist total
+        document.querySelectorAll('.main-mark').forEach(input => {
             const val = parseInt(input.value);
-            if (!isNaN(val)) {
-                total += val;
-            }
+            if (!isNaN(val)) total += val;
         });
         document.getElementById('total-marks-badge').textContent = `إجمالي الدرجات: ${total}`;
+    }
+
+    function validateSubMarks(parentIndex) {
+        // Optional Frontend validation: visually hint if submarks != main mark
+        const mainInput = document.querySelector(`input[name="items[${parentIndex}][marks]"]`);
+        let subTotal = 0;
+        document.querySelectorAll(`.sub-mark-${parentIndex}`).forEach(input => {
+            const val = parseInt(input.value);
+            if (!isNaN(val)) subTotal += val;
+        });
+        
+        if(mainInput && document.querySelectorAll(`.sub-mark-${parentIndex}`).length > 0) {
+            if(subTotal !== parseInt(mainInput.value)) {
+                mainInput.style.borderColor = '#ef4444';
+                mainInput.title = `مجموع الفرعيات (${subTotal}) لا يطابق الدرجة الكلية (${mainInput.value})`;
+            } else {
+                mainInput.style.borderColor = '#10b981';
+                mainInput.title = '';
+            }
+        }
+    }
+
+    function validateAllMarks(event) {
+        let isValid = true;
+        let errorMessages = [];
+
+        document.querySelectorAll('.main-item-block').forEach(block => {
+            const parentIndex = block.dataset.index;
+            const mainInput = block.querySelector('.main-mark');
+            const descInput = block.querySelector(`input[name="items[${parentIndex}][description]"]`);
+            const subMarks = block.querySelectorAll(`.sub-mark-${parentIndex}`);
+            
+            if (mainInput && subMarks.length > 0) {
+                let subTotal = 0;
+                subMarks.forEach(input => {
+                    const val = parseInt(input.value);
+                    if (!isNaN(val)) subTotal += val;
+                });
+                
+                const mainTotal = parseInt(mainInput.value);
+                if (subTotal !== mainTotal) {
+                    isValid = false;
+                    const itemName = descInput && descInput.value ? descInput.value : ('رقم ' + (parseInt(parentIndex) + 1));
+                    errorMessages.push(`- العنصر "${itemName}": مجموع الفرعيات (${subTotal}) لا يطابق الدرجة الكلية (${mainTotal}).`);
+                    mainInput.style.borderColor = '#ef4444';
+                } else {
+                    mainInput.style.borderColor = '#10b981';
+                }
+            }
+        });
+
+        if (!isValid) {
+            event.preventDefault();
+            alert("خطأ في توزيع الدرجات:\n\n" + errorMessages.join("\n") + "\n\nالرجاء تصحيح الدرجات المحددة باللون الأحمر قبل الحفظ.");
+            return false;
+        }
+        return true;
     }
 
     function toggleTimerInput() {
@@ -328,20 +470,29 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        if (existingItems.length > 0) {
-            existingItems.forEach(item => addItem(item.description, item.marks));
+        // Fallback or Edit Logic Placeholder
+        if (existingItems && existingItems.length > 0) {
+            // Complex parsing required for nested, covered in Edit view normally
+            // For now just add a main item if empty
+            addMainItem();
         } else {
-            addItem();
+            addMainItem();
         }
 
-        // Listen to score changes manually using event delegation
         document.getElementById('items-container').addEventListener('input', function(e) {
-            if (e.target && e.target.classList.contains('marks-input')) {
+            if (e.target && e.target.classList.contains('main-mark')) {
                 calculateTotalMarks();
+                
+                // Trigger submark validation if it has children
+                const block = e.target.closest('.main-item-block');
+                if(block) validateSubMarks(block.dataset.index);
+                
+            } else if(e.target && e.target.className.includes('sub-mark')) {
+                const block = e.target.closest('.main-item-block');
+                if(block) validateSubMarks(block.dataset.index);
             }
         });
 
-        // Initialize timer toggle view
         toggleTimerInput();
         calculateTotalMarks();
     });

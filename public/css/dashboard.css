@@ -594,3 +594,136 @@ tr:last-child td {
     padding: 0.5rem 1rem;
     background: #f8fafc;
 }
+
+/* ========================================= */
+/* Comprehensive Mobile Responsiveness Base  */
+/* ========================================= */
+
+@media (max-width: 768px) {
+
+    /* 1. Sidebar Off-canvas */
+    .sidebar {
+        position: fixed;
+        left: -280px;
+        /* Hide outside the screen */
+        top: 0;
+        bottom: 0;
+        z-index: 1050;
+        transition: transform 0.3s ease-in-out;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .sidebar.show-sidebar {
+        transform: translateX(280px);
+        /* Bring it into view */
+    }
+
+    /* 2. Main Content Adjustments */
+    .main-content,
+    .main-content.expanded {
+        margin-right: 0 !important;
+        width: 100%;
+        padding: 10px;
+    }
+
+    .container {
+        padding: 5px;
+    }
+
+    /* 3. Cards & Grids */
+    .card {
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Override any flex rows to stack vertically on mobile if they don't fit */
+    .flex-row,
+    .d-flex {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    /* Ensure buttons and inputs take full width on mobile */
+    .btn,
+    .form-control,
+    .select2-container {
+        width: 100% !important;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* 4. Pure CSS Native Table Scrolling */
+    table {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        white-space: nowrap !important;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-color);
+    }
+
+    th,
+    td {
+        padding: 0.75rem 0.5rem;
+        /* Reduce padding to fit more content */
+        font-size: 0.9rem;
+    }
+
+    /* Header & User Menu Area */
+    .top-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: var(--bg-white);
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 1rem;
+        border-radius: var(--radius-md);
+    }
+
+    .hamburger-btn {
+        display: block !important;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--primary-color);
+        cursor: pointer;
+    }
+
+    .user-menu {
+        padding: 0.25rem 0.5rem;
+    }
+
+    .user-name,
+    .user-role {
+        display: none;
+        /* Hide text on mobile, just show avatar */
+    }
+}
+
+/* Sidebar Overlay for Mobile */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1040;
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Hamburger button hidden by default on desktop */
+.hamburger-btn {
+    display: none;
+}

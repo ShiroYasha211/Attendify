@@ -329,7 +329,7 @@
             <div class="alert-title" style="color: #a16207;">تذكير بمهلة تقديم عذر غياب ⏰</div>
             <p class="alert-desc" style="color: #78350f;">اقتربت نهاية مهلة التبرير لغيابك في مادة <strong>{{ $warning->subject->name }}</strong> بتاريخ {{ $warning->date->format('Y-m-d') }}.</p>
         </div>
-        <a href="{{ route('student.attendance.index') }}" style="background: #f59e0b; color: white; padding: 0.5rem 1rem; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">تقديم عذر</a>
+        <a href="{{ route('student.subjects.show', $warning->subject_id) }}" style="background: #f59e0b; color: white; padding: 0.5rem 1rem; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">تقديم عذر</a>
     </div>
     @endforeach
     @endif
@@ -524,15 +524,6 @@
                         </div>
                         <span class="quick-link-text">الجدول</span>
                     </a>
-                    <a href="{{ route('student.attendance.index') }}" class="quick-link">
-                        <div class="quick-link-icon" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #d97706;">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                            </svg>
-                        </div>
-                        <span class="quick-link-text">الحضور</span>
-                    </a>
                     <a href="{{ route('student.exams.index') }}" class="quick-link">
                         <div class="quick-link-icon" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #dc2626;">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -554,6 +545,17 @@
                         </div>
                         <span class="quick-link-text">المحاضرات</span>
                     </a>
+
+                    @if(Auth::user()->isClinicalDelegate() || Auth::user()->isClinicalSubDelegate())
+                    <a href="{{ route('student.clinical.cases.index') }}" class="quick-link">
+                        <div class="quick-link-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                        </div>
+                        <span class="quick-link-text">الحالات السريرية</span>
+                    </a>
+                    @endif
                 </div>
             </div>
         </div>

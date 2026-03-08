@@ -142,6 +142,9 @@
 
     <div class="admin-wrapper">
 
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" :class="{ 'active': sidebarOpen }" @click="sidebarOpen = false"></div>
+
         <!-- Sidebar -->
         <aside class="sidebar" :class="{ 'open': sidebarOpen, 'collapsed': sidebarCollapsed }">
             <div class="sidebar-brand">
@@ -267,6 +270,41 @@
                     <span>تنبيهات الغياب</span>
                 </a>
 
+                @if(Auth::user()->isClinicalDelegate())
+                <div class="nav-group-label" title="القسم العملي">القسم العملي</div>
+
+                <a href="{{ route('delegate.clinical.delegations.index') }}" class="nav-link {{ request()->routeIs('delegate.clinical.delegations.*') ? 'active' : '' }}" title="تفويض الطلاب">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
+                    <span>تفويض الطلاب</span>
+                </a>
+
+                <a href="{{ route('delegate.clinical.cases.index') }}" class="nav-link {{ request()->is('*/clinical/cases') ? 'active' : '' }}" title="الحالات السريرية">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+                    <span>الحالات السريرية</span>
+                </a>
+
+                <a href="{{ route('delegate.clinical.cases.pending') }}" class="nav-link {{ request()->routeIs('delegate.clinical.cases.pending') ? 'active' : '' }}" title="مراجعة الحالات">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    <span>مراجعة الحالات</span>
+                    @php
+                        $pendingCount = \App\Models\Clinical\ClinicalCase::where('approval_status', 'pending')->count();
+                    @endphp
+                    @if($pendingCount > 0)
+                        <span style="background: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 800; margin-right: auto;">{{ $pendingCount }}</span>
+                    @endif
+                </a>
+                @endif
+
                 <div class="nav-group-label" title="التواصل">التواصل</div>
 
                 <a href="{{ route('delegate.messages.index') }}" class="nav-link {{ request()->routeIs('delegate.messages.*') ? 'active' : '' }}" title="رسائل الطلاب">
@@ -292,6 +330,15 @@
                         <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
                     </svg>
                     <span>محادثات الدكاترة</span>
+                </a>
+
+                <div class="nav-group-label" title="الحساب">الحساب</div>
+                <a href="{{ route('delegate.profile.password') }}" class="nav-link {{ request()->routeIs('delegate.profile.password') ? 'active' : '' }}" title="تغيير كلمة المرور">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>تغيير كلمة المرور</span>
                 </a>
 
             </nav>

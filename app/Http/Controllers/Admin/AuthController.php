@@ -28,6 +28,10 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email'    => ['required', 'email'],
             'password' => ['required'],
+        ], [
+            'email.required' => 'حقل البريد الإلكتروني مطلوب.',
+            'email.email' => 'يرجى إدخال بريد إلكتروني صحيح.',
+            'password.required' => 'حقل كلمة المرور مطلوب.',
         ]);
 
         // Rate limiting: 5 محاولات كل دقيقة
@@ -42,11 +46,25 @@ class AuthController extends Controller
         // محاولة تسجيل الدخول
         $remember = $request->boolean('remember');
         if (Auth::attempt($credentials, $remember)) {
+            $user = Auth::user();
+
+            // التحقق من حالة الحساب (يمنع الدخول إذا كان قيد المراجعة أو غير نشط)
+            if ($user->status === 'pending') {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'حسابك قيد المراجعة. يرجى الانتظار حتى يتم اعتماده من الإدارة.',
+                ])->withInput($request->only('email'));
+            }
+
+            if ($user->status === 'inactive') {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'حسابك غير نشط. يرجى مراجعة إدارة النظام.',
+                ])->withInput($request->only('email'));
+            }
+
             \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
             $request->session()->regenerate();
-
-            /** @var \App\Models\User $user */
-            $user = Auth::user();
 
             // تسجيل نشاط تسجيل الدخول
             ActivityLog::log(

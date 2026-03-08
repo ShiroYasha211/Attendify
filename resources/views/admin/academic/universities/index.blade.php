@@ -450,7 +450,8 @@
                 <span class="count-badge">{{ $universities->count() }} جامعة</span>
             </div>
 
-            <table class="modern-table">
+            <div class="table-responsive">
+<table class="modern-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -534,6 +535,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
 
     </div>

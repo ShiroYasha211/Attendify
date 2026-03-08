@@ -74,7 +74,7 @@ class NotificationController extends DelegateApiController
 
         // Validate student belongs to batch
         $student = User::where('id', $request->student_id)
-            ->where('role', UserRole::STUDENT)
+            ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->first();

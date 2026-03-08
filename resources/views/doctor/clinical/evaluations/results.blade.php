@@ -181,7 +181,8 @@
 
 <div class="card-section">
     <div style="overflow-x:auto;">
-        <table class="table-modern">
+        <div class="table-responsive">
+<table class="table-modern">
             <thead>
                 <tr>
                     <th>#</th>
@@ -218,6 +219,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
     </div>
     @if($evaluations->hasPages())<div style="margin-top:1.5rem;">{{ $evaluations->links() }}</div>@endif
 </div>

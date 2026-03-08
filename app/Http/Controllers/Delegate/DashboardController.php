@@ -17,7 +17,7 @@ class DashboardController extends Controller
         $delegate = Auth::user();
 
         // Scope: Same Major and Level
-        $studentsCount = User::where('role', UserRole::STUDENT)
+        $studentsCount = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->count();
@@ -30,7 +30,7 @@ class DashboardController extends Controller
 
 
         // Latest Students
-        $latestStudents = User::where('role', UserRole::STUDENT)
+        $latestStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->latest()
@@ -92,7 +92,7 @@ class DashboardController extends Controller
             : 0;
 
         // Top 5 Absent Students (Most absences overall)
-        $topAbsentStudents = \App\Models\User::where('role', UserRole::STUDENT)
+        $topAbsentStudents = \App\Models\User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->withCount(['attendances as absence_count' => function ($q) {
@@ -106,7 +106,7 @@ class DashboardController extends Controller
         // At-Risk Students (Students with high absence percentage in any subject)
         // Threshold: 20% absence rate = at risk of probation
         $atRiskStudents = collect();
-        $allStudents = \App\Models\User::where('role', UserRole::STUDENT)
+        $allStudents = \App\Models\User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->get()->keyBy('id');

@@ -4,6 +4,7 @@ namespace App\Models\Academic;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Term extends Model
 {
@@ -22,7 +23,15 @@ class Term extends Model
         return $this->belongsTo(Level::class);
     }
 
-    public function subjects()
+    /**
+     * Term has many Semesters.
+     */
+    public function semesters(): HasMany
+    {
+        return $this->hasMany(Semester::class);
+    }
+
+    public function subjects(): HasMany
     {
         return $this->hasMany(Subject::class);
     }

@@ -1,4 +1,9 @@
-@extends('layouts.doctor')
+@php
+    $layout = 'layouts.doctor';
+    if (request()->is('delegate/*')) $layout = 'layouts.delegate';
+    elseif (request()->is('student/*')) $layout = 'layouts.student';
+@endphp
+@extends($layout)
 
 @section('title', 'إدراج حالة سريرية جديدة')
 
@@ -120,7 +125,10 @@
 </div>
 
 <div class="card-section">
-    <form action="{{ route('doctor.clinical.cases.store') }}" method="POST">
+    @php
+        $routePrefix = request()->is('student/*') ? 'student' : (request()->is('delegate/*') ? 'delegate' : 'doctor');
+    @endphp
+    <form action="{{ route($routePrefix . '.clinical.cases.store') }}" method="POST">
         @csrf
 
         <div class="row">
@@ -217,7 +225,7 @@
                 </svg>
                 إدراج الحالة
             </button>
-            <a href="{{ route('doctor.clinical.cases.index') }}" class="btn-cancel">إلغاء</a>
+            <a href="{{ route($routePrefix . '.clinical.cases.index') }}" class="btn-cancel">إلغاء</a>
         </div>
     </form>
 </div>

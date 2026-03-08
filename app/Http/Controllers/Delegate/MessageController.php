@@ -62,7 +62,7 @@ class MessageController extends Controller
         $user = Auth::user();
 
         // Get students in this delegate's level/major
-        $students = User::where('role', 'student')
+        $students = User::whereIn('role', ['student', 'delegate'])
             ->where('major_id', $user->major_id)
             ->where('level_id', $user->level_id)
             ->orderBy('name')
@@ -84,7 +84,7 @@ class MessageController extends Controller
 
         // Verify student is in delegate's level/major
         $student = User::where('id', $request->student_id)
-            ->where('role', 'student')
+            ->whereIn('role', ['student', 'delegate'])
             ->where('major_id', $user->major_id)
             ->where('level_id', $user->level_id)
             ->first();

@@ -188,7 +188,8 @@
     <!-- Toolbar -->
     <div class="d-flex justify-content-between align-items-center mb-4 container no-print" style="max-width: 21cm;">
         <h1 class="h4 fw-bold mb-0">معاينة التقرير</h1>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
+
             <button onclick="window.print()" class="btn btn-primary d-flex align-items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -197,7 +198,7 @@
                 </svg>
                 طباعة
             </button>
-            <a href="{{ route('doctor.reports.index') }}" class="btn btn-outline-secondary">رجوع</a>
+            <a href="{{ route('doctor.dashboard') }}" class="btn btn-outline-secondary">رجوع</a>
         </div>
     </div>
 
@@ -233,7 +234,8 @@
         <h2 class="report-title">تقرير الحضور والغياب والحرمان</h2>
 
         <!-- Subject Meta -->
-        <table class="table" style="margin-bottom: 20px;">
+        <div class="table-responsive">
+<table class="table" style="margin-bottom: 20px;">
             <tr>
                 <th width="15%">المقرر</th>
                 <td width="35%">{{ $subject->name }} ({{ $subject->code }})</td>
@@ -247,10 +249,12 @@
                 <td>{{ $subject->max_absences }} محاضرات</td>
             </tr>
         </table>
+</div>
 
         <!-- Students Table -->
         <div style="flex-grow: 1;">
-            <table class="table">
+            <div class="table-responsive">
+<table class="table">
                 <thead>
                     <tr>
                         <th width="5%">#</th>
@@ -299,6 +303,7 @@
                     @endforelse
                 </tbody>
             </table>
+</div>
         </div>
 
         <!-- Signatures (Pinned to Bottom) -->

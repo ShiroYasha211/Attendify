@@ -305,7 +305,8 @@
         </h3>
     </div>
     <div style="overflow-x: auto;">
-        <table class="table-modern">
+        <div class="table-responsive">
+<table class="table-modern">
             <thead>
                 <tr>
                     <th width="5%">#</th>
@@ -347,6 +348,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
     </div>
     @if($centers->hasPages())<div style="margin-top:1.5rem;">{{ $centers->links() }}</div>@endif
 </div>

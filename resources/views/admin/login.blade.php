@@ -457,10 +457,16 @@
                 </div>
 
                 <!-- Welcome -->
-                <div class="welcome-text">
-                    <h2>مرحباً بعودتك! 👋</h2>
-                    <p>سجّل دخولك للوصول إلى لوحة التحكم</p>
+                <!-- Success Alert -->
+                @if(session('success'))
+                <div class="alert-success" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>{{ session('success') }}</span>
                 </div>
+                @endif
 
                 <!-- Error Alert -->
                 @if($errors->any())
@@ -470,7 +476,7 @@
                         <line x1="12" y1="8" x2="12" y2="12"></line>
                         <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    <span>بيانات الدخول غير صحيحة، حاول مرة أخرى.</span>
+                    <span>{{ $errors->first() }}</span>
                 </div>
                 @endif
 
@@ -521,7 +527,10 @@
                             <input type="checkbox" name="remember">
                             تذكرني
                         </label>
-                        <a href="#" class="forgot-link" onclick="alert('تواصل مع مسؤول النظام لإعادة تعيين كلمة المرور'); return false;">نسيت كلمة المرور؟</a>
+                        <div>
+                            <a href="{{ route('admin.register') }}" class="forgot-link" style="margin-left: 1rem; color: var(--text-secondary);">إنشاء حساب جديد</a>
+                            <a href="#" class="forgot-link" onclick="showForgotModal(); return false;" style="color: var(--text-secondary);">نسيت كلمة المرور؟</a>
+                        </div>
                     </div>
 
                     <!-- Submit -->
@@ -638,7 +647,53 @@
             spinner.style.display = 'inline-block';
         });
     </script>
+    
+    <!-- Forgot Password Modal -->
+    <div id="forgotModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div style="background:#fff; border-radius:16px; width:90%; max-width:400px; padding:2rem; text-align:center; box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: translateY(-20px); transition: all 0.3s ease; opacity: 0;" id="forgotModalContent">
+            <div style="background:rgba(79, 70, 229, 0.1); width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; color:var(--primary-color);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                </svg>
+            </div>
+            <h3 style="font-size:1.25rem; font-weight:700; color:var(--text-primary); margin-bottom:1rem;">نسيت كلمة المرور؟</h3>
+            <p style="color:var(--text-secondary); font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;">
+                لإعادة ضبط كلمة المرور الخاصة بك، يرجى التواصل مع إدارة النظام أو الدعم الفني وتزويدهم برقم القيد أو الإيميل للتحقق من هويتك.
+            </p>
+            <button onclick="closeForgotModal()" style="background:var(--primary-color); color:white; border:none; border-radius:8px; padding:0.75rem 2rem; font-size:1rem; font-family:inherit; font-weight:600; cursor:pointer; width:100%; transition:background 0.2s;">
+                حسناً، فهمت
+            </button>
+        </div>
+    </div>
 
+    <script>
+        function showForgotModal() {
+            const modal = document.getElementById('forgotModal');
+            const content = document.getElementById('forgotModalContent');
+            modal.style.display = 'flex';
+            // Trigger reflow
+            void modal.offsetWidth;
+            content.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+        }
+
+        function closeForgotModal() {
+            const modal = document.getElementById('forgotModal');
+            const content = document.getElementById('forgotModalContent');
+            content.style.opacity = '0';
+            content.style.transform = 'translateY(-20px)';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        // Close on outside click
+        document.getElementById('forgotModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeForgotModal();
+            }
+        });
+    </script>
 </body>
 
 </html>

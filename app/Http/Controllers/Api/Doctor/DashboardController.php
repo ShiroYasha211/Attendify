@@ -24,7 +24,7 @@ class DashboardController extends DoctorApiController
         $subjectIds = $subjects->pluck('id');
 
         // Students count
-        $studentsCount = User::where('role', UserRole::STUDENT)
+        $studentsCount = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where(function ($query) use ($subjects) {
                 foreach ($subjects as $subject) {
                     $query->orWhere(function ($q) use ($subject) {

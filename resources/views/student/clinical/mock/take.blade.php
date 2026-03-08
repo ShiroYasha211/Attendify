@@ -247,38 +247,72 @@
             <input type="hidden" name="time_taken" x-model="timeTaken">
 
             <div class="items-container">
-                @foreach($checklist->items as $idx => $item)
-                <div class="task-item">
-                    <div>
-                        <span style="font-weight:800; color:#4f46e5; margin-left:0.5rem;">{{ $idx + 1 }}.</span>
-                        <span class="t-desc">{{ $item->description }}</span>
-                        <div style="margin-top: 0.5rem;">
-                            <span class="t-max">العلامة القصوى: {{ $item->marks }}</span>
+                @php
+                    $mainItems = $checklist->items->whereNull('parent_id');
+                @endphp
+
+                @foreach($mainItems as $idx => $mainItem)
+                    @php
+                        $subItems = $checklist->items->where('parent_id', $mainItem->id);
+                        $hasSubitems = $subItems->count() > 0;
+                    @endphp
+
+                    <div class="task-item" style="margin-top: {{ $loop->first ? '0' : '1rem' }}; {{ $hasSubitems ? 'background: #f8fafc; border: 1.5px solid #cbd5e1; border-right: 4px solid #4f46e5; border-radius: 12px; margin-inline: 1rem; margin-bottom: 1rem;' : '' }}">
+                        <div>
+                            <span style="font-weight:800; color:#4f46e5; margin-left:0.5rem; font-size: {{ $hasSubitems ? '1.2rem' : '1rem' }};">{{ $loop->iteration }}.</span>
+                            <span class="t-desc" style="{{ $hasSubitems ? 'font-size: 1.15rem; font-weight: 800;' : '' }}">{{ $mainItem->description }}</span>
+                            <div style="margin-top: 0.5rem;">
+                                <span class="t-max" style="{{ $hasSubitems ? 'background: #e0e7ff; color: #3730a3; font-weight: 800;' : '' }}">العلامة القصوى: {{ $mainItem->marks }}</span>
+                            </div>
                         </div>
+
+                        @if(!$hasSubitems)
+                            <div class="scoring-options">
+                                <input type="radio" name="scores[{{ $mainItem->id }}][score]" value="done" id="score_{{ $mainItem->id }}_done" class="score-radio">
+                                <label for="score_{{ $mainItem->id }}_done" class="score-label">أُنجِز بشكل كامل ✅</label>
+
+                                <input type="radio" name="scores[{{ $mainItem->id }}][score]" value="partial" id="score_{{ $mainItem->id }}_partial" class="score-radio">
+                                <label for="score_{{ $mainItem->id }}_partial" class="score-label">أُنجِز جزئياً ⚠️</label>
+
+                                <input type="radio" name="scores[{{ $mainItem->id }}][score]" value="not_done" id="score_{{ $mainItem->id }}_not_done" class="score-radio" checked>
+                                <label for="score_{{ $mainItem->id }}_not_done" class="score-label">لم يُنجَز ❌</label>
+                            </div>
+
+                            <div style="margin-top: 1rem; background: #fafbfe; border-radius: 10px; padding: 0.75rem; border: 1px dashed #cbd5e1;">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #64748b; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                    ملاحظات التقييم (اختياري)
+                                </label>
+                                <input type="text" name="scores[{{ $mainItem->id }}][notes]" placeholder="دون أي ملاحظة تود تذكرها عن أدائك في هذا البند..." style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.9rem;" autocomplete="off">
+                            </div>
+                        @else
+                            <div style="padding-right: 2rem; border-right: 2px dashed #cbd5e1; margin-right: 1rem; margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                                @foreach($subItems as $subItem)
+                                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                            <span style="color:#94a3b8; font-weight:bold;">↳</span>
+                                            <span style="font-size: 1rem; font-weight: 700; color:var(--text-primary);">{{ $subItem->description }}</span>
+                                            <span style="font-size: 0.85rem; color: #64748b; background: #f1f5f9; padding: 0.2rem 0.5rem; border-radius: 6px; margin-right: auto;">العلامة: {{ $subItem->marks }}</span>
+                                        </div>
+
+                                        <div class="scoring-options" style="gap: 0.5rem;">
+                                            <input type="radio" name="scores[{{ $subItem->id }}][score]" value="done" id="score_{{ $subItem->id }}_done" class="score-radio">
+                                            <label for="score_{{ $subItem->id }}_done" class="score-label" style="padding: 0.4rem 1rem; font-size: 0.85rem; min-width: 100px;">كامل ✅</label>
+
+                                            <input type="radio" name="scores[{{ $subItem->id }}][score]" value="partial" id="score_{{ $subItem->id }}_partial" class="score-radio">
+                                            <label for="score_{{ $subItem->id }}_partial" class="score-label" style="padding: 0.4rem 1rem; font-size: 0.85rem; min-width: 100px;">جزئي ⚠️</label>
+
+                                            <input type="radio" name="scores[{{ $subItem->id }}][score]" value="not_done" id="score_{{ $subItem->id }}_not_done" class="score-radio" checked>
+                                            <label for="score_{{ $subItem->id }}_not_done" class="score-label" style="padding: 0.4rem 1rem; font-size: 0.85rem; min-width: 100px;">لا ❌</label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
-
-                    <div class="scoring-options">
-                        <input type="radio" name="scores[{{ $item->id }}][score]" value="done" id="score_{{ $item->id }}_done" class="score-radio">
-                        <label for="score_{{ $item->id }}_done" class="score-label">أُنجِز بشكل كامل ✅</label>
-
-                        <input type="radio" name="scores[{{ $item->id }}][score]" value="partial" id="score_{{ $item->id }}_partial" class="score-radio">
-                        <label for="score_{{ $item->id }}_partial" class="score-label">أُنجِز جزئياً ⚠️</label>
-
-                        <input type="radio" name="scores[{{ $item->id }}][score]" value="not_done" id="score_{{ $item->id }}_not_done" class="score-radio" checked>
-                        <label for="score_{{ $item->id }}_not_done" class="score-label">لم يُنجَز ❌</label>
-                    </div>
-
-                    <div style="margin-top: 1rem; background: #f8fafc; border-radius: 10px; padding: 0.75rem; border: 1px dashed #cbd5e1;">
-                        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #64748b; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                            ملاحظات التقييم (اختياري)
-                        </label>
-                        <input type="text" name="scores[{{ $item->id }}][notes]" placeholder="دون أي ملاحظة تود تذكرها عن أدائك في هذا البند..." style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.9rem;" autocomplete="off">
-                    </div>
-                </div>
                 @endforeach
             </div>
 

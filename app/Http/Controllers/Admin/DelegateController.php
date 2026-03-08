@@ -59,12 +59,13 @@ class DelegateController extends Controller
             'major_id' => $level->major_id,
             'college_id' => $level->major->college_id,
             'university_id' => $level->major->college->university_id,
+            'status' => 'active',
         ]);
 
         $this->logCreate('Delegate', $delegate, "تم إضافة المندوب: {$delegate->name}");
 
         return redirect()->route('admin.delegates.index')
-            ->with('success', 'تم إضافة المندوب بنجاح.');
+            ->with('success', "تم إضافة المندوب بنجاح.");
     }
 
     /**

@@ -29,7 +29,7 @@ class DashboardController extends Controller
         $subjectIds = $subjects->pluck('id');
 
         // جلب الإحصائيات المجمعة للطلاب
-        $studentsCountPerSubject = User::where('role', UserRole::STUDENT)
+        $studentsCountPerSubject = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
@@ -66,7 +66,7 @@ class DashboardController extends Controller
         });
 
         // Calculate total students across all doctor's subjects
-        $uniqueStudentIdsQuery = User::where('role', UserRole::STUDENT)
+        $uniqueStudentIdsQuery = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where(function ($query) use ($subjects) {
                 foreach ($subjects as $subject) {
                     $query->orWhere(function ($q) use ($subject) {
@@ -181,7 +181,7 @@ class DashboardController extends Controller
         }
 
         // Fetch students for this subject (same logic: match major/level)
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['attendances' => function ($query) use ($subject) {

@@ -418,7 +418,8 @@
         </h3>
     </div>
 
-    <table class="report-table">
+    <div class="table-responsive">
+<table class="report-table">
         <thead>
             <tr>
                 <th style="width: 60px;">الترتيب</th>
@@ -490,6 +491,7 @@
             @endforeach
         </tbody>
     </table>
+</div>
 </div>
 
 @endsection

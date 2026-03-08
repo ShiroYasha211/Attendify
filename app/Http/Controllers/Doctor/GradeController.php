@@ -25,7 +25,7 @@ class GradeController extends Controller
             ->get();
 
         // Add student counts
-        $studentsCountPerSubject = User::where('role', UserRole::STUDENT)
+        $studentsCountPerSubject = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
@@ -80,7 +80,7 @@ class GradeController extends Controller
             ->findOrFail($id);
 
         // Base students query with eager-loaded grades and notes (fixes N+1)
-        $studentsQuery = User::where('role', UserRole::STUDENT)
+        $studentsQuery = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with([
@@ -211,7 +211,7 @@ class GradeController extends Controller
             ->findOrFail($id);
 
         // Get all students with grades (eager-loaded — fixes N+1)
-        $students = User::where('role', UserRole::STUDENT)
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['grades' => function ($q) use ($subject) {

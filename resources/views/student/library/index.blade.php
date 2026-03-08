@@ -386,7 +386,8 @@
     {{-- ═══════════════════ TABLE VIEW ═══════════════════ --}}
     @else
     <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
+        <div class="table-responsive">
+<table style="width: 100%; border-collapse: separate; border-spacing: 0;">
             <thead>
                 <tr style="background: #f8fafc;">
                     <th style="padding: 1.25rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem; width: 35%;">اسم الملف</th>
@@ -495,6 +496,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
     </div>
     @if($resources && $resources->hasPages())
     <div style="display: flex; justify-content: center; padding: 1.5rem; border-top: 1px solid #f1f5f9;">
