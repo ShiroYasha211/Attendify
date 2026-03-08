@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\Delegate\AttendanceController as DelegateAttendance
 use App\Http\Controllers\Api\Delegate\NotificationController as DelegateNotificationController;
 use App\Http\Controllers\Api\Delegate\Clinical\SubDelegationController as DelegateSubDelegationController;
 use App\Http\Controllers\Api\Delegate\Clinical\ClinicalCaseController as DelegateClinicalCaseController;
+use App\Http\Controllers\Api\Delegate\StudentController as DelegateStudentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -141,6 +142,8 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('dashboard', [DelegateDashboardController::class, 'index']);
 
     // Academic
+    Route::apiResource('students', DelegateStudentController::class)->names('api.delegate.students');
+    Route::post('students/import', [DelegateStudentController::class, 'import']);
     Route::apiResource('subjects', DelegateSubjectController::class)->only(['index', 'show'])->names('api.delegate.subjects');
     Route::apiResource('schedules', DelegateScheduleController::class)->except(['show'])->names('api.delegate.schedules');
     Route::apiResource('exam-schedules', DelegateExamScheduleController::class)->except(['show'])->names('api.delegate.exam-schedules');

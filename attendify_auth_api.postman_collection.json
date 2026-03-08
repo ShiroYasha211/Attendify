@@ -1,92 +1,108 @@
 {
     "info": {
-        "_postman_id": "attendify-delegate-api-collection",
-        "name": "Attendify - Delegate API",
-        "description": "Professional API collection for Attendify Delegate features. Includes Dashboard, Schedule, Attendance, Assignments, Announcements, and Communication.",
+        "_postman_id": "attendify-auth-api-collection",
+        "name": "Attendify - Authentication & Registration",
+        "description": "Professional API collection for Attendify Authentication and Registration flows. This includes account creation and role-based login/logout for Admin, Student, Delegate, and Doctor.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
         {
-            "name": "1. Dashboard",
-            "request": {
-                "auth": {
-                    "type": "bearer",
-                    "bearer": [
+            "name": "1. Public Access",
+            "item": [
+                {
+                    "name": "Register New Account",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Full Name\",\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"student\",\n    \"student_number\": \"ST123456\",\n    \"university_id\": 1,\n    \"college_id\": 1,\n    \"major_id\": 1,\n    \"level_id\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "register"
+                            ]
+                        },
+                        "description": "Register a new student, doctor, or delegate. Status will be 'pending' initially."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "2. Admin Auth",
+            "item": [
+                {
+                    "name": "Admin Login",
+                    "event": [
                         {
-                            "key": "token",
-                            "value": "{{delegate_token}}",
-                            "type": "string"
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.success && jsonData.data.token) {",
+                                    "    pm.environment.set(\"admin_token\", jsonData.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
                         }
-                    ]
-                },
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "Accept",
-                        "value": "application/json"
-                    }
-                ],
-                "url": {
-                    "raw": "{{base_url}}/api/delegate/dashboard",
-                    "host": [
-                        "{{base_url}}"
                     ],
-                    "path": [
-                        "api",
-                        "delegate",
-                        "dashboard"
-                    ]
-                },
-                "description": "Get comprehensive dashboard data: Stats (Lectures, Alerts, Weekly Rate), Subjects list, Top absent students, and Recent attendance."
-            },
-            "response": []
-        },
-        {
-            "name": "2. Academic",
-            "item": [
-                {
-                    "name": "List Subjects",
                     "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{delegate_token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "GET",
+                        "method": "POST",
                         "header": [
                             {
                                 "key": "Accept",
                                 "value": "application/json"
                             }
                         ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"admin@attendify.com\",\n    \"password\": \"password\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/subjects",
+                            "raw": "{{base_url}}/api/admin/login",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "delegate",
-                                "subjects"
+                                "admin",
+                                "login"
                             ]
                         }
                     },
                     "response": []
                 },
                 {
-                    "name": "Get Schedule",
+                    "name": "Admin Profile (Me)",
                     "request": {
                         "auth": {
                             "type": "bearer",
                             "bearer": [
                                 {
                                     "key": "token",
-                                    "value": "{{delegate_token}}",
+                                    "value": "{{admin_token}}",
                                     "type": "string"
                                 }
                             ]
@@ -99,14 +115,48 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/schedules",
+                            "raw": "{{base_url}}/api/admin/me",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "delegate",
-                                "schedules"
+                                "admin",
+                                "me"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Admin Logout",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{admin_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/admin/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "logout"
                             ]
                         }
                     },
@@ -115,10 +165,177 @@
             ]
         },
         {
-            "name": "3. Student Management",
+            "name": "3. Student Auth",
             "item": [
                 {
-                    "name": "List Students",
+                    "name": "Student Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.success && jsonData.data.token) {",
+                                    "    pm.environment.set(\"student_token\", jsonData.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"student@example.com\",\n    \"password\": \"password\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/student/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "login"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Student Profile (Me)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{student_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "me"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Student Logout",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{student_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "logout"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "4. Delegate Auth",
+            "item": [
+                {
+                    "name": "Delegate Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.success && jsonData.data.token) {",
+                                    "    pm.environment.set(\"delegate_token\", jsonData.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"delegate@example.com\",\n    \"password\": \"password\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "login"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delegate Profile (Me)",
                     "request": {
                         "auth": {
                             "type": "bearer",
@@ -138,22 +355,21 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/students",
+                            "raw": "{{base_url}}/api/delegate/me",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
                                 "delegate",
-                                "students"
+                                "me"
                             ]
-                        },
-                        "description": "Paginated list of students in the delegate's batch."
+                        }
                     },
                     "response": []
                 },
                 {
-                    "name": "Add Student",
+                    "name": "Delegate Logout",
                     "request": {
                         "auth": {
                             "type": "bearer",
@@ -172,43 +388,43 @@
                                 "value": "application/json"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"name\": \"Ahmed Ali\",\n    \"email\": \"ahmed@example.com\",\n    \"student_number\": \"20240001\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\"\n}",
-                            "options": {
-                                "raw": {
-                                    "language": "json"
-                                }
-                            }
-                        },
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/students",
+                            "raw": "{{base_url}}/api/delegate/logout",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
                                 "delegate",
-                                "students"
+                                "logout"
                             ]
                         }
                     },
                     "response": []
-                },
+                }
+            ]
+        },
+        {
+            "name": "5. Doctor Auth",
+            "item": [
                 {
-                    "name": "Update Student",
+                    "name": "Doctor Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.success && jsonData.data.token) {",
+                                    "    pm.environment.set(\"doctor_token\", jsonData.data.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
                     "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{delegate_token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "PATCH",
+                        "method": "POST",
                         "header": [
                             {
                                 "key": "Accept",
@@ -217,7 +433,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Ahmed Ali Updated\",\n    \"email\": \"ahmed_new@example.com\",\n    \"student_number\": \"20240001\"\n}",
+                            "raw": "{\n    \"email\": \"doctor@example.com\",\n    \"password\": \"password\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -225,40 +441,33 @@
                             }
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/students/:student_id",
+                            "raw": "{{base_url}}/api/doctor/login",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "delegate",
-                                "students",
-                                ":student_id"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "student_id",
-                                    "value": "1"
-                                }
+                                "doctor",
+                                "login"
                             ]
                         }
                     },
                     "response": []
                 },
                 {
-                    "name": "Delete Student",
+                    "name": "Doctor Profile (Me)",
                     "request": {
                         "auth": {
                             "type": "bearer",
                             "bearer": [
                                 {
                                     "key": "token",
-                                    "value": "{{delegate_token}}",
+                                    "value": "{{doctor_token}}",
                                     "type": "string"
                                 }
                             ]
                         },
-                        "method": "DELETE",
+                        "method": "GET",
                         "header": [
                             {
                                 "key": "Accept",
@@ -266,35 +475,28 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/students/:student_id",
+                            "raw": "{{base_url}}/api/doctor/me",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "delegate",
-                                "students",
-                                ":student_id"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "student_id",
-                                    "value": "1"
-                                }
+                                "doctor",
+                                "me"
                             ]
                         }
                     },
                     "response": []
                 },
                 {
-                    "name": "Bulk Import Students",
+                    "name": "Doctor Logout",
                     "request": {
                         "auth": {
                             "type": "bearer",
                             "bearer": [
                                 {
                                     "key": "token",
-                                    "value": "{{delegate_token}}",
+                                    "value": "{{doctor_token}}",
                                     "type": "string"
                                 }
                             ]
@@ -306,181 +508,15 @@
                                 "value": "application/json"
                             }
                         ],
-                        "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "csv_file",
-                                    "type": "file",
-                                    "src": []
-                                }
-                            ]
-                        },
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/students/import",
+                            "raw": "{{base_url}}/api/doctor/logout",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
-                                "delegate",
-                                "students",
-                                "import"
-                            ]
-                        }
-                    },
-                    "response": []
-                }
-            ]
-        },
-        {
-            "name": "4. Attendance",
-            "item": [
-                {
-                    "name": "List Attendance Records",
-                    "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{delegate_token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/delegate/attendances",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "delegate",
-                                "attendances"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "Store Attendance (Manual/Bulk)",
-                    "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{delegate_token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"subject_id\": 1,\n    \"lecture_date\": \"2024-03-09\",\n    \"students\": [\n        {\"id\": 10, \"status\": \"present\"},\n        {\"id\": 11, \"status\": \"absent\"}\n    ]\n}",
-                            "options": {
-                                "raw": {
-                                    "language": "json"
-                                }
-                            }
-                        },
-                        "url": {
-                            "raw": "{{base_url}}/api/delegate/attendances",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "delegate",
-                                "attendances"
-                            ]
-                        }
-                    },
-                    "response": []
-                }
-            ]
-        },
-        {
-            "name": "4. Communication",
-            "item": [
-                {
-                    "name": "List Announcements",
-                    "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{delegate_token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/delegate/announcements",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "delegate",
-                                "announcements"
-                            ]
-                        }
-                    },
-                    "response": []
-                },
-                {
-                    "name": "List Inquiries",
-                    "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{delegate_token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/api/delegate/inquiries",
-                            "host": [
-                                "{{base_url}}"
-                            ],
-                            "path": [
-                                "api",
-                                "delegate",
-                                "inquiries"
+                                "doctor",
+                                "logout"
                             ]
                         }
                     },
@@ -496,7 +532,22 @@
             "type": "string"
         },
         {
+            "key": "admin_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "student_token",
+            "value": "",
+            "type": "string"
+        },
+        {
             "key": "delegate_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "doctor_token",
             "value": "",
             "type": "string"
         }
