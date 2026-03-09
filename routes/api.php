@@ -148,11 +148,7 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::post('notifications', [DelegateNotificationController::class, 'store']);
 
     // Academic
-    Route::match(['get', 'post', 'put', 'patch', 'delete'], 'batch/students/{any?}', function (Request $request, $any = null) {
-        $path = 'api/delegate/students' . ($any ? '/' . $any : '');
-        return redirect()->to($path, 307); // 307 preserves method (POST/PATCH)
-    })->where('any', '.*');
-
+    Route::apiResource('batch/students', DelegateStudentController::class)->names('api.delegate.batch.students');
     Route::apiResource('students', DelegateStudentController::class)->names('api.delegate.students');
     Route::post('students/import', [DelegateStudentController::class, 'import']);
     
