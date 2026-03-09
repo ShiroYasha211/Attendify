@@ -147,9 +147,14 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('notifications', [DelegateNotificationController::class, 'index']);
     Route::post('notifications', [DelegateNotificationController::class, 'store']);
 
+    // Basic Connectivity Test
+    Route::get('health-check', function() { return response()->json(['status' => 'ok', 'user' => request()->user()->name]); });
+
     // Academic
-    Route::apiResource('batch/students', DelegateStudentController::class)->names('api.delegate.batch.students');
-    Route::apiResource('students', DelegateStudentController::class)->names('api.delegate.students');
+    Route::get('students', [DelegateStudentController::class, 'index']);
+    Route::post('students', [DelegateStudentController::class, 'store']);
+    Route::patch('students/{student}', [DelegateStudentController::class, 'update']);
+    Route::delete('students/{student}', [DelegateStudentController::class, 'destroy']);
     Route::post('students/import', [DelegateStudentController::class, 'import']);
     
     Route::get('subjects/doctors', [DelegateSubjectController::class, 'doctors']);
