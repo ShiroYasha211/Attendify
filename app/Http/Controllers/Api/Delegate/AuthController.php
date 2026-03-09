@@ -76,4 +76,31 @@ class AuthController extends DelegateApiController
             'user' => $user,
         ], 'تم جلب البيانات بنجاح');
     }
+
+    /**
+     * Change User Password
+     */
+    public function changePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'old_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('بيانات غير صالحة', 422, $validator->errors());
+        }
+
+        $user = $request->user();
+
+        if (!Hash::check($request->old_password, $user->password)) {
+            return $this->error('كلمة المرور القديمة غير صحيحة', 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        return $this->success(null, 'تم تغيير كلمة المرور بنجاح');
+    }
 }

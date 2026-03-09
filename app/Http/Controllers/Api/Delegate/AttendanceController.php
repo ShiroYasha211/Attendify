@@ -213,4 +213,84 @@ class AttendanceController extends DelegateApiController
             'records' => $records
         ], 'تم جلب تفاصيل جلسة الحضور بنجاح');
     }
+
+    /**
+     * Get Absence Alerts (Students absent today + At-risk students).
+     */
+    public function alerts(Request $request)
+    {
+        $delegate = $request->user();
+
+        // 1. Students absent today
+        $absentToday = Attendance::where('date', date('Y-m-d'))
+            ->where('status', 'absent')
+            ->whereHas('student', function ($q) use ($delegate) {
+                $q->where('major_id', $delegate->major_id)
+                  ->where('level_id', $delegate->level_id);
+            })
+            ->with(['student:id,name,avatar,student_number', 'subject:id,name', 'lecture:id,title'])
+            ->latest()
+            ->get();
+
+        // 2. At-Risk Students (> 20% absence rate in any subject)
+        $atRiskStudents = collect();
+        
+        $subjects = Subject::where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->get();
+
+        $allStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+            ->where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->get(['id', 'name', 'avatar', 'student_number']);
+
+        // Grouped stats calculation
+        $totalSessionsQuery = Attendance::whereIn('student_id', $allStudents->pluck('id'))
+            ->whereIn('subject_id', $subjects->pluck('id'))
+            ->select('student_id', 'subject_id', DB::raw('count(*) as total'))
+            ->groupBy('student_id', 'subject_id')
+            ->get();
+
+        $absencesQuery = Attendance::whereIn('student_id', $allStudents->pluck('id'))
+            ->whereIn('subject_id', $subjects->pluck('id'))
+            ->where('status', 'absent')
+            ->select('student_id', 'subject_id', DB::raw('count(*) as absences'))
+            ->groupBy('student_id', 'subject_id')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->student_id . '_' . $item->subject_id;
+            });
+
+        foreach ($totalSessionsQuery as $sessionStat) {
+            $studentId = $sessionStat->student_id;
+            $subjectId = $sessionStat->subject_id;
+            $totalSessions = $sessionStat->total;
+
+            if ($totalSessions >= 3) { // Only calculate for students with at least 3 sessions
+                $absenceKey = $studentId . '_' . $subjectId;
+                $absences = $absencesQuery->has($absenceKey) ? $absencesQuery->get($absenceKey)->absences : 0;
+                $absenceRate = ($absences / $totalSessions) * 100;
+
+                if ($absenceRate >= 20) {
+                    $student = $allStudents->firstWhere('id', $studentId);
+                    $subject = $subjects->firstWhere('id', $subjectId);
+
+                    if ($student && $subject) {
+                        $atRiskStudents->push([
+                            'student' => $student,
+                            'subject' => $subject->only('id', 'name'),
+                            'absence_rate' => round($absenceRate, 1),
+                            'absences' => $absences,
+                            'total_sessions' => $totalSessions
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return $this->success([
+            'absent_today' => $absentToday,
+            'at_risk_students' => $atRiskStudents->sortByDesc('absence_rate')->values()
+        ], 'تم جلب تنبيهات الغياب بنجاح');
+    }
 }

@@ -136,10 +136,15 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
 
     // Auth
     Route::post('logout', [DelegateAuthController::class, 'logout']);
+    Route::post('change-password', [DelegateAuthController::class, 'changePassword']);
     Route::get('me', [DelegateAuthController::class, 'me']);
 
     // Dashboard
     Route::get('dashboard', [DelegateDashboardController::class, 'index']);
+
+    // Notifications & Absence Alerts
+    Route::get('notifications', [DelegateNotificationController::class, 'index']);
+    Route::post('notifications', [DelegateNotificationController::class, 'store']);
 
     // Academic
     Route::apiResource('students', DelegateStudentController::class)->names('api.delegate.students');
@@ -174,9 +179,11 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('inquiries', [DelegateInquiryController::class, 'index']);
     Route::get('inquiries/{inquiry}', [DelegateInquiryController::class, 'show']);
     Route::post('inquiries/{inquiry}/reply', [DelegateInquiryController::class, 'storeReply']);
+    Route::post('inquiries/{inquiry}/forward', [DelegateInquiryController::class, 'forward']);
     Route::patch('inquiries/{inquiry}/status', [DelegateInquiryController::class, 'updateStatus']);
 
     // Tracking
+    Route::get('attendances/alerts', [DelegateAttendanceController::class, 'alerts']);
     Route::get('attendances', [DelegateAttendanceController::class, 'index']);
     Route::post('attendances', [DelegateAttendanceController::class, 'store']);
     Route::get('attendances/{lecture}', [DelegateAttendanceController::class, 'show']);
@@ -240,7 +247,14 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
 
     // Auth & Profile
     Route::post('logout', [StudentAuthController::class, 'logout']);
+    Route::post('change-password', [StudentAuthController::class, 'changePassword']);
     Route::get('me', [StudentAuthController::class, 'me']);
+
+    // Notifications
+    Route::get('notifications', [\App\Http\Controllers\Api\Student\NotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [\App\Http\Controllers\Api\Student\NotificationController::class, 'unreadCount']);
+    Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAsRead']);
+    Route::post('notifications/mark-all-read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAllAsRead']);
 
     // Dashboard
     Route::get('dashboard', [StudentDashboardController::class, 'index']);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Delegate;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\Delegate\DelegateApiController;
+use App\Models\DoctorConversation;
 use App\Models\DoctorMessage;
 use App\Models\User;
 use App\Enums\UserRole;
@@ -19,50 +20,45 @@ class DoctorChatController extends DelegateApiController
     {
         $delegate = $request->user();
 
-        // Get the latest message for each conversation involving the delegate and a doctor
-        $messages = DoctorMessage::where('sender_id', $delegate->id)
-            ->orWhere('receiver_id', $delegate->id)
-            ->with(['sender:id,name,avatar,role', 'receiver:id,name,avatar,role'])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->unique(function ($item) use ($delegate) {
-                return $item->sender_id === $delegate->id ? $item->receiver_id : $item->sender_id;
-            })->values();
+        $conversations = DoctorConversation::where('delegate_id', $delegate->id)
+            ->with(['doctor:id,name,avatar,role', 'lastMessage'])
+            ->orderByDesc('last_message_at')
+            ->get();
 
-        return $this->success($messages, 'تم جلب المحادثات مع الدكاترة بنجاح');
+        return $this->success($conversations, 'تم جلب المحادثات مع الدكاترة بنجاح');
     }
 
     /**
-     * Display the specified conversation with a specific doctor.
+     * Display the specified conversation with messages.
      */
-    public function show(Request $request, string $doctorId)
+    public function show(Request $request, string $id)
     {
         $delegate = $request->user();
 
-        $doctor = User::find($doctorId);
-        if (!$doctor || $doctor->role !== UserRole::DOCTOR) {
-            return $this->error('الدكتور غير موجود', 404);
+        $conversation = DoctorConversation::where('delegate_id', $delegate->id)
+            ->with('doctor:id,name,avatar,role')
+            ->find($id);
+
+        if (!$conversation) {
+            // Check if $id is doctorId (fallback)
+            $conversation = DoctorConversation::where('delegate_id', $delegate->id)
+                ->where('doctor_id', $id)
+                ->first();
+            
+            if (!$conversation) {
+                return $this->error('المحادثة غير موجودة', 404);
+            }
         }
 
-        $messages = DoctorMessage::where(function ($query) use ($delegate, $doctorId) {
-            $query->where('sender_id', $delegate->id)
-                ->where('receiver_id', $doctorId);
-        })
-            ->orWhere(function ($query) use ($delegate, $doctorId) {
-                $query->where('sender_id', $doctorId)
-                    ->where('receiver_id', $delegate->id);
-            })
-            ->with(['sender:id,name,avatar,role', 'receiver:id,name,avatar,role'])
-            ->orderBy('created_at', 'asc')
-            ->get();
+        // Mark as read
+        $conversation->markAsReadFor($delegate->id);
 
-        // Mark unread messages as read
-        DoctorMessage::where('sender_id', $doctorId)
-            ->where('receiver_id', $delegate->id)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+        $messages = $conversation->messages()->with('sender:id,name,avatar,role')->get();
 
-        return $this->success($messages, 'تم جلب رسائل المحادثة بنجاح');
+        return $this->success([
+            'conversation' => $conversation,
+            'messages' => $messages
+        ], 'تم جلب رسائل المحادثة بنجاح');
     }
 
     /**
@@ -73,7 +69,8 @@ class DoctorChatController extends DelegateApiController
         $delegate = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'receiver_id' => 'required|exists:users,id',
+            'doctor_id' => 'required_without:conversation_id|exists:users,id',
+            'conversation_id' => 'required_without:doctor_id|exists:doctor_conversations,id',
             'content' => 'required|string',
         ]);
 
@@ -81,22 +78,33 @@ class DoctorChatController extends DelegateApiController
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
-        // Validate receiver is a doctor
-        $receiver = User::where('id', $request->receiver_id)
-            ->where('role', UserRole::DOCTOR)
-            ->first();
+        if ($request->conversation_id) {
+            $conversation = DoctorConversation::where('delegate_id', $delegate->id)->find($request->conversation_id);
+        } else {
+            // Start or continue conversation
+            $doctor = User::where('id', $request->doctor_id)
+                ->where('role', UserRole::DOCTOR)
+                ->first();
 
-        if (!$receiver) {
-            return $this->error('لا يمكنك مراسلة هذا المستخدم', 403);
+            if (!$doctor) {
+                return $this->error('الدكتور غير موجود', 404);
+            }
+
+            $conversation = DoctorConversation::getOrCreate($delegate->id, $doctor->id);
+        }
+
+        if (!$conversation) {
+            return $this->error('المحادثة غير موجودة', 404);
         }
 
         $message = DoctorMessage::create([
+            'conversation_id' => $conversation->id,
             'sender_id' => $delegate->id,
-            'receiver_id' => $request->receiver_id,
-            'content' => $request->content,
-            'is_read' => false,
+            'body' => $request->content,
         ]);
 
-        return $this->success($message->load(['sender:id,name,avatar,role', 'receiver:id,name,avatar,role']), 'تم إرسال الرسالة بنجاح', 201);
+        $conversation->update(['last_message_at' => now()]);
+
+        return $this->success($message->load('sender:id,name,avatar,role'), 'تم إرسال الرسالة بنجاح', 201);
     }
 }

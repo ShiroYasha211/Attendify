@@ -41,6 +41,20 @@ class AssignmentObserver
                     'status' => 'pending',
                 ]
             );
+
+            // Notify student
+            if ($student->id !== $assignment->created_by) {
+                StudentNotification::create([
+                    'user_id' => $student->id,
+                    'type'    => 'assignment',
+                    'title'   => 'تكليف جديد',
+                    'message' => "تم إضافة تكليف جديد في مادة {$subject->name}: {$assignment->title}",
+                    'data'    => [
+                        'assignment_id' => $assignment->id,
+                        'subject_id'    => $subject->id,
+                    ],
+                ]);
+            }
         }
     }
 

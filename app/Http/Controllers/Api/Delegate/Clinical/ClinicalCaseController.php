@@ -5,10 +5,11 @@ namespace App\Http\Controllers\Api\Delegate\Clinical;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Clinical\ClinicalCase;
+use App\Http\Controllers\Api\Delegate\DelegateApiController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
-class ClinicalCaseController extends Controller
+class ClinicalCaseController extends DelegateApiController
 {
     /**
      * List all clinical cases specifically awaiting review (pending).
@@ -20,10 +21,7 @@ class ClinicalCaseController extends Controller
             ->latest()
             ->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $cases
-        ]);
+        return $this->success($cases, 'تم جلب الحالات بانتظار الاعتماد بنجاح');
     }
 
     /**
@@ -34,10 +32,7 @@ class ClinicalCaseController extends Controller
         $case = ClinicalCase::findOrFail($id);
 
         if ($case->approval_status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'message' => 'هذه الحالة ليست في وضع الانتظار حالياً.'
-            ], 400);
+            return $this->error('هذه الحالة ليست في وضع الانتظار حالياً.', 400);
         }
 
         $case->update([
@@ -45,10 +40,7 @@ class ClinicalCaseController extends Controller
             'approved_by' => Auth::id()
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم اعتماد الحالة بنجاح وهي الآن متاحة للجميع.'
-        ]);
+        return $this->success(null, 'تم اعتماد الحالة بنجاح وهي الآن متاحة للجميع.');
     }
 
     /**
@@ -59,10 +51,7 @@ class ClinicalCaseController extends Controller
         $case = ClinicalCase::findOrFail($id);
 
         if ($case->approval_status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'message' => 'هذه الحالة ليست في وضع الانتظار حالياً.'
-            ], 400);
+            return $this->error('هذه الحالة ليست في وضع الانتظار حالياً.', 400);
         }
 
         $validator = Validator::make($request->all(), [
@@ -70,10 +59,7 @@ class ClinicalCaseController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
         $case->update([
@@ -81,9 +67,6 @@ class ClinicalCaseController extends Controller
             'rejection_reason' => $request->rejection_reason
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم رفض الحالة وإرسال الملاحظات إلى الطالب.'
-        ]);
+        return $this->success(null, 'تم رفض الحالة وإرسال الملاحظات إلى الطالب.');
     }
 }

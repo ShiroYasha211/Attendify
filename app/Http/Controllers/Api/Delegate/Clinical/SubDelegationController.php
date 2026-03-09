@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Clinical\ClinicalSubDelegation;
+use App\Http\Controllers\Api\Delegate\DelegateApiController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
-class SubDelegationController extends Controller
+class SubDelegationController extends DelegateApiController
 {
     /**
      * List active and recent delegations created by the current delegate.
@@ -23,10 +24,7 @@ class SubDelegationController extends Controller
             ->latest()
             ->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $subDelegations
-        ]);
+        return $this->success($subDelegations, 'تم جلب التفوِيضات بنجاح');
     }
 
     /**
@@ -44,10 +42,7 @@ class SubDelegationController extends Controller
             ->where('level_id', $delegator->level_id)
             ->get(['id', 'name', 'university_id', 'major_id', 'level_id']);
 
-        return response()->json([
-            'success' => true,
-            'data' => $students
-        ]);
+        return $this->success($students, 'تم جلب قائمة الطلاب بنجاح');
     }
 
     /**
@@ -61,10 +56,7 @@ class SubDelegationController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
         $delegator = Auth::user();
@@ -77,10 +69,7 @@ class SubDelegationController extends Controller
             $student->major_id !== $delegator->major_id ||
             $student->level_id !== $delegator->level_id
         ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'عذراً لا يمكنك منح صلاحية لطالب من دفعة أو تخصص مختلف.'
-            ], 403);
+            return $this->error('عذراً لا يمكنك منح صلاحية لطالب من دفعة أو تخصص مختلف.', 403);
         }
 
         $exists = ClinicalSubDelegation::where('delegator_id', $delegator->id)
@@ -92,10 +81,7 @@ class SubDelegationController extends Controller
             })->exists();
 
         if ($exists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'هذا الطالب لديه صلاحية فعالة حالياً ولم تنتهي بعد.'
-            ], 400);
+            return $this->error('هذا الطالب لديه صلاحية فعالة حالياً ولم تنتهي بعد.', 400);
         }
 
         $delegation = ClinicalSubDelegation::create([
@@ -105,11 +91,7 @@ class SubDelegationController extends Controller
             'is_revoked' => false,
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم منح الصلاحية كـ (مندوب فرعي) للطالب بنجاح.',
-            'data' => $delegation->load('student')
-        ], 201);
+        return $this->success($delegation->load('student'), 'تم منح الصلاحية كـ (مندوب فرعي) للطالب بنجاح.', 201);
     }
 
     /**
@@ -122,9 +104,6 @@ class SubDelegationController extends Controller
 
         $delegation->update(['is_revoked' => true]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم سحب الصلاحية من الطالب وإيقافه فوراً.'
-        ]);
+        return $this->success(null, 'تم سحب الصلاحية من الطالب وإيقافه فوراً.');
     }
 }

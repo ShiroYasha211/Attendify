@@ -22,12 +22,29 @@ class InquiryController extends DelegateApiController
             ->where('level_id', $delegate->level_id)
             ->pluck('id');
 
-        $inquiries = Inquiry::whereIn('subject_id', $subjectIds)
+        $query = Inquiry::whereIn('subject_id', $subjectIds)
             ->with(['student:id,name', 'subject:id,name'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('created_at', 'desc');
 
-        return $this->success($inquiries, 'تم جلب الاستفسارات بنجاح');
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $inquiries = $query->get();
+
+        // Statistics
+        $stats = [
+            'total' => Inquiry::whereIn('subject_id', $subjectIds)->count(),
+            'pending' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'pending')->count(),
+            'forwarded' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'forwarded')->count(),
+            'answered' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'answered')->count(),
+            'closed' => Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'closed')->count(),
+        ];
+
+        return $this->success([
+            'stats' => $stats,
+            'inquiries' => $inquiries
+        ], 'تم جلب الاستفسارات بنجاح');
     }
 
     /**
@@ -54,6 +71,45 @@ class InquiryController extends DelegateApiController
         }
 
         return $this->success($inquiry, 'تم جلب بيانات الاستفسار بنجاح');
+    }
+
+    /**
+     * Forward inquiry to doctor.
+     */
+    public function forward(Request $request, string $id)
+    {
+        $delegate = $request->user();
+
+        $inquiry = Inquiry::find($id);
+
+        if (!$inquiry) {
+            return $this->error('الاستفسار غير موجود', 404);
+        }
+
+        $subject = Subject::where('id', $inquiry->subject_id)
+            ->where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->first();
+
+        if (!$subject) {
+            return $this->error('غير مصرح لك بتحويل هذا الاستفسار', 403);
+        }
+
+        $inquiry->update([
+            'status' => 'forwarded',
+            'delegate_id' => $delegate->id,
+        ]);
+
+        // Notify student
+        \App\Models\StudentNotification::create([
+            'user_id' => $inquiry->student_id,
+            'type'    => 'announcement', // Using announcement type or generic bell
+            'title'   => 'تحديث على استفسارك',
+            'message' => "تم تحويل استفسارك حول مادة {$subject->name} إلى الدكتور للمراجعة.",
+            'data'    => ['inquiry_id' => $inquiry->id],
+        ]);
+
+        return $this->success($inquiry, 'تم تحويل الاستفسار للدكتور بنجاح');
     }
 
     /**
@@ -87,9 +143,19 @@ class InquiryController extends DelegateApiController
         }
 
         $inquiry->update([
-            'answer' => $request->reply,
+            'reply' => $request->reply,
             'status' => 'answered',
+            'delegate_id' => $delegate->id,
             'answered_at' => now(),
+        ]);
+
+        // Notify student
+        \App\Models\StudentNotification::create([
+            'user_id' => $inquiry->student_id,
+            'type'    => 'announcement',
+            'title'   => 'تم الرد على استفسارك',
+            'message' => "تلقيت رداً جديداً على استفسارك حول مادة {$subject->name}.",
+            'data'    => ['inquiry_id' => $inquiry->id],
         ]);
 
         return $this->success($inquiry, 'تم الرد بنجاح', 200);

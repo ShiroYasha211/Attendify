@@ -20,15 +20,15 @@ class ReminderController extends DelegateApiController
 
         $remindersQuery = Reminder::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->with('author:id,name');
+            ->with('creator:id,name');
 
         if ($request->has('filter') && $request->filter === 'past') {
-            $remindersQuery->where('reminder_time', '<', Carbon::now())
-                ->orderBy('reminder_time', 'desc');
+            $remindersQuery->where('event_date', '<', Carbon::now())
+                ->orderBy('event_date', 'desc');
         } else {
             // Default to upcoming
-            $remindersQuery->where('reminder_time', '>=', Carbon::now())
-                ->orderBy('reminder_time', 'asc');
+            $remindersQuery->where('event_date', '>=', Carbon::now())
+                ->orderBy('event_date', 'asc');
         }
 
         $reminders = $remindersQuery->get();
@@ -44,11 +44,10 @@ class ReminderController extends DelegateApiController
         $delegate = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:exam,assignment,lecture,event,other',
             'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'reminder_time' => 'required|date|after:now',
-            'notify_before_minutes' => 'required|integer|min:0',
+            'description' => 'nullable|string',
+            'event_date' => 'required|date|after:now',
+            'notify_at' => 'required|date|before_or_equal:event_date',
         ]);
 
         if ($validator->fails()) {
@@ -58,16 +57,14 @@ class ReminderController extends DelegateApiController
         $reminder = Reminder::create([
             'major_id' => $delegate->major_id,
             'level_id' => $delegate->level_id,
-            'user_id' => $delegate->id,
-            'type' => $request->type,
+            'created_by' => $delegate->id,
             'title' => $request->title,
             'description' => $request->description,
-            'reminder_time' => $request->reminder_time,
-            'notify_before_minutes' => $request->notify_before_minutes,
-            'is_sent' => false,
+            'event_date' => $request->event_date,
+            'notify_at' => $request->notify_at,
         ]);
 
-        return $this->success($reminder->load('author'), 'تمت إضافة التذكير بنجاح', 201);
+        return $this->success($reminder->load('creator'), 'تمت إضافة التذكير بنجاح', 201);
     }
 
     /**
@@ -84,11 +81,10 @@ class ReminderController extends DelegateApiController
         }
 
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:exam,assignment,lecture,event,other',
             'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'reminder_time' => 'required|date|after:now',
-            'notify_before_minutes' => 'required|integer|min:0',
+            'description' => 'nullable|string',
+            'event_date' => 'required|date|after:now',
+            'notify_at' => 'required|date|before_or_equal:event_date',
         ]);
 
         if ($validator->fails()) {
@@ -96,14 +92,13 @@ class ReminderController extends DelegateApiController
         }
 
         $reminder->update([
-            'type' => $request->type,
             'title' => $request->title,
             'description' => $request->description,
-            'reminder_time' => $request->reminder_time,
-            'notify_before_minutes' => $request->notify_before_minutes,
+            'event_date' => $request->event_date,
+            'notify_at' => $request->notify_at,
         ]);
 
-        return $this->success($reminder->load('author'), 'تم تحديث التذكير بنجاح');
+        return $this->success($reminder->load('creator'), 'تم تحديث التذكير بنجاح');
     }
 
     /**

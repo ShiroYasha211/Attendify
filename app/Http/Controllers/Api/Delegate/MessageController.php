@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Delegate;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\Delegate\DelegateApiController;
+use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
 use App\Enums\UserRole;
@@ -13,52 +14,51 @@ use Illuminate\Support\Facades\Validator;
 class MessageController extends DelegateApiController
 {
     /**
-     * Display a listing of conversations (messages grouped by user).
+     * Display a listing of conversations.
      */
     public function index(Request $request)
     {
         $delegate = $request->user();
 
-        // Get the latest message for each conversation involving the delegate
-        // Uses Eloquent subquery scope or simple fetching and grouping
-        $messages = Message::where('sender_id', $delegate->id)
-            ->orWhere('receiver_id', $delegate->id)
-            ->with(['sender:id,name,avatar', 'receiver:id,name,avatar'])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->unique(function ($item) use ($delegate) {
-                return $item->sender_id === $delegate->id ? $item->receiver_id : $item->sender_id;
-            })->values();
+        $conversations = Conversation::where('delegate_id', $delegate->id)
+            ->with(['student:id,name,avatar', 'lastMessage'])
+            ->orderByDesc('last_message_at')
+            ->get();
 
-        return $this->success($messages, 'تم جلب المحادثات بنجاح');
+        return $this->success($conversations, 'تم جلب المحادثات بنجاح');
     }
 
     /**
-     * Display the specified conversation with a specific user.
+     * Display the specified conversation with messages.
      */
-    public function show(Request $request, string $userId)
+    public function show(Request $request, string $id)
     {
         $delegate = $request->user();
 
-        $messages = Message::where(function ($query) use ($delegate, $userId) {
-            $query->where('sender_id', $delegate->id)
-                ->where('receiver_id', $userId);
-        })
-            ->orWhere(function ($query) use ($delegate, $userId) {
-                $query->where('sender_id', $userId)
-                    ->where('receiver_id', $delegate->id);
-            })
-            ->with(['sender:id,name,avatar', 'receiver:id,name,avatar'])
-            ->orderBy('created_at', 'asc')
-            ->get();
+        $conversation = Conversation::where('delegate_id', $delegate->id)
+            ->with('student:id,name,avatar')
+            ->find($id);
 
-        // Mark unread messages as read
-        Message::where('sender_id', $userId)
-            ->where('receiver_id', $delegate->id)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+        if (!$conversation) {
+            // Check if $id is actually a userId (fallback/legacy support)
+            $conversation = Conversation::where('delegate_id', $delegate->id)
+                ->where('student_id', $id)
+                ->first();
+            
+            if (!$conversation) {
+                return $this->error('المحادثة غير موجودة', 404);
+            }
+        }
 
-        return $this->success($messages, 'تم جلب رسائل المحادثة بنجاح');
+        // Mark messages as read
+        $conversation->markAsReadFor($delegate->id);
+
+        $messages = $conversation->messages()->with('sender:id,name,avatar')->get();
+
+        return $this->success([
+            'conversation' => $conversation,
+            'messages' => $messages
+        ], 'تم جلب رسائل المحادثة بنجاح');
     }
 
     /**
@@ -69,7 +69,8 @@ class MessageController extends DelegateApiController
         $delegate = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'receiver_id' => 'required|exists:users,id',
+            'student_id' => 'required_without:conversation_id|exists:users,id',
+            'conversation_id' => 'required_without:student_id|exists:conversations,id',
             'content' => 'required|string',
         ]);
 
@@ -77,24 +78,37 @@ class MessageController extends DelegateApiController
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
-        // Validate receiver is a student in the batch
-        $receiver = User::where('id', $request->receiver_id)
-            ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
-            ->where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)
-            ->first();
+        if ($request->conversation_id) {
+            $conversation = Conversation::where('delegate_id', $delegate->id)->find($request->conversation_id);
+        } else {
+            // Start or continue conversation
+            $student = User::where('id', $request->student_id)
+                ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+                ->where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->first();
 
-        if (!$receiver) {
-            return $this->error('لا يمكنك مراسلة هذا المستخدم', 403);
+            if (!$student) {
+                return $this->error('لا يمكنك مراسلة هذا المستخدم', 403);
+            }
+
+            $conversation = Conversation::getOrCreate($student->id, $delegate->id);
+        }
+
+        if (!$conversation) {
+            return $this->error('المحادثة غير موجودة', 404);
         }
 
         $message = Message::create([
+            'conversation_id' => $conversation->id,
             'sender_id' => $delegate->id,
-            'receiver_id' => $request->receiver_id,
-            'content' => $request->content,
-            'is_read' => false,
+            'receiver_id' => $conversation->student_id,
+            'body' => $request->content,
+            'type' => 'delegate_to_student',
         ]);
 
-        return $this->success($message->load(['sender:id,name,avatar', 'receiver:id,name,avatar']), 'تم إرسال الرسالة بنجاح', 201);
+        $conversation->update(['last_message_at' => now()]);
+
+        return $this->success($message->load('sender:id,name,avatar'), 'تم إرسال الرسالة بنجاح', 201);
     }
 }

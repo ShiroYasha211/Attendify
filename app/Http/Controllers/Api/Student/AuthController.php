@@ -102,4 +102,27 @@ class AuthController extends StudentApiController
 
         return $this->success(null, 'تم تسجيل الخروج بنجاح.');
     }
+
+    /**
+     * Change Student Password
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->old_password, $user->password)) {
+            return $this->error('كلمة المرور القديمة غير صحيحة.', 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        return $this->success(null, 'تم تغيير كلمة المرور بنجاح.');
+    }
 }

@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "attendify-delegate-api-collection",
         "name": "Attendify - Delegate API",
-        "description": "Professional API collection for Attendify Delegate features. Includes Dashboard, Schedule, Attendance, Assignments, Announcements, and Communication.",
+        "description": "Professional API collection for Attendify Delegate features. Includes Dashboard, Schedule, Attendance, Assignments, Announcements, and Communication. \n\n**Note on Role Switching:** Users with the 'Delegate' role are also students. Therefore, they have full access to both Delegate and Student API endpoints. Switching between views is a frontend implementation that involves calling the respective API prefix (e.g., /api/student/... for personal student data and /api/delegate/... for batch management).",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -1674,6 +1674,923 @@
                         }
                     },
                     "response": []
+                }
+            ]
+        },
+        {
+            "name": "11. Reminders",
+            "item": [
+                {
+                    "name": "List Upcoming Reminders",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/reminders?filter=upcoming",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "reminders"
+                            ],
+                            "query": [
+                                {
+                                    "key": "filter",
+                                    "value": "upcoming"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Reminder",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"Anatomy Final Exam\",\n    \"description\": \"Main hall, be there early.\",\n    \"event_date\": \"2024-06-15 09:00:00\",\n    \"notify_at\": \"2024-06-14 20:00:00\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/reminders",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "reminders"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "12. Absence Alerts",
+            "item": [
+                {
+                    "name": "Today's Absences",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/attendances/alerts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "attendances",
+                                "alerts"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "13. Communication",
+            "item": [
+                {
+                    "name": "Student Messages",
+                    "item": [
+                        {
+                            "name": "List Conversations",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/messages",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "messages"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Messages",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/messages/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "messages",
+                                        "1"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Send Message",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"student_id\": 2,\n    \"content\": \"Hello student, please check the new schedule.\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/messages",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "messages"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Doctor Chat",
+                    "item": [
+                        {
+                            "name": "List Doctor Conversations",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/doctor-chats",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "doctor-chats"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Send Message to Doctor",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"doctor_id\": 5,\n    \"content\": \"Dr. Ahmed, we have a question about the assignment.\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/doctor-chats",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "doctor-chats"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Doctor Inquiries",
+                    "item": [
+                        {
+                            "name": "List Inquiries",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/inquiries",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "inquiries"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Reply to Inquiry",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"reply\": \"The exam will be in Hall 4.\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/inquiries/1/reply",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "inquiries",
+                                        "1",
+                                        "reply"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Forward to Doctor",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/inquiries/1/forward",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "inquiries",
+                                        "1",
+                                        "forward"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "14. Profile & Auth",
+            "item": [
+                {
+                    "name": "Get My Profile",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/me",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "me"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Change Password",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"old_password\": \"password\",\n    \"new_password\": \"new_password123\",\n    \"new_password_confirmation\": \"new_password123\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/change-password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "change-password"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "logout"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "15. Absence Alerts",
+            "item": [
+                {
+                    "name": "List Absence Stats & Warnings",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/notifications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "notifications"
+                            ]
+                        },
+                        "description": "Get a list of students with their absence counts per subject and the history of sent warnings."
+                    }
+                },
+                {
+                    "name": "Send Absence Warning",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"student_id\": 5,\n    \"subject_id\": 1,\n    \"absence_count\": 3,\n    \"message\": \"This is a formal warning regarding your repeated absences in Surgery 101.\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/notifications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "notifications"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "16. Clinical (Practical Delegates)",
+            "item": [
+                {
+                    "name": "Sub-Delegation",
+                    "item": [
+                        {
+                            "name": "List Sub-Delegates",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/clinical/delegations",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "clinical",
+                                        "delegations"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Eligible Students",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/clinical/delegations/students",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "clinical",
+                                        "delegations",
+                                        "students"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Sub-Delegation",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"student_id\": 10,\n    \"duration_hours\": 24\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/clinical/delegations",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "clinical",
+                                        "delegations"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Revoke Delegation",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "DELETE",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/clinical/delegations/1",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "clinical",
+                                        "delegations",
+                                        "1"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Case Review",
+                    "item": [
+                        {
+                            "name": "List Pending Cases",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/clinical/cases/pending",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "clinical",
+                                        "cases",
+                                        "pending"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Approve Case",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/clinical/cases/1/approve",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "clinical",
+                                        "cases",
+                                        "1",
+                                        "approve"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Reject Case",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{delegate_token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"rejection_reason\": \"Incomplete case details.\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/delegate/clinical/cases/1/reject",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "delegate",
+                                        "clinical",
+                                        "cases",
+                                        "1",
+                                        "reject"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "17. Student Notifications (My Notifications)",
+            "item": [
+                {
+                    "name": "List My Notifications",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/student/notifications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "notifications"
+                            ]
+                        },
+                        "description": "Fetch a paginated list of notifications sent to the current user (Student or Delegate)."
+                    }
+                },
+                {
+                    "name": "Get Unread Count",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/student/notifications/unread-count",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "notifications",
+                                "unread-count"
+                            ]
+                        },
+                        "description": "Get the number of unread notifications."
+                    }
+                },
+                {
+                    "name": "Mark as Read",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{base_url}}/api/student/notifications/1/read",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "notifications",
+                                "1",
+                                "read"
+                            ]
+                        },
+                        "description": "Mark a specific notification as read."
+                    }
+                },
+                {
+                    "name": "Mark All as Read",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{base_url}}/api/student/notifications/mark-all-read",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "notifications",
+                                "mark-all-read"
+                            ]
+                        },
+                        "description": "Mark all incoming notifications as read."
+                    }
                 }
             ]
         }
