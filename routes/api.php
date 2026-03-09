@@ -144,14 +144,22 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     // Academic
     Route::apiResource('students', DelegateStudentController::class)->names('api.delegate.students');
     Route::post('students/import', [DelegateStudentController::class, 'import']);
-    Route::apiResource('subjects', DelegateSubjectController::class)->only(['index', 'show'])->names('api.delegate.subjects');
-    Route::apiResource('schedules', DelegateScheduleController::class)->except(['show'])->names('api.delegate.schedules');
-    Route::apiResource('exam-schedules', DelegateExamScheduleController::class)->except(['show'])->names('api.delegate.exam-schedules');
-    Route::apiResource('assignments', DelegateAssignmentController::class)->except(['show'])->names('api.delegate.assignments');
-    Route::apiResource('resources', DelegateResourceController::class)->only(['index', 'store', 'destroy'])->names('api.delegate.resources');
+    
+    Route::get('subjects/doctors', [DelegateSubjectController::class, 'doctors']);
+    Route::get('subjects/terms', [DelegateSubjectController::class, 'terms']);
+    Route::apiResource('subjects', DelegateSubjectController::class)->names('api.delegate.subjects');
+    
+    Route::apiResource('schedules', DelegateScheduleController::class)->names('api.delegate.schedules');
+    Route::apiResource('exam-schedules', DelegateExamScheduleController::class)->names('api.delegate.exam-schedules');
+    Route::apiResource('assignments', DelegateAssignmentController::class)->names('api.delegate.assignments');
+    
+    Route::get('resources/library/search', [DelegateResourceController::class, 'searchLibrary']);
+    Route::post('resources/import', [DelegateResourceController::class, 'import']);
+    Route::apiResource('resources', DelegateResourceController::class)->names('api.delegate.resources');
 
     // Communication
-    Route::apiResource('announcements', DelegateAnnouncementController::class)->except(['show'])->names('api.delegate.announcements');
+    Route::patch('announcements/{announcement}/toggle-pin', [DelegateAnnouncementController::class, 'togglePin']);
+    Route::apiResource('announcements', DelegateAnnouncementController::class)->names('api.delegate.announcements');
     Route::apiResource('reminders', DelegateReminderController::class)->except(['show'])->names('api.delegate.reminders');
 
     // Messaging

@@ -12,20 +12,41 @@ use Illuminate\Support\Facades\Storage;
 class AnnouncementController extends DelegateApiController
 {
     /**
-     * Display a listing of announcements for the delegate's batch.
+     * Display a listing of announcements with statistics and filters.
      */
     public function index(Request $request)
     {
         $delegate = $request->user();
+        $category = $request->get('category', 'all');
 
-        $announcements = Announcement::where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)
-            ->with('author:id,name')
+        $query = Announcement::where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id);
+
+        if ($category !== 'all') {
+            $query->where('category', $category);
+        }
+
+        $announcements = $query->with('creator:id,name')
             ->orderBy('is_pinned', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return $this->success($announcements, 'تم جلب الإعلانات بنجاح');
+        // Get statistics
+        $stats = [
+            'total' => Announcement::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)->count(),
+            'urgent' => Announcement::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->where('category', 'urgent')->count(),
+            'pinned' => Announcement::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->where('is_pinned', true)->count(),
+        ];
+
+        return $this->success([
+            'stats' => $stats,
+            'announcements' => $announcements
+        ], 'تم جلب الإعلانات بنجاح');
     }
 
     /**
@@ -36,7 +57,7 @@ class AnnouncementController extends DelegateApiController
         $delegate = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:general,schedule,exam,activity,urgent',
+            'category' => 'required|in:academic,general,urgent',
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'attachment' => 'nullable|file|max:10240', // 10MB max
@@ -47,20 +68,24 @@ class AnnouncementController extends DelegateApiController
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
-        $data = $request->except('attachment');
+        $data = $request->only(['title', 'content', 'category', 'is_pinned']);
         $data['major_id'] = $delegate->major_id;
         $data['level_id'] = $delegate->level_id;
-        $data['user_id'] = $delegate->id;
-        $data['is_pinned'] = $request->has('is_pinned') && $request->is_pinned ? true : false;
-        $data['status'] = 'published';
+        $data['created_by'] = $delegate->id;
+        $data['is_pinned'] = $request->boolean('is_pinned');
 
         if ($request->hasFile('attachment')) {
-            $data['attachment_path'] = $request->file('attachment')->store('announcements', 'public');
+            $file = $request->file('attachment');
+            $data['attachment_path'] = $file->store('announcements', 'public');
+            
+            // Determine attachment type
+            $mimeType = $file->getMimeType();
+            $data['attachment_type'] = str_starts_with($mimeType, 'image/') ? 'image' : 'document';
         }
 
         $announcement = Announcement::create($data);
 
-        return $this->success($announcement->load('author'), 'تم نشر الإعلان بنجاح', 201);
+        return $this->success($announcement->load('creator'), 'تم نشر الإعلان بنجاح', 201);
     }
 
     /**
@@ -72,35 +97,68 @@ class AnnouncementController extends DelegateApiController
 
         $announcement = Announcement::find($id);
 
-        if (!$announcement || $announcement->major_id !== $delegate->major_id || $announcement->level_id !== $delegate->level_id) {
+        if (!$announcement || $announcement->created_by !== $delegate->id) {
             return $this->error('الإعلان غير موجود أو غير مصرح لك', 404);
         }
 
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:general,schedule,exam,activity,urgent',
+            'category' => 'required|in:academic,general,urgent',
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'attachment' => 'nullable|file|max:10240',
             'is_pinned' => 'nullable|boolean',
+            'remove_attachment' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
-        $data = $request->except('attachment');
-        $data['is_pinned'] = $request->has('is_pinned') && $request->is_pinned ? true : false;
+        $data = $request->only(['title', 'content', 'category', 'is_pinned']);
+        $data['is_pinned'] = $request->boolean('is_pinned');
+
+        // Handle attachment removal
+        if ($request->boolean('remove_attachment')) {
+            if ($announcement->attachment_path) {
+                Storage::disk('public')->delete($announcement->attachment_path);
+            }
+            $data['attachment_path'] = null;
+            $data['attachment_type'] = null;
+        }
 
         if ($request->hasFile('attachment')) {
             if ($announcement->attachment_path) {
                 Storage::disk('public')->delete($announcement->attachment_path);
             }
-            $data['attachment_path'] = $request->file('attachment')->store('announcements', 'public');
+            $file = $request->file('attachment');
+            $data['attachment_path'] = $file->store('announcements', 'public');
+            $mimeType = $file->getMimeType();
+            $data['attachment_type'] = str_starts_with($mimeType, 'image/') ? 'image' : 'document';
         }
 
         $announcement->update($data);
 
-        return $this->success($announcement->load('author'), 'تم تحديث الإعلان بنجاح');
+        return $this->success($announcement->load('creator'), 'تم تحديث الإعلان بنجاح');
+    }
+
+    /**
+     * Toggle the pinned status of an announcement.
+     */
+    public function togglePin(Request $request, string $id)
+    {
+        $delegate = $request->user();
+        $announcement = Announcement::find($id);
+
+        if (!$announcement || $announcement->created_by !== $delegate->id) {
+            return $this->error('الإعلان غير موجود أو غير مصرح لك', 404);
+        }
+
+        $announcement->update([
+            'is_pinned' => !$announcement->is_pinned
+        ]);
+
+        $message = $announcement->is_pinned ? 'تم تثبيت الخبر' : 'تم إلغاء تثبيت الخبر';
+        return $this->success($announcement, $message);
     }
 
     /**
@@ -112,7 +170,7 @@ class AnnouncementController extends DelegateApiController
 
         $announcement = Announcement::find($id);
 
-        if (!$announcement || $announcement->major_id !== $delegate->major_id || $announcement->level_id !== $delegate->level_id) {
+        if (!$announcement || $announcement->created_by !== $delegate->id) {
             return $this->error('الإعلان غير موجود أو غير مصرح لك', 404);
         }
 

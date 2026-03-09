@@ -19,8 +19,10 @@ class AssignmentController extends DelegateApiController
     {
         $delegate = $request->user();
 
-        $assignments = Assignment::where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)
+        $assignments = Assignment::whereHas('subject', function ($q) use ($delegate) {
+            $q->where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id);
+        })
             ->with(['subject:id,name,code', 'creator:id,name'])
             ->orderBy('due_date', 'asc')
             ->get();
@@ -38,11 +40,9 @@ class AssignmentController extends DelegateApiController
         $validator = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'due_date' => 'required|date',
-            'total_marks' => 'required|numeric|min:0',
-            'attachment' => 'nullable|file|max:10240', // 10MB max
-            'status' => 'required|in:active,completed,cancelled',
+            'description' => 'required|string',
+            'due_date' => 'required|date|after_or_equal:today',
+            'requires_submission' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -59,14 +59,9 @@ class AssignmentController extends DelegateApiController
             return $this->error('المادة غير موجودة أو غير مصرح لك', 403);
         }
 
-        $data = $request->except('attachment');
-        $data['major_id'] = $delegate->major_id;
-        $data['level_id'] = $delegate->level_id;
+        $data = $request->only(['subject_id', 'title', 'description', 'due_date', 'requires_submission']);
         $data['created_by'] = $delegate->id;
-
-        if ($request->hasFile('attachment')) {
-            $data['attachment_path'] = $request->file('attachment')->store('assignments', 'public');
-        }
+        $data['requires_submission'] = $request->boolean('requires_submission', true);
 
         $assignment = Assignment::create($data);
 
@@ -82,18 +77,16 @@ class AssignmentController extends DelegateApiController
 
         $assignment = Assignment::find($id);
 
-        if (!$assignment || $assignment->major_id !== $delegate->major_id || $assignment->level_id !== $delegate->level_id) {
+        if (!$assignment || $assignment->created_by !== $delegate->id) {
             return $this->error('التكليف غير موجود أو غير مصرح لك', 404);
         }
 
         $validator = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'required|string',
             'due_date' => 'required|date',
-            'total_marks' => 'required|numeric|min:0',
-            'attachment' => 'nullable|file|max:10240',
-            'status' => 'required|in:active,completed,cancelled',
+            'requires_submission' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -111,14 +104,8 @@ class AssignmentController extends DelegateApiController
             }
         }
 
-        $data = $request->except('attachment');
-
-        if ($request->hasFile('attachment')) {
-            if ($assignment->attachment_path) {
-                Storage::disk('public')->delete($assignment->attachment_path);
-            }
-            $data['attachment_path'] = $request->file('attachment')->store('assignments', 'public');
-        }
+        $data = $request->only(['subject_id', 'title', 'description', 'due_date', 'requires_submission']);
+        $data['requires_submission'] = $request->boolean('requires_submission');
 
         $assignment->update($data);
 
@@ -134,12 +121,8 @@ class AssignmentController extends DelegateApiController
 
         $assignment = Assignment::find($id);
 
-        if (!$assignment || $assignment->major_id !== $delegate->major_id || $assignment->level_id !== $delegate->level_id) {
+        if (!$assignment || $assignment->created_by !== $delegate->id) {
             return $this->error('التكليف غير موجود أو غير مصرح لك', 404);
-        }
-
-        if ($assignment->attachment_path) {
-            Storage::disk('public')->delete($assignment->attachment_path);
         }
 
         $assignment->delete();

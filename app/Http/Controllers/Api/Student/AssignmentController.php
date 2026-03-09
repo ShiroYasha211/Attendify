@@ -9,7 +9,7 @@ use App\Models\Academic\Assignment;
 use App\Models\Academic\Subject;
 use App\Models\AssignmentSubmission;
 
-class AssignmentController extends Controller
+class AssignmentController extends StudentApiController
 {
     /**
      * Get Student Assignments (Active and Past)
@@ -71,13 +71,10 @@ class AssignmentController extends Controller
             return \Carbon\Carbon::parse($a['due_date'])->isPast() && $a['status'] === 'missing';
         })->values();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'active' => $activeAssignments,
-                'past' => $pastAssignments,
-            ]
-        ], 200);
+        return $this->success([
+            'active' => $activeAssignments,
+            'past' => $pastAssignments,
+        ]);
     }
 
     /**
@@ -124,14 +121,10 @@ class AssignmentController extends Controller
             'submitted_at' => now(),
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم تسليم التكليف بنجاح.',
-            'data' => [
-                'file_url' => asset('storage/' . $submission->file_path),
-                'notes' => $submission->notes,
-                'submitted_at' => $submission->submitted_at,
-            ]
-        ], 201);
+        return $this->success([
+            'file_url' => asset('storage/' . $submission->file_path),
+            'notes' => $submission->notes,
+            'submitted_at' => $submission->submitted_at,
+        ], 'تم تسليم التكليف بنجاح.', 201);
     }
 }

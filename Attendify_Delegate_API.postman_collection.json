@@ -42,7 +42,7 @@
             "response": []
         },
         {
-            "name": "2. Academic",
+            "name": "2. Subjects",
             "item": [
                 {
                     "name": "List Subjects",
@@ -79,7 +79,258 @@
                     "response": []
                 },
                 {
-                    "name": "Get Schedule",
+                    "name": "Get Subject Details",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/subjects/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "subjects",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "description": "Returns subject with its doctor, term, resources, and assignments."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add Subject",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Anatomy I\",\n    \"code\": \"ANA101\",\n    \"term_id\": 1,\n    \"doctor_id\": 5\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/subjects",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "subjects"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Subject",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Anatomy I Updated\",\n    \"code\": \"ANA101-U\",\n    \"term_id\": 1,\n    \"doctor_id\": 5\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/subjects/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "subjects",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Subject",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/subjects/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "subjects",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Helper: List Doctors",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/subjects/doctors",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "subjects",
+                                "doctors"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Helper: List Terms",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/subjects/terms",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "subjects",
+                                "terms"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "3. Schedules",
+            "item": [
+                {
+                    "name": "List Schedule",
                     "request": {
                         "auth": {
                             "type": "bearer",
@@ -111,11 +362,607 @@
                         }
                     },
                     "response": []
+                },
+                {
+                    "name": "Add to Schedule",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"subject_id\": 1,\n    \"day_of_week\": 1,\n    \"start_time\": \"08:00\",\n    \"end_time\": \"10:00\",\n    \"hall_name\": \"Hall A\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/schedules",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "schedules"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Schedule Item",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"subject_id\": 1,\n    \"day_of_week\": 1,\n    \"start_time\": \"09:00\",\n    \"end_time\": \"11:00\",\n    \"hall_name\": \"Hall B\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/schedules/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "schedules",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete from Schedule",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/schedules/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "schedules",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
                 }
             ]
         },
         {
-            "name": "3. Student Management",
+            "name": "4. Exam Schedules",
+            "item": [
+                {
+                    "name": "List Exam Schedules",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/exam-schedules",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "exam-schedules"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Exam Schedule",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"terms_id\": 1,\n    \"title\": \"Final Exams - Spring 2024\",\n    \"description\": \"Main final exams schedule\",\n    \"items\": [\n        {\n            \"subject_id\": 1,\n            \"exam_date\": \"2024-06-01\",\n            \"start_time\": \"09:00\",\n            \"end_time\": \"12:00\",\n            \"hall_name\": \"Main Hall\",\n            \"exam_type\": \"final\"\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/exam-schedules",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "exam-schedules"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Exam Schedule",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"terms_id\": 1,\n    \"title\": \"Final Exams (Updated)\",\n    \"description\": \"Updated description\",\n    \"items\": [\n        {\n            \"subject_id\": 1,\n            \"exam_date\": \"2024-06-02\",\n            \"start_time\": \"10:00\",\n            \"end_time\": \"13:00\",\n            \"hall_name\": \"Exam Center\",\n            \"exam_type\": \"final\"\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/exam-schedules/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "exam-schedules",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Exam Schedule",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/exam-schedules/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "exam-schedules",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "5. Course Resources",
+            "item": [
+                {
+                    "name": "List Resources",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/resources",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "resources"
+                            ]
+                        },
+                        "description": "Returns stats and list of resources."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Upload Resource",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "subject_id",
+                                    "value": "1",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "title",
+                                    "value": "Lecture 1 Summary",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "category",
+                                    "value": "summaries",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "src": []
+                                },
+                                {
+                                    "key": "description",
+                                    "value": "Optional description",
+                                    "type": "text"
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/resources",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "resources"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Resource",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"subject_id\": 1,\n    \"title\": \"Updated Title\",\n    \"category\": \"lectures\",\n    \"description\": \"Updated description\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/resources/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "resources",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Resource",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/resources/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "resources",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "6. Shared Library",
+            "item": [
+                {
+                    "name": "Search Library",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/resources/library/search?q=anatomy",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "resources",
+                                "library",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "q",
+                                    "value": "anatomy"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Import from Library",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"resource_id\": 25,\n    \"subject_id\": 1\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/resources/import",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "resources",
+                                "import"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "7. Student Management",
             "item": [
                 {
                     "name": "List Students",
@@ -334,7 +1181,7 @@
             ]
         },
         {
-            "name": "4. Attendance",
+            "name": "8. Attendance",
             "item": [
                 {
                     "name": "List Attendance Records",
@@ -416,10 +1263,10 @@
             ]
         },
         {
-            "name": "4. Communication",
+            "name": "9. Batch News",
             "item": [
                 {
-                    "name": "List Announcements",
+                    "name": "List News (with Stats)",
                     "request": {
                         "auth": {
                             "type": "bearer",
@@ -438,6 +1285,76 @@
                                 "value": "application/json"
                             }
                         ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/announcements?category=all",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "announcements"
+                            ],
+                            "query": [
+                                {
+                                    "key": "category",
+                                    "value": "all"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Post News",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "title",
+                                    "value": "Exam Results Update",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "content",
+                                    "value": "The results for anatomy will be posted tomorrow.",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "category",
+                                    "value": "academic",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "is_pinned",
+                                    "value": "1",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "attachment",
+                                    "type": "file",
+                                    "src": []
+                                }
+                            ]
+                        },
                         "url": {
                             "raw": "{{base_url}}/api/delegate/announcements",
                             "host": [
@@ -453,7 +1370,145 @@
                     "response": []
                 },
                 {
-                    "name": "List Inquiries",
+                    "name": "Update News",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"Updated News Title\",\n    \"content\": \"Updated content.\",\n    \"category\": \"general\",\n    \"is_pinned\": 0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/announcements/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "announcements",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Toggle Pin",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/announcements/:id/toggle-pin",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "announcements",
+                                ":id",
+                                "toggle-pin"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete News",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/announcements/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "announcements",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "10. Assignments",
+            "item": [
+                {
+                    "name": "List Assignments",
                     "request": {
                         "auth": {
                             "type": "bearer",
@@ -473,14 +1528,148 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/api/delegate/inquiries",
+                            "raw": "{{base_url}}/api/delegate/assignments",
                             "host": [
                                 "{{base_url}}"
                             ],
                             "path": [
                                 "api",
                                 "delegate",
-                                "inquiries"
+                                "assignments"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Assignment",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"subject_id\": 1,\n    \"title\": \"HW 1: Anatomy Intro\",\n    \"description\": \"Write a summary of the first lecture.\",\n    \"due_date\": \"2024-03-15\",\n    \"requires_submission\": true\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/assignments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "assignments"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Assignment",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"subject_id\": 1,\n    \"title\": \"HW 1: Updated\",\n    \"description\": \"New description.\",\n    \"due_date\": \"2024-03-16\",\n    \"requires_submission\": false\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/assignments/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "assignments",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Assignment",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{delegate_token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/delegate/assignments/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "delegate",
+                                "assignments",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
                             ]
                         }
                     },

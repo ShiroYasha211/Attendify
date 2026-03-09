@@ -11,7 +11,7 @@ use App\Models\Academic\StudentLectureStatus;
 use App\Models\Attendance;
 use Illuminate\Support\Facades\Auth;
 
-class SubjectController extends Controller
+class SubjectController extends StudentApiController
 {
     /**
      * Get Student's Subjects
@@ -28,10 +28,7 @@ class SubjectController extends Controller
             $subjects->where('semester_id', $request->semester_id);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $subjects->get()
-        ], 200);
+        return $this->success($subjects->get());
     }
 
     /**
@@ -167,40 +164,37 @@ class SubjectController extends Controller
             $totalGradePercentage = round($cWeight + $fWeight, 1);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'subject' => $subject,
-                'grades' => [
-                    'continuous' => $continuousGrade ? [
-                        'score' => $continuousGrade->score,
-                        'max_score' => $continuousGrade->max_score,
-                    ] : null,
-                    'final' => $finalGrade ? [
-                        'score' => $finalGrade->score,
-                        'max_score' => $finalGrade->max_score,
-                    ] : null,
-                    'total_percentage' => $totalGradePercentage,
-                ],
-                'progress' => [
-                    'attendance_percentage' => $attendancePercentage,
-                    'total_lectures_held' => $totalLecturesHeld,
-                    'absences' => $absentCount,
-                    'presents' => $presentCount,
-                    'lates' => $lateCount,
-                    'excused' => $excusedCount,
-                ],
-                'deprivation_info' => [
-                    'warning_level' => $warningLevel,
-                    'absence_percent' => $absencePercent,
-                    'max_absences_allowed' => $maxAbsences,
-                    'is_banned' => $warningLevel === 'danger',
-                ],
-                'lectures' => $lectures,
-                'assignments' => $assignments,
-                'attendance_history' => $history,
-            ]
-        ], 200);
+        return $this->success([
+            'subject' => $subject,
+            'grades' => [
+                'continuous' => $continuousGrade ? [
+                    'score' => $continuousGrade->score,
+                    'max_score' => $continuousGrade->max_score,
+                ] : null,
+                'final' => $finalGrade ? [
+                    'score' => $finalGrade->score,
+                    'max_score' => $finalGrade->max_score,
+                ] : null,
+                'total_percentage' => $totalGradePercentage,
+            ],
+            'progress' => [
+                'attendance_percentage' => $attendancePercentage,
+                'total_lectures_held' => $totalLecturesHeld,
+                'absences' => $absentCount,
+                'presents' => $presentCount,
+                'lates' => $lateCount,
+                'excused' => $excusedCount,
+            ],
+            'deprivation_info' => [
+                'warning_level' => $warningLevel,
+                'absence_percent' => $absencePercent,
+                'max_absences_allowed' => $maxAbsences,
+                'is_banned' => $warningLevel === 'danger',
+            ],
+            'lectures' => $lectures,
+            'assignments' => $assignments,
+            'attendance_history' => $history,
+        ]);
     }
 
     /**
@@ -213,7 +207,7 @@ class SubjectController extends Controller
 
         // Security check
         if ($lecture->subject->major_id != $student->major_id || $lecture->subject->level_id != $student->level_id) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            return $this->error('Unauthorized', 403);
         }
 
         $status = StudentLectureStatus::firstOrCreate(
@@ -224,10 +218,8 @@ class SubjectController extends Controller
         $status->studied_at = $status->is_studied ? now() : null;
         $status->save();
 
-        return response()->json([
-            'success' => true,
+        return $this->success([
             'is_studied' => $status->is_studied,
-            'message' => $status->is_studied ? 'تم تحديد المحاضرة كـ "تمت المذاكرة"' : 'تم إلغاء تحديد المحاضرة',
-        ]);
+        ], $status->is_studied ? 'تم تحديد المحاضرة كـ "تمت المذاكرة"' : 'تم إلغاء تحديد المحاضرة');
     }
 }

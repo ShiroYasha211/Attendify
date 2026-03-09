@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Setting;
 
-class AttendanceController extends Controller
+class AttendanceController extends StudentApiController
 {
     /**
      * Get Student Attendance Stats & History
@@ -87,19 +87,16 @@ class AttendanceController extends Controller
             return strtotime($b['date']) - strtotime($a['date']);
         });
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'overview' => [
-                    'total_lectures' => $totalLectures,
-                    'present_count' => $presentCount,
-                    'absent_count' => $absentCount,
-                    'late_count' => $lateCount,
-                    'presence_percentage' => $presencePercentage,
-                ],
-                'subjects_status' => $subjectWarnings,
-                'history' => $history,
-            ]
-        ], 200);
+        return $this->success([
+            'overview' => [
+                'total_lectures' => $totalLectures,
+                'present_count' => $presentCount,
+                'absent_count' => $absentCount,
+                'late_count' => $lateCount,
+                'presence_percentage' => $presencePercentage,
+            ],
+            'subjects_status' => $subjectWarnings,
+            'history' => $history,
+        ]);
     }
 }

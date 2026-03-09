@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Academic\Schedule;
 use Illuminate\Support\Facades\Auth;
 
-class ScheduleController extends Controller
+class ScheduleController extends StudentApiController
 {
     /**
      * Display a read-only listing of schedules for the student's major and level.
@@ -38,10 +38,6 @@ class ScheduleController extends Controller
         // Group schedules by day_of_week for easier consumption by mobile apps
         $groupedSchedules = $schedules->groupBy('day_of_week');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Study schedule retrieved successfully',
-            'data' => $groupedSchedules
-        ]);
+        return $this->success($groupedSchedules, 'Study schedule retrieved successfully');
     }
 }

@@ -12,7 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
-class ExcuseController extends Controller
+class ExcuseController extends StudentApiController
 {
     /**
      * Submit a new excuse via API
@@ -32,11 +32,7 @@ class ExcuseController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first(),
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->error($validator->errors()->first(), 422, $validator->errors());
         }
 
         $student = Auth::user();
@@ -45,18 +41,12 @@ class ExcuseController extends Controller
             ->first();
 
         if (!$attendance) {
-            return response()->json([
-                'success' => false,
-                'message' => 'سجل الحضور المختار غير تابع لك.'
-            ], 403);
+            return $this->error('سجل الحضور المختار غير تابع لك.', 403);
         }
 
         // 1. Check if eligible (Absent)
         if ($attendance->status !== 'absent') {
-            return response()->json([
-                'success' => false,
-                'message' => 'لا يمكن تقديم عذر لمحاضرة لست غائباً فيها.'
-            ], 400);
+            return $this->error('لا يمكن تقديم عذر لمحاضرة لست غائباً فيها.', 400);
         }
 
         // 2. Check deadline (Dynamic from settings)
@@ -65,18 +55,12 @@ class ExcuseController extends Controller
         $deadline = $lectureDate->copy()->addDays($excuseDeadlineDays);
 
         if (now()->gt($deadline)) {
-            return response()->json([
-                'success' => false,
-                'message' => "عذراً، انتهت المهلة المحددة لتقديم العذر ({$excuseDeadlineDays} أيام من تاريخ الغياب)."
-            ], 400);
+            return $this->error("عذراً، انتهت المهلة المحددة لتقديم العذر ({$excuseDeadlineDays} أيام من تاريخ الغياب).", 400);
         }
 
         // 3. Check if already submitted
         if ($attendance->excuse) {
-            return response()->json([
-                'success' => false,
-                'message' => 'لقد قمت بتقديم عذر مسبقاً لهذا الغياب.'
-            ], 400);
+            return $this->error('لقد قمت بتقديم عذر مسبقاً لهذا الغياب.', 400);
         }
 
         // Handle File Upload
@@ -94,14 +78,10 @@ class ExcuseController extends Controller
             'status' => 'pending',
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم تقديم العذر بنجاح، بانتظار موافقة الدكتور.',
-            'data' => [
-                'excuse_id' => $excuse->id,
-                'status' => $excuse->status,
-                'attachment_url' => $attachmentPath ? asset('storage/' . $attachmentPath) : null
-            ]
-        ], 201);
+        return $this->success([
+            'excuse_id' => $excuse->id,
+            'status' => $excuse->status,
+            'attachment_url' => $attachmentPath ? asset('storage/' . $attachmentPath) : null
+        ], 'تم تقديم العذر بنجاح، بانتظار موافقة الدكتور.', 201);
     }
 }

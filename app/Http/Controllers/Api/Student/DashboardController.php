@@ -11,7 +11,7 @@ use App\Models\Reminder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
-class DashboardController extends Controller
+class DashboardController extends StudentApiController
 {
     /**
      * Get Student Dashboard Overview
@@ -127,25 +127,22 @@ class DashboardController extends Controller
         }
 
         // Assemble Final JSON Response
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'overview' => [
-                    'active_assignments_count' => $assignmentsCount,
-                    'total_absences_days' => $totalAbsences,
-                    'registered_subjects_count' => $subjects->count(),
-                    'has_clinical' => $student->major->has_clinical ?? false,
-                ],
-                'next_exam' => $nextExam,
-                'alerts' => [
-                    'deprivation_warnings' => $warnings,
-                    'excuse_deadlines' => $excuseWarnings,
-                ],
-                'feed' => [
-                    'announcements' => $announcements,
-                    'reminders' => $reminders,
-                ]
+        return $this->success([
+            'overview' => [
+                'active_assignments_count' => $assignmentsCount,
+                'total_absences_days' => $totalAbsences,
+                'registered_subjects_count' => $subjects->count(),
+                'has_clinical' => $student->major->has_clinical ?? false,
+            ],
+            'next_exam' => $nextExam,
+            'alerts' => [
+                'deprivation_warnings' => $warnings,
+                'excuse_deadlines' => $excuseWarnings,
+            ],
+            'feed' => [
+                'announcements' => $announcements,
+                'reminders' => $reminders,
             ]
-        ], 200);
+        ]);
     }
 }
