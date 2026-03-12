@@ -237,4 +237,32 @@ class UserController extends Controller
 
         return back()->with('success', 'تم طرد المستخدم ' . $user->name . ' من الجلسة بنجاح.');
     }
+
+    /**
+     * تفعيل الاشتراك يدوياً للمستخدم
+     */
+    public function activateSubscription(Request $request, User $user)
+    {
+        $request->validate([
+            'days' => 'required|integer|min:1|max:3650'
+        ]);
+
+        $days = (int) $request->days;
+        $expiry = now()->addDays($days);
+
+        $user->update([
+            'subscribed_until' => $expiry
+        ]);
+
+        // Log activity
+        ActivityLog::log(
+            'update',
+            'User',
+            $user->id,
+            $user->name,
+            "تفعيل اشتراك يدوي للمستخدم: {$user->name} لمدة {$days} أيام (ينتهي في: " . $expiry->format('Y-m-d') . ")"
+        );
+
+        return back()->with('success', "تم تفعيل اشتراك المستخدم {$user->name} بنجاح لمدة {$days} أيام.");
+    }
 }

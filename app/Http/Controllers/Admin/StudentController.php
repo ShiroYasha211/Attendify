@@ -21,7 +21,7 @@ class StudentController extends Controller
     public function index()
     {
         $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
-            ->with(['university', 'college', 'major', 'level.terms.subjects.doctor'])
+            ->with(['university', 'college', 'major', 'level.terms.subjects.doctor', 'permissions'])
             ->latest()
             ->paginate(10);
 
@@ -132,5 +132,30 @@ class StudentController extends Controller
         $student->delete();
         return redirect()->route('admin.students.index')
             ->with('success', 'تم حذف الطالب بنجاح.');
+    }
+
+    /**
+     * تحديث صلاحيات الطالب.
+     */
+    public function updatePermissions(Request $request, User $student)
+    {
+        $request->validate([
+            'permissions' => 'array',
+            'permissions.*' => 'string|exists:permissions,slug'
+        ]);
+
+        $student->permissions()->detach();
+        if ($request->has('permissions')) {
+            foreach ($request->permissions as $slug) {
+                $permission = \App\Models\Permission::where('slug', $slug)->first();
+                if ($permission) {
+                    $student->permissions()->attach($permission->id);
+                }
+            }
+        }
+
+        $this->logUpdate('StudentPermissions', $student, "تم تحديث صلاحيات الطالب: {$student->name}");
+
+        return back()->with('success', 'تم تحديث صلاحيات الطالب بنجاح.');
     }
 }

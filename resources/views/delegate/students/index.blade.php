@@ -368,6 +368,7 @@
     showDeleteModal: false, 
     showEditModal: false,
     showDetailsModal: false,
+    showImportModal: false,
     deleteUrl: '', 
     modalTitle: '', 
     modalMessage: '',
@@ -377,7 +378,41 @@
     editStudentNumber: '',
     viewStudent: {},
     viewSubjects: [],
-    viewDelegate: null
+    viewDelegate: null,
+    showPermissionsModal: false,
+    permStudent: { id: null, name: '', permissions: [] },
+    permsUrl: '',
+    selectedFile: null,
+    fileError: null,
+    formatSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+    handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            this.selectedFile = null;
+            this.fileError = null;
+            return;
+        }
+        
+        const extension = file.name.split('.').pop().toLowerCase();
+        if (extension !== 'csv') {
+            this.fileError = 'عذراً، يجب اختيار ملف بصيغة CSV فقط.';
+            this.selectedFile = null;
+            event.target.value = ''; // Reset input
+            return;
+        }
+
+        this.fileError = null;
+        this.selectedFile = {
+            name: file.name,
+            size: this.formatSize(file.size)
+        };
+    }
 }">
 
     <!-- Page Header -->
@@ -393,6 +428,16 @@
         <div class="page-header-text">
             <h1>إدارة الطلاب</h1>
             <p>إضافة وإدارة طلاب الدفعة</p>
+        </div>
+        <div style="margin-right: auto;">
+            <button @click="showImportModal = true" class="btn-submit" style="background: linear-gradient(135deg, #0284c7, #0369a1); width: auto; padding: 0.75rem 1.5rem; font-size: 0.9rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                إستيراد إكسل (CSV)
+            </button>
         </div>
     </div>
 
@@ -560,51 +605,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Import Form Card -->
-            <div class="create-card" style="position: sticky; top: 2rem;">
-                <div class="create-header" style="background: linear-gradient(135deg, #0284c7, #0369a1);">
-                    <h3>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                        استيراد الدفعة من CSV
-                    </h3>
-                </div>
-                <div class="create-body">
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5;">
-                        وفر الوقت وقم برفع قائمة الطلاب دفعة واحدة.
-                        سيتم تعيين <strong style="color: var(--text-primary);">رقم القيد ككلمة سر افتراضية</strong> لكل طالب.
-                    </p>
-
-                    <a href="{{ route('delegate.students.template') }}" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.75rem; background: #f0f9ff; color: #0284c7; border: 1px dashed #bae6fd; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-bottom: 1.5rem; transition: all 0.2s;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        تحميل نموذج CSV
-                    </a>
-
-                    <form action="{{ route('delegate.students.import') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <div class="form-group" style="margin-bottom: 1.5rem;">
-                            <input type="file" name="csv_file" accept=".csv" required style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem; background: #fafafa; cursor: pointer;">
-                        </div>
-                        <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 12px -2px rgba(2, 132, 199, 0.4);">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="16 16 12 12 8 16"></polyline>
-                                <line x1="12" y1="12" x2="12" y2="21"></line>
-                                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
-                                <polyline points="16 16 12 12 8 16"></polyline>
-                            </svg>
-                            بدء الاستيراد
-                        </button>
-                    </form>
-                </div>
-            </div>
         </div>
 
         <!-- Students List -->
@@ -625,95 +625,109 @@
             </div>
             @else
             <div class="table-responsive">
-<table class="students-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>الطالب</th>
-                        <th>الرقم الجامعي</th>
-                        <th>الإجراءات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($students as $student)
-                    <tr>
-                        <td>{{ $loop->iteration }}</td>
-                        <td>
-                            <div class="student-cell">
-                                <div class="student-avatar">{{ mb_substr($student->name, 0, 1) }}</div>
-                                <div class="student-info">
-                                    <div class="name">{{ $student->name }}</div>
-                                    <div class="email">{{ $student->email }}</div>
+                <table class="students-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>الطالب</th>
+                            <th>الرقم الجامعي</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($students as $student)
+                        <tr>
+                            <td>{{ $loop->iteration }}</td>
+                            <td>
+                                <div class="student-cell">
+                                    <div class="student-avatar">{{ mb_substr($student->name, 0, 1) }}</div>
+                                    <div class="student-info">
+                                        <div class="name">{{ $student->name }}</div>
+                                        <div class="email">{{ $student->email }}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                        <td><span class="student-number">{{ $student->student_number }}</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button type="button" class="action-btn view" title="عرض التفاصيل"
-                                    @click="
-                                        showDetailsModal = true;
-                                        viewStudent = {
-                                            name: '{{ $student->name }}',
-                                            email: '{{ $student->email }}',
-                                            student_number: '{{ $student->student_number }}',
-                                            level: '{{ $student->level->name ?? '-' }}',
-                                            major: '{{ $student->major->name ?? '-' }}',
-                                            college: '{{ $student->college->name ?? '-' }}',
-                                            university: '{{ $student->university->name ?? '-' }}'
-                                        };
-                                        viewSubjects = {{ json_encode($student->level ? $student->level->terms->flatMap->subjects->map(function($s) {
-                                            return [
-                                                'name' => $s->name,
-                                                'code' => $s->code,
-                                                'doctor' => $s->doctor ? $s->doctor->name : 'غير محدد',
-                                                'term' => $s->term->name
-                                            ];
-                                        }) : []) }};
-                                        viewDelegate = {
-                                            name: '{{ Auth::user()->name }}',
-                                            email: '{{ Auth::user()->email }}'
-                                        };
-                                    ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                        <circle cx="12" cy="12" r="3"></circle>
-                                    </svg>
-                                </button>
-                                <button type="button" class="action-btn edit"
-                                    @click="
-                                        showEditModal = true;
-                                        modalTitle = 'تعديل: {{ $student->name }}';
-                                        editUrl = '{{ route('delegate.students.update', $student) }}';
-                                        editName = '{{ $student->name }}';
-                                        editEmail = '{{ $student->email }}';
-                                        editStudentNumber = '{{ $student->student_number }}';
-                                    ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                    </svg>
-                                    تعديل
-                                </button>
-                                <button type="button" class="action-btn delete"
-                                    @click="
-                                        showDeleteModal = true;
-                                        deleteUrl = '{{ route('delegate.students.destroy', $student) }}';
-                                        modalTitle = 'حذف {{ $student->name }}';
-                                        modalMessage = 'حذف الطالب سيؤدي لحذف جميع سجلات حضوره. هل أنت متأكد؟';
-                                    ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-</div>
+                            </td>
+                            <td><span class="student-number">{{ $student->student_number }}</span></td>
+                            <td>
+                                <div class="action-btns">
+                                    <button type="button" class="action-btn view" style="color: #6366f1; background: #eef2ff;" title="الصلاحيات"
+                                        @click="
+                                            showPermissionsModal = true;
+                                            permStudent = {
+                                                id: {{ $student->id }},
+                                                name: '{{ $student->name }}',
+                                                permissions: {{ json_encode($student->permissions->pluck('slug')) }}
+                                            };
+                                            permsUrl = '{{ route('delegate.students.permissions', $student) }}';
+                                        ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="action-btn view" title="عرض التفاصيل"
+                                        @click="
+                                            showDetailsModal = true;
+                                            viewStudent = {
+                                                name: '{{ $student->name }}',
+                                                email: '{{ $student->email }}',
+                                                student_number: '{{ $student->student_number }}',
+                                                level: '{{ $student->level->name ?? '-' }}',
+                                                major: '{{ $student->major->name ?? '-' }}',
+                                                college: '{{ $student->college->name ?? '-' }}',
+                                                university: '{{ $student->university->name ?? '-' }}'
+                                            };
+                                            viewSubjects = {{ json_encode($student->level ? $student->level->terms->flatMap->subjects->map(function($s) {
+                                                return [
+                                                    'name' => $s->name,
+                                                    'code' => $s->code,
+                                                    'doctor' => $s->doctor ? $s->doctor->name : 'غير محدد',
+                                                    'term' => $s->term->name
+                                                ];
+                                            }) : []) }};
+                                            viewDelegate = {
+                                                name: '{{ Auth::user()->name }}',
+                                                email: '{{ Auth::user()->email }}'
+                                            };
+                                        ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="action-btn edit"
+                                        @click="
+                                            showEditModal = true;
+                                            modalTitle = 'تعديل: {{ $student->name }}';
+                                            editUrl = '{{ route('delegate.students.update', $student) }}';
+                                            editName = '{{ $student->name }}';
+                                            editEmail = '{{ $student->email }}';
+                                            editStudentNumber = '{{ $student->student_number }}';
+                                        ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                        تعديل
+                                    </button>
+                                    <button type="button" class="action-btn delete"
+                                        @click="
+                                            showDeleteModal = true;
+                                            deleteUrl = '{{ route('delegate.students.destroy', $student) }}';
+                                            modalTitle = 'حذف {{ $student->name }}';
+                                            modalMessage = 'حذف الطالب سيؤدي لحذف جميع سجلات حضوره. هل أنت متأكد؟';
+                                        ">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
             @if($students->hasPages())
             <div class="pagination-wrapper">
@@ -721,6 +735,84 @@
             </div>
             @endif
             @endif
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div x-show="showImportModal" class="modal-overlay" style="display: none;" x-transition.opacity>
+        <div class="modal-container" @click.away="showImportModal = false" style="max-width: 550px;">
+            <div class="modal-icon" style="background-color: #f0f9ff; color: #0284c7;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+            </div>
+            <h3 class="modal-title">استيراد الدفعة من CSV</h3>
+            
+            <div style="margin: 1.5rem 0;">
+                <div class="info-box" style="background: #f8fafc; border-color: #e2e8f0; margin-bottom: 1rem;">
+                    <div class="title" style="color: #475569;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        تعليمات هامة:
+                    </div>
+                    <ul style="color: #64748b; font-size: 0.85rem;">
+                        <li>يجب أن يحتوي الملف على الأعمدة التالية بالترتيب: <strong>الاسم، البريد الإلكتروني، الرقم الجامعي</strong>.</li>
+                        <li>سيتم تعيين <strong>الرقم الجامعي ككلمة سر افتراضية</strong> لكل طالب.</li>
+                        <li>تأكد من عدم تكرار البريد الإلكتروني أو الرقم الجامعي في النظام.</li>
+                    </ul>
+                </div>
+
+                <a href="{{ route('delegate.students.template') }}" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.75rem; background: #f0f9ff; color: #0284c7; border: 1px dashed #bae6fd; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    تحميل نموذج ملف (CSV)
+                </a>
+
+                <form action="{{ route('delegate.students.import') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="form-group">
+                        <label>اختر ملف الـ CSV</label>
+                        
+                        <!-- Upload Area -->
+                        <div x-show="!selectedFile" style="position: relative; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1.5rem; text-align: center; background: #fafafa; transition: all 0.2s;" onmouseover="this.style.borderColor='#0284c7'; this.style.background='#f0f9ff';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#fafafa';">
+                            <input type="file" name="csv_file" accept=".csv" required @change="handleFileSelect" style="position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="margin-bottom: 0.5rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <div style="color: #64748b; font-weight: 600;">اسحب الملف هنا أو اضغل للاختيار</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">يدعم صيغة CSV فقط</div>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div x-show="fileError" x-cloak style="margin-top: 0.75rem; background: #fef2f2; color: #dc2626; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; border: 1px solid #fee2e2; display: flex; align-items: center; gap: 0.5rem;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            <span x-text="fileError"></span>
+                        </div>
+
+                        <!-- Selected File Status -->
+                        <div x-show="selectedFile" x-cloak style="margin-top: 1rem; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 1rem; display: flex; align-items: center; gap: 1rem; position: relative;">
+                            <div style="width: 48px; height: 48px; background: #dcfce7; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #16a34a;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 700; color: #14532d; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="selectedFile ? selectedFile.name : ''"></div>
+                                <div style="font-size: 0.8rem; color: #16a34a; font-weight: 600;" x-text="selectedFile ? selectedFile.size : ''"></div>
+                            </div>
+                            <div style="text-align: left;">
+                                <div style="display: flex; align-items: center; gap: 0.35rem; color: #16a34a; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    الملف جاهز
+                                </div>
+                                <button type="button" @click="selectedFile = null; fileError = null; $refs.fileInput.value = ''" style="background: none; border: none; color: #dc2626; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline;">
+                                    تغيير الملف
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" @click="showImportModal = false; selectedFile = null; fileError = null;">إلغاء</button>
+                        <button type="submit" class="btn btn-primary" :disabled="!selectedFile" :style="!selectedFile ? 'background: #94a3b8; cursor: not-allowed;' : 'background: #0284c7;'">بدء عملية الاستيراد</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -798,57 +890,102 @@
     <div x-show="showDetailsModal" class="modal-overlay" style="display: none;" x-transition.opacity>
         <div class="modal-container" @click.away="showDetailsModal = false" style="text-align: right; max-width: 600px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">تفاصيل الطالب</h3>
-                <button @click="showDetailsModal = false" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</button>
+                <h3 class="modal-title" style="margin: 0;">تفاصيل الطالب</h3>
+                <button @click="showDetailsModal = false" style="background: none; border: none; color: var(--text-light); cursor: pointer;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
             </div>
 
-            <!-- Student Info Header -->
-            <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
-                <h4 x-text="viewStudent.name" style="margin: 0; font-size: 1.25rem;"></h4>
-                <div style="opacity: 0.9; margin-top: 0.5rem; display: flex; gap: 1rem; font-size: 0.9rem;">
-                    <span x-text="viewStudent.student_number"></span>
-                    <span>•</span>
-                    <span x-text="viewStudent.major + ' - ' + viewStudent.level"></span>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+                <div class="detail-item">
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">الاسم الكامل</label>
+                    <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.name"></div>
+                </div>
+                <div class="detail-item">
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">الرقم الجامعي</label>
+                    <div style="font-weight: 700; color: var(--text-primary); font-family: monospace;" x-text="viewStudent.student_number"></div>
+                </div>
+                <div class="detail-item">
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">البريد الإلكتروني</label>
+                    <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.email"></div>
+                </div>
+                <div class="detail-item">
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">المستوى الدراسي</label>
+                    <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.level"></div>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
-                <!-- Subjects -->
+            <div style="margin-top: 2rem;">
+                <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    المواد الدراسية (بناءً على المستوى)
+                </h4>
+                <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 12px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead style="background: #f8fafc; position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: right; border-bottom: 1px solid var(--border-color);">المادة</th>
+                                <th style="padding: 0.75rem; text-align: right; border-bottom: 1px solid var(--border-color);">الدكتور</th>
+                                <th style="padding: 0.75rem; text-align: right; border-bottom: 1px solid var(--border-color);">الترم</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="subject in viewSubjects">
+                                <tr>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid #f1f5f9;">
+                                        <div style="font-weight: 600;" x-text="subject.name"></div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);" x-text="subject.code"></div>
+                                    </td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid #f1f5f9;" x-text="subject.doctor"></td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid #f1f5f9;">
+                                        <span style="background: #f1f5f9; padding: 0.2rem 0.5rem; border-radius: 4px;" x-text="subject.term"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; padding: 1rem; background: #f8fafc; border-radius: 12px; display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 40px; height: 40px; background: #e0f2fe; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0284c7;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                </div>
                 <div>
-                    <h5 style="margin: 0 0 1rem; font-size: 0.95rem; font-weight: 700;">المواد الدراسية</h5>
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                        <template x-for="subject in viewSubjects">
-                            <div style="background: #f8fafc; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 8px;">
-                                <div style="font-weight: 600;" x-text="subject.name"></div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">
-                                    <span x-text="'د. ' + subject.doctor"></span>
-                                </div>
-                            </div>
-                        </template>
-                        <div x-show="viewSubjects.length === 0" style="text-align: center; padding: 1rem; color: var(--text-secondary); background: #f8fafc; border-radius: 8px;">
-                            لا توجد مواد مسجلة
-                        </div>
-                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">المندوب المسؤول</div>
+                    <div style="font-weight: 600; color: var(--text-primary);" x-text="viewDelegate ? viewDelegate.name : ''"></div>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <!-- Delegate Info -->
-                <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; text-align: center;">
-                    <h5 style="margin: 0 0 1rem; font-size: 0.9rem; font-weight: 700;">مندوب الدفعة</h5>
-                    <template x-if="viewDelegate">
+    <!-- Permissions Modal -->
+    <div x-show="showPermissionsModal" class="modal-overlay" style="display: none;" x-transition.opacity>
+        <div class="modal-container" @click.away="showPermissionsModal = false" style="max-width: 450px;">
+            <div class="modal-icon" style="background-color: #eef2ff; color: #6366f1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+            </div>
+            <h3 class="modal-title" x-text="'صلاحيات الطالب: ' + permStudent.name"></h3>
+            
+            <form :action="permsUrl" method="POST" style="margin-top: 1.5rem;">
+                @csrf
+                <div class="form-group" style="background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin: 0;">
+                        <input type="checkbox" name="permissions[]" value="upload_shared_library" :checked="permStudent.permissions.includes('upload_shared_library')" style="width: 18px; height: 18px; accent-color: #6366f1;">
                         <div>
-                            <div style="width: 48px; height: 48px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: bold; font-size: 1.25rem;">
-                                <span x-text="viewDelegate.name.charAt(0)"></span>
-                            </div>
-                            <div style="font-weight: 600;" x-text="viewDelegate.name"></div>
-                            <span class="badge badge-success" style="margin-top: 0.5rem;">أنت المندوب</span>
+                            <div style="font-weight: 700; color: #1e293b;">الرفع في المكتبة المشتركة</div>
+                            <div style="font-size: 0.75rem; color: #64748b;">يسمح للطالب برفع الملفات والمراجع مباشرة للمكتبة</div>
                         </div>
-                    </template>
+                    </label>
                 </div>
-            </div>
 
-            <div class="modal-actions" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-                <button type="button" class="btn btn-secondary" @click="showDetailsModal = false">إغلاق</button>
-            </div>
+                <div class="modal-actions" style="margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" @click="showPermissionsModal = false">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" style="background: #6366f1;">حفظ الصلاحيات</button>
+                </div>
+            </form>
         </div>
     </div>
 

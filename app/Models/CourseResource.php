@@ -17,7 +17,14 @@ class CourseResource extends Model
         'file_path',
         'file_type',
         'category',
+        'sub_category',
+        'custom_category_type',
         'description',
+        'unit_coordinator',
+        'lecturer_name',
+        'clinical_unit',
+        'semester_info',
+        'visibility',
     ];
 
     public function subject()
@@ -34,23 +41,45 @@ class CourseResource extends Model
     {
         $categories = [
             'lectures' => 'محاضرات',
-            'references' => 'مراجع',
-            'summaries' => 'ملخصات / سنوات سابقة',
+            'lecture' => 'محاضرة',
+            'summaries' => 'ملخصات',
+            'quizzes' => 'كويزات',
             'exams' => 'نماذج اختبارات',
+            'references' => 'مراجع',
             'other' => 'أخرى',
         ];
 
         return $categories[$this->category] ?? $this->category;
     }
 
+    public function getFullCategoryTextAttribute()
+    {
+        $text = $this->category_text;
+        
+        if ($this->category === 'lectures' && $this->sub_category) {
+            $subs = [
+                'theoretical' => 'نظري',
+                'practical' => 'عملي',
+                'seminar' => 'سمنار',
+                'other' => $this->custom_category_type ?: 'أخرى',
+            ];
+            $subText = $subs[$this->sub_category] ?? $this->sub_category;
+            $text .= " ({$subText})";
+        }
+        
+        return $text;
+    }
+
     // Scopes
     public function scopeFilter($query, $filters)
     {
         return $query->when($filters['search'] ?? null, function ($q, $search) {
-            $q->where('title', 'like', "%{$search}%")
-                ->orWhereHas('subject', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                });
+            $q->where(function($sq) use ($search) {
+                $sq->where('title', 'like', "%{$search}%")
+                  ->orWhereHas('subject', function ($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%");
+                  });
+            });
         })->when($filters['major_id'] ?? null, function ($q, $id) {
             $q->whereHas('subject', fn($s) => $s->where('major_id', $id));
         })->when($filters['level_id'] ?? null, function ($q, $id) {
@@ -59,6 +88,21 @@ class CourseResource extends Model
             $q->where('subject_id', $id);
         })->when($filters['category'] ?? null, function ($q, $cat) {
             $q->where('category', $cat);
+        })->when($filters['sub_category'] ?? null, function ($q, $sub) {
+            $q->where('sub_category', $sub);
+        })->when($filters['semester_info'] ?? null, function ($q, $sem) {
+            $q->where('semester_info', $sem);
+        })->when($filters['lecturer_name'] ?? null, function ($q, $name) {
+            $q->where('lecturer_name', $name);
+        })->when($filters['file_type'] ?? null, function ($q, $type) {
+            if ($type === 'pdf') $q->where('file_type', 'pdf');
+            elseif ($type === 'powerpoint') $q->whereIn('file_type', ['ppt', 'pptx']);
+            elseif ($type === 'word') $q->whereIn('file_type', ['doc', 'docx']);
+            elseif ($type === 'excel') $q->whereIn('file_type', ['xls', 'xlsx']);
+            elseif ($type === 'images') $q->whereIn('file_type', ['jpg', 'jpeg', 'png']);
+            elseif ($type === 'compressed') $q->whereIn('file_type', ['zip', 'rar']);
+        })->when($filters['uploader_role'] ?? null, function ($q, $role) {
+            $q->whereHas('uploader', fn($u) => $u->where('role', $role));
         })->when($filters['year'] ?? null, function ($q, $year) {
             $q->byYear($year);
         });

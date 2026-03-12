@@ -5,9 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title') - لوحة التحكم</title>
+    @if($favicon = \App\Models\Setting::get('app_favicon'))
+        <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
+    @endif
 
     <!-- Dashboard CSS -->
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -195,6 +201,14 @@
                     </svg>
                     <span>المواد الدراسية</span>
                 </a>
+                <a href="{{ route('admin.library.index') }}" class="nav-link {{ request()->routeIs('admin.library.*') ? 'active' : '' }}" title="المكتبة المشتركة">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>المكتبة المشتركة</span>
+                </a>
 
                 <div class="nav-group-label" title="إدارة المستخدمين">إدارة المستخدمين</div>
 
@@ -231,13 +245,22 @@
                     </svg>
                     <span>الدكاترة</span>
                 </a>
-                <a href="{{ route('admin.delegates.index') }}" class="nav-link {{ request()->routeIs('admin.delegates.*') ? 'active' : '' }}" title="المندوبين">
+                <a href="{{ route('admin.delegates.index') }}" class="nav-link {{ request()->routeIs('admin.delegates.*') && !request()->routeIs('admin.delegates.transfer.*') ? 'active' : '' }}" title="المندوبين">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                         <line x1="12" y1="11" x2="12" y2="17"></line>
                     </svg>
                     <span>المندوبين</span>
+                </a>
+                <a href="{{ route('admin.delegates.transfer.index') }}" class="nav-link {{ request()->routeIs('admin.delegates.transfer.*') ? 'active' : '' }}" title="نقل المندوبية">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 3 21 3 21 8"></polyline>
+                        <line x1="4" y1="20" x2="21" y2="3"></line>
+                        <polyline points="21 16 21 21 16 21"></polyline>
+                        <line x1="15" y1="15" x2="21" y2="21"></line>
+                    </svg>
+                    <span>نقل المندوبية</span>
                 </a>
                 <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.*') ? 'active' : '' }}" title="الطلاب">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -248,6 +271,34 @@
                     </svg>
                     <span>الطلاب</span>
                 </a>
+
+                <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 0.5rem 1rem;"></div>
+                
+                <a href="{{ route('admin.packages.index') }}" class="nav-link {{ request()->routeIs('admin.packages.*') ? 'active' : '' }}" title="الباقات">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    <span>إدارة الباقات</span>
+                </a>
+
+                <a href="{{ route('admin.cards.index') }}" class="nav-link {{ request()->routeIs('admin.cards.*') ? 'active' : '' }}" title="الكروت">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>إدارة الكروت</span>
+                </a>
+
+                <a href="{{ route('admin.finance.index') }}" class="nav-link {{ request()->routeIs('admin.finance.*') ? 'active' : '' }}" title="الإدارة المالية">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <span>الإدارة المالية والأرباح</span>
+                </a>
+
+                <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 0.5rem 1rem;"></div>
                 <a href="{{ route('admin.clinical-delegates.index') }}" class="nav-link {{ request()->routeIs('admin.clinical-delegates.*') ? 'active' : '' }}" title="مندوبو العملي">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -391,6 +442,7 @@
 
             <!-- Page Content -->
             <div style="flex: 1; padding: 2rem; overflow-x: auto;">
+                @include('partials.alerts')
                 @yield('content')
             </div>
 

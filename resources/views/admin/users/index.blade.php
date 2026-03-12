@@ -153,6 +153,10 @@
     resetUserId: null,
     resetUserName: '',
     newPassword: '',
+    activateModalOpen: false,
+    activateUserId: null,
+    activateUserName: '',
+    activateDays: 30,
     generatePassword() {
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
         let pass = '';
@@ -216,6 +220,7 @@
                     <th style="width: 50px;">#</th>
                     <th>المستخدم</th>
                     <th>الدور</th>
+                    <th>الاشتراك</th>
                     <th>تاريخ التسجيل</th>
                     <th>الحالة</th>
                     <th style="width: 120px;">الإجراءات</th>
@@ -255,6 +260,19 @@
                         <span class="badge" style="background:#f1f5f9; color:#64748b;">طالب</span>
                         @endif
                     </td>
+                    <td>
+                        @if($user->isSubscribed())
+                            <span class="badge badge-success" style="font-size: 0.75rem;">
+                                @if($user->subscribed_until)
+                                    نشط حتى {{ $user->subscribed_until->format('Y/m/d') }}
+                                @else
+                                    نشط (دائم)
+                                @endif
+                            </span>
+                        @else
+                            <span class="badge" style="background: #f1f5f9; color: #64748b; font-size: 0.75rem;">غير مشترك</span>
+                        @endif
+                    </td>
                     <td style="color: var(--text-secondary); font-size: 0.9rem;">
                         {{ $user->created_at?->format('Y/m/d') ?? '-' }}
                     </td>
@@ -275,6 +293,18 @@
                                     <circle cx="16.5" cy="7.5" r=".5"></circle>
                                 </svg>
                             </button>
+
+                            <!-- Activate Subscription Button -->
+                            @if($user->id !== auth()->id() && $user->role->value !== 'admin')
+                            <button type="button" @click="activateUserId = {{ $user->id }}; activateUserName = '{{ str_replace("'", "\'", $user->name) }}'; activateModalOpen = true;" class="btn" style="padding: 0.4rem; background: #ecfdf5; color: #059669;" title="تفعيل الاشتراك">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m6 9 6 6 6-6"></path>
+                                    <path d="M12 3v12"></path>
+                                    <path d="M5 21h14"></path>
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                </svg>
+                            </button>
+                            @endif
 
                             <!-- Kick Session Button -->
                             <form action="{{ route('admin.users.kick', $user->id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من طرد هذا المستخدم من الجلسة؟ سيتم تسجيل خروجه فوراً.');">
@@ -380,6 +410,43 @@
                 <div style="display:flex; justify-content:flex-end; gap:1rem;">
                     <button type="button" @click="resetModalOpen = false" class="btn btn-secondary" style="padding:0.7rem 1.25rem; border-radius:8px; border:1px solid var(--border-color); background: #fff; cursor:pointer;">إلغاء</button>
                     <button type="submit" class="btn btn-primary" style="padding:0.7rem 1.25rem; background:var(--primary-color); color:#fff; border-radius:8px; border:none; cursor:pointer;">تحديث الكلمة والنسخ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Activate Subscription Modal -->
+    <div x-show="activateModalOpen" x-cloak class="modal-overlay" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;">
+        <div @click.outside="activateModalOpen = false" class="modal-content" style="background:#fff; border-radius:12px; padding:2rem; width:100%; max-width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="margin:0; font-size:1.2rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                    تفعيل الاشتراك يدوياً
+                </h3>
+                <button type="button" @click="activateModalOpen = false" style="background:none; border:none; color:#999; cursor:pointer; font-size:1.5rem;">&times;</button>
+            </div>
+            
+            <p style="color:var(--text-secondary); margin-bottom:1.5rem; font-size:0.95rem;">
+                تفعيل الاشتراك للمستخدم: <strong x-text="activateUserName" style="color:var(--text-primary);"></strong>
+            </p>
+
+            <form :action="`{{ url('admin/users') }}/${activateUserId}/activate-subscription`" method="POST">
+                @csrf
+                @method('PATCH')
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-primary);">عدد أيام الاشتراك</label>
+                    <input type="number" name="days" x-model="activateDays" class="form-control" 
+                           min="1" max="3650" step="1"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;"
+                           placeholder="مثال: 7 أو 30 أو 365">
+                    <small style="color:var(--text-light); margin-top:0.5rem; display:block;">أدخل عدد الأيام المطلوب تفعيلها للمستخدم.</small>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:1rem;">
+                    <button type="button" @click="activateModalOpen = false" class="btn btn-secondary" style="padding:0.7rem 1.25rem; border-radius:8px; border:1px solid var(--border-color); background: #fff; cursor:pointer;">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" style="padding:0.7rem 1.25rem; background:#059669; color:#fff; border-radius:8px; border:none; cursor:pointer;">تفعيل الآن</button>
                 </div>
             </form>
         </div>

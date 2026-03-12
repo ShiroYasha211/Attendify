@@ -5,9 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title') - لوحة المندوب</title>
+    @if($favicon = \App\Models\Setting::get('app_favicon'))
+        <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
+    @endif
 
     <!-- Dashboard CSS -->
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -135,6 +141,39 @@
                 display: block;
             }
         }
+
+        /* Subscription Lock Styles */
+        .nav-link.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+            position: relative;
+        }
+
+        .nav-link.locked::after {
+            content: '🔒';
+            position: absolute;
+            left: 1.5rem;
+            font-size: 0.8rem;
+        }
+
+        .balance-badge {
+            background: #f1f5f9;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            border: 1px solid #e2e8f0;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .balance-badge:hover {
+            background: #e2e8f0;
+        }
     </style>
 </head>
 
@@ -167,9 +206,37 @@
                     <span>الرئيسية</span>
                 </a>
 
+                <a href="{{ route('delegate.subscription.index') }}" class="nav-link {{ request()->routeIs('delegate.subscription.*') ? 'active' : '' }}" title="الاشتراك والرصيد">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    <span>الاشتراك والرصيد</span>
+                    @if(!Auth::user()->isSubscribed())
+                        <span style="background: #ef4444; width: 8px; height: 8px; border-radius: 50%; margin-right: auto;"></span>
+                    @endif
+                <a href="{{ route('delegate.ledger') }}" class="nav-link {{ request()->routeIs('delegate.ledger') ? 'active' : '' }}" title="كشف الحساب">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    <span>كشف الحساب (مالي)</span>
+                </a>
+
+                @if(Auth::user()->hasPermission('generate_cards'))
+                <a href="{{ route('delegate.cards.generate.index') }}" class="nav-link {{ request()->routeIs('delegate.cards.generate.*') ? 'active' : '' }}" title="توليد الكروت">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                        <line x1="2" x2="22" y1="10" y2="10"></line>
+                        <path d="M7 15h.01"></path>
+                        <path d="M11 15h2"></path>
+                    </svg>
+                    <span>توليد الكروت</span>
+                </a>
+                @endif
+
                 <div class="nav-group-label" title="إدارة الدفعة">إدارة الدفعة</div>
 
-                <a href="{{ route('delegate.students.index') }}" class="nav-link {{ request()->routeIs('delegate.students.*') ? 'active' : '' }}" title="الطلاب">
+                <a href="{{ route('delegate.students.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.students.*') ? 'active' : '' }}" title="الطلاب">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="9" cy="7" r="4"></circle>
@@ -179,7 +246,7 @@
                     <span>الطلاب</span>
                 </a>
 
-                <a href="{{ route('delegate.subjects.index') }}" class="nav-link {{ request()->routeIs('delegate.subjects.*') ? 'active' : '' }}" title="المواد الدراسية">
+                <a href="{{ route('delegate.subjects.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.subjects.*') ? 'active' : '' }}" title="المواد الدراسية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
@@ -187,7 +254,7 @@
                     <span>المواد الدراسية</span>
                 </a>
 
-                <a href="{{ route('delegate.schedules.index') }}" class="nav-link {{ request()->routeIs('delegate.schedules.*') ? 'active' : '' }}" title="الجدول الدراسي">
+                <a href="{{ route('delegate.schedules.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.schedules.*') ? 'active' : '' }}" title="الجدول الدراسي">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                         <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -197,7 +264,7 @@
                     <span>الجدول الدراسي</span>
                 </a>
 
-                <a href="{{ route('delegate.exams.index') }}" class="nav-link {{ request()->routeIs('delegate.exams.*') ? 'active' : '' }}" title="جداول الاختبارات">
+                <a href="{{ route('delegate.exams.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.exams.*') ? 'active' : '' }}" title="جداول الاختبارات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -208,7 +275,7 @@
                     <span>جداول الاختبارات</span>
                 </a>
 
-                <a href="{{ route('delegate.resources.index') }}" class="nav-link {{ request()->routeIs('delegate.resources.*') ? 'active' : '' }}" title="مصادر المقرر">
+                <a href="{{ route('delegate.resources.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.resources.*') ? 'active' : '' }}" title="مصادر المقرر">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                         <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
@@ -216,14 +283,14 @@
                     <span>مصادر المقرر</span>
                 </a>
 
-                <a href="{{ route('delegate.library.index') }}" class="nav-link {{ request()->routeIs('delegate.library.*') ? 'active' : '' }}" title="المكتبة المشتركة">
+                <a href="{{ route('delegate.library.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.library.*') ? 'active' : '' }}" title="المكتبة المشتركة">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
                     </svg>
                     <span>المكتبة المشتركة</span>
                 </a>
 
-                <a href="{{ route('delegate.assignments.index') }}" class="nav-link {{ request()->routeIs('delegate.assignments.*') ? 'active' : '' }}" title="التكاليف الدراسية">
+                <a href="{{ route('delegate.assignments.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.assignments.*') ? 'active' : '' }}" title="التكاليف الدراسية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -234,7 +301,7 @@
                     <span>التكاليف الدراسية</span>
                 </a>
 
-                <a href="{{ route('delegate.announcements.index') }}" class="nav-link {{ request()->routeIs('delegate.announcements.*') ? 'active' : '' }}" title="أخبار الدفعة">
+                <a href="{{ route('delegate.announcements.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.announcements.*') ? 'active' : '' }}" title="أخبار الدفعة">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path>
                         <path d="M18 14h-8"></path>
@@ -244,7 +311,7 @@
                     <span>أخبار الدفعة</span>
                 </a>
 
-                <a href="{{ route('delegate.reminders.index') }}" class="nav-link {{ request()->routeIs('delegate.reminders.*') ? 'active' : '' }}" title="جدولة التذكيرات">
+                <a href="{{ route('delegate.reminders.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.reminders.*') ? 'active' : '' }}" title="جدولة التذكيرات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
@@ -254,7 +321,7 @@
 
                 <div class="nav-group-label" title="الحضور والمتابعة">الحضور والمتابعة</div>
 
-                <a href="{{ route('delegate.attendance.index') }}" class="nav-link {{ request()->routeIs('delegate.attendance.*') ? 'active' : '' }}" title="رصد الحضور">
+                <a href="{{ route('delegate.attendance.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.attendance.*') ? 'active' : '' }}" title="رصد الحضور">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="9 11 12 14 22 4"></polyline>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
@@ -262,7 +329,7 @@
                     <span>رصد الحضور</span>
                 </a>
 
-                <a href="{{ route('delegate.notifications.index') }}" class="nav-link {{ request()->routeIs('delegate.notifications.*') ? 'active' : '' }}" title="تنبيهات الغياب">
+                <a href="{{ route('delegate.notifications.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.notifications.*') ? 'active' : '' }}" title="تنبيهات الغياب">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -273,7 +340,7 @@
                 @if(Auth::user()->isClinicalDelegate())
                 <div class="nav-group-label" title="القسم العملي">القسم العملي</div>
 
-                <a href="{{ route('delegate.clinical.delegations.index') }}" class="nav-link {{ request()->routeIs('delegate.clinical.delegations.*') ? 'active' : '' }}" title="تفويض الطلاب">
+                <a href="{{ route('delegate.clinical.delegations.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.clinical.delegations.*') ? 'active' : '' }}" title="تفويض الطلاب">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="8.5" cy="7" r="4"></circle>
@@ -283,14 +350,14 @@
                     <span>تفويض الطلاب</span>
                 </a>
 
-                <a href="{{ route('delegate.clinical.cases.index') }}" class="nav-link {{ request()->is('*/clinical/cases') ? 'active' : '' }}" title="الحالات السريرية">
+                <a href="{{ route('delegate.clinical.cases.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->is('*/clinical/cases') ? 'active' : '' }}" title="الحالات السريرية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                     </svg>
                     <span>الحالات السريرية</span>
                 </a>
 
-                <a href="{{ route('delegate.clinical.cases.pending') }}" class="nav-link {{ request()->routeIs('delegate.clinical.cases.pending') ? 'active' : '' }}" title="مراجعة الحالات">
+                <a href="{{ route('delegate.clinical.cases.pending') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.clinical.cases.pending') ? 'active' : '' }}" title="مراجعة الحالات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 20h9"></path>
                         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
@@ -380,6 +447,13 @@
                         التبديل للطالب
                     </a>
 
+                    <a href="{{ route('delegate.subscription.index') }}" class="balance-badge" title="رصيدك الحالي" style="text-decoration: none; margin-left: 1rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2">
+                            <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                        <span>{{ number_format(Auth::user()->balance) }} ريال</span>
+                    </a>
+
                     <div style="width: 1px; height: 24px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
 
                     <button @click="showLogoutModal = true" class="logout-btn-icon" title="تسجيل الخروج">
@@ -393,7 +467,18 @@
                     <div style="width: 1px; height: 24px; background-color: var(--border-color);"></div>
 
                     <div class="user-info">
-                        <span class="user-name">{{ Auth::user()->name }}</span>
+                        <span class="user-name">
+                            {{ Auth::user()->name }}
+                            @if(Auth::user()->isSubscribed())
+                                <span style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.70rem; font-weight: 800; margin-right: 4px; display: inline-flex; align-items: center;">
+                                    مشترك
+                                </span>
+                            @else
+                                <span style="background-color: #94a3b8; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.70rem; font-weight: 800; margin-right: 4px; display: inline-flex; align-items: center;">
+                                    غير مشترك
+                                </span>
+                            @endif
+                        </span>
                         <span class="user-role">مندوب {{ Auth::user()->level->name ?? '' }}</span>
                     </div>
 
@@ -405,6 +490,7 @@
 
             <!-- Page Content -->
             <div style="flex: 1; padding: 2rem; overflow-x: auto;">
+                @include('partials.alerts')
                 @yield('content')
             </div>
 

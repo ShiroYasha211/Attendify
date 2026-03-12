@@ -25,6 +25,9 @@ Route::prefix('admin')
         Route::get('dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])
             ->name('dashboard');
 
+        // Finance & Earnings
+        Route::get('finance', [App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('finance.index');
+
         // Profile & Password
         Route::get('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('profile.password');
         Route::put('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('profile.password.update');
@@ -52,6 +55,7 @@ Route::prefix('admin')
         Route::get('users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
         Route::get('users/export', [App\Http\Controllers\Admin\UserController::class, 'export'])->name('users.export');
         Route::patch('users/{user}/status', [App\Http\Controllers\Admin\UserController::class, 'updateStatus'])->name('users.status');
+        Route::patch('users/{user}/activate-subscription', [App\Http\Controllers\Admin\UserController::class, 'activateSubscription'])->name('users.activate-subscription');
         Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserController::class, 'resetPassword'])->name('users.reset-password');
         Route::post('users/{user}/kick', [App\Http\Controllers\Admin\UserController::class, 'kickSession'])->name('users.kick');
         Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
@@ -62,7 +66,13 @@ Route::prefix('admin')
         Route::post('users/bulk-delete', [App\Http\Controllers\Admin\UserController::class, 'bulkDelete'])->name('users.bulk-delete');
 
         Route::resource('delegates', App\Http\Controllers\Admin\DelegateController::class);
+        
+        // Delegate Transfer Routes
+        Route::get('delegates-transfer', [App\Http\Controllers\Admin\DelegateTransferController::class, 'index'])->name('delegates.transfer.index');
+        Route::get('delegates-transfer/{major}/{level}', [App\Http\Controllers\Admin\DelegateTransferController::class, 'show'])->name('delegates.transfer.show');
+        Route::post('delegates-transfer', [App\Http\Controllers\Admin\DelegateTransferController::class, 'transfer'])->name('delegates.transfer.perform');
         Route::resource('students', App\Http\Controllers\Admin\StudentController::class);
+        Route::post('students/{student}/permissions', [App\Http\Controllers\Admin\StudentController::class, 'updatePermissions'])->name('students.permissions');
         Route::resource('doctors', App\Http\Controllers\Admin\DoctorController::class);
 
         // Clinical Delegate Management
@@ -96,9 +106,22 @@ Route::prefix('admin')
         Route::get('activities', [App\Http\Controllers\Admin\ActivityController::class, 'index'])->name('activities.index');
         Route::delete('activities/cleanup', [App\Http\Controllers\Admin\ActivityController::class, 'cleanup'])->name('activities.cleanup');
 
+        // Shared Library Management
+        Route::resource('library', App\Http\Controllers\Admin\LibraryController::class)->names('library');
+        Route::get('library/{resource}/download', [App\Http\Controllers\Admin\LibraryController::class, 'download'])->name('library.download');
+
         // Storage Management Routes
         Route::get('storage', [App\Http\Controllers\Admin\StorageController::class, 'index'])->name('storage.index');
         Route::delete('storage/{type}/{id}', [App\Http\Controllers\Admin\StorageController::class, 'destroy'])->name('storage.destroy');
+
+        // Subscription & Packages Management
+        Route::patch('packages/{package}/toggle', [App\Http\Controllers\Admin\PackageController::class, 'toggleStatus'])->name('packages.toggle');
+        Route::resource('packages', App\Http\Controllers\Admin\PackageController::class);
+        Route::get('packages/{package}/subscribers', [App\Http\Controllers\Admin\PackageController::class, 'subscribers'])->name('packages.subscribers');
+        Route::post('subscriptions/{subscription}/cancel', [App\Http\Controllers\Admin\PackageController::class, 'cancelSubscription'])->name('subscriptions.cancel');
+        Route::get('cards', [App\Http\Controllers\Admin\CardController::class, 'index'])->name('cards.index');
+        Route::post('cards/generate', [App\Http\Controllers\Admin\CardController::class, 'generate'])->name('cards.generate');
+        Route::delete('cards/{card}', [App\Http\Controllers\Admin\CardController::class, 'destroy'])->name('cards.destroy');
 
         // Settings Routes
         Route::get('settings', [App\Http\Controllers\Admin\SettingController::class, 'index'])->name('settings.index');
@@ -107,7 +130,7 @@ Route::prefix('admin')
 
 Route::prefix('doctor')
     ->name('doctor.')
-    ->middleware(['auth', 'role:doctor', 'status'])
+    ->middleware(['auth', 'role:doctor', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Doctor\DashboardController::class, 'index'])->name('dashboard');
 
@@ -159,6 +182,10 @@ Route::prefix('doctor')
         Route::post('notifications/{id}/read', [App\Http\Controllers\Doctor\NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
         Route::post('notifications/mark-all-read', [App\Http\Controllers\Doctor\NotificationController::class, 'markAllAsRead'])->name('notifications.markAllRead');
 
+        // Financial Ledger
+        Route::get('ledger', [App\Http\Controllers\FinancialController::class, 'ledger'])->name('ledger');
+        Route::get('ledger/export', [App\Http\Controllers\FinancialController::class, 'exportPdf'])->name('ledger.export');
+
         // Clinical Training Hub
         Route::prefix('clinical')->name('clinical.')->group(function () {
             // Dashboard / Overview of Centers & Departments
@@ -207,18 +234,26 @@ Route::prefix('doctor')
             });
         });
 
-        // Course Resources
-        Route::get('resources', [App\Http\Controllers\Doctor\ResourceController::class, 'index'])->name('resources.index');
-        Route::get('resources/create', [App\Http\Controllers\Doctor\ResourceController::class, 'create'])->name('resources.create');
-        Route::post('resources', [App\Http\Controllers\Doctor\ResourceController::class, 'store'])->name('resources.store');
-        Route::get('resources/{resource}/edit', [App\Http\Controllers\Doctor\ResourceController::class, 'edit'])->name('resources.edit');
-        Route::put('resources/{resource}', [App\Http\Controllers\Doctor\ResourceController::class, 'update'])->name('resources.update');
-        Route::delete('resources/{resource}', [App\Http\Controllers\Doctor\ResourceController::class, 'destroy'])->name('resources.destroy');
+        // Shared Subscription Routes
+        Route::get('subscription', [App\Http\Controllers\Student\SubscriptionController::class, 'index'])->name('subscription.index');
+        Route::post('subscription/redeem', [App\Http\Controllers\Student\SubscriptionController::class, 'redeem'])->name('subscription.redeem');
+        Route::post('subscription/subscribe', [App\Http\Controllers\Student\SubscriptionController::class, 'subscribe'])->name('subscription.subscribe');
+        Route::post('subscription/auto-renew', [App\Http\Controllers\Student\SubscriptionController::class, 'toggleAutoRenew'])->name('subscription.toggleAutoRenew');
+
+        // Card Generation (Balance-based)
+        Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
+        Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
+
+        // Shared Study Library (Unified)
+        Route::get('library', [App\Http\Controllers\Student\LibraryController::class, 'index'])->name('library.index');
+        Route::get('library/create', [App\Http\Controllers\Student\LibraryController::class, 'create'])->name('library.create');
+        Route::post('library/upload', [App\Http\Controllers\Student\LibraryController::class, 'store'])->name('library.store');
+        Route::get('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
     });
 
 Route::prefix('student')
     ->name('student.')
-    ->middleware(['auth', 'role:student', 'status'])
+    ->middleware(['auth', 'role:student', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
 
@@ -257,11 +292,19 @@ Route::prefix('student')
         Route::post('notifications/{id}/read', [App\Http\Controllers\Student\NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
         Route::post('notifications/mark-all-read', [App\Http\Controllers\Student\NotificationController::class, 'markAllAsRead'])->name('notifications.markAllRead');
 
+        // Financial Ledger
+        Route::get('ledger', [App\Http\Controllers\FinancialController::class, 'ledger'])->name('ledger');
+        Route::get('ledger/export', [App\Http\Controllers\FinancialController::class, 'exportPdf'])->name('ledger.export');
+
         // Messages (Chat System)
         Route::get('messages', [App\Http\Controllers\Student\MessageController::class, 'index'])->name('messages.index');
         Route::get('messages/start', [App\Http\Controllers\Student\MessageController::class, 'start'])->name('messages.start');
         Route::get('messages/{conversation}', [App\Http\Controllers\Student\MessageController::class, 'show'])->name('messages.show');
         Route::post('messages/{conversation}/send', [App\Http\Controllers\Student\MessageController::class, 'send'])->name('messages.send');
+
+        // Card Generation (Balance-based)
+        Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
+        Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
 
         // Inquiries (Doctor Questions)
         Route::get('inquiries', [App\Http\Controllers\Student\InquiryController::class, 'index'])->name('inquiries.index');
@@ -316,12 +359,20 @@ Route::prefix('student')
 
         // Shared Study Library
         Route::get('library', [App\Http\Controllers\Student\LibraryController::class, 'index'])->name('library.index');
-        Route::post('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
+        Route::get('library/create', [App\Http\Controllers\Student\LibraryController::class, 'create'])->name('library.create');
+        Route::post('library/upload', [App\Http\Controllers\Student\LibraryController::class, 'store'])->name('library.store');
+        Route::get('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
+
+        // Shared Subscription Routes
+        Route::get('subscription', [App\Http\Controllers\Student\SubscriptionController::class, 'index'])->name('subscription.index');
+        Route::post('subscription/redeem', [App\Http\Controllers\Student\SubscriptionController::class, 'redeem'])->name('subscription.redeem');
+        Route::post('subscription/subscribe', [App\Http\Controllers\Student\SubscriptionController::class, 'subscribe'])->name('subscription.subscribe');
+        Route::post('subscription/auto-renew', [App\Http\Controllers\Student\SubscriptionController::class, 'toggleAutoRenew'])->name('subscription.toggleAutoRenew');
     });
 
 Route::prefix('delegate')
     ->name('delegate.')
-    ->middleware(['auth', 'role:delegate', 'status'])
+    ->middleware(['auth', 'role:delegate', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Delegate\DashboardController::class, 'index'])->name('dashboard');
 
@@ -334,11 +385,24 @@ Route::prefix('delegate')
 
         // Shared Library Access for Delegate
         Route::get('library', [App\Http\Controllers\Student\LibraryController::class, 'index'])->name('library.index');
-        Route::post('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
+        Route::get('library/create', [App\Http\Controllers\Student\LibraryController::class, 'create'])->name('library.create');
+        Route::post('library', [App\Http\Controllers\Student\LibraryController::class, 'store'])->name('library.store');
+        Route::get('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
+
+        // Shared Subscription Routes
+        Route::get('subscription', [App\Http\Controllers\Student\SubscriptionController::class, 'index'])->name('subscription.index');
+        Route::post('subscription/redeem', [App\Http\Controllers\Student\SubscriptionController::class, 'redeem'])->name('subscription.redeem');
+        Route::post('subscription/subscribe', [App\Http\Controllers\Student\SubscriptionController::class, 'subscribe'])->name('subscription.subscribe');
+        Route::post('subscription/auto-renew', [App\Http\Controllers\Student\SubscriptionController::class, 'toggleAutoRenew'])->name('subscription.toggleAutoRenew');
+
+        // Card Generation (Balance-based)
+        Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
+        Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
 
         // Students Management
         Route::get('students/template', [App\Http\Controllers\Delegate\StudentController::class, 'downloadTemplate'])->name('students.template');
         Route::post('students/import', [App\Http\Controllers\Delegate\StudentController::class, 'import'])->name('students.import');
+        Route::post('students/{student}/permissions', [App\Http\Controllers\Delegate\StudentController::class, 'updatePermissions'])->name('students.permissions');
         Route::resource('students', App\Http\Controllers\Delegate\StudentController::class);
 
         // Subjects & Schedule
@@ -348,6 +412,10 @@ Route::prefix('delegate')
         // Notifications
         Route::get('notifications', [App\Http\Controllers\Delegate\NotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications', [App\Http\Controllers\Delegate\NotificationController::class, 'store'])->name('notifications.store');
+
+        // Financial Ledger
+        Route::get('ledger', [App\Http\Controllers\FinancialController::class, 'ledger'])->name('ledger');
+        Route::get('ledger/export', [App\Http\Controllers\FinancialController::class, 'exportPdf'])->name('ledger.export');
 
         // Attendance
         Route::get('attendance', [App\Http\Controllers\Delegate\AttendanceController::class, 'index'])->name('attendance.index');

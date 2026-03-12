@@ -6,9 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title') - بوابة أعضاء هيئة التدريس</title>
+    @if($favicon = \App\Models\Setting::get('app_favicon'))
+        <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
+    @endif
 
     <!-- Dashboard CSS -->
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -136,6 +142,39 @@
                 display: block;
             }
         }
+
+        /* Subscription Lock Styles */
+        .nav-link.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+            position: relative;
+        }
+
+        .nav-link.locked::after {
+            content: '🔒';
+            position: absolute;
+            left: 1.5rem;
+            font-size: 0.8rem;
+        }
+
+        .balance-badge {
+            background: #f1f5f9;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            border: 1px solid #e2e8f0;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .balance-badge:hover {
+            background: #e2e8f0;
+        }
     </style>
 </head>
 
@@ -167,10 +206,38 @@
                     <span>الرئيسية</span>
                 </a>
 
+                <a href="{{ route('doctor.subscription.index') }}" class="nav-link {{ request()->routeIs('doctor.subscription.*') ? 'active' : '' }}" title="الاشتراك والرصيد">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    <span>الاشتراك والرصيد</span>
+                    @if(!Auth::user()->isSubscribed())
+                        <span style="background: #ef4444; width: 8px; height: 8px; border-radius: 50%; margin-right: auto;"></span>
+                    @endif
+                <a href="{{ route('doctor.ledger') }}" class="nav-link {{ request()->routeIs('doctor.ledger') ? 'active' : '' }}" title="كشف الحساب">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    <span>كشف الحساب (مالي)</span>
+                </a>
+
+                @if(Auth::user()->hasPermission('generate_cards'))
+                <a href="{{ route('doctor.cards.generate.index') }}" class="nav-link {{ request()->routeIs('doctor.cards.generate.*') ? 'active' : '' }}" title="توليد الكروت">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                        <line x1="2" x2="22" y1="10" y2="10"></line>
+                        <path d="M7 15h.01"></path>
+                        <path d="M11 15h2"></path>
+                    </svg>
+                    <span>توليد الكروت</span>
+                </a>
+                @endif
+
                 <div class="nav-group-label" title="السريري">السريري</div>
 
                 <!-- Clinical Hub -->
-                <a href="{{ route('doctor.clinical.index') }}" class="nav-link {{ request()->routeIs('doctor.clinical.*') ? 'active' : '' }}" title="القسم العملي">
+                <a href="{{ route('doctor.clinical.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.clinical.*') ? 'active' : '' }}" title="القسم العملي">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
                     </svg>
@@ -180,7 +247,7 @@
                 <div class="nav-group-label" title="الأكاديمية">الأكاديمية</div>
 
                 <!-- Excuses -->
-                <a href="{{ route('doctor.excuses.index') }}" class="nav-link {{ request()->routeIs('doctor.excuses.*') ? 'active' : '' }}" title="أعذار الغياب">
+                <a href="{{ route('doctor.excuses.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.excuses.*') ? 'active' : '' }}" title="أعذار الغياب">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -192,7 +259,7 @@
                 </a>
 
                 <!-- Attendance -->
-                <a href="{{ route('doctor.attendance.index') }}" class="nav-link {{ request()->routeIs('doctor.attendance.*') ? 'active' : '' }}" title="رصد الحضور">
+                <a href="{{ route('doctor.attendance.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.attendance.*') ? 'active' : '' }}" title="رصد الحضور">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="8.5" cy="7" r="4"></circle>
@@ -203,7 +270,7 @@
                 </a>
 
                 <!-- Reports -->
-                <a href="{{ route('doctor.reports.index') }}" class="nav-link {{ request()->routeIs('doctor.reports.*') ? 'active' : '' }}" title="التقارير">
+                <a href="{{ route('doctor.reports.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.reports.*') ? 'active' : '' }}" title="التقارير">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -213,7 +280,7 @@
                 </a>
 
                 <!-- Assignments -->
-                <a href="{{ route('doctor.assignments.index') }}" class="nav-link {{ request()->routeIs('doctor.assignments.*') ? 'active' : '' }}" title="التكاليف">
+                <a href="{{ route('doctor.assignments.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.assignments.*') ? 'active' : '' }}" title="التكاليف">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -225,7 +292,7 @@
                 </a>
 
                 <!-- Grades -->
-                <a href="{{ route('doctor.grades.index') }}" class="nav-link {{ request()->routeIs('doctor.grades.*') ? 'active' : '' }}" title="إدارة الدرجات">
+                <a href="{{ route('doctor.grades.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.grades.*') ? 'active' : '' }}" title="إدارة الدرجات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
                         <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
@@ -233,18 +300,18 @@
                     <span>إدارة الدرجات</span>
                 </a>
 
-                <!-- Resources -->
-                <a href="{{ route('doctor.resources.index') }}" class="nav-link {{ request()->routeIs('doctor.resources.*') ? 'active' : '' }}" title="المصادر التعليمية">
+                <!-- Shared Library -->
+                <a href="{{ route('doctor.library.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.library.*') ? 'active' : '' }}" title="المكتبة المشتركة">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span>المصادر التعليمية</span>
+                    <span>المكتبة المشتركة</span>
                 </a>
 
                 <div class="nav-group-label" title="التواصل">التواصل</div>
 
                 <!-- Inquiries -->
-                <a href="{{ route('doctor.inquiries.index') }}" class="nav-link {{ request()->routeIs('doctor.inquiries.*') ? 'active' : '' }}" title="استفسارات الطلاب">
+                <a href="{{ route('doctor.inquiries.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.inquiries.*') ? 'active' : '' }}" title="استفسارات الطلاب">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
@@ -254,7 +321,7 @@
                 </a>
 
                 <!-- Messages with Delegates -->
-                <a href="{{ route('doctor.messages.index') }}" class="nav-link {{ request()->routeIs('doctor.messages.*') ? 'active' : '' }}" title="محادثات المندوبين">
+                <a href="{{ route('doctor.messages.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.messages.*') ? 'active' : '' }}" title="محادثات المندوبين">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
@@ -262,7 +329,7 @@
                 </a>
 
                 <!-- Notifications -->
-                <a href="{{ route('doctor.notifications.index') }}" class="nav-link {{ request()->routeIs('doctor.notifications.*') ? 'active' : '' }}" title="الإشعارات">
+                <a href="{{ route('doctor.notifications.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.notifications.*') ? 'active' : '' }}" title="الإشعارات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -321,10 +388,28 @@
                         </svg>
                     </button>
 
+                    <a href="{{ route('doctor.subscription.index') }}" class="balance-badge" title="رصيدك الحالي" style="text-decoration: none; margin-left: 1rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2">
+                            <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                        <span>{{ number_format(Auth::user()->balance) }} ريال</span>
+                    </a>
+
                     <div style="width: 1px; height: 24px; background-color: var(--border-color);"></div>
 
                     <div class="user-info">
-                        <span class="user-name">{{ Auth::user()->name }}</span>
+                        <span class="user-name">
+                            {{ Auth::user()->name }}
+                            @if(Auth::user()->isSubscribed())
+                                <span style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.70rem; font-weight: 800; margin-right: 4px; display: inline-flex; align-items: center;">
+                                    مشترك
+                                </span>
+                            @else
+                                <span style="background-color: #94a3b8; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.70rem; font-weight: 800; margin-right: 4px; display: inline-flex; align-items: center;">
+                                    غير مشترك
+                                </span>
+                            @endif
+                        </span>
                         <span class="user-role">دكتور</span>
                     </div>
 
@@ -336,6 +421,7 @@
 
             <!-- Page Content -->
             <div style="flex: 1; padding: 2rem; overflow-x: auto;">
+                @include('partials.alerts')
                 @yield('content')
             </div>
 

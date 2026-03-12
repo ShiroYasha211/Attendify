@@ -29,6 +29,9 @@ class User extends Authenticatable
         'college_id',
         'major_id',
         'level_id',
+        'balance',
+        'subscribed_until',
+        'auto_renew',
     ];
 
     /**
@@ -48,9 +51,31 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        // تحويل النص إلى enum تلقائيًا عند الوصول للخاصية
         'role' => UserRole::class,
+        'balance' => 'decimal:2',
+        'subscribed_until' => 'datetime',
+        'auto_renew' => 'boolean',
     ];
+
+    /**
+     * Check if the user has an active subscription.
+     */
+    public function isSubscribed(): bool
+    {
+        if ($this->role === UserRole::ADMIN) {
+            return true;
+        }
+
+        return $this->subscribed_until && $this->subscribed_until->isFuture();
+    }
+
+    /**
+     * Cards used by this user.
+     */
+    public function usedCards()
+    {
+        return $this->hasMany(Card::class, 'used_by_id');
+    }
 
     /**
      * Check if the user has a given role.
@@ -167,5 +192,83 @@ class User extends Authenticatable
                 $query->whereNull('expires_at')
                       ->orWhere('expires_at', '>', now());
             })->exists();
+    }
+
+    /**
+     * Permissions relationship.
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class);
+    }
+
+    /**
+     * Check if user has a specific granular permission.
+     */
+    public function hasPermission(string $slug): bool
+    {
+        return $this->permissions()->where('slug', $slug)->exists();
+    }
+
+    /**
+     * Grant a permission to the user.
+     */
+    public function givePermission(string $slug): void
+    {
+        $permission = Permission::where('slug', $slug)->first();
+        if ($permission) {
+            $this->permissions()->syncWithoutDetaching([$permission->id]);
+        }
+    }
+
+    /**
+     * Revoke a permission from the user.
+     */
+    public function revokePermission(string $slug): void
+    {
+        $permission = Permission::where('slug', $slug)->first();
+        if ($permission) {
+            $this->permissions()->detach($permission->id);
+        }
+    }
+
+    /**
+     * Get the transactions for the user.
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * Record a financial transaction and update balance.
+     */
+    public function recordTransaction($amount, $type, $action, $description, $reference = null, $metadata = null)
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($amount, $type, $action, $description, $reference, $metadata) {
+            $balanceBefore = $this->balance;
+            
+            // Adjust balance
+            if ($amount > 0) {
+                $this->increment('balance', $amount);
+            } elseif ($amount < 0) {
+                $this->decrement('balance', abs($amount));
+            }
+            
+            $this->refresh();
+            $balanceAfter = $this->balance;
+
+            return $this->transactions()->create([
+                'amount' => $amount,
+                'type' => $type,
+                'action' => $action,
+                'description' => $description,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'reference_id' => $reference ? $reference->id : null,
+                'reference_type' => $reference ? get_class($reference) : null,
+                'metadata' => $metadata,
+            ]);
+        });
     }
 }

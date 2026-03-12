@@ -312,7 +312,10 @@
     
     viewStudent: {},
     viewSubjects: [],
-    viewDelegate: null
+    viewDelegate: null,
+    showPermissionsModal: false,
+    permStudent: { name: '', permissions: [] },
+    permsUrl: ''
 }">
 
     <!-- Page Header -->
@@ -628,6 +631,19 @@
                                     </svg>
                                     حذف
                                 </button>
+                                                                <button type="button" class="action-btn" style="background: #f0f9ff; color: #0369a1;"
+                                    @click="
+                                        showPermissionsModal = true;
+                                        permStudent.name = '{{ $student->name }}';
+                                        permStudent.permissions = {{ json_encode($student->permissions->pluck('slug')) }};
+                                        permsUrl = '{{ route('admin.students.permissions', $student) }}';
+                                    ">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    </svg>
+                                    الصلاحيات
+                                </button>
+
                             </div>
                         </td>
                     </tr>
@@ -798,6 +814,58 @@
             <div class="modal-actions" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                 <button type="button" class="btn btn-secondary" @click="showDetailsModal = false">إغلاق</button>
             </div>
+        </div>
+    </div>
+
+
+
+    <!-- Permissions Modal -->
+    <div x-show="showPermissionsModal" class="modal-overlay" style="display: none;"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0">
+        <div class="modal-container" style="text-align: right; max-width: 500px;" @click.away="showPermissionsModal = false">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 40px; height: 40px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="modal-title" style="margin: 0; font-size: 1.25rem;">إدارة الصلاحيات</h3>
+                </div>
+                <button @click="showPermissionsModal = false" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</button>
+            </div>
+
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                الطالب: <strong style="color: var(--text-primary);" x-text="permStudent.name"></strong>
+            </p>
+
+            <form :action="permsUrl" method="POST">
+                @csrf
+                <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem;">
+                    @foreach(\App\Models\Permission::all() as $perm)
+                    <label style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s;" class="permission-item" onmouseover="this.style.borderColor='var(--primary-color)'" onmouseout="this.style.borderColor='#e2e8f0'">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <span style="font-weight: 700; color: var(--text-primary);">{{ $perm->name }}</span>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ $perm->description }}</span>
+                        </div>
+                        <div class="custom-toggle">
+                            <input type="checkbox" name="permissions[]" value="{{ $perm->slug }}" style="width: 20px; height: 20px; cursor: pointer;"
+                                :checked="permStudent.permissions.includes('{{ $perm->slug }}')">
+                        </div>
+                    </label>
+                    @endforeach
+                </div>
+
+                <div class="modal-actions" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="action-btn view" @click="showPermissionsModal = false" style="padding: 0.75rem 1.5rem;">إلغاء</button>
+                    <button type="submit" class="action-btn edit" style="padding: 0.75rem 1.5rem; background: #10b981; color: white;">حفظ الصلاحيات</button>
+                </div>
+            </form>
         </div>
     </div>
 

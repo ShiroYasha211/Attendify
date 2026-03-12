@@ -25,7 +25,22 @@ class SettingController extends Controller
     {
         $updated = 0;
 
-        foreach ($request->except(['_token', '_method']) as $key => $value) {
+        foreach ($request->all() as $key => $value) {
+            // Handle file uploads
+            if ($request->hasFile($key)) {
+                $setting = Setting::where('key', $key)->first();
+                if ($setting) {
+                    $oldValue = $setting->value;
+                    $path = $request->file($key)->store('settings', 'public');
+                    $setting->update(['value' => $path]);
+                    
+                    // Clear cache
+                    \Cache::forget("setting.{$key}");
+                    $updated++;
+                    continue;
+                }
+            }
+
             $setting = Setting::where('key', $key)->first();
 
             if ($setting) {

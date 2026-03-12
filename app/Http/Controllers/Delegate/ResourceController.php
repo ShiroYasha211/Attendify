@@ -102,16 +102,19 @@ class ResourceController extends Controller
         $request->validate([
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
-            'category' => 'required|in:lectures,references,summaries,exams,other',
+            'category' => 'required|in:lectures,references,summaries,exams,other,quizzes',
+            'sub_category' => 'nullable|string|in:theoretical,practical,seminar,other',
+            'custom_category_type' => 'nullable|string|max:255',
             'file' => 'required|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:20480', // 20MB max
             'description' => 'nullable|string',
+            'unit_coordinator' => 'nullable|string|max:255',
+            'lecturer_name' => 'nullable|string|max:255',
+            'clinical_unit' => 'nullable|string|max:255',
+            'semester_info' => 'nullable|string|max:255',
         ]);
 
         $file = $request->file('file');
         $extension = $file->getClientOriginalExtension();
-
-        // Determine file type category roughly for icon usage
-        $fileType = $this->getFileType($extension);
 
         $path = $file->store('course_resources', 'public');
 
@@ -120,9 +123,16 @@ class ResourceController extends Controller
             'created_by' => Auth::id(),
             'title' => $request->title,
             'category' => $request->category,
+            'sub_category' => $request->sub_category,
+            'custom_category_type' => $request->custom_category_type,
             'file_path' => $path,
-            'file_type' => $extension, // Store exact extension
+            'file_type' => $extension,
             'description' => $request->description,
+            'unit_coordinator' => $request->unit_coordinator,
+            'lecturer_name' => $request->lecturer_name,
+            'clinical_unit' => $request->clinical_unit,
+            'semester_info' => $request->semester_info,
+            'visibility' => 'batch', // Default for course resources
         ]);
 
         return redirect()->route('delegate.resources.index')->with('success', 'تم رفع الملف بنجاح.');
@@ -248,15 +258,27 @@ class ResourceController extends Controller
         $request->validate([
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
-            'category' => 'required|in:lectures,references,summaries,exams,other',
+            'category' => 'required|in:lectures,references,summaries,exams,other,quizzes',
+            'sub_category' => 'nullable|string|in:theoretical,practical,seminar,other',
+            'custom_category_type' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'unit_coordinator' => 'nullable|string|max:255',
+            'lecturer_name' => 'nullable|string|max:255',
+            'clinical_unit' => 'nullable|string|max:255',
+            'semester_info' => 'nullable|string|max:255',
         ]);
 
         $resource->update([
             'subject_id' => $request->subject_id,
             'title' => $request->title,
             'category' => $request->category,
+            'sub_category' => $request->sub_category,
+            'custom_category_type' => $request->custom_category_type,
             'description' => $request->description,
+            'unit_coordinator' => $request->unit_coordinator,
+            'lecturer_name' => $request->lecturer_name,
+            'clinical_unit' => $request->clinical_unit,
+            'semester_info' => $request->semester_info,
         ]);
 
         return redirect()->route('delegate.resources.index')->with('success', 'تم تعديل الملف بنجاح.');

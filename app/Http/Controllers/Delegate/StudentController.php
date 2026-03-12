@@ -244,4 +244,34 @@ class StudentController extends Controller
             ->with('import_report', $report)
             ->with('success', "اكتملت عملية الاستيراد. تم إضافة $successCount طالب.");
     }
+
+    /**
+     * Update permissions for a specific student.
+     */
+    public function updatePermissions(Request $request, User $student)
+    {
+        $delegate = Auth::user();
+        if ($student->major_id != $delegate->major_id || $student->level_id != $delegate->level_id) {
+            abort(403);
+        }
+
+        // Validate permissions exists
+        $request->validate([
+            'permissions' => 'array',
+            'permissions.*' => 'string|exists:permissions,slug'
+        ]);
+
+        // Sync permissions
+        $student->permissions()->detach();
+        if ($request->has('permissions')) {
+            foreach ($request->permissions as $slug) {
+                $permission = \App\Models\Permission::where('slug', $slug)->first();
+                if ($permission) {
+                    $student->permissions()->attach($permission->id);
+                }
+            }
+        }
+
+        return back()->with('success', 'تم تحديث صلاحيات الطالب بنجاح.');
+    }
 }

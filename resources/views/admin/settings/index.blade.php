@@ -289,7 +289,7 @@
 </div>
 @endif
 
-<form action="{{ route('admin.settings.update') }}" method="POST">
+<form action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data">
     @csrf
     @method('PUT')
 
@@ -347,6 +347,15 @@
                                 <input type="checkbox" name="{{ $setting->key }}" value="1" {{ $setting->value ? 'checked' : '' }}>
                                 <span class="toggle-slider"></span>
                             </label>
+                        </div>
+                        @elseif($setting->key === 'app_favicon')
+                        <div style="display: flex; align-items: center; gap: 1rem; justify-content: flex-end;">
+                            @if($setting->value)
+                            <div style="width: 40px; height: 40px; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center;">
+                                <img src="{{ asset('storage/' . $setting->value) }}" alt="Favicon" style="max-width: 100%; max-height: 100%;">
+                            </div>
+                            @endif
+                            <input type="file" name="{{ $setting->key }}" accept="image/*" style="font-size: 0.8rem; max-width: 180px;">
                         </div>
                         @elseif($setting->type === 'number')
                         <input type="number" name="{{ $setting->key }}" value="{{ $setting->value }}">

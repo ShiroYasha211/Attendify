@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckUserRole::class,
             'status' => \App\Http\Middleware\CheckUserStatus::class,
             'clinical_delegate' => \App\Http\Middleware\EnsureClinicalDelegate::class,
+            'subscribed' => \App\Http\Middleware\CheckSubscription::class,
         ]);
         $middleware->redirectGuestsTo(fn() => route('admin.login'));
         $middleware->redirectUsersTo(function () {

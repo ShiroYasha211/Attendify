@@ -1,9 +1,24 @@
-@extends(auth()->user()->role == \App\Enums\UserRole::DELEGATE ? 'layouts.delegate' : 'layouts.student')
+@extends(request()->routeIs('delegate.*') ? 'layouts.delegate' : (request()->routeIs('doctor.*') ? 'layouts.doctor' : 'layouts.student'))
 
 @section('title', 'المكتبة المشتركة')
 
 @section('content')
-
+<div x-data="{ 
+    showDetails: false, 
+    resDetail: {},
+    openDetails(res) {
+        this.resDetail = res;
+        this.showDetails = true;
+    },
+    closeDetails() {
+        this.showDetails = false;
+    },
+    formatDate(dateStr) {
+        if(!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('ar-EG');
+    }
+}">
 <!-- Page Header -->
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <div>
@@ -15,6 +30,26 @@
         </h1>
         <p style="color: var(--text-secondary); margin: 0; font-size: 1rem;">أرشيف شامل لجميع الملفات والملخصات والمحاضرات عبر السنوات الدراسية</p>
     </div>
+    @php
+        $createRoute = 'student.library.create';
+        if(request()->routeIs('delegate.*')) $createRoute = 'delegate.library.create';
+        if(request()->routeIs('doctor.*')) $createRoute = 'doctor.library.create';
+        
+        $canUpload = auth()->user()->hasRole('doctor') || auth()->user()->hasPermission('upload_shared_library');
+    @endphp
+
+    @if($canUpload)
+     <a href="{{ route($createRoute) }}" 
+       style="background: var(--primary-color); color: white; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); transition: all 0.2s;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        رفع ملف جديد
+    </a>
+    @endif
+
 </div>
 
 <!-- Stats Overview -->
@@ -26,7 +61,7 @@
             </svg>
         </div>
         <div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; margin-bottom: 0.25rem;">إجمالي المصادر</div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; margin-bottom: 0.25rem;">{{ auth()->user()->hasRole('doctor') ? 'ملفاتي ومواد القسم' : 'إجمالي المصادر' }}</div>
             <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); line-height: 1;">{{ $totalCount }}</div>
         </div>
     </div>
@@ -59,8 +94,8 @@
 </div>
 
 <!-- Filters & Search -->
-<div class="card border-0 shadow-sm" style="background: white; border-radius: 20px; padding: 0.75rem; margin-bottom: 1.5rem;">
-    <form action="{{ route(Route::currentRouteName()) }}" method="GET" style="display: flex; align-items: center; gap: 0.75rem; width: 100%; flex-wrap: wrap;">
+<div class="card border-0 shadow-sm" style="background: white; border-radius: 20px; padding: 1rem; margin-bottom: 1.5rem;" x-data="{ showAdvanced: {{ request()->hasAny(['semester_info', 'lecturer_name', 'sub_category', 'file_type', 'uploader_role']) ? 'true' : 'false' }} }">
+    <form action="{{ route(Route::currentRouteName()) }}" method="GET" style="width: 100%;">
         @if(request('view'))
         <input type="hidden" name="view" value="{{ request('view') }}">
         @endif
@@ -68,120 +103,163 @@
         <input type="hidden" name="my_uploads" value="1">
         @endif
 
-        <!-- Search -->
-        <div style="flex: 2; min-width: 200px; position: relative;">
-            <div style="position: absolute; right: 1.2rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-            </div>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="ابحث باسم الملف أو المادة..."
-                style="width: 100%; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 3rem; padding-left: 1rem; font-size: 0.95rem; font-weight: 600; outline: none; transition: all 0.2s; font-family: inherit;"
-                onfocus="this.style.background='white'; this.style.borderColor='var(--primary-color)';"
-                onblur="if(!this.value) { this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9'; }">
-        </div>
-
-        <!-- Subject -->
-        <div style="flex: 1.5; min-width: 180px;">
-            <div style="position: relative;">
-                <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        <!-- Main Filter Row -->
+        <div style="display: flex; align-items: center; gap: 0.75rem; width: 100%; flex-wrap: wrap; margin-bottom: 0.75rem;">
+            <!-- Search -->
+            <div style="flex: 2; min-width: 200px; position: relative;">
+                <div style="position: absolute; right: 1.2rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
                 </div>
-                <select name="subject_id"
-                    style="width: 100%; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 3rem; padding-left: 2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; appearance: none; outline: none; font-family: inherit;"
-                    onfocus="this.style.background='white'; this.style.borderColor='var(--primary-color)';"
-                    onblur="this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9';">
-                    <option value="">جميع المواد</option>
-                    @foreach($subjects as $subject)
-                    <option value="{{ $subject->id }}" {{ request('subject_id') == $subject->id ? 'selected' : '' }}>{{ $subject->name }}</option>
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="ابحث باسم الملف أو المادة..."
+                    style="width: 100%; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 3rem; padding-left: 1rem; font-size: 0.95rem; font-weight: 600; outline: none; transition: all 0.2s; font-family: inherit;">
+            </div>
+
+            <!-- Subject -->
+            <div style="flex: 1.5; min-width: 150px;">
+                <div style="position: relative;">
+                    <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    </div>
+                    <select name="subject_id" style="width: 100%; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 3rem; padding-left: 2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; appearance: none; outline: none; font-family: inherit;">
+                        <option value="">جميع المواد</option>
+                        @foreach($subjects as $subject)
+                        <option value="{{ $subject->id }}" {{ request('subject_id') == $subject->id ? 'selected' : '' }}>{{ $subject->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <!-- Category -->
+            <div style="flex: 1; min-width: 130px;">
+                <div style="position: relative;">
+                    <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    </div>
+                    <select name="category" style="width: 100%; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 3rem; padding-left: 2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; appearance: none; outline: none; font-family: inherit;">
+                        <option value="">جميع الأنواع</option>
+                        <option value="lectures" {{ request('category') == 'lectures' ? 'selected' : '' }}>محاضرات</option>
+                        <option value="summaries" {{ request('category') == 'summaries' ? 'selected' : '' }}>ملخصات</option>
+                        <option value="quizzes" {{ request('category') == 'quizzes' ? 'selected' : '' }}>كويزات</option>
+                        <option value="exams" {{ request('category') == 'exams' ? 'selected' : '' }}>اختبارات</option>
+                        <option value="references" {{ request('category') == 'references' ? 'selected' : '' }}>مراجع</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Advanced Toggle -->
+            <button type="button" @click="showAdvanced = !showAdvanced" 
+                style="height: 50px; padding: 0 1rem; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; cursor: pointer; transition: all 0.2s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path>
+                </svg>
+                <span>خيارات متقدمة</span>
+            </button>
+
+            <!-- Search Button -->
+            <button type="submit" class="btn" style="height: 50px; padding: 0 1.5rem; border-radius: 12px; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; background: var(--primary-color); border: none; color: white; font-family: inherit; flex-shrink: 0; cursor: pointer;">
+                <svg style="width: 20px; height: 20px; stroke: white; stroke-width: 2.5; fill: none;" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" />
+                </svg>
+                <span>بحث</span>
+            </button>
+
+            @if(request()->hasAny(['search', 'subject_id', 'category', 'year', 'my_uploads', 'semester_info', 'lecturer_name', 'sub_category', 'file_type', 'uploader_role']))
+            <a href="{{ route(Route::currentRouteName(), ['view' => request('view')]) }}"
+                style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 12px; background: #fef2f2; border: 1px solid #fee2e2;" title="إلغاء التصفية">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" /></svg>
+            </a>
+            @endif
+        </div>
+
+        <!-- Advanced Filter Row -->
+        <div x-show="showAdvanced" x-cloak x-transition style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; padding-top: 1rem; border-top: 1px dashed #e2e8f0;">
+            
+            <!-- Uploader Role -->
+            <div style="position: relative;">
+                <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                <select name="uploader_role" style="width: 100%; height: 48px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 2.8rem; padding-left: 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; outline: none;">
+                    <option value="">أي رتبة</option>
+                    <option value="doctor" {{ request('uploader_role') == 'doctor' ? 'selected' : '' }}>دكتور</option>
+                    <option value="delegate" {{ request('uploader_role') == 'delegate' ? 'selected' : '' }}>مندوب</option>
+                    <option value="student" {{ request('uploader_role') == 'student' ? 'selected' : '' }}>طالب</option>
+                </select>
+            </div>
+
+            <!-- Semester -->
+            <div style="position: relative;">
+                <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </div>
+                <select name="semester_info" style="width: 100%; height: 48px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 2.8rem; padding-left: 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; outline: none;">
+                    <option value="">أي فصل/سستم</option>
+                    @foreach($semesters as $sem)
+                    <option value="{{ $sem }}" {{ request('semester_info') == $sem ? 'selected' : '' }}>{{ $sem }}</option>
                     @endforeach
                 </select>
-                <div style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </div>
             </div>
-        </div>
 
-        <!-- Category -->
-        <div style="flex: 1; min-width: 150px;">
+            <!-- Lecturer -->
             <div style="position: relative;">
                 <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="8" y1="6" x2="21" y2="6"></line>
-                        <line x1="8" y1="12" x2="21" y2="12"></line>
-                        <line x1="8" y1="18" x2="21" y2="18"></line>
-                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                    </svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 </div>
-                <select name="category"
-                    style="width: 100%; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 3rem; padding-left: 2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; appearance: none; outline: none; font-family: inherit;"
-                    onfocus="this.style.background='white'; this.style.borderColor='var(--primary-color)';"
-                    onblur="this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9';">
-                    <option value="">جميع الأنواع</option>
-                    <option value="lectures" {{ request('category') == 'lectures' ? 'selected' : '' }}>محاضرات</option>
-                    <option value="summaries" {{ request('category') == 'summaries' ? 'selected' : '' }}>ملخصات</option>
-                    <option value="exams" {{ request('category') == 'exams' ? 'selected' : '' }}>اختبارات</option>
-                    <option value="references" {{ request('category') == 'references' ? 'selected' : '' }}>مراجع</option>
+                <select name="lecturer_name" style="width: 100%; height: 48px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 2.8rem; padding-left: 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; outline: none;">
+                    <option value="">أي دكتور</option>
+                    @foreach($lecturers as $lec)
+                    <option value="{{ $lec }}" {{ request('lecturer_name') == $lec ? 'selected' : '' }}>{{ $lec }}</option>
+                    @endforeach
                 </select>
-                <div style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </div>
             </div>
-        </div>
 
-        <!-- Year -->
-        <div style="flex: 0.8; min-width: 130px;">
+            <!-- Sub-category -->
             <div style="position: relative;">
                 <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                 </div>
-                <select name="year"
-                    style="width: 100%; height: 50px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 3rem; padding-left: 2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; appearance: none; outline: none; font-family: inherit;"
-                    onfocus="this.style.background='white'; this.style.borderColor='var(--primary-color)';"
-                    onblur="this.style.background='#f8fafc'; this.style.borderColor='#f1f5f9';">
+                <select name="sub_category" style="width: 100%; height: 48px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 2.8rem; padding-left: 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; outline: none;">
+                    <option value="">أي نوع (نظري/عملي..)</option>
+                    <option value="theoretical" {{ request('sub_category') == 'theoretical' ? 'selected' : '' }}>نظري</option>
+                    <option value="practical" {{ request('sub_category') == 'practical' ? 'selected' : '' }}>عملي</option>
+                    <option value="seminar" {{ request('sub_category') == 'seminar' ? 'selected' : '' }}>سمنار</option>
+                    <option value="other" {{ request('sub_category') == 'other' ? 'selected' : '' }}>أخرى</option>
+                </select>
+            </div>
+
+            <!-- File Type -->
+            <div style="position: relative;">
+                <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                </div>
+                <select name="file_type" style="width: 100%; height: 48px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 2.8rem; padding-left: 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; outline: none;">
+                    <option value="">أي تنسيق</option>
+                    <option value="pdf" {{ request('file_type') == 'pdf' ? 'selected' : '' }}>PDF</option>
+                    <option value="powerpoint" {{ request('file_type') == 'powerpoint' ? 'selected' : '' }}>بوربوينت</option>
+                    <option value="word" {{ request('file_type') == 'word' ? 'selected' : '' }}>وورد</option>
+                    <option value="excel" {{ request('file_type') == 'excel' ? 'selected' : '' }}>اكسل</option>
+                    <option value="images" {{ request('file_type') == 'images' ? 'selected' : '' }}>صور</option>
+                    <option value="compressed" {{ request('file_type') == 'compressed' ? 'selected' : '' }}>ملفات مضغوطة</option>
+                </select>
+            </div>
+
+            <!-- Year -->
+            <div style="position: relative;">
+                <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
+                <select name="year" style="width: 100%; height: 48px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding-right: 2.8rem; padding-left: 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; appearance: none; outline: none;">
                     <option value="">كل السنوات</option>
                     @foreach($years as $year)
                     <option value="{{ $year }}" {{ request('year') == $year ? 'selected' : '' }}>{{ $year }}</option>
                     @endforeach
                 </select>
-                <div style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </div>
             </div>
+
         </div>
-
-        <!-- Search Button -->
-        <button type="submit" class="btn" style="height: 50px; padding: 0 1.5rem; border-radius: 12px; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; background: var(--primary-color); border: none; color: white; font-family: inherit; flex-shrink: 0;">
-            <svg style="width: 20px; height: 20px; stroke: white; stroke-width: 2.5; fill: none;" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <span>بحث</span>
-        </button>
-
-        @if(request()->hasAny(['search', 'subject_id', 'category', 'year', 'my_uploads']))
-        <a href="{{ route(Route::currentRouteName(), ['view' => request('view')]) }}"
-            style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 12px; background: #fef2f2; border: 1px solid #fee2e2;" title="إلغاء التصفية">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M18 6L6 18M6 6l12 12" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" />
-            </svg>
-        </a>
-        @endif
     </form>
 </div>
 
@@ -312,26 +390,24 @@
                                 <span>{{ strtoupper($resource->file_type ?? '-') }}</span>
                                 <span>•</span>
                                 <span>{{ $resource->created_at->format('Y/m/d') }}</span>
-                                @if($viewMode === 'by_year' && $resource->subject)
-                                <span>•</span>
-                                <span style="background: #f1f5f9; padding: 0.1rem 0.5rem; border-radius: 8px; font-weight: 600;">{{ $resource->subject->name }}</span>
-                                @endif
                                 @if($viewMode === 'by_subject')
                                 <span>•</span>
-                                @include('student.library._category_badge_small', ['category' => $resource->category])
+                                <span style="background: #eff6ff; color: #1d4ed8; padding: 0.1rem 0.5rem; border-radius: 8px; font-weight: 700;">{{ $resource->full_category_text }}</span>
                                 @endif
                             </div>
                         </div>
                     </div>
-                    <!-- Uploader -->
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem; margin-right: 1rem; flex-shrink: 0;">
-                        <div style="width: 22px; height: 22px; background: linear-gradient(135deg, var(--primary-color), #2e268a); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: bold; color: white;">
-                            {{ mb_substr($resource->uploader->name ?? '?', 0, 1) }}
-                        </div>
-                        <span style="color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; white-space: nowrap;">{{ $resource->uploader->name ?? '-' }}</span>
-                    </div>
                     <!-- Actions -->
                     <div style="display: flex; gap: 0.4rem; flex-shrink: 0;">
+                        <!-- View Details -->
+                        <button @click='openDetails(@json($resource->load("subject", "uploader")))'
+                            style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: white; color: var(--primary-color); border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                            title="عرض التفاصيل">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
                         @if(auth()->id() == $resource->created_by && auth()->user()->hasRole(\App\Enums\UserRole::DELEGATE))
                         <a href="{{ route('delegate.resources.edit', $resource->id) }}"
                             style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: white; color: #f59e0b; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s;"
@@ -342,7 +418,7 @@
                             </svg>
                         </a>
                         @endif
-                        @if(!auth()->user()->hasRole(\App\Enums\UserRole::DELEGATE))
+                        @if(auth()->user()->hasRole(\App\Enums\UserRole::STUDENT))
                         <button onclick="addToHub({{ $resource->id }}, '{{ addslashes($resource->title) }}')"
                             style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: white; color: var(--primary-color); border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
                             title="إضافة لمركزي">
@@ -363,7 +439,7 @@
                             </svg>
                         </button>
                         @endif
-                        <a href="{{ Storage::url($resource->file_path) }}" target="_blank"
+                        <a href="{{ route('student.library.download', $resource->id) }}"
                             style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary-color); border-radius: 8px; text-decoration: none;"
                             title="تحميل">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -393,7 +469,6 @@
                     <th style="padding: 1.25rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem; width: 35%;">اسم الملف</th>
                     <th style="padding: 1.25rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem;">المادة</th>
                     <th style="padding: 1.25rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem;">النوع</th>
-                    <th style="padding: 1.25rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem;">بواسطة</th>
                     <th style="padding: 1.25rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem;">التاريخ</th>
                     <th style="padding: 1.25rem 1.5rem; text-align: left; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem;">إجراءات</th>
                 </tr>
@@ -429,14 +504,11 @@
                         </span>
                     </td>
                     <td style="padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9;">
-                        @include('student.library._category_badge', ['category' => $resource->category])
-                    </td>
-                    <td style="padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div style="width: 24px; height: 24px; background: linear-gradient(135deg, var(--primary-color), #2e268a); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold; color: white;">
-                                {{ mb_substr($resource->uploader->name ?? '?', 0, 1) }}
-                            </div>
-                            <span style="color: var(--text-primary); font-size: 0.85rem; font-weight: 600;">{{ $resource->uploader->name ?? '-' }}</span>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <span style="background: #eff6ff; color: #1d4ed8; font-weight: 800; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; width: fit-content; border: 1px solid #dbeafe;">
+                                {{ $resource->full_category_text }}
+                            </span>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; padding-right: 0.5rem;">{{ $resource->semester_info }}</span>
                         </div>
                     </td>
                     <td style="padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">
@@ -444,6 +516,15 @@
                     </td>
                     <td style="padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9; text-align: left;">
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <!-- View Details -->
+                            <button @click='openDetails(@json($resource->load("subject", "uploader")))'
+                                style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--primary-color); border: 1px solid #e2e8f0; border-radius: 10px; transition: all 0.2s; cursor: pointer;"
+                                title="عرض التفاصيل">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
                             @if(auth()->id() == $resource->created_by && auth()->user()->hasRole(\App\Enums\UserRole::DELEGATE))
                             <a href="{{ route('delegate.resources.edit', $resource->id) }}"
                                 style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: #f59e0b; border: 1px solid #e2e8f0; border-radius: 10px; transition: all 0.2s;"
@@ -454,6 +535,7 @@
                                 </svg>
                             </a>
                             @endif
+                            @if(auth()->user()->hasRole(\App\Enums\UserRole::STUDENT))
                             <button onclick="addToHub({{ $resource->id }}, '{{ addslashes($resource->title) }}')"
                                 style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--primary-color); border: 1px solid #e2e8f0; border-radius: 10px; transition: all 0.2s; cursor: pointer;"
                                 title="إضافة لمركزي"
@@ -464,6 +546,7 @@
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
                                 </svg>
                             </button>
+                            @endif
                             @if(auth()->user()->hasRole(\App\Enums\UserRole::DELEGATE))
                             <button onclick="openImportModal({{ $resource->id }}, '{{ addslashes($resource->title) }}')"
                                 style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: #06b6d4; border: 1px solid #e2e8f0; border-radius: 10px; transition: all 0.2s; cursor: pointer;"
@@ -477,7 +560,7 @@
                                 </svg>
                             </button>
                             @endif
-                            <a href="{{ Storage::url($resource->file_path) }}" target="_blank"
+                            <a href="{{ route('student.library.download', $resource->id) }}"
                                 style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; color: var(--primary-color); border-radius: 10px; text-decoration: none;"
                                 title="تحميل"
                                 onmouseover="this.style.background='var(--primary-color)'; this.style.color='white';"
@@ -549,30 +632,161 @@
 </div>
 @endif
 
-<!-- Add to Hub Modal -->
+<!-- Add to Hub Modal (Student Only) -->
+@if(auth()->user()->hasRole(\App\Enums\UserRole::STUDENT))
 <div id="addToHubModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
     <div style="background: white; border-radius: 16px; width: 100%; max-width: 500px; padding: 2rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); margin: 1rem; animation: slideUp 0.3s ease-out;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin: 0;">إضافة لمركزي الدراسي</h3>
-            <button onclick="closeHubModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button onclick="closeHubModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg></button>
+                </svg>
+            </button>
         </div>
-        <input type="hidden" id="hub_resource_id">
-        <div style="margin-bottom: 1.5rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 600;">المصدر</label>
-            <div id="hub_resource_title" style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px;"></div>
+        <div>
+            <input type="hidden" id="hub_resource_id">
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 600;">الملف المحدد</label>
+                <div id="hub_resource_title" style="font-weight: 700; color: var(--text-primary); font-size: 1.1rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px;"></div>
+            </div>
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 600;">ملاحظة (اختياري)</label>
+                <textarea id="hub_note" rows="3" placeholder="أضف ملاحظة تذكيرية لهذا الملف..." 
+                    style="width: 100%; border: 1px solid #f1f5f9; background: #f8fafc; border-radius: 12px; padding: 1rem; outline: none; font-family: inherit; font-size: 0.95rem;"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" onclick="closeHubModal()" style="background: #f1f5f9; color: var(--text-secondary); border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">إلغاء</button>
+                <button onclick="submitAddToHub()" style="background: var(--primary-color); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">تأكيد الإضافة</button>
+            </div>
         </div>
-        <div style="margin-bottom: 1.5rem;">
-            <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 600;">ملاحظات (اختياري)</label>
-            <textarea id="hub_note" rows="3" placeholder="أضف ملاحظاتك هنا..."
-                style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; resize: none; font-family: inherit; outline: none;"
-                onfocus="this.style.borderColor='var(--primary-color)'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
-        </div>
-        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-            <button type="button" onclick="closeHubModal()" style="background: #f1f5f9; color: var(--text-secondary); border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">إلغاء</button>
-            <button type="button" onclick="submitAddToHub()" style="background: var(--primary-color); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">إضافة لمصادري</button>
+    </div>
+</div>
+@endif
+
+    <!-- Details Modal -->
+    <div x-show="showDetails" x-cloak x-transition.opacity 
+        style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); padding: 1.5rem; width: 100vw; height: 100vh;">
+        
+        <div @click.away='closeDetails()' 
+            style="background: white; width: 100%; max-width: 700px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); animation: zoomIn 0.3s ease-out; margin: auto;">
+            
+            <!-- Modal Header -->
+            <div style="background: linear-gradient(135deg, #1e1b4b 0%, #1e40af 100%); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.15); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: white;">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                            <polyline points="13 2 13 9 20 9"></polyline>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="color: white; font-weight: 800; margin: 0; font-size: 1.25rem;" x-text="resDetail.title"></h3>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+                             <span style="background: rgba(255,255,255,0.2); color: white; padding: 0.1rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;" x-text="resDetail.file_type ? resDetail.file_type.toUpperCase() : '-'"></span>
+                        </div>
+                    </div>
+                </div>
+                <button @click="closeDetails()" style="background: rgba(255,255,255,0.1); border: none; color: white; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 2rem; max-height: 70vh; overflow-y: auto;">
+                
+                <!-- Metadata Grid -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+                    <!-- Subject -->
+                    <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid #f1f5f9;">
+                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; margin-bottom: 0.25rem;">المادة / المقرر</label>
+                        <div style="font-weight: 800; color: #1e293b;" x-text="resDetail.subject ? resDetail.subject.name : '-'"></div>
+                    </div>
+                    
+                    <!-- Semester Info -->
+                    <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid #f1f5f9;">
+                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; margin-bottom: 0.25rem;">الفصل / السستم</label>
+                        <div style="font-weight: 800; color: #1e293b;" x-text="resDetail.semester_info || 'غير مسجل'"></div>
+                    </div>
+
+                    <!-- Lecturer Name -->
+                    <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid #f1f5f9;">
+                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; margin-bottom: 0.25rem;">الدكتور مقدم المحاضرة</label>
+                        <div style="font-weight: 800; color: #1e293b;" x-text="resDetail.lecturer_name || 'غير مسجل'"></div>
+                    </div>
+
+                    <!-- Unit Coordinator -->
+                    <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid #f1f5f9;">
+                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; margin-bottom: 0.25rem;">منسق الوحدة</label>
+                        <div style="font-weight: 800; color: #1e293b;" x-text="resDetail.unit_coordinator || 'غير مسجل'"></div>
+                    </div>
+
+                    <!-- Clinical Unit -->
+                    <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid #f1f5f9;">
+                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; margin-bottom: 0.25rem;">الوحدة السريرية</label>
+                        <div style="font-weight: 800; color: #1e293b;" x-text="resDetail.clinical_unit || 'غير مسجل'"></div>
+                    </div>
+
+                    <!-- Upload Date -->
+                    <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid #f1f5f9;">
+                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; margin-bottom: 0.25rem;">تاريخ الرفع</label>
+                        <div style="font-weight: 800; color: #1e293b;" x-text="formatDate(resDetail.created_at)"></div>
+                    </div>
+                </div>
+
+                <!-- Description Section -->
+                <div style="margin-bottom: 2rem;">
+                    <label style="display: block; font-size: 0.85rem; color: #64748b; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        ملاحظات إضافية
+                    </label>
+                    <div style="background: #fff; padding: 1.25rem; border-radius: 14px; border: 2px dashed #e2e8f0; color: #475569; font-weight: 500; font-size: 0.95rem; line-height: 1.6;" 
+                        x-text="resDetail.description || 'لا توجد ملاحظات إضافية لهذا الملف.'"></div>
+                </div>
+
+                <!-- Uploader Info -->
+                <div style="background: #f1f5f9; padding: 1.25rem; border-radius: 18px; display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #4f46e5, #7c3aed); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 1.25rem;">
+                        <span x-text="resDetail.uploader ? resDetail.uploader.name.charAt(0) : '?'"></span>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: #64748b; font-weight: 700; margin-bottom: 0.1rem;">تم الرفع بواسطة</label>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="font-weight: 800; color: #1e293b;" x-text="resDetail.uploader ? resDetail.uploader.name : '-'"></span>
+                            <div style="padding: 0.15rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 800; background: white; border: 1px solid #e2e8f0; color: #4f46e5;" 
+                                x-text="resDetail.uploader ? (resDetail.uploader.role === 'doctor' ? 'دكتور' : (resDetail.uploader.role === 'delegate' ? 'مندوب' : 'طالب')) : '-'"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer - Actions -->
+            <div style="padding: 1.5rem 2rem; background: #fafbfc; border-top: 1px solid #f1f5f9; display: flex; gap: 1rem; justify-content: flex-end;">
+                
+                @if(auth()->user()->hasRole(\App\Enums\UserRole::STUDENT))
+                <button @click="addToHub(resDetail.id, resDetail.title); closeDetails();"
+                    style="padding: 0.75rem 1.5rem; background: white; border: 2px solid #e2e8f0; color: #1e293b; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    أضف لمركزي
+                </button>
+                @endif
+
+                @if(auth()->user()->hasRole(\App\Enums\UserRole::DELEGATE))
+                <button @click="openImportModal(resDetail.id, resDetail.title); closeDetails();"
+                    style="padding: 0.75rem 1.5rem; background: #ecfeff; border: 2px solid #a5f3fc; color: #0891b2; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                    إدراج للمقرر
+                </button>
+                @endif
+
+                <a :href="`/storage/${resDetail.file_path}`" target="_blank"
+                    style="padding: 0.75rem 1.5rem; background: #4f46e5; color: white; border-radius: 12px; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    تحميل الآن
+                </a>
+            </div>
         </div>
     </div>
 </div>
@@ -612,6 +826,18 @@
         background: #f8fafc;
         color: var(--primary-color);
         border-color: #cbd5e1;
+    }
+
+    @keyframes zoomIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 
     @keyframes slideUp {
@@ -683,11 +909,11 @@
         setTimeout(() => t.remove(), 3000);
     }
 
-    document.querySelectorAll('#importModal, #addToHubModal').forEach(m => {
+    document.querySelectorAll('#importModal, #addToHubModal, #uploadModal').forEach(m => {
         m.addEventListener('click', function(e) {
             if (e.target === this) this.style.display = 'none';
         });
     });
 </script>
-
+</div> <!-- Close root x-data container -->
 @endsection
