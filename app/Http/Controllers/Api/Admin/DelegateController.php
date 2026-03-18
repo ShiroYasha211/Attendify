@@ -82,7 +82,7 @@ class DelegateController extends AdminApiController
     public function destroy(User $delegate)
     {
         $this->logDelete('Delegate', $delegate, "تم حذف المندوب: {$delegate->name}");
-        $delegate->delete();
+        $delegate->forceDelete();
         return $this->success(null, 'تم حذف المندوب بنجاح');
     }
 }

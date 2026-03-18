@@ -71,7 +71,7 @@ class DoctorController extends AdminApiController
     public function destroy(User $doctor)
     {
         $this->logDelete('Doctor', $doctor, "تم حذف الدكتور: {$doctor->name}");
-        $doctor->delete();
+        $doctor->forceDelete();
         return $this->success(null, 'تم حذف الدكتور بنجاح');
     }
 }

@@ -103,7 +103,7 @@ class StudentController extends AdminApiController
             return $this->error('المستخدم ليس طالباً.', 422);
         }
         $this->logDelete('Student', $student, "تم حذف الطالب: {$student->name}");
-        $student->delete();
+        $student->forceDelete();
         return $this->success(null, 'تم حذف الطالب بنجاح');
     }
 }
