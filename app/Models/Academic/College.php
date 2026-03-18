@@ -8,7 +8,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class College extends Model
 {
-    protected $fillable = ['university_id', 'name'];
+    protected $fillable = [
+        'university_id', 
+        'name',
+        'absence_deprivation_percentage',
+        'excuses_deadline_days',
+        'excuse_receiver',
+    ];
 
     /**
      * College belongs to a University.

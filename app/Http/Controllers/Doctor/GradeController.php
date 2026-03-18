@@ -106,9 +106,17 @@ class GradeController extends Controller
 
         $students = $studentsQuery->orderBy('name')->get();
 
+        // Fetch grade categories for this subject to show breakdown if needed
+        $categories = $subject->gradeCategories;
+
         // Extract grades from eager-loaded relations (no extra queries)
         foreach ($students as $student) {
-            $student->continuous_grade = $student->grades->where('type', 'continuous')->first();
+            // Continuous grade is now the SUM of approved grades of type continuous
+            $student->continuous_grade_score = $student->grades
+                ->where('type', 'continuous')
+                ->where('status', 'approved')
+                ->sum('score');
+                
             $student->final_grade = $student->grades->where('type', 'final')->first();
             $student->notes = $student->studentNotes;
         }
@@ -116,7 +124,11 @@ class GradeController extends Controller
         // Calculate statistics
         $stats = $this->calculateSubjectStats($subject, $students);
 
-        return view('doctor.grades.show', compact('subject', 'students', 'stats', 'search'));
+        $pendingCount = Grade::where('subject_id', $subject->id)
+            ->where('status', 'pending')
+            ->count();
+
+        return view('doctor.grades.show', compact('subject', 'students', 'stats', 'search', 'categories', 'pendingCount'));
     }
 
     /**
@@ -129,6 +141,8 @@ class GradeController extends Controller
             'grades.*.student_id' => 'required|exists:users,id',
             'grades.*.continuous' => 'nullable|numeric|min:0|max:40',
             'grades.*.final' => 'nullable|numeric|min:0|max:60',
+            'grades.*.categories' => 'nullable|array',
+            'grades.*.categories.*' => 'nullable|numeric|min:0',
         ]);
 
         $user = Auth::user();
@@ -138,18 +152,20 @@ class GradeController extends Controller
         foreach ($request->grades as $gradeData) {
             $studentId = $gradeData['student_id'];
 
-            // Save continuous grade (max 40)
+            // Save continuous grade (general/other - max 40)
             if (isset($gradeData['continuous']) && $gradeData['continuous'] !== null) {
                 Grade::updateOrCreate(
                     [
                         'student_id' => $studentId,
                         'subject_id' => $subject->id,
                         'type' => 'continuous',
+                        'category_id' => null, // This is for "Other" continuous grades recorded directly by doctor
                     ],
                     [
                         'score' => $gradeData['continuous'],
                         'max_score' => 40,
                         'created_by' => $user->id,
+                        'status' => 'approved',
                     ]
                 );
             }
@@ -166,8 +182,34 @@ class GradeController extends Controller
                         'score' => $gradeData['final'],
                         'max_score' => 60,
                         'created_by' => $user->id,
+                        'status' => 'approved',
                     ]
                 );
+            }
+
+            // Save specific categories (if any recorded by doctor)
+            if (isset($gradeData['categories']) && is_array($gradeData['categories'])) {
+                foreach ($gradeData['categories'] as $catId => $score) {
+                    if ($score === null || $score === '') continue;
+                    
+                    $category = $subject->gradeCategories()->find($catId);
+                    if (!$category) continue;
+
+                    Grade::updateOrCreate(
+                        [
+                            'student_id' => $studentId,
+                            'subject_id' => $subject->id,
+                            'category_id' => $catId,
+                            'type' => 'continuous',
+                        ],
+                        [
+                            'score' => $score,
+                            'max_score' => $category->max_score,
+                            'created_by' => $user->id,
+                            'status' => 'approved', // Doctor entries are auto-approved
+                        ]
+                    );
+                }
             }
         }
 
@@ -221,9 +263,12 @@ class GradeController extends Controller
             ->get();
 
         foreach ($students as $student) {
-            $student->continuous_grade = $student->grades->where('type', 'continuous')->first();
+            $student->continuous_grade_score = $student->grades
+                ->where('type', 'continuous')
+                ->where('status', 'approved')
+                ->sum('score');
             $student->final_grade = $student->grades->where('type', 'final')->first();
-            $student->total = ($student->continuous_grade->score ?? 0) + ($student->final_grade->score ?? 0);
+            $student->total = $student->continuous_grade_score + ($student->final_grade->score ?? 0);
         }
 
         // Sort by total descending
@@ -251,7 +296,7 @@ class GradeController extends Controller
         $failed = 0;
 
         foreach ($students as $student) {
-            $continuous = $student->continuous_grade->score ?? 0;
+            $continuous = $student->continuous_grade_score ?? 0;
             $final = $student->final_grade->score ?? 0;
             $total = $continuous + $final;
             $totals[] = $total;
@@ -283,7 +328,7 @@ class GradeController extends Controller
         $csvData[] = ['الترتيب', 'الرقم الجامعي', 'اسم الطالب', 'أعمال السنة (40)', 'النهائي (60)', 'المجموع (100)', 'التقدير', 'الحالة'];
 
         foreach ($students as $index => $student) {
-            $continuous = $student->continuous_grade->score ?? 0;
+            $continuous = $student->continuous_grade_score ?? 0;
             $final = $student->final_grade->score ?? 0;
             $total = $student->total;
 

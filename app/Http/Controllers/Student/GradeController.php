@@ -31,13 +31,12 @@ class GradeController extends Controller
         $totalPercentage = 0;
 
         foreach ($grades as $subjectId => $subjectGrades) {
-            $continuous = $subjectGrades->where('type', 'continuous')->first();
+            $continuousSum = $subjectGrades->where('type', 'continuous')->where('status', 'approved')->sum('score');
             $final = $subjectGrades->where('type', 'final')->first();
 
-            if ($continuous || $final) {
-                $cWeight = $continuous ? ($continuous->score / $continuous->max_score) * 40 : 0;
-                $fWeight = $final ? ($final->score / $final->max_score) * 60 : 0;
-                $totalPercentage += ($cWeight + $fWeight);
+            if ($continuousSum > 0 || $final) {
+                $fWeight = $final ? ($final->score / ($final->max_score ?: 60)) * 60 : 0;
+                $totalPercentage += ($continuousSum + $fWeight);
                 $totalGrades++;
             }
         }

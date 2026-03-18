@@ -12,6 +12,7 @@ class Package extends Model
         'price_student',
         'price_doctor',
         'price_delegate',
+        'price_administrative',
         'duration_days',
         'is_active',
         'description',
@@ -33,6 +34,7 @@ class Package extends Model
             'student' => $this->price_student,
             'doctor' => $this->price_doctor,
             'delegate', 'practical_delegate' => $this->price_delegate,
+            'administrative' => $this->price_administrative,
             default => 0,
         };
     }

@@ -66,7 +66,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"email\": \"student1@example.com\",\n    \"password\": \"password\"\n}"
+                            "raw": "{\n    \"login\": \"student1@example.com\",\n    \"password\": \"password\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/login",
@@ -77,7 +77,7 @@
                                 "login"
                             ]
                         },
-                        "description": "تسجيل الدخول كطالب للحصول على Bearer Token.\nيُحفظ الـ Token تلقائياً في المجموعة.\n\nالحقول المطلوبة:\n- email (string, required)\n- password (string, required)"
+                        "description": "تسجيل الدخول كطالب للحصول على Bearer Token.\nيُحفظ الـ Token تلقائياً في المجموعة.\n\nيمكنك استخدام البريد الإلكتروني أو الرقم الأكاديمي في حقل login.\n\nالحقول المطلوبة:\n- login (string, required): email or student_number\n- password (string, required)"
                     }
                 },
                 {
@@ -740,6 +740,1611 @@
                             ]
                         },
                         "description": "عرض نتيجة اختبار تدريبي محدد.\n\nURL: mock-exams/results/{evaluation_id}"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "1. Assignments Enhancements",
+            "item": [
+                {
+                    "name": "Update Preference",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/assignments/preference",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "assignments",
+                                "preference"
+                            ]
+                        },
+                        "description": "**قائمة التكاليف الواجبات (Assignments)**\n- **ماذا تفعل؟** جلب كل التكاليف الخاصة بمواد الطالب.\n- **الحالات:** `available` (متاح)، `submitted` (تم التسليم)، `missing` (متأخر). الرجاء تلوين الـ UI بناءً على الحالة."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Assignment Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/assignments/{{assignment_id}}/details",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "assignments",
+                                "{{assignment_id}}",
+                                "details"
+                            ]
+                        },
+                        "description": "**قائمة التكاليف الواجبات (Assignments)**\n- **ماذا تفعل؟** جلب كل التكاليف الخاصة بمواد الطالب.\n- **الحالات:** `available` (متاح)، `submitted` (تم التسليم)، `missing` (متأخر). الرجاء تلوين الـ UI بناءً على الحالة."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Assignment",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/assignments/{{assignment_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "assignments",
+                                "{{assignment_id}}"
+                            ]
+                        },
+                        "description": "**قائمة التكاليف الواجبات (Assignments)**\n- **ماذا تفعل؟** جلب كل التكاليف الخاصة بمواد الطالب.\n- **الحالات:** `available` (متاح)، `submitted` (تم التسليم)، `missing` (متأخر). الرجاء تلوين الـ UI بناءً على الحالة."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Priority",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/assignments/{{assignment_id}}/priority",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "assignments",
+                                "{{assignment_id}}",
+                                "priority"
+                            ]
+                        },
+                        "description": "**قائمة التكاليف الواجبات (Assignments)**\n- **ماذا تفعل؟** جلب كل التكاليف الخاصة بمواد الطالب.\n- **الحالات:** `available` (متاح)، `submitted` (تم التسليم)، `missing` (متأخر). الرجاء تلوين الـ UI بناءً على الحالة."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "2. Display & Communication",
+            "item": [
+                {
+                    "name": "Get Alerts",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/alerts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "alerts"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Mark Alert Read",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/alerts/{{id}}/read",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "alerts",
+                                "{{id}}",
+                                "read"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Announcements",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/announcements",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "announcements"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Reminders",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/reminders",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "reminders"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Resources",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/resources",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "resources"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "3. Exam Schedules",
+            "item": [
+                {
+                    "name": "Get Exam Schedules",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/exams",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "exams"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "4. Financial Ledger",
+            "item": [
+                {
+                    "name": "Get Ledger",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/ledger",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "ledger"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Export Ledger PDF",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/ledger/export",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "ledger",
+                                "export"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "5. Messages (Chat System)",
+            "item": [
+                {
+                    "name": "Get Conversations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/messages",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "messages"
+                            ]
+                        },
+                        "description": "**جلب بيانات الطالب الحالي**\n- **ملاحظة:** يستخدم للتحقق من أن الـ Token ما زال صالحاً ولتحديث بيانات الطالب في التطبيق."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Conversation",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/messages/{{conversation}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "messages",
+                                "{{conversation}}"
+                            ]
+                        },
+                        "description": "**جلب بيانات الطالب الحالي**\n- **ملاحظة:** يستخدم للتحقق من أن الـ Token ما زال صالحاً ولتحديث بيانات الطالب في التطبيق."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Start Conversation (Target users)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/messages/start",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "messages",
+                                "start"
+                            ]
+                        },
+                        "description": "**جلب بيانات الطالب الحالي**\n- **ملاحظة:** يستخدم للتحقق من أن الـ Token ما زال صالحاً ولتحديث بيانات الطالب في التطبيق."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Send Message",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/messages/{{conversation}}/send",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "messages",
+                                "{{conversation}}",
+                                "send"
+                            ]
+                        },
+                        "description": "**جلب بيانات الطالب الحالي**\n- **ملاحظة:** يستخدم للتحقق من أن الـ Token ما زال صالحاً ولتحديث بيانات الطالب في التطبيق."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "6. Card Generation",
+            "item": [
+                {
+                    "name": "Get Generated Cards",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/cards-generate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "cards-generate"
+                            ]
+                        },
+                        "description": "**توليد واستعراض الكروت الجاهزة للطباعة**\n- **ماذا تفعل؟** خاصية استخراج بطاقات مالية أو تعريفية (حسب الكود المدعوم في السيرفر). إذا كان `GET` فهذا لعرض الطلبات السابقة."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Generate Card",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/cards-generate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "cards-generate"
+                            ]
+                        },
+                        "description": "**توليد واستعراض الكروت الجاهزة للطباعة**\n- **ماذا تفعل؟** خاصية استخراج بطاقات مالية أو تعريفية (حسب الكود المدعوم في السيرفر). إذا كان `GET` فهذا لعرض الطلبات السابقة."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "7. Inquiries",
+            "item": [
+                {
+                    "name": "Get Inquiries",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/inquiries",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "inquiries"
+                            ]
+                        },
+                        "description": "**استفسارات الدكاترة (Inquiries)**\n- **الاستخدام:** يمكن للطالب طرح سؤال على الدكتور في مادة معينة.\n- **ملاحظة:** تأكد من إظهار حالة الرد (معلق \"pending\"، مُرد عليه \"answered\")."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Store Inquiry",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/inquiries",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "inquiries"
+                            ]
+                        },
+                        "description": "**استفسارات الدكاترة (Inquiries)**\n- **الاستخدام:** يمكن للطالب طرح سؤال على الدكتور في مادة معينة.\n- **ملاحظة:** تأكد من إظهار حالة الرد (معلق \"pending\"، مُرد عليه \"answered\")."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Inquiry",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/inquiries/{{inquiry}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "inquiries",
+                                "{{inquiry}}"
+                            ]
+                        },
+                        "description": "**استفسارات الدكاترة (Inquiries)**\n- **الاستخدام:** يمكن للطالب طرح سؤال على الدكتور في مادة معينة.\n- **ملاحظة:** تأكد من إظهار حالة الرد (معلق \"pending\"، مُرد عليه \"answered\")."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "8. Authorized Grades",
+            "item": [
+                {
+                    "name": "Get Authorized Grades",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/authorized-grades",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "authorized-grades"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Authorized Grade Category",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/authorized-grades/{{category}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "authorized-grades",
+                                "{{category}}"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Store Authorized Grade Category",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/authorized-grades/{{category}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "authorized-grades",
+                                "{{category}}"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "9. Student Smart Schedule",
+            "item": [
+                {
+                    "name": "Get Schedule",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedule",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedule"
+                            ]
+                        },
+                        "description": "**الحبر الذكي (جدول الطالب الذكي - Smart Schedule)**\n- **ماذا تفعل؟** تجلب جدول مهام الطالب الخاص (Study Hub).\n- **البارامترات (Query):** يمكن تمرير `?tab=study` أو `reminders` أو `resources` أو `assignments` لجلب البيانات المخصصة للتبويب.\n- **ملاحظة:** يتم حساب الإحصائيات (مثل المتأخرة والمنجزة) وإرجاعها في الرد `stats` لتحديث الكروت في واجهة المستخدم."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Store Schedule Item",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedule",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedule"
+                            ]
+                        },
+                        "description": "**الحبر الذكي (جدول الطالب الذكي - Smart Schedule)**\n- **ماذا تفعل؟** تجلب جدول مهام الطالب الخاص (Study Hub).\n- **البارامترات (Query):** يمكن تمرير `?tab=study` أو `reminders` أو `resources` أو `assignments` لجلب البيانات المخصصة للتبويب.\n- **ملاحظة:** يتم حساب الإحصائيات (مثل المتأخرة والمنجزة) وإرجاعها في الرد `stats` لتحديث الكروت في واجهة المستخدم."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Store Custom Task",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedule/custom-task",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedule",
+                                "custom-task"
+                            ]
+                        },
+                        "description": "**الحبر الذكي (جدول الطالب الذكي - Smart Schedule)**\n- **ماذا تفعل؟** تجلب جدول مهام الطالب الخاص (Study Hub).\n- **البارامترات (Query):** يمكن تمرير `?tab=study` أو `reminders` أو `resources` أو `assignments` لجلب البيانات المخصصة للتبويب.\n- **ملاحظة:** يتم حساب الإحصائيات (مثل المتأخرة والمنجزة) وإرجاعها في الرد `stats` لتحديث الكروت في واجهة المستخدم."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Check Schedule Reminders",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedule/check-reminders",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedule",
+                                "check-reminders"
+                            ]
+                        },
+                        "description": "**الحبر الذكي (جدول الطالب الذكي - Smart Schedule)**\n- **ماذا تفعل؟** تجلب جدول مهام الطالب الخاص (Study Hub).\n- **البارامترات (Query):** يمكن تمرير `?tab=study` أو `reminders` أو `resources` أو `assignments` لجلب البيانات المخصصة للتبويب.\n- **ملاحظة:** يتم حساب الإحصائيات (مثل المتأخرة والمنجزة) وإرجاعها في الرد `stats` لتحديث الكروت في واجهة المستخدم."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Schedule Item",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedule/{{id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedule",
+                                "{{id}}"
+                            ]
+                        },
+                        "description": "**الحبر الذكي (جدول الطالب الذكي - Smart Schedule)**\n- **ماذا تفعل؟** تجلب جدول مهام الطالب الخاص (Study Hub).\n- **البارامترات (Query):** يمكن تمرير `?tab=study` أو `reminders` أو `resources` أو `assignments` لجلب البيانات المخصصة للتبويب.\n- **ملاحظة:** يتم حساب الإحصائيات (مثل المتأخرة والمنجزة) وإرجاعها في الرد `stats` لتحديث الكروت في واجهة المستخدم."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Destroy Schedule Item",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedule/{{id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedule",
+                                "{{id}}"
+                            ]
+                        },
+                        "description": "**الحبر الذكي (جدول الطالب الذكي - Smart Schedule)**\n- **ماذا تفعل؟** تجلب جدول مهام الطالب الخاص (Study Hub).\n- **البارامترات (Query):** يمكن تمرير `?tab=study` أو `reminders` أو `resources` أو `assignments` لجلب البيانات المخصصة للتبويب.\n- **ملاحظة:** يتم حساب الإحصائيات (مثل المتأخرة والمنجزة) وإرجاعها في الرد `stats` لتحديث الكروت في واجهة المستخدم."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reorder Schedule Items",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/schedule/reorder",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "schedule",
+                                "reorder"
+                            ]
+                        },
+                        "description": "**الحبر الذكي (جدول الطالب الذكي - Smart Schedule)**\n- **ماذا تفعل؟** تجلب جدول مهام الطالب الخاص (Study Hub).\n- **البارامترات (Query):** يمكن تمرير `?tab=study` أو `reminders` أو `resources` أو `assignments` لجلب البيانات المخصصة للتبويب.\n- **ملاحظة:** يتم حساب الإحصائيات (مثل المتأخرة والمنجزة) وإرجاعها في الرد `stats` لتحديث الكروت في واجهة المستخدم."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "10. Shared Study Library",
+            "item": [
+                {
+                    "name": "Get Library Resources",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/library",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "library"
+                            ]
+                        },
+                        "description": "**المكتبة المشتركة (Shared Library)**\n- **البارامترات (Query Filters):** `subject_id`, `category`, `search`, `year`.\n- **العمليات المخفية:** لا تعرض للمستخدم إلا الملفات المسموح بها برمجياً (حسب دفعة الطالب أو الكلية أو الكشوفات العامة)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Upload Resource",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/library/upload",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "library",
+                                "upload"
+                            ]
+                        },
+                        "description": "**المكتبة المشتركة (Shared Library)**\n- **البارامترات (Query Filters):** `subject_id`, `category`, `search`, `year`.\n- **العمليات المخفية:** لا تعرض للمستخدم إلا الملفات المسموح بها برمجياً (حسب دفعة الطالب أو الكلية أو الكشوفات العامة)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Increment Resource Download",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/library/{{resource}}/download",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "library",
+                                "{{resource}}",
+                                "download"
+                            ]
+                        },
+                        "description": "**المكتبة المشتركة (Shared Library)**\n- **البارامترات (Query Filters):** `subject_id`, `category`, `search`, `year`.\n- **العمليات المخفية:** لا تعرض للمستخدم إلا الملفات المسموح بها برمجياً (حسب دفعة الطالب أو الكلية أو الكشوفات العامة)."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "11. Subscription Management",
+            "item": [
+                {
+                    "name": "Get Subscription Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/subscription",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "subscription"
+                            ]
+                        },
+                        "description": "**عرض حالة الاشتراك (Subscription)**\n- **البيانات المرجعة:** `user_balance` (الرصيد الحالي), `is_subscribed` (هل هو مشترك), `subscribed_until` (تاريخ الانتهاء), و `packages` (الباقات المتاحة).\n- **الـ UI:** قم بتلوين حالة الاشتراك بالأخضر إذا كان فعّالاً."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Redeem Voucher",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/subscription/redeem",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "subscription",
+                                "redeem"
+                            ]
+                        },
+                        "description": "**عرض حالة الاشتراك (Subscription)**\n- **البيانات المرجعة:** `user_balance` (الرصيد الحالي), `is_subscribed` (هل هو مشترك), `subscribed_until` (تاريخ الانتهاء), و `packages` (الباقات المتاحة).\n- **الـ UI:** قم بتلوين حالة الاشتراك بالأخضر إذا كان فعّالاً."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Subscribe to Package",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/subscription/subscribe",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "subscription",
+                                "subscribe"
+                            ]
+                        },
+                        "description": "**عرض حالة الاشتراك (Subscription)**\n- **البيانات المرجعة:** `user_balance` (الرصيد الحالي), `is_subscribed` (هل هو مشترك), `subscribed_until` (تاريخ الانتهاء), و `packages` (الباقات المتاحة).\n- **الـ UI:** قم بتلوين حالة الاشتراك بالأخضر إذا كان فعّالاً."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Toggle Auto Renew",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/subscription/auto-renew",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "subscription",
+                                "auto-renew"
+                            ]
+                        },
+                        "description": "**عرض حالة الاشتراك (Subscription)**\n- **البيانات المرجعة:** `user_balance` (الرصيد الحالي), `is_subscribed` (هل هو مشترك), `subscribed_until` (تاريخ الانتهاء), و `packages` (الباقات المتاحة).\n- **الـ UI:** قم بتلوين حالة الاشتراك بالأخضر إذا كان فعّالاً."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "12. PDF Reports",
+            "item": [
+                {
+                    "name": "Attendance PDF",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/reports/attendance",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "reports",
+                                "attendance"
+                            ]
+                        },
+                        "description": "**تقرير الحضور والغياب (PDF)**\n- **ماذا يرجع؟** يرجع الرابط المباشر للملف (Export URL).\n- **ملاحظة شديدة الأهمية للفرونت إند (Authentication in WebViews / Downloads):**\n  الروابط المرجعة للـ PDF تتطلب \"Authentication\". إما أن تمرر الـ Token كـ Header في أداة التحميل، أو لو قمت بفتحه في `WebView` يجب أن تمرر له الـ Authorization Headers أو الكوكيز."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Grades PDF",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/reports/grades",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "reports",
+                                "grades"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Exams Schedule PDF",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/student/reports/exams",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "student",
+                                "reports",
+                                "exams"
+                            ]
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "📊 Attendance & Grades",
+            "item": [
+                {
+                    "name": "My Grades (JSON)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/grades",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "grades"
+                            ]
+                        },
+                        "description": "الحصول على درجات الطالب موزعة حسب المواد والفئات."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "👮 Authorized Grades",
+            "description": "ادخال الدرجات للزملاء (للمناديب المخولين فقط)",
+            "item": [
+                {
+                    "name": "List My Delegations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/authorized-grades",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "authorized-grades"
+                            ]
+                        },
+                        "description": "عرض الفئات التي تم تفويضك لإدخال درجاتها."
+                    }
+                },
+                {
+                    "name": "Get Category Students",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/authorized-grades/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "authorized-grades",
+                                "1"
+                            ]
+                        },
+                        "description": "عرض قائمة الطلاب والدرجات المسجلة في فئة معينة."
+                    }
+                },
+                {
+                    "name": "Store Grades",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"grades\": [\n        {\"student_id\": 1, \"score\": 15},\n        {\"student_id\": 2, \"score\": 14}\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/authorized-grades/1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "authorized-grades",
+                                "1"
+                            ]
+                        },
+                        "description": "حفظ الدرجات للفئة المفوضة."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "💳 Subscription",
+            "item": [
+                {
+                    "name": "Subscription Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/subscription",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subscription"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Redeem Voucher",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"code\": \"ABCD1234EFGH\"}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/subscription/redeem",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subscription",
+                                "redeem"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Subscribe to Package",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"package_id\": 1}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/subscription/subscribe",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "subscription",
+                                "subscribe"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "📄 PDF Reports",
+            "item": [
+                {
+                    "name": "Attendance PDF Link",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/attendance",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "attendance"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Grades PDF Link",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/reports/grades",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "grades"
+                            ]
+                        }
                     }
                 }
             ]

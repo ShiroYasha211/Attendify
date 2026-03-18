@@ -10,9 +10,23 @@ use App\Models\ExamScheduleItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ExamScheduleController extends Controller
+class ExamScheduleController extends Controller implements HasMiddleware
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('delegate.permission:exams,create', only: ['create', 'store']),
+            new Middleware('delegate.permission:exams,update', only: ['edit', 'update']),
+            new Middleware('delegate.permission:exams,delete', only: ['destroy']),
+        ];
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -22,7 +36,7 @@ class ExamScheduleController extends Controller
 
         $schedules = ExamSchedule::where('major_id', $user->major_id)
             ->where('level_id', $user->level_id)
-            ->with(['term'])
+            ->with(['term', 'creator'])
             ->latest()
             ->paginate(10);
 

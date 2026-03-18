@@ -7,9 +7,23 @@ use Illuminate\Http\Request;
 use App\Models\Academic\Schedule;
 use App\Models\Academic\Subject;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ScheduleController extends Controller
+class ScheduleController extends Controller implements HasMiddleware
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('delegate.permission:schedules,create', only: ['create', 'store']),
+            new Middleware('delegate.permission:schedules,update', only: ['edit', 'update']),
+            new Middleware('delegate.permission:schedules,delete', only: ['destroy']),
+        ];
+    }
+
     public function index()
     {
         $delegate = Auth::user();
@@ -56,6 +70,7 @@ class ScheduleController extends Controller
             abort(403);
         }
 
+        $validated['created_by'] = Auth::id();
         Schedule::create($validated);
 
         return redirect()->route('delegate.schedules.index')->with('success', 'تم إضافة الموعد بنجاح.');

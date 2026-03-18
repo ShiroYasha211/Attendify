@@ -16,10 +16,12 @@ class Grade extends Model
         'subject_id',
         'type',
         'category',
+        'category_id',
         'score',
         'max_score',
         'semester',
         'created_by',
+        'status',
     ];
 
     protected $casts = [
@@ -56,6 +58,11 @@ class Grade extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function gradeCategory()
+    {
+        return $this->belongsTo(GradeCategory::class, 'category_id');
     }
 
     // Scopes

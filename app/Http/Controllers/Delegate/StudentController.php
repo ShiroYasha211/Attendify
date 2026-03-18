@@ -9,9 +9,23 @@ use App\Enums\UserRole;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class StudentController extends Controller
+class StudentController extends Controller implements HasMiddleware
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('delegate.permission:students,create', only: ['create', 'store']),
+            new Middleware('delegate.permission:students,update', only: ['edit', 'update']),
+            new Middleware('delegate.permission:students,delete', only: ['destroy']),
+        ];
+    }
+
     /**
      * Display a listing of the resource.
      */

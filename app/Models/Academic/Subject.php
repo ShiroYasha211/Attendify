@@ -61,4 +61,9 @@ class Subject extends Model
     {
         return $this->hasMany(\App\Models\Grade::class);
     }
+
+    public function gradeCategories(): HasMany
+    {
+        return $this->hasMany(\App\Models\GradeCategory::class);
+    }
 }

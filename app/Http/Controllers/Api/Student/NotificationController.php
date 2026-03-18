@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\StudentNotification;
 use Illuminate\Support\Facades\Auth;
 
+use App\Models\PollOption;
+use App\Models\PollVote;
+
 class NotificationController extends StudentApiController
 {
     /**
@@ -20,7 +23,73 @@ class NotificationController extends StudentApiController
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
+        // Transform to include poll data if any
+        $notifications->getCollection()->transform(function ($notification) use ($user) {
+            if ($notification->type === 'poll') {
+                $options = PollOption::where('batch_id', $notification->batch_id)->get();
+                $votedOption = PollVote::where('batch_id', $notification->batch_id)
+                    ->where('student_id', $user->id)
+                    ->first();
+                
+                $notification->poll_data = [
+                    'options' => $options->map(function ($opt) {
+                        return [
+                            'id' => $opt->id,
+                            'text' => $opt->option_text,
+                            'votes_count' => PollVote::where('poll_option_id', $opt->id)->count(),
+                        ];
+                    }),
+                    'has_voted' => $votedOption ? true : false,
+                    'voted_option_id' => $votedOption ? $votedOption->poll_option_id : null,
+                ];
+            }
+            return $notification;
+        });
+
         return $this->paginated($notifications, 'تم جلب الإشعارات بنجاح');
+    }
+
+    /**
+     * Cast a vote on a poll.
+     */
+    public function vote(Request $request, $notificationId)
+    {
+        $user = Auth::user();
+        $notification = StudentNotification::where('user_id', $user->id)
+            ->findOrFail($notificationId);
+
+        if ($notification->type !== 'poll') {
+            return $this->error('هذا الإشعار ليس استفتاءً', 400);
+        }
+
+        $request->validate([
+            'poll_option_id' => 'required|exists:poll_options,id',
+        ]);
+
+        $option = PollOption::findOrFail($request->poll_option_id);
+        if ($option->batch_id !== $notification->batch_id) {
+            return $this->error('خيار التصويت غير صالح لهذا الاستفتاء', 400);
+        }
+
+        // Check if already voted
+        $existingVote = PollVote::where('batch_id', $notification->batch_id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        if ($existingVote) {
+            return $this->error('لقد قمت بالتصويت مسبقاً في هذا الاستفتاء', 400);
+        }
+
+        PollVote::create([
+            'batch_id' => $notification->batch_id,
+            'poll_option_id' => $request->poll_option_id,
+            'student_id' => $user->id,
+        ]);
+
+        // Mark as read automatically when voting
+        $notification->markAsRead();
+
+        return $this->success(null, 'تم تسجيل تصويتك بنجاح');
     }
 
     /**

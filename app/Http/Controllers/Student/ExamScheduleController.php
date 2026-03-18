@@ -16,7 +16,7 @@ class ExamScheduleController extends Controller
         $schedules = ExamSchedule::where('major_id', $user->major_id)
             ->where('level_id', $user->level_id)
             ->where('is_published', true)
-            ->with(['items.subject', 'term'])
+            ->with(['items.subject', 'term', 'creator'])
             ->latest()
             ->get();
 

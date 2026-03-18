@@ -54,7 +54,7 @@
                     </a>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 1.5rem;">
                     <div style="padding: 0.75rem 0.5rem; background: #fff; border: 1px solid #f1f5f9; border-radius: 12px; text-align: center;">
                         <div style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.25rem;">طالب</div>
                         <div style="font-size: 1rem; font-weight: 800; color: var(--primary-color);">{{ number_format($package->price_student) }} <small style="font-size: 0.6rem;">ريال</small></div>
@@ -66,6 +66,10 @@
                     <div style="padding: 0.75rem 0.5rem; background: #fff; border: 1px solid #f1f5f9; border-radius: 12px; text-align: center;">
                         <div style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.25rem;">مندوب</div>
                         <div style="font-size: 1rem; font-weight: 800; color: #f59e0b;">{{ number_format($package->price_delegate) }} <small style="font-size: 0.6rem;">ريال</small></div>
+                    </div>
+                    <div style="padding: 0.75rem 0.5rem; background: #fff; border: 1px solid #f1f5f9; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.25rem;">إداري</div>
+                        <div style="font-size: 1rem; font-weight: 800; color: #6366f1;">{{ number_format($package->price_administrative) }} <small style="font-size: 0.6rem;">ريال</small></div>
                     </div>
                 </div>
 

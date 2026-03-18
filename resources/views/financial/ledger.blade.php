@@ -4,6 +4,8 @@
         $layout = 'layouts.doctor';
     } elseif (in_array(auth()->user()->role, [\App\Enums\UserRole::DELEGATE, \App\Enums\UserRole::PRACTICAL_DELEGATE])) {
         $layout = 'layouts.delegate';
+    } elseif (auth()->user()->role === \App\Enums\UserRole::ADMINISTRATIVE) {
+        $layout = 'layouts.administrative';
     }
 @endphp
 

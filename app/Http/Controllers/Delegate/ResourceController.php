@@ -105,7 +105,7 @@ class ResourceController extends Controller
             'category' => 'required|in:lectures,references,summaries,exams,other,quizzes',
             'sub_category' => 'nullable|string|in:theoretical,practical,seminar,other',
             'custom_category_type' => 'nullable|string|max:255',
-            'file' => 'required|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:20480', // 20MB max
+            'file' => 'required|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar', // No application-level size limit
             'description' => 'nullable|string',
             'unit_coordinator' => 'nullable|string|max:255',
             'lecturer_name' => 'nullable|string|max:255',

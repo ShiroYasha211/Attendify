@@ -294,14 +294,13 @@
     @forelse($subjects as $subject)
     @php
     $subjectGrades = $grades->get($subject->id, collect());
-    $continuous = $subjectGrades->where('type', 'continuous')->first();
+    $continuousSum = $subjectGrades->where('type', 'continuous')->where('status', 'approved')->sum('score');
     $final = $subjectGrades->where('type', 'final')->first();
 
     $total = null;
-    if ($continuous || $final) {
-    $cWeight = $continuous ? ($continuous->score / $continuous->max_score) * 40 : 0;
-    $fWeight = $final ? ($final->score / $final->max_score) * 60 : 0;
-    $total = round($cWeight + $fWeight, 1);
+    if ($continuousSum > 0 || $final) {
+        $fScore = $final ? $final->score : 0;
+        $total = round($continuousSum + $fScore, 1);
     }
 
     $gradeClass = 'fail';
@@ -333,9 +332,9 @@
                     </div>
                 </div>
                 <div class="grade-score">
-                    @if($continuous)
-                    <span class="score-value">{{ number_format($continuous->score, 1) }}</span>
-                    <span class="score-max">/ {{ $continuous->max_score }}</span>
+                    @if($continuousSum > 0)
+                    <span class="score-value">{{ number_format($continuousSum, 1) }}</span>
+                    <span class="score-max">/ 40</span>
                     @else
                     <span style="color: var(--text-secondary);">لم تُدخل</span>
                     @endif

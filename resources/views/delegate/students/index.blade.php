@@ -430,7 +430,13 @@
             <p>إضافة وإدارة طلاب الدفعة</p>
         </div>
         <div style="margin-right: auto;">
-            <button @click="showImportModal = true" class="btn-submit" style="background: linear-gradient(135deg, #0284c7, #0369a1); width: auto; padding: 0.75rem 1.5rem; font-size: 0.9rem;">
+            @php $canImport = Auth::user()->hasDelegatePermission('students', 'create'); @endphp
+            <button 
+                @if($canImport) @click="showImportModal = true" @endif
+                class="btn-submit {{ !$canImport ? 'btn-locked' : '' }}" 
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); width: auto; padding: 0.75rem 1.5rem; font-size: 0.9rem;"
+                @if(!$canImport) title="ليس لديك صلاحية الاستيراد" @endif
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="17 8 12 3 7 8"></polyline>
@@ -594,13 +600,14 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn-submit">
+                        @php $canCreate = Auth::user()->hasDelegatePermission('students', 'create'); @endphp
+                        <button type="{{ $canCreate ? 'submit' : 'button' }}" class="btn-submit {{ !$canCreate ? 'btn-locked' : '' }}" @if(!$canCreate) title="ليس لديك صلاحية إضافة طلاب" @endif>
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                                 <polyline points="17 21 17 13 7 13 7 21"></polyline>
                                 <polyline points="7 3 7 8 15 8"></polyline>
                             </svg>
-                            حفظ البيانات
+                            {{ $canCreate ? 'حفظ البيانات' : 'ليس لديك صلاحية إضافة' }}
                         </button>
                     </form>
                 </div>
@@ -694,7 +701,9 @@
                                             <circle cx="12" cy="12" r="3"></circle>
                                         </svg>
                                     </button>
-                                    <button type="button" class="action-btn edit"
+                                    @php $canUpdate = Auth::user()->hasDelegatePermission('students', 'update'); @endphp
+                                    <button type="button" class="action-btn edit {{ !$canUpdate ? 'btn-locked' : '' }}"
+                                        @if($canUpdate)
                                         @click="
                                             showEditModal = true;
                                             modalTitle = 'تعديل: {{ $student->name }}';
@@ -702,20 +711,31 @@
                                             editName = '{{ $student->name }}';
                                             editEmail = '{{ $student->email }}';
                                             editStudentNumber = '{{ $student->student_number }}';
-                                        ">
+                                        "
+                                        @else
+                                        title="ليس لديك صلاحية التعديل"
+                                        @endif
+                                    >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                         </svg>
                                         تعديل
                                     </button>
-                                    <button type="button" class="action-btn delete"
+
+                                    @php $canDelete = Auth::user()->hasDelegatePermission('students', 'delete'); @endphp
+                                    <button type="button" class="action-btn delete {{ !$canDelete ? 'btn-locked' : '' }}"
+                                        @if($canDelete)
                                         @click="
                                             showDeleteModal = true;
                                             deleteUrl = '{{ route('delegate.students.destroy', $student) }}';
                                             modalTitle = 'حذف {{ $student->name }}';
                                             modalMessage = 'حذف الطالب سيؤدي لحذف جميع سجلات حضوره. هل أنت متأكد؟';
-                                        ">
+                                        "
+                                        @else
+                                        title="ليس لديك صلاحية الحذف"
+                                        @endif
+                                    >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <polyline points="3 6 5 6 21 6"></polyline>
                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>

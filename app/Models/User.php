@@ -8,10 +8,11 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -32,6 +33,7 @@ class User extends Authenticatable
         'balance',
         'subscribed_until',
         'auto_renew',
+        'assignment_sort_by',
     ];
 
     /**
@@ -270,5 +272,77 @@ class User extends Authenticatable
                 'metadata' => $metadata,
             ]);
         });
+    }
+
+    /**
+     * Grade Delegation Relationships.
+     */
+    public function gradePermissions()
+    {
+        return $this->hasMany(\App\Models\GradePermission::class, 'authorized_user_id');
+    }
+
+    public function delegatedGradeCategories()
+    {
+        return $this->belongsToMany(\App\Models\GradeCategory::class, 'grade_permissions', 'authorized_user_id', 'category_id')->withTimestamps();
+    }
+
+    /**
+     * جلسات التحضير الخاصة بالدكتور (عبر المواد التي يدرسها).
+     */
+    public function qrSessions()
+    {
+        return $this->hasManyThrough(
+            \App\Models\QrAttendanceSession::class,
+            \App\Models\Academic\Subject::class,
+            'doctor_id',   // المفتاح الأجنبي في جدول المواد
+            'subject_id',  // المفتاح الأجنبي في جدول جلسات التحضير
+            'id',          // المفتاح المحلي في جدول المستخدمين
+            'id'           // المفتاح المحلي في جدول المواد
+        );
+    }
+
+    // ─── Delegate Permissions System ───
+
+    /**
+     * Get all delegate permissions for this user.
+     */
+    public function delegatePermissions()
+    {
+        return $this->hasMany(\App\Models\DelegatePermission::class);
+    }
+
+    /**
+     * Check if user has a specific delegate permission.
+     */
+    public function hasDelegatePermission(string $resource, string $action): bool
+    {
+        return $this->delegatePermissions()
+            ->where('resource', $resource)
+            ->where('action', $action)
+            ->exists();
+    }
+
+    /**
+     * Grant all default delegate permissions.
+     */
+    public function grantAllDelegatePermissions(int $grantedBy): void
+    {
+        foreach (\App\Models\DelegatePermission::RESOURCES as $resource => $label) {
+            foreach (\App\Models\DelegatePermission::ACTIONS as $action => $actionLabel) {
+                \App\Models\DelegatePermission::firstOrCreate(
+                    ['user_id' => $this->id, 'resource' => $resource, 'action' => $action],
+                    ['granted_by' => $grantedBy]
+                );
+            }
+        }
+    }
+
+    /**
+     * Revoke all delegate permissions.
+     */
+    public function revokeDelegatePermissions(): void
+    {
+        $this->delegatePermissions()->delete();
     }
 }

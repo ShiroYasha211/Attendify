@@ -156,6 +156,27 @@
         border-color: #6ee7b7;
     }
 
+    .schedule-item.official {
+        border: 2px solid #10b981;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    }
+
+    .official-badge {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: #10b981;
+        color: white;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+    }
+
     .schedule-subject {
         font-weight: 700;
         font-size: 0.9rem;
@@ -338,7 +359,12 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
             </svg>
             طباعة الجدول
         </button>
-        <a href="{{ route('delegate.schedules.create') }}" class="btn-add">
+        @php $canCreate = Auth::user()->hasDelegatePermission('schedules', 'create'); @endphp
+        <a 
+            @if($canCreate) href="{{ route('delegate.schedules.create') }}" @endif
+            class="btn-add {{ !$canCreate ? 'btn-locked' : '' }}"
+            @if(!$canCreate) title="ليس لديك صلاحية إضافة مواعد" @endif
+        >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -442,12 +468,18 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
         <div class="calendar-day">
             @forelse($daySchedules as $schedule)
             @php
-            $colorClass = ['', 'alternate', 'third'][$colorIndex % 3];
-            $colorIndex++;
+            $isOfficial = $schedule->creator && in_array($schedule->creator->role->value, ['admin', 'administrative']);
+            $colorClass = $isOfficial ? 'official' : (['', 'alternate', 'third'][$colorIndex % 3]);
+            if(!$isOfficial) $colorIndex++;
             @endphp
             <div class="schedule-item {{ $colorClass }}">
+                @if($isOfficial)
+                <div class="official-badge">
+                    <i class="fa-solid fa-check-double"></i> رسمـي
+                </div>
+                @endif
                 @if($schedule->hall_name)
-                <span class="schedule-hall">{{ $schedule->hall_name }}</span>
+                <span class="schedule-hall" style="{{ $isOfficial ? 'top: 2rem;' : '' }}">{{ $schedule->hall_name }}</span>
                 @endif
                 <div class="schedule-subject">{{ $schedule->subject->name }}</div>
                 <div class="schedule-doctor">{{ $schedule->subject->doctor->name ?? 'غير محدد' }}</div>
@@ -458,17 +490,24 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
                     </svg>
                     {{ \Carbon\Carbon::parse($schedule->start_time)->format('h:i') }} - {{ \Carbon\Carbon::parse($schedule->end_time)->format('h:i A') }}
                 </div>
+                @if(!$isOfficial)
                 <div class="schedule-actions">
-                    <a href="{{ route('delegate.schedules.edit', $schedule->id) }}" class="edit" title="تعديل">
+                    @php $canUpdate = Auth::user()->hasDelegatePermission('schedules', 'update'); @endphp
+                    <a 
+                        @if($canUpdate) href="{{ route('delegate.schedules.edit', $schedule->id) }}" @endif
+                        class="edit {{ !$canUpdate ? 'btn-locked' : '' }}" 
+                        title="{{ $canUpdate ? 'تعديل' : 'ليس لديك صلاحية التعديل' }}"
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
                     </a>
+                    @php $canDelete = Auth::user()->hasDelegatePermission('schedules', 'delete'); @endphp
                     <form action="{{ route('delegate.schedules.destroy', $schedule->id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذا الموعد؟')" style="display: inline;">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="delete" title="حذف">
+                        <button type="{{ $canDelete ? 'submit' : 'button' }}" class="delete {{ !$canDelete ? 'btn-locked' : '' }}" title="{{ $canDelete ? 'حذف' : 'ليس لديك صلاحية الحذف' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -476,6 +515,7 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
                         </button>
                     </form>
                 </div>
+                @endif
             </div>
             @empty
             <div class="empty-day">لا توجد محاضرات</div>

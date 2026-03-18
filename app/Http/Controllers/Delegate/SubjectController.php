@@ -9,9 +9,23 @@ use App\Models\Academic\Subject;
 use App\Models\Academic\Term;
 use App\Models\User;
 use App\Enums\UserRole;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class SubjectController extends Controller
+class SubjectController extends Controller implements HasMiddleware
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('delegate.permission:subjects,create', only: ['store']),
+            new Middleware('delegate.permission:subjects,update', only: ['edit', 'update']),
+            new Middleware('delegate.permission:subjects,delete', only: ['destroy']),
+        ];
+    }
+
     /**
      * Display a listing of the resource.
      */

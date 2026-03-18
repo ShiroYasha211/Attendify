@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Academic\Subject;
 use App\Enums\UserRole;
+use App\Models\StudentNotification;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -160,6 +161,12 @@ class DashboardController extends Controller
         // Sort by highest absence rate and limit
         $atRiskStudents = $atRiskStudents->sortByDesc('absence_rate')->take(5);
 
+        // Administrative Announcements
+        $adminAnnouncements = StudentNotification::where('user_id', $delegate->id)
+            ->latest()
+            ->take(5)
+            ->get();
+
         return view('delegate.dashboard', compact(
             'delegate',
             'studentsCount',
@@ -171,7 +178,8 @@ class DashboardController extends Controller
             'weeklyAttendanceRate',
             'topAbsentStudents',
             'todaySubjects',
-            'atRiskStudents'
+            'atRiskStudents',
+            'adminAnnouncements'
         ));
     }
 }

@@ -12,22 +12,28 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Update majors table
-        Schema::table('majors', function (Blueprint $blueprint) {
-            $blueprint->boolean('has_semesters')->default(false)->after('has_clinical');
-        });
+        if (!Schema::hasColumn('majors', 'has_semesters')) {
+            Schema::table('majors', function (Blueprint $blueprint) {
+                $blueprint->boolean('has_semesters')->default(false)->after('has_clinical');
+            });
+        }
 
         // 2. Create semesters table
-        Schema::create('semesters', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('term_id')->constrained()->onDelete('cascade');
-            $table->string('name');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('semesters')) {
+            Schema::create('semesters', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('term_id')->constrained()->onDelete('cascade');
+                $table->string('name');
+                $table->timestamps();
+            });
+        }
 
         // 3. Update subjects table
-        Schema::table('subjects', function (Blueprint $table) {
-            $table->foreignId('semester_id')->nullable()->after('term_id')->constrained()->onDelete('set null');
-        });
+        if (!Schema::hasColumn('subjects', 'semester_id')) {
+            Schema::table('subjects', function (Blueprint $table) {
+                $table->foreignId('semester_id')->nullable()->after('term_id')->constrained()->onDelete('set null');
+            });
+        }
     }
 
     /**

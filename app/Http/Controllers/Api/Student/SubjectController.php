@@ -9,6 +9,7 @@ use App\Models\Academic\Lecture;
 use App\Models\Academic\Assignment;
 use App\Models\Academic\StudentLectureStatus;
 use App\Models\Attendance;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Auth;
 
 class SubjectController extends StudentApiController
@@ -159,8 +160,8 @@ class SubjectController extends StudentApiController
         // Calculate total percentage
         $totalGradePercentage = null;
         if ($continuousGrade || $finalGrade) {
-            $cWeight = $continuousGrade ? ($continuousGrade->score / $continuousGrade->max_score) * 40 : 0;
-            $fWeight = $finalGrade ? ($finalGrade->score / $finalGrade->max_score) * 60 : 0;
+            $cWeight = ($continuousGrade && $continuousGrade->max_score > 0) ? ($continuousGrade->score / $continuousGrade->max_score) * 40 : 0;
+            $fWeight = ($finalGrade && $finalGrade->max_score > 0) ? ($finalGrade->score / $finalGrade->max_score) * 60 : 0;
             $totalGradePercentage = round($cWeight + $fWeight, 1);
         }
 

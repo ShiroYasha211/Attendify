@@ -28,6 +28,7 @@ class PackageController extends Controller
             'price_student' => 'required|numeric|min:0',
             'price_doctor' => 'required|numeric|min:0',
             'price_delegate' => 'required|numeric|min:0',
+            'price_administrative' => 'required|numeric|min:0',
             'duration_days' => 'required|integer|min:1',
             'description' => 'nullable|string',
         ]);
@@ -65,6 +66,7 @@ class PackageController extends Controller
             'price_student' => 'required|numeric|min:0',
             'price_doctor' => 'required|numeric|min:0',
             'price_delegate' => 'required|numeric|min:0',
+            'price_administrative' => 'required|numeric|min:0',
             'duration_days' => 'required|integer|min:1',
             'description' => 'nullable|string',
         ]);

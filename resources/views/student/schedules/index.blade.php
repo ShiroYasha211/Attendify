@@ -121,7 +121,7 @@
         padding: 0.75rem;
         position: relative;
         transition: all 0.2s;
-        padding-bottom: 1rem;
+        padding-bottom: 0.75rem;
     }
 
     .schedule-item:hover {
@@ -137,6 +137,27 @@
     .schedule-item.third {
         background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
         border-color: #6ee7b7;
+    }
+
+    .schedule-item.official {
+        border: 2px solid #10b981;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    }
+
+    .official-badge {
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.5rem;
+        background: #10b981;
+        color: white;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
     }
 
     .schedule-subject {
@@ -279,7 +300,7 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
         </div>
         <div class="header-text">
             <h1>الجدول الدراسي للدفعة</h1>
-            <p>جدول المحاضرات الأسبوعي المعتمد للدفعة. يتم تنظيمه من قبل المندوب.</p>
+            <p>جدول المحاضرات الأسبوعي المعتمد للدفعة.</p>
         </div>
     </div>
     <div class="header-actions">
@@ -360,7 +381,7 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
         <line x1="3" y1="10" x2="21" y2="10"></line>
     </svg>
     <h3>لا يوجد جدول دراسي</h3>
-    <p>لم يقم مندوب الدفعة بإضافة أي مواعيد للجدول الدراسي حتى الآن.</p>
+    <p>لم يتم إضافة أي مواعيد للجدول الدراسي حتى الآن.</p>
 </div>
 @else
 <!-- Weekly Calendar -->
@@ -379,8 +400,9 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
         <div class="calendar-day">
             @forelse($daySchedules as $schedule)
             @php
-            $colorClass = ['', 'alternate', 'third'][$colorIndex % 3];
-            $colorIndex++;
+            $isOfficial = $schedule->creator && in_array($schedule->creator->role->value, ['admin', 'administrative']);
+            $colorClass = $isOfficial ? 'official' : (['', 'alternate', 'third'][$colorIndex % 3]);
+            if(!$isOfficial) $colorIndex++;
             @endphp
             <div class="schedule-item {{ $colorClass }}">
                 @if($schedule->hall_name)
@@ -395,6 +417,11 @@ $daysWithLectures = $schedules->pluck('day_of_week')->unique()->count();
                     </svg>
                     {{ \Carbon\Carbon::parse($schedule->start_time)->format('h:i') }} - {{ \Carbon\Carbon::parse($schedule->end_time)->format('h:i A') }}
                 </div>
+                @if($isOfficial)
+                <div class="official-badge">
+                    <i class="fa-solid fa-check-double"></i> رسمـي
+                </div>
+                @endif
             </div>
             @empty
             <div class="empty-day">لا توجد محاضرات</div>

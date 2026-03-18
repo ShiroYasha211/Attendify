@@ -11,9 +11,14 @@ class StudentNotification extends Model
 
     protected $fillable = [
         'user_id',
+        'college_id',
+        'sender_id',
+        'batch_id',
         'type',
         'title',
         'message',
+        'attachment_path',
+        'attachment_name',
         'data',
         'read_at',
     ];
@@ -24,11 +29,35 @@ class StudentNotification extends Model
     ];
 
     /**
+     * Get the full URL for the attachment.
+     */
+    public function getAttachmentUrlAttribute()
+    {
+        return $this->attachment_path ? asset('storage/' . $this->attachment_path) : null;
+    }
+
+    /**
      * Get the user that owns the notification.
      */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the sender of the notification.
+     */
+    public function sender()
+    {
+        return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    /**
+     * Get the college.
+     */
+    public function college()
+    {
+        return $this->belongsTo(\App\Models\Academic\College::class);
     }
 
     /**

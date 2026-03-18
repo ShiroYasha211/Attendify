@@ -17,13 +17,21 @@ return Application::configure(basePath: dirname(__DIR__))
             'status' => \App\Http\Middleware\CheckUserStatus::class,
             'clinical_delegate' => \App\Http\Middleware\EnsureClinicalDelegate::class,
             'subscribed' => \App\Http\Middleware\CheckSubscription::class,
+            'administrative' => \App\Http\Middleware\AdministrativeMiddleware::class,
+            'delegate.permission' => \App\Http\Middleware\CheckDelegatePermission::class,
         ]);
-        $middleware->redirectGuestsTo(fn() => route('admin.login'));
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return null;
+            }
+            return route('admin.login');
+        });
         $middleware->redirectUsersTo(function () {
             $user = \Illuminate\Support\Facades\Auth::user();
             if ($user && $user->role) {
                 return match ($user->role->value) {
                     \App\Enums\UserRole::ADMIN->value => route('admin.dashboard'),
+                    \App\Enums\UserRole::ADMINISTRATIVE->value => route('administrative.dashboard'),
                     \App\Enums\UserRole::DOCTOR->value => route('doctor.dashboard'),
                     \App\Enums\UserRole::DELEGATE->value, \App\Enums\UserRole::PRACTICAL_DELEGATE->value => route('delegate.dashboard'),
                     \App\Enums\UserRole::STUDENT->value => route('student.dashboard'),

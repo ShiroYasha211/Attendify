@@ -65,6 +65,7 @@ Route::prefix('admin')
         Route::post('users/bulk-deactivate', [App\Http\Controllers\Admin\UserController::class, 'bulkDeactivate'])->name('users.bulk-deactivate');
         Route::post('users/bulk-delete', [App\Http\Controllers\Admin\UserController::class, 'bulkDelete'])->name('users.bulk-delete');
 
+        Route::resource('administratives', App\Http\Controllers\Admin\AdministrativeController::class);
         Route::resource('delegates', App\Http\Controllers\Admin\DelegateController::class);
         
         // Delegate Transfer Routes
@@ -163,6 +164,19 @@ Route::prefix('doctor')
         Route::get('grades/{subject}/report', [App\Http\Controllers\Doctor\GradeController::class, 'report'])->name('grades.report');
         Route::post('grades/{subject}/note/{student}', [App\Http\Controllers\Doctor\GradeController::class, 'storeNote'])->name('grades.storeNote');
 
+        // Grade Delegation & Categories
+        Route::get('grades/{subject}/categories', [App\Http\Controllers\Doctor\GradeCategoryController::class, 'index'])->name('grades.categories.index');
+        Route::post('grades/{subject}/categories', [App\Http\Controllers\Doctor\GradeCategoryController::class, 'store'])->name('grades.categories.store');
+        Route::delete('grades/categories/{category}', [App\Http\Controllers\Doctor\GradeCategoryController::class, 'destroy'])->name('grades.categories.destroy');
+        
+        // Dedicated Delegation Center Routes
+        Route::get('grades/{subject}/delegations', [App\Http\Controllers\Doctor\GradeCategoryController::class, 'delegations'])->name('grades.delegations.index');
+        Route::post('grades/categories/{category}/delegate', [App\Http\Controllers\Doctor\GradeCategoryController::class, 'delegate'])->name('grades.categories.delegate');
+        Route::post('grades/categories/{category}/revoke', [App\Http\Controllers\Doctor\GradeCategoryController::class, 'revoke'])->name('grades.categories.revoke');
+
+        Route::get('grades/{subject}/approvals', [App\Http\Controllers\Doctor\GradeApprovalController::class, 'index'])->name('grades.approvals.index');
+        Route::post('grades/approvals/bulk-action', [App\Http\Controllers\Doctor\GradeApprovalController::class, 'bulkAction'])->name('grades.approvals.bulk');
+
         // Attendance Routes
         Route::get('attendance', [App\Http\Controllers\Doctor\AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/{subject}/create', [App\Http\Controllers\Doctor\AttendanceController::class, 'create'])->name('attendance.create');
@@ -176,6 +190,11 @@ Route::prefix('doctor')
         Route::post('messages/start', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'store'])->name('messages.store');
         Route::get('messages/{conversation}', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'show'])->name('messages.show');
         Route::post('messages/{conversation}/send', [App\Http\Controllers\Doctor\DoctorMessageController::class, 'send'])->name('messages.send');
+
+        // News Center
+        Route::get('news', [App\Http\Controllers\Doctor\NewsController::class, 'index'])->name('news.index');
+        Route::get('news/{batchId}', [App\Http\Controllers\Doctor\NewsController::class, 'show'])->name('news.show');
+        Route::post('news/{batchId}/vote', [App\Http\Controllers\Doctor\NewsController::class, 'vote'])->name('news.vote');
 
         // Notifications
         Route::get('notifications', [App\Http\Controllers\Doctor\NotificationController::class, 'index'])->name('notifications.index');
@@ -232,6 +251,14 @@ Route::prefix('doctor')
                 Route::get('results', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'results'])->name('results');
                 Route::get('results/{id}', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'showResult'])->name('results.show');
             });
+
+            // Rare Clinical Cases Announcements
+            Route::patch('rare-cases/{rare_case}/toggle', [App\Http\Controllers\Doctor\Clinical\RareCaseController::class, 'toggleStatus'])->name('rare-cases.toggle');
+            Route::resource('rare-cases', App\Http\Controllers\Doctor\Clinical\RareCaseController::class)->except(['show', 'edit', 'update']);
+
+            // Volunteers Registry
+            Route::resource('volunteers', App\Http\Controllers\Doctor\Clinical\VolunteerController::class);
+            Route::patch('volunteers/{id}/toggle', [App\Http\Controllers\Doctor\Clinical\VolunteerController::class, 'toggleStatus'])->name('volunteers.toggle');
         });
 
         // Shared Subscription Routes
@@ -287,6 +314,11 @@ Route::prefix('student')
         // Grades - MOVED to Subject Details
         // Route::get('grades', [App\Http\Controllers\Student\GradeController::class, 'index'])->name('grades.index');
 
+        // News Center
+        Route::get('news', [App\Http\Controllers\Student\NewsController::class, 'index'])->name('news.index');
+        Route::get('news/{batchId}', [App\Http\Controllers\Student\NewsController::class, 'show'])->name('news.show');
+        Route::post('news/{batchId}/vote', [App\Http\Controllers\Student\NewsController::class, 'vote'])->name('news.vote');
+
         // Notifications
         Route::get('notifications', [App\Http\Controllers\Student\NotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications/{id}/read', [App\Http\Controllers\Student\NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
@@ -312,6 +344,11 @@ Route::prefix('student')
         Route::post('inquiries', [App\Http\Controllers\Student\InquiryController::class, 'store'])->name('inquiries.store');
         Route::get('inquiries/{inquiry}', [App\Http\Controllers\Student\InquiryController::class, 'show'])->name('inquiries.show');
 
+        // Authorized Grade Entry
+        Route::get('authorized-grades', [App\Http\Controllers\User\AuthorizedGradeController::class, 'index'])->name('authorized-grades.index');
+        Route::get('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'show'])->name('authorized-grades.show');
+        Route::post('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'store'])->name('authorized-grades.store');
+
         Route::prefix('clinical')->name('clinical.')->group(function () {
             Route::get('/', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'index'])->name('index');
             Route::get('daily-log/create', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'createDailyLog'])->name('daily-log.create');
@@ -332,8 +369,11 @@ Route::prefix('student')
             Route::post('mock-exams/store', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'store'])->name('mock.store');
             Route::get('mock-exams/{id}', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'show'])->name('mock.show');
 
-            Route::get('evaluations', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'index'])->name('evaluations');
             Route::get('evaluations/{id}', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'show'])->name('evaluations.show');
+
+            // Rare Clinical Cases
+            Route::get('rare-cases', [App\Http\Controllers\Student\Clinical\RareCaseController::class, 'index'])->name('rare-cases.index');
+            Route::get('rare-cases/{id}', [App\Http\Controllers\Student\Clinical\RareCaseController::class, 'show'])->name('rare-cases.show');
         });
 
         // PDF Reports
@@ -409,6 +449,11 @@ Route::prefix('delegate')
         Route::resource('subjects', App\Http\Controllers\Delegate\SubjectController::class)->except(['create', 'show']);
         Route::resource('schedules', App\Http\Controllers\Delegate\ScheduleController::class)->except(['show']);
 
+        // News Center
+        Route::get('news', [App\Http\Controllers\Delegate\NewsController::class, 'index'])->name('news.index');
+        Route::get('news/{batchId}', [App\Http\Controllers\Delegate\NewsController::class, 'show'])->name('news.show');
+        Route::post('news/{batchId}/vote', [App\Http\Controllers\Delegate\NewsController::class, 'vote'])->name('news.vote');
+
         // Notifications
         Route::get('notifications', [App\Http\Controllers\Delegate\NotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications', [App\Http\Controllers\Delegate\NotificationController::class, 'store'])->name('notifications.store');
@@ -472,6 +517,11 @@ Route::prefix('delegate')
         Route::post('inquiries/{inquiry}/answer', [App\Http\Controllers\Delegate\InquiryController::class, 'answer'])->name('inquiries.answer');
         Route::post('inquiries/{inquiry}/close', [App\Http\Controllers\Delegate\InquiryController::class, 'close'])->name('inquiries.close');
 
+        // Authorized Grade Entry (for Delegate if assigned)
+        Route::get('authorized-grades', [App\Http\Controllers\User\AuthorizedGradeController::class, 'index'])->name('authorized-grades.index');
+        Route::get('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'show'])->name('authorized-grades.show');
+        Route::post('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'store'])->name('authorized-grades.store');
+
         // Doctor Chat (Chat with Doctors)
         Route::get('doctor-chat', [App\Http\Controllers\Delegate\DoctorChatController::class, 'index'])->name('doctor-chat.index');
         Route::get('doctor-chat/create', [App\Http\Controllers\Delegate\DoctorChatController::class, 'create'])->name('doctor-chat.create');
@@ -494,6 +544,74 @@ Route::prefix('delegate')
                 Route::resource('cases', App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class);
             });
         });
+    });
+
+Route::prefix('administrative')
+    ->name('administrative.')
+    ->middleware(['auth', 'administrative', 'status', 'subscribed'])
+    ->group(function () {
+        Route::get('dashboard', [App\Http\Controllers\Administrative\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('settings', [App\Http\Controllers\Administrative\DashboardController::class, 'settings'])->name('settings');
+        Route::put('settings', [App\Http\Controllers\Administrative\DashboardController::class, 'updateSettings'])->name('settings.update');
+
+        // Profile & Password
+        Route::get('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('profile.password');
+        Route::put('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('profile.password.update');
+
+        // Subscription Routes
+        Route::get('subscription', [App\Http\Controllers\Student\SubscriptionController::class, 'index'])->name('subscription.index');
+        Route::post('subscription/redeem', [App\Http\Controllers\Student\SubscriptionController::class, 'redeem'])->name('subscription.redeem');
+        Route::post('subscription/subscribe', [App\Http\Controllers\Student\SubscriptionController::class, 'subscribe'])->name('subscription.subscribe');
+        Route::post('subscription/auto-renew', [App\Http\Controllers\Student\SubscriptionController::class, 'toggleAutoRenew'])->name('subscription.toggleAutoRenew');
+
+        // Financial Ledger
+        Route::get('ledger', [App\Http\Controllers\FinancialController::class, 'ledger'])->name('ledger');
+        Route::get('ledger/export', [App\Http\Controllers\FinancialController::class, 'exportPdf'])->name('ledger.export');
+
+        // Delegate Management
+        Route::get('delegates', [App\Http\Controllers\Administrative\DelegateController::class, 'index'])->name('delegates.index');
+        Route::patch('delegates/{user}/role', [App\Http\Controllers\Administrative\DelegateController::class, 'updateRole'])->name('delegates.update-role');
+        Route::post('delegates/{user}/permissions', [App\Http\Controllers\Administrative\DelegateController::class, 'updatePermissions'])->name('delegates.permissions');
+
+        // Academic Helpers
+        Route::get('majors/{major}/levels', [App\Http\Controllers\Api\Admin\MajorController::class, 'getLevels'])->name('majors.levels');
+
+        // Notifications System
+        Route::get('notifications', [App\Http\Controllers\Administrative\NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('notifications/create', [App\Http\Controllers\Administrative\NotificationController::class, 'create'])->name('notifications.create');
+        Route::post('notifications', [App\Http\Controllers\Administrative\NotificationController::class, 'store'])->name('notifications.store');
+        Route::get('notifications/{batchId}', [App\Http\Controllers\Administrative\NotificationController::class, 'show'])->name('notifications.show');
+        Route::delete('notifications/{batchId}', [App\Http\Controllers\Administrative\NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+        // Reports System
+        Route::get('reports', [App\Http\Controllers\Administrative\ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/attendance', [App\Http\Controllers\Administrative\ReportController::class, 'attendance'])->name('reports.attendance');
+        Route::get('reports/subject', [App\Http\Controllers\Administrative\ReportController::class, 'subjectReport'])->name('reports.subject');
+        Route::get('reports/threshold', [App\Http\Controllers\Administrative\ReportController::class, 'thresholdReport'])->name('reports.threshold');
+        Route::get('reports/level-summary', [App\Http\Controllers\Administrative\ReportController::class, 'levelSummary'])->name('reports.level-summary');
+        Route::get('reports/doctor-performance', [App\Http\Controllers\Administrative\ReportController::class, 'doctorPerformance'])->name('reports.doctor-performance');
+
+
+
+
+        // Management Resources
+        Route::resource('students', App\Http\Controllers\Administrative\StudentController::class);
+        Route::resource('doctors', App\Http\Controllers\Administrative\DoctorController::class);
+        Route::resource('majors', App\Http\Controllers\Administrative\MajorController::class);
+        Route::resource('subjects', App\Http\Controllers\Administrative\SubjectController::class);
+
+        // Exam Schedules
+        Route::get('exams/helper/levels/{major}', [App\Http\Controllers\Administrative\ExamScheduleController::class, 'getLevels'])->name('exams.helper.levels');
+        Route::get('exams/helper/subjects/{level}', [App\Http\Controllers\Administrative\ExamScheduleController::class, 'getSubjects'])->name('exams.helper.subjects');
+        Route::resource('exams', App\Http\Controllers\Administrative\ExamScheduleController::class)->names('exams');
+
+        // Academic Schedules (Lectures)
+        Route::get('schedules/helper/subjects/{level}', [App\Http\Controllers\Administrative\AcademicScheduleController::class, 'getSubjectsWithDoctors'])->name('schedules.helper.subjects');
+        Route::resource('schedules', App\Http\Controllers\Administrative\AcademicScheduleController::class)->names('schedules');
+
+        // Placeholder for future administrative features
+        // Route::resource('notifications', ...);
+        // Route::get('reports', ...);
     });
 
 // Separate Clinical Access for Students who are Practical Delegates

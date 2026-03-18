@@ -1,5 +1,5 @@
 @php
-    $prefix = request()->routeIs('doctor.*') ? 'doctor' : (request()->routeIs('delegate.*') ? 'delegate' : 'student');
+    $prefix = request()->routeIs('doctor.*') ? 'doctor' : (request()->routeIs('delegate.*') ? 'delegate' : (request()->routeIs('administrative.*') ? 'administrative' : 'student'));
 @endphp
 @extends('layouts.' . $prefix)
 

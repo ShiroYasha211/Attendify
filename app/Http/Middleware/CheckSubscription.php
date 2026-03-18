@@ -42,6 +42,12 @@ class CheckSubscription
             'doctor.profile.password.update',
             'doctor.ledger',
             'doctor.ledger.export',
+            'administrative.subscription.*',
+            'administrative.dashboard',
+            'administrative.profile.password',
+            'administrative.profile.password.update',
+            'administrative.ledger',
+            'administrative.ledger.export',
             'logout',
             'admin.logout',
         ];
@@ -60,6 +66,7 @@ class CheckSubscription
                 'delegate' => 'delegate',
                 'practical_delegate' => 'delegate',
                 'student' => 'student',
+                'administrative' => 'administrative',
             ];
             $prefix = $prefixMap[$roleValue] ?? 'student';
 

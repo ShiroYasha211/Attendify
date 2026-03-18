@@ -11,6 +11,7 @@ use App\Models\Excuse;
 use App\Models\Inquiry;
 use App\Models\DoctorConversation;
 use App\Models\Grade;
+use App\Models\StudentNotification;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -159,6 +160,12 @@ class DashboardController extends Controller
             ->distinct('student_id')
             ->count('student_id');
 
+        // Administrative Announcements
+        $adminAnnouncements = StudentNotification::where('user_id', $doctor->id)
+            ->latest()
+            ->take(5)
+            ->get();
+
         return view('doctor.dashboard', compact(
             'doctor',
             'subjects',
@@ -169,7 +176,8 @@ class DashboardController extends Controller
             'recentActivities',
             'attendanceChartData',
             'attendanceLabels',
-            'gradesCount'
+            'gradesCount',
+            'adminAnnouncements'
         ));
     }
 

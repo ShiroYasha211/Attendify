@@ -10,6 +10,9 @@
         <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
     @endif
 
+    <!-- Bootstrap 5 RTL -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+
     <!-- Dashboard CSS -->
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
 
@@ -18,6 +21,8 @@
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    @stack('styles')
 
     <style>
         .admin-wrapper {
@@ -237,11 +242,21 @@
                 <div class="nav-group-label" title="السريري">السريري</div>
 
                 <!-- Clinical Hub -->
-                <a href="{{ route('doctor.clinical.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.clinical.*') ? 'active' : '' }}" title="القسم العملي">
+                <a href="{{ route('doctor.clinical.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.clinical.*') && !request()->routeIs('doctor.clinical.rare-cases.*') ? 'active' : '' }}" title="القسم العملي">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
                     </svg>
                     <span>القسم العملي (Clinical)</span>
+                </a>
+
+                <a href="{{ route('doctor.clinical.rare-cases.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.clinical.rare-cases.*') ? 'active' : '' }}" title="إعلان حالات نادرة">
+                    <i class="fa-solid fa-bullhorn" style="width: 20px; font-size: 1.1rem;"></i>
+                    <span>إعلان حالات نادرة</span>
+                </a>
+
+                <a href="{{ route('doctor.clinical.volunteers.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.clinical.volunteers.*') ? 'active' : '' }}" title="سجل المتطوعين">
+                    <i class="fa-solid fa-address-book" style="width: 20px; font-size: 1.1rem;"></i>
+                    <span>سجل المتطوعين</span>
                 </a>
 
                 <div class="nav-group-label" title="الأكاديمية">الأكاديمية</div>
@@ -298,6 +313,14 @@
                         <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
                     </svg>
                     <span>إدارة الدرجات</span>
+                    @php
+                        $pendingGradesCount = \App\Models\Grade::whereHas('subject', function($q) {
+                            $q->where('doctor_id', Auth::id());
+                        })->where('status', 'pending')->count();
+                    @endphp
+                    @if($pendingGradesCount > 0)
+                        <span style="background: #f59e0b; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $pendingGradesCount }}</span>
+                    @endif
                 </a>
 
                 <!-- Shared Library -->
@@ -328,20 +351,30 @@
                     <span>محادثات المندوبين</span>
                 </a>
 
-                <!-- Notifications -->
-                <a href="{{ route('doctor.notifications.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.notifications.*') ? 'active' : '' }}" title="الإشعارات">
+                <!-- News Center -->
+                <a href="{{ route('doctor.news.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('doctor.news.*') ? 'active' : '' }}" title="المركز الإخباري">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2z"></path>
+                        <polyline points="14 4 14 8 19 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <span>الإشعارات</span>
+                    <span>المركز الإخباري</span>
                     @php
-                    $doctorUnreadCount = \App\Models\StudentNotification::where('user_id', Auth::id())->whereNull('read_at')->count();
+                        $doctorUnreadNewsCount = \App\Models\StudentNotification::where('user_id', Auth::id())
+                            ->whereIn('type', ['announcement', 'exam', 'assignment', 'poll'])
+                            ->whereNull('read_at')
+                            ->count();
                     @endphp
-                    @if($doctorUnreadCount > 0)
-                    <span style="background: #ef4444; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $doctorUnreadCount }}</span>
+                    @if($doctorUnreadNewsCount > 0)
+                        <span style="background: #ef4444; color: white; font-size: 0.65rem; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: auto;">
+                            {{ $doctorUnreadNewsCount }}
+                        </span>
                     @endif
                 </a>
+
+                <!-- Notifications -->
 
                 <div class="nav-group-label" title="الحساب">الحساب</div>
                 <a href="{{ route('doctor.profile.password') }}" class="nav-link {{ request()->routeIs('doctor.profile.password') ? 'active' : '' }}" title="تغيير كلمة المرور">
@@ -379,6 +412,7 @@
 
                 <!-- User Profile Section -->
                 <div class="user-menu">
+
 
                     <button @click="showLogoutModal = true" class="logout-btn-icon" title="تسجيل الخروج">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -473,6 +507,9 @@
 
     <!-- jQuery (Required for Select2) -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     @stack('scripts')
 </body>

@@ -19,6 +19,13 @@ class CheckUserStatus
         if (Auth::check() && Auth::user()->status !== 'active') {
             Auth::logout();
 
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'تم إيقاف حسابك. يرجى مراجعة إدارة النظام.',
+                ], 403);
+            }
+
             return redirect()->route('admin.login')->withErrors([
                 'email' => 'تم إيقاف حسابك. يرجى مراجعة إدارة النظام.',
             ]);
@@ -28,6 +35,13 @@ class CheckUserStatus
         if (Auth::check() && \Illuminate\Support\Facades\Cache::has('kick_user_' . Auth::id())) {
             \Illuminate\Support\Facades\Cache::forget('kick_user_' . Auth::id());
             Auth::logout();
+
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'تم تسجيل خروجك من النظام بواسطة مسؤول النظام.',
+                ], 401);
+            }
 
             return redirect()->route('admin.login')->withErrors([
                 'email' => 'تم تسجيل خروجك من النظام بواسطة مسؤول النظام.',

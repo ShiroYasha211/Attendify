@@ -15,18 +15,22 @@ class AuthController extends StudentApiController
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'login' => 'required', // Can be email or student_number
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $login = $request->login;
+        $user = User::where(function($q) use ($login) {
+            $q->where('email', $login)
+              ->orWhere('student_number', $login);
+        })->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return $this->error('بيانات الدخول غير صحيحة.', 401);
         }
 
         // Allow students, delegates, and practical delegates to use the student app
-        if (!in_array($user->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
+        if (!in_array($user->role->value, [UserRole::STUDENT->value, UserRole::DELEGATE->value, UserRole::PRACTICAL_DELEGATE->value])) {
             return $this->error('غير مصرح لك بالدخول إلى تطبيق الطالب.', 403);
         }
 

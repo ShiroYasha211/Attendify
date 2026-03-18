@@ -40,6 +40,11 @@ use App\Http\Controllers\Api\Delegate\Clinical\SubDelegationController as Delega
 use App\Http\Controllers\Api\Delegate\Clinical\ClinicalCaseController as DelegateClinicalCaseController;
 use App\Http\Controllers\Api\Delegate\StudentController as DelegateStudentController;
 
+// Rare Case API Controllers
+use App\Http\Controllers\Api\Student\Clinical\RareCaseController as StudentRareCaseController;
+use App\Http\Controllers\Api\Doctor\Clinical\RareCaseController as DoctorRareCaseController;
+use App\Http\Controllers\Api\Doctor\Clinical\VolunteerController as DoctorVolunteerController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -78,6 +83,7 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
 
     // Academic — Majors
     Route::apiResource('majors', AdminMajorController::class)->names('api.admin.majors');
+    Route::get('majors/{major}/levels', [AdminMajorController::class, 'getLevels']);
 
     // Academic — Subjects
     Route::apiResource('subjects', AdminSubjectController::class)->names('api.admin.subjects');
@@ -261,6 +267,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('notifications', [\App\Http\Controllers\Api\Student\NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [\App\Http\Controllers\Api\Student\NotificationController::class, 'unreadCount']);
     Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAsRead']);
+    Route::post('notifications/{id}/vote', [\App\Http\Controllers\Api\Student\NotificationController::class, 'vote']);
     Route::post('notifications/mark-all-read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAllAsRead']);
 
     // Dashboard
@@ -271,16 +278,71 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('subjects/{subject_id}', [StudentSubjectController::class, 'show']);
     Route::post('lectures/{lecture_id}/toggle-listen', [StudentSubjectController::class, 'toggleListen']);
 
-    // Batch Study Schedule (Read-Only)
-    Route::get('schedules', [StudentBatchScheduleController::class, 'index']);
+    // Shared Study Library
+    Route::get('library', [\App\Http\Controllers\Api\Student\LibraryController::class, 'index']);
+    Route::post('library/upload', [\App\Http\Controllers\Api\Student\LibraryController::class, 'store']);
+    Route::get('library/{resource}/download', [\App\Http\Controllers\Api\Student\LibraryController::class, 'incrementDownload']);
+
+    // Display & Communication
+    Route::get('announcements', [\App\Http\Controllers\Api\Student\AnnouncementController::class, 'index']);
+    Route::get('reminders', [\App\Http\Controllers\Api\Student\ReminderController::class, 'index']);
+    Route::get('resources', [\App\Http\Controllers\Api\Student\ResourceController::class, 'index']);
+
+    // Batch Study Schedule & Exams
+    Route::get('schedules', [StudentBatchScheduleController::class, 'index']); // (Read-only mirror of Delegate's)
+    Route::get('exams', [\App\Http\Controllers\Api\Student\ExamScheduleController::class, 'index']);
+
+    // Student Schedule (Smart Study Hub)
+    Route::get('schedule', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'index']);
+    Route::post('schedule', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'store']);
+    Route::post('schedule/custom-task', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'storeCustomTask']);
+    Route::get('schedule/check-reminders', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'checkReminders']);
+    Route::put('schedule/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'update']);
+    Route::delete('schedule/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'destroy']);
+    Route::post('schedule/reorder', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'reorder']);
 
     // Assignments
     Route::get('assignments', [StudentAssignmentController::class, 'index']);
+    Route::post('assignments/preference', [StudentAssignmentController::class, 'updatePreference']);
+    Route::get('assignments/{assignment_id}/details', [StudentAssignmentController::class, 'getDetails']);
+    Route::get('assignments/{assignment_id}', [StudentAssignmentController::class, 'show']);
     Route::post('assignments/{assignment_id}/submit', [StudentAssignmentController::class, 'submit']);
+    Route::post('assignments/{assignment_id}/priority', [StudentAssignmentController::class, 'updatePriority']);
 
-    // Attendance Info
+    // Card Generation (Balance-based)
+    Route::get('cards-generate', [\App\Http\Controllers\Api\Student\CardGenerationController::class, 'index']);
+    Route::post('cards-generate', [\App\Http\Controllers\Api\Student\CardGenerationController::class, 'generate']);
+
+    // Subscription Management
+    Route::get('subscription', [\App\Http\Controllers\Api\Student\SubscriptionController::class, 'index']);
+    Route::post('subscription/redeem', [\App\Http\Controllers\Api\Student\SubscriptionController::class, 'redeem']);
+    Route::post('subscription/subscribe', [\App\Http\Controllers\Api\Student\SubscriptionController::class, 'subscribe']);
+    Route::post('subscription/auto-renew', [\App\Http\Controllers\Api\Student\SubscriptionController::class, 'toggleAutoRenew']);
+
+    // Messages (Chat System)
+    Route::get('messages', [\App\Http\Controllers\Api\Student\MessageController::class, 'index']);
+    Route::get('messages/start', [\App\Http\Controllers\Api\Student\MessageController::class, 'start']);
+    Route::get('messages/{conversation}', [\App\Http\Controllers\Api\Student\MessageController::class, 'show']);
+    Route::post('messages/{conversation}/send', [\App\Http\Controllers\Api\Student\MessageController::class, 'send']);
+
+    // Inquiries (Doctor Questions)
+    Route::get('inquiries', [\App\Http\Controllers\Api\Student\InquiryController::class, 'index']);
+    Route::post('inquiries', [\App\Http\Controllers\Api\Student\InquiryController::class, 'store']);
+    Route::get('inquiries/{inquiry}', [\App\Http\Controllers\Api\Student\InquiryController::class, 'show']);
+
+    // Financial Ledger
+    Route::get('ledger', [\App\Http\Controllers\Api\Student\FinancialController::class, 'ledger']);
+    Route::get('ledger/export', [\App\Http\Controllers\Api\Student\FinancialController::class, 'exportPdf']);
+
+    // PDF Reports
+    Route::get('reports/attendance', [\App\Http\Controllers\Api\Student\ReportController::class, 'attendancePdf']);
+    Route::get('reports/grades', [\App\Http\Controllers\Api\Student\ReportController::class, 'gradesPdf']);
+    Route::get('reports/exams', [\App\Http\Controllers\Api\Student\ReportController::class, 'examsPdf']);
+
+    // Attendance & Grades
     Route::get('attendance', [StudentAttendanceController::class, 'index']);
-    Route::post('excuse', [ExcuseController::class, 'store']);
+    Route::get('grades', [\App\Http\Controllers\Api\Student\GradeController::class, 'index']);
+    Route::post('excuse', [\App\Http\Controllers\Api\Student\ExcuseController::class, 'store']);
 
     // Clinical Section
     Route::prefix('clinical')->group(function () {
@@ -305,6 +367,10 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
 
         // Pending Cases for Sub-Delegates
         Route::get('cases/pending', [StudentClinicalCaseController::class, 'pending']);
+
+        // Rare Cases
+        Route::get('rare-cases', [StudentRareCaseController::class, 'index']);
+        Route::get('rare-cases/{id}', [StudentRareCaseController::class, 'show']);
     });
 });
 
@@ -446,5 +512,16 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::post('evaluations/submit', [DoctorEvaluationController::class, 'submit']);
         Route::get('evaluations/results', [DoctorEvaluationController::class, 'results']);
         Route::get('evaluations/results/{id}', [DoctorEvaluationController::class, 'showResult']);
+
+        // Rare Clinical Cases
+        Route::get('rare-cases', [DoctorRareCaseController::class, 'index']);
+        Route::post('rare-cases', [DoctorRareCaseController::class, 'store']);
+        Route::patch('rare-cases/{id}/toggle', [DoctorRareCaseController::class, 'toggleStatus']);
+
+        // Volunteers Registry
+        Route::get('volunteers', [DoctorVolunteerController::class, 'index']);
+        Route::post('volunteers', [DoctorVolunteerController::class, 'store']);
+        Route::patch('volunteers/{id}/toggle', [DoctorVolunteerController::class, 'toggleStatus']);
+        Route::delete('volunteers/{id}', [DoctorVolunteerController::class, 'destroy']);
     });
 });

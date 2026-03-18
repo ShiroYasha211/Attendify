@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('course_resources', function (Blueprint $table) {
-            $table->unsignedInteger('downloads_count')->default(0)->after('visibility');
+            $table->unsignedInteger('downloads_count')->default(0)->after('description');
         });
     }
 

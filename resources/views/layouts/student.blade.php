@@ -9,6 +9,9 @@
         <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
     @endif
 
+    <!-- Bootstrap 5 RTL -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+
     <!-- Dashboard CSS -->
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
 
@@ -17,6 +20,8 @@
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    @stack('styles')
 
     <style>
         .admin-wrapper {
@@ -264,11 +269,26 @@
                     <span>الجدول الدراسي للدفعة</span>
                 </a>
 
-                <a href="{{ route('student.announcements.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.announcements.*') ? 'active' : '' }}" title="الأخبار والإعلانات">
+                <a href="{{ route('student.news.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.news.*') ? 'active' : '' }}" title="المركز الإخباري">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2z"></path>
+                        <polyline points="14 4 14 8 19 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <span>الأخبار والإعلانات</span>
+                    <span>المركز الإخباري</span>
+                    @php
+                        $unreadNewsCount = \App\Models\StudentNotification::where('user_id', Auth::id())
+                            ->whereIn('type', ['announcement', 'exam', 'assignment', 'poll'])
+                            ->whereNull('read_at')
+                            ->count();
+                    @endphp
+                    @if($unreadNewsCount > 0)
+                        <span style="background: #ef4444; color: white; font-size: 0.65rem; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: auto;">
+                            {{ $unreadNewsCount }}
+                        </span>
+                    @endif
                 </a>
 
                 <a href="{{ route('student.alerts.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.alerts.*') ? 'active' : '' }}" title="التنبيهات">
@@ -279,6 +299,14 @@
                     </svg>
                     <span>التنبيهات</span>
                 </a>
+
+                @if(Auth::user()->major && Auth::user()->major->has_clinical)
+                <a href="{{ route('student.clinical.rare-cases.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.clinical.rare-cases.*') ? 'active' : '' }}" title="الحالات النادرة">
+                    <i class="fa-solid fa-bullhorn" style="width: 20px; font-size: 1.1rem;"></i>
+                    <span>تنبيهات الحالات النادرة</span>
+                    <span style="background:#ef4444; color:white; border-radius:12px; font-size:0.6rem; padding:0.1rem 0.4rem; margin-right:auto; font-weight: 700;">نشط</span>
+                </a>
+                @endif
 
 
 
@@ -317,6 +345,17 @@
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                     <span>التكاليف والواجبات</span>
+                </a>
+
+                <a href="{{ route('student.authorized-grades.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.authorized-grades.*') ? 'active' : '' }}" title="مهام الرصد المفوضة">
+                    <i class="fa-solid fa-file-signature" style="width: 20px; font-size: 1.1rem;"></i>
+                    <span>مهام الرصد المفوضة</span>
+                    @php
+                        $myDelegationsCount = Auth::user()->delegatedGradeCategories()->count();
+                    @endphp
+                    @if($myDelegationsCount > 0)
+                        <span style="background: #4f46e5; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $myDelegationsCount }}</span>
+                    @endif
                 </a>
 
                 <div class="nav-group-label" title="الحضور والغياب">تقارير</div>
@@ -467,6 +506,7 @@
                     <div style="width: 1px; height: 24px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
                     @endif
 
+
                     <button @click="showLogoutModal = true" class="logout-btn-icon" title="تسجيل الخروج">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -560,6 +600,8 @@
     </div>
 
     @stack('scripts')
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

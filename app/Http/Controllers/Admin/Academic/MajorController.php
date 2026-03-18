@@ -52,7 +52,7 @@ class MajorController extends Controller
             ],
             'levels_count' => 'required|integer|min:1|max:8',
             'terms_count' => 'required|integer|min:1|max:4',
-            'semesters_per_term' => 'nullable|integer|min:1|max:10',
+            'semesters_per_term' => 'nullable|integer|min:0|max:10',
         ], [
             'college_id.required' => 'يرجى اختيار الكلية.',
             'name.unique' => 'اسم التخصص مسجل بالفعل في هذه الكلية.',

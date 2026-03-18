@@ -298,7 +298,7 @@
         </div>
     </div>
     <div>
-        <a href="{{ route('doctor.grades.report', ['id' => $subject->id, 'format' => 'excel']) }}" style="display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; color: #10b981; background: #10b98110; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#10b981'; this.style.color='white';" onmouseout="this.style.background='#10b98110'; this.style.color='#10b981';">
+        <a href="{{ route('doctor.grades.report', ['subject' => $subject->id, 'format' => 'excel']) }}" style="display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; color: #10b981; background: #10b98110; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#10b981'; this.style.color='white';" onmouseout="this.style.background='#10b98110'; this.style.color='#10b981';">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
@@ -448,7 +448,7 @@
                         </div>
                     </div>
                 </td>
-                <td class="grade-cell">{{ $student->continuous_grade->score ?? 0 }}/40</td>
+                <td class="grade-cell">{{ $student->continuous_grade_score ?? 0 }}/40</td>
                 <td class="grade-cell">{{ $student->final_grade->score ?? 0 }}/60</td>
                 <td>
                     <span class="total-badge {{ $student->total >= 60 ? 'total-pass' : 'total-fail' }}">

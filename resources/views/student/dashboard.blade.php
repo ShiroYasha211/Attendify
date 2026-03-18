@@ -428,10 +428,64 @@
 </div>
 @endif
 
-<!-- Content Grid -->
-<div class="content-grid">
     <!-- Right Column: Announcements -->
-    <div class="section-card">
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Administrative Announcements -->
+        @if(isset($adminAnnouncements) && $adminAnnouncements->count() > 0)
+        <div class="section-card" style="border-top: 4px solid var(--primary-color);">
+            <div class="section-header">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                إعلانات الإدارة
+                <span style="background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; margin-right: auto;">تنبيهات رسمية</span>
+            </div>
+            <div class="section-body">
+                @foreach($adminAnnouncements as $notif)
+                <div class="announcement-item" style="border-right-color: {{ $notif->color ?? '#6366f1' }}; background: {{ ($notif->color ?? '#6366f1') . '08' }};">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <span style="font-size: 0.8rem; padding: 0.25rem 0.5rem; border-radius: 6px; font-weight: 600; background: {{ ($notif->color ?? '#6366f1') . '15' }}; color: {{ $notif->color ?? '#6366f1' }};">
+                            @php
+                                $typeLabels = [
+                                    'exam' => 'اخبار الاختبارات',
+                                    'assignment' => 'تكليف دراسي',
+                                    'resource' => 'مصدر تعليمي',
+                                    'announcement' => 'إعلان إداري',
+                                    'attendance' => 'تنبيه حضور',
+                                    'poll' => 'استطلاع رأي'
+                                ];
+                            @endphp
+                            {{ $typeLabels[$notif->type] ?? 'تنبيه' }}
+                        </span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ $notif->created_at->diffForHumans() }}</span>
+                    </div>
+                    <h4 style="font-weight: 700; margin-bottom: 0.5rem; font-size: 1.05rem; color: var(--text-primary);">{{ $notif->title }}</h4>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; line-height: 1.6;">{{ Str::limit($notif->message, 150) }}</p>
+                    
+                    <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
+                        <a href="{{ route('student.notifications.index') }}" style="font-size: 0.85rem; font-weight: 700; color: var(--primary-color); text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+                            عرض التفاصيل
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M15 18l-6-6 6-6"></path>
+                            </svg>
+                        </a>
+                        @if($notif->attachment_path)
+                        <a href="{{ $notif->attachment_url }}" target="_blank" style="font-size: 0.85rem; font-weight: 700; color: #64748b; text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                            </svg>
+                            المرفق
+                        </a>
+                        @endif
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        <!-- Latest Announcements -->
+        <div class="section-card">
         <div class="section-header">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>

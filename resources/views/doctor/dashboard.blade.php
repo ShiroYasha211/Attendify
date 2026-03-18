@@ -529,6 +529,56 @@
     </div>
 </div>
 
+<!-- Administrative Announcements -->
+@if(isset($adminAnnouncements) && $adminAnnouncements->count() > 0)
+<div class="card-section" style="margin-bottom: 1.5rem; border-top: 4px solid var(--primary-color);">
+    <div class="section-header">
+        <h3 class="section-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
+                <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            إعلانات الإدارة
+        </h3>
+        <a href="{{ route('doctor.notifications.index') }}" style="font-size: 0.85rem; color: var(--primary-color); text-decoration: none; font-weight: 600;">عرض الكل</a>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+        @foreach($adminAnnouncements as $notif)
+        <div style="padding: 1rem; border-radius: 12px; background: #f8fafc; border-right: 4px solid {{ $notif->color ?? '#4f46e5' }};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: {{ $notif->color ?? '#4f46e5' }}; background: {{ ($notif->color ?? '#4f46e5') . '15' }}; padding: 0.2rem 0.5rem; border-radius: 6px;">
+                    @php
+                        $typeLabels = [
+                            'exam' => 'اخبار الاختبارات',
+                            'assignment' => 'تكليف دراسي',
+                            'resource' => 'مصدر تعليمي',
+                            'announcement' => 'إعلان إداري',
+                            'attendance' => 'تنبيه حضور',
+                            'poll' => 'استطلاع رأي'
+                        ];
+                    @endphp
+                    {{ $typeLabels[$notif->type] ?? 'تنبيه' }}
+                </span>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ $notif->created_at->diffForHumans() }}</span>
+            </div>
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem;">{{ $notif->title }}</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 0.75rem;">{{ Str::limit($notif->message, 100) }}</p>
+            <div style="display: flex; gap: 0.75rem;">
+                <a href="{{ route('doctor.notifications.index') }}" style="font-size: 0.8rem; font-weight: 700; color: var(--primary-color); text-decoration: none;">عرض التفاصيل</a>
+                @if($notif->attachment_path)
+                <a href="{{ $notif->attachment_url }}" target="_blank" style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-decoration: none; display: flex; align-items: center; gap: 0.2rem;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                    المرفق
+                </a>
+                @endif
+            </div>
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 <div class="main-grid">
     <!-- Attendance Stats Section -->
     <div class="card-section">

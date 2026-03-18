@@ -343,6 +343,36 @@
             </svg>
             <input type="text" name="search" placeholder="بحث عن طالب..." value="{{ $search ?? '' }}">
         </form>
+        <a href="{{ route('doctor.grades.categories.index', $subject->id) }}" class="btn-report" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            تقسيم أعمال السنة
+        </a>
+        <a href="{{ route('doctor.grades.delegations.index', $subject->id) }}" class="btn-report" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            مركز تفويض الطلاب
+        </a>
+        <a href="{{ route('doctor.grades.approvals.index', $subject->id) }}" class="btn-report position-relative" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            مراجعة الاعتمادات
+            @if($pendingCount > 0)
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">
+                    {{ $pendingCount }}
+                </span>
+            @endif
+        </a>
         <a href="{{ route('doctor.grades.report', $subject->id) }}" class="btn-report">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -353,6 +383,21 @@
         </a>
     </div>
 </div>
+
+@if($pendingCount > 0)
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4 fw-700 p-3 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-warning bg-opacity-20 p-2 rounded-3 text-warning">
+                <i class="fa-solid fa-clock-rotate-left fs-4"></i>
+            </div>
+            <div>
+                <div class="text-dark">يوجد درجات معلقة بانتظار مراجعتك</div>
+                <div class="small text-secondary opacity-75">قام الطلاب المفوضون برصد {{ $pendingCount }} درجة جديدة تحتاج لاعتمادك لتظهر في السجل.</div>
+            </div>
+        </div>
+        <a href="{{ route('doctor.grades.approvals.index', $subject->id) }}" class="btn btn-warning btn-sm rounded-3 px-3 fw-800">انتقل للمراجعة</a>
+    </div>
+@endif
 
 <!-- Quick Stats -->
 <div class="stats-row">
@@ -391,17 +436,19 @@
                 الطلاب ({{ $students->count() }})
             </h3>
             <div style="font-size: 0.8rem; color: var(--text-secondary);">
-                أعمال السنة: 40 | النهائي: 60
+                أعمال السنة مجموعها (40) | النهائي (60)
             </div>
         </div>
 
         <div class="table-responsive">
-<table class="grades-table">
+        <table class="grades-table">
             <thead>
                 <tr>
                     <th style="width: 40px;">#</th>
                     <th>الطالب</th>
-                    <th style="width: 100px;">أعمال (40)</th>
+                    <th style="width: 100px;">أعمال (أخرى)</th>
+                    <th>تفصيل الأعمال</th>
+                    <th style="width: 100px;">إجمالي (40)</th>
                     <th style="width: 100px;">نهائي (60)</th>
                     <th style="width: 80px;">المجموع</th>
                     <th style="width: 60px;">ملاحظة</th>
@@ -410,9 +457,9 @@
             <tbody>
                 @forelse($students as $index => $student)
                 @php
-                $continuous = $student->continuous_grade->score ?? 0;
-                $final = $student->final_grade->score ?? 0;
-                $total = $continuous + $final;
+                    $generalContinuous = $student->grades->where('type', 'continuous')->where('category_id', null)->first()->score ?? 0;
+                    $final = $student->final_grade->score ?? 0;
+                    $total = $student->total;
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
@@ -432,10 +479,42 @@
                             name="grades[{{ $index }}][continuous]"
                             class="grade-input continuous-input"
                             data-row="{{ $index }}"
-                            value="{{ $continuous }}"
+                            value="{{ $generalContinuous }}"
                             min="0"
                             max="40"
                             step="0.5">
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach($categories as $cat)
+                                @php 
+                                    $catGrade = $student->grades->where('category_id', $cat->id)->first();
+                                @endphp
+                                <div class="d-flex flex-column align-items-center gap-1 p-1 rounded-3 {{ $catGrade ? ($catGrade->status === 'pending' ? 'bg-warning-subtle' : '') : '' }}" style="min-width: 60px; border: 1px dashed #e2e8f0;">
+                                    <label class="small fw-800 text-secondary mb-0" style="font-size: 0.6rem;">{{ $cat->name }}</label>
+                                    <input
+                                        type="number"
+                                        name="grades[{{ $index }}][categories][{{ $cat->id }}]"
+                                        class="grade-input category-input"
+                                        data-row="{{ $index }}"
+                                        data-max="{{ $cat->max_score }}"
+                                        value="{{ $catGrade ? $catGrade->score : 0 }}"
+                                        min="0"
+                                        max="{{ $cat->max_score }}"
+                                        step="0.5"
+                                        style="width: 50px; font-size: 0.75rem; padding: 0.2rem;"
+                                        title="الدرجة العظمى: {{ $cat->max_score }}">
+                                </div>
+                            @endforeach
+                            @if($categories->isEmpty())
+                                <span class="text-secondary opacity-50 small text-center w-100">لا يوجد تقسيم مضاف</span>
+                            @endif
+                        </div>
+                    </td>
+                    <td>
+                        <span class="total-cell" id="total-continuous-{{ $index }}" data-category-sum="{{ $student->continuous_grade_score - $generalContinuous }}" style="color: var(--primary-color);">
+                            {{ $student->continuous_grade_score }}
+                        </span>
                     </td>
                     <td>
                         <input
@@ -465,7 +544,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 3rem;">
+                    <td colspan="8" style="text-align: center; padding: 3rem;">
                         @if($search)
                         لا يوجد نتائج للبحث "{{ $search }}"
                         @else
@@ -476,7 +555,7 @@
                 @endforelse
             </tbody>
         </table>
-</div>
+        </div>
 
         @if($students->count() > 0)
         <div class="grades-footer">
@@ -534,10 +613,23 @@
             const row = this.dataset.row;
             const continuousInput = document.querySelector(`.continuous-input[data-row="${row}"]`);
             const finalInput = document.querySelector(`.final-input[data-row="${row}"]`);
-
-            const continuous = parseFloat(continuousInput.value) || 0;
+            const categoryInputs = document.querySelectorAll(`.category-input[data-row="${row}"]`);
+            
+            const totalContinuousCell = document.getElementById(`total-continuous-${row}`);
+            
+            // Calculate sum of categories
+            let categorySum = 0;
+            categoryInputs.forEach(catInput => {
+                categorySum += parseFloat(catInput.value) || 0;
+            });
+            
+            const generalContinuous = parseFloat(continuousInput.value) || 0;
             const final = parseFloat(finalInput.value) || 0;
-            const total = continuous + final;
+            
+            const totalContinuous = generalContinuous + categorySum;
+            totalContinuousCell.textContent = totalContinuous;
+            
+            const total = totalContinuous + final;
 
             const totalCell = document.getElementById(`total-${row}`);
             totalCell.textContent = total;

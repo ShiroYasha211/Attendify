@@ -8,9 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('majors', function (Blueprint $table) {
-            $table->boolean('has_clinical')->default(false)->after('name');
-        });
+        if (!Schema::hasColumn('majors', 'has_clinical')) {
+            Schema::table('majors', function (Blueprint $table) {
+                $table->boolean('has_clinical')->default(false)->after('name');
+            });
+        }
     }
 
     public function down(): void

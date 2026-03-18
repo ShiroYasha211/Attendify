@@ -1,7 +1,8 @@
 @extends(
     request()->is('admin/*') ? 'layouts.admin' : 
     (request()->is('doctor/*') ? 'layouts.doctor' : 
-    (request()->is('delegate/*') ? 'layouts.delegate' : 'layouts.student'))
+    (request()->is('delegate/*') ? 'layouts.delegate' : 
+    (request()->is('administrative/*') ? 'layouts.administrative' : 'layouts.student')))
 )
 
 @section('title', 'تغيير كلمة المرور')
@@ -36,7 +37,8 @@
         <form action="{{ route(
             request()->is('admin/*') ? 'admin.profile.password.update' : 
             (request()->is('doctor/*') ? 'doctor.profile.password.update' : 
-            (request()->is('delegate/*') ? 'delegate.profile.password.update' : 'student.profile.password.update'))
+            (request()->is('delegate/*') ? 'delegate.profile.password.update' : 
+            (request()->is('administrative/*') ? 'administrative.profile.password.update' : 'student.profile.password.update')))
         ) }}" method="POST" x-data="{ showCurrent: false, showNew: false, showConfirm: false }">
             @csrf
             @method('PUT')

@@ -78,8 +78,9 @@ class AuthController extends Controller
             return match ($user->role) {
                 UserRole::ADMIN => redirect()->intended(route('admin.dashboard')),
                 UserRole::DOCTOR => redirect()->intended(route('doctor.dashboard')),
-                UserRole::DELEGATE => redirect()->intended(route('delegate.dashboard')),
+                UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE => redirect()->intended(route('delegate.dashboard')),
                 UserRole::STUDENT => redirect()->intended(route('student.dashboard')),
+                UserRole::ADMINISTRATIVE => redirect()->intended(route('administrative.dashboard')),
             };
         }
 

@@ -9,6 +9,9 @@
         <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
     @endif
 
+    <!-- Bootstrap 5 RTL -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+
     <!-- Dashboard CSS -->
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
 
@@ -17,6 +20,8 @@
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    @stack('styles')
 
     <style>
         .admin-wrapper {
@@ -174,6 +179,32 @@
         .balance-badge:hover {
             background: #e2e8f0;
         }
+
+        /* Permission Lock Styles */
+        .btn-locked {
+            opacity: 0.6 !important;
+            cursor: not-allowed !important;
+            filter: grayscale(1);
+            position: relative;
+        }
+        
+        .btn-locked::after {
+            content: '🔒';
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            font-size: 0.85rem;
+            background: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 20;
+            border: 1px solid #e2e8f0;
+        }
     </style>
 </head>
 
@@ -299,6 +330,40 @@
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                     <span>التكاليف الدراسية</span>
+                </a>
+
+                <a href="{{ route('delegate.authorized-grades.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.authorized-grades.*') ? 'active' : '' }}" title="مهام الرصد المفوضة">
+                    <i class="fa-solid fa-file-signature" style="width: 20px; font-size: 1.1rem;"></i>
+                    <span>مهام الرصد المفوضة</span>
+                    @php
+                        $myDelegationsCount = Auth::user()->delegatedGradeCategories()->count();
+                    @endphp
+                    @if($myDelegationsCount > 0)
+                        <span style="background: #4f46e5; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $myDelegationsCount }}</span>
+                    @endif
+                </a>
++
+
+                <a href="{{ route('delegate.news.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.news.*') ? 'active' : '' }}" title="المركز الإخباري الرسمي">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2z"></path>
+                        <polyline points="14 4 14 8 19 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>المركز الإخباري</span>
+                    @php
+                        $delegateUnreadNewsCount = \App\Models\StudentNotification::where('user_id', Auth::id())
+                            ->whereIn('type', ['announcement', 'exam', 'assignment', 'poll'])
+                            ->whereNull('read_at')
+                            ->count();
+                    @endphp
+                    @if($delegateUnreadNewsCount > 0)
+                        <span style="background: #ef4444; color: white; font-size: 0.65rem; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: auto;">
+                            {{ $delegateUnreadNewsCount }}
+                        </span>
+                    @endif
                 </a>
 
                 <a href="{{ route('delegate.announcements.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.announcements.*') ? 'active' : '' }}" title="أخبار الدفعة">
@@ -456,6 +521,7 @@
 
                     <div style="width: 1px; height: 24px; background-color: var(--border-color); margin: 0 0.5rem;"></div>
 
+
                     <button @click="showLogoutModal = true" class="logout-btn-icon" title="تسجيل الخروج">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -540,6 +606,9 @@
         </div>
     </div>
 
+    @stack('scripts')
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

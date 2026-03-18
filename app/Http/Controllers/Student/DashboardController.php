@@ -9,6 +9,7 @@ use App\Models\Academic\Subject;
 use App\Models\Announcement;
 use App\Models\Reminder;
 use App\Models\Academic\Assignment;
+use App\Models\StudentNotification;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -127,6 +128,23 @@ class DashboardController extends Controller
             $nextExam = null;
         }
 
-        return view('student.dashboard', compact('student', 'subjects', 'announcements', 'reminders', 'assignmentsCount', 'excuseWarnings', 'totalAbsences', 'warnings', 'nextExam'));
+        // 9. Administrative Announcements (Broadcasts)
+        $adminAnnouncements = StudentNotification::where('user_id', $student->id)
+            ->latest()
+            ->take(5)
+            ->get();
+
+        return view('student.dashboard', compact(
+            'student', 
+            'subjects', 
+            'announcements', 
+            'reminders', 
+            'assignmentsCount', 
+            'excuseWarnings', 
+            'totalAbsences', 
+            'warnings', 
+            'nextExam',
+            'adminAnnouncements'
+        ));
     }
 }

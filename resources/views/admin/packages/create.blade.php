@@ -21,7 +21,7 @@
                 @error('name') <p style="color: #ef4444; font-size: 0.75rem; margin-top: 0.25rem;">{{ $message }}</p> @enderror
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 700; color: var(--text-primary);">سعر الطالب (ريال)</label>
                     <input type="number" name="price_student" value="{{ old('price_student', $package->price_student ?? '') }}" required
@@ -39,6 +39,12 @@
                     <input type="number" name="price_delegate" value="{{ old('price_delegate', $package->price_delegate ?? '') }}" required
                            style="width: 100%; padding: 0.85rem 1.25rem; border: 1.5px solid {{ $errors->has('price_delegate') ? '#ef4444' : '#e2e8f0' }}; border-radius: 12px; font-size: 1rem; outline: none;">
                     @error('price_delegate') <p style="color: #ef4444; font-size: 0.75rem; margin-top: 0.25rem;">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 700; color: var(--text-primary);">سعر المسؤول الإداري (ريال)</label>
+                    <input type="number" name="price_administrative" value="{{ old('price_administrative', $package->price_administrative ?? '') }}" required
+                           style="width: 100%; padding: 0.85rem 1.25rem; border: 1.5px solid {{ $errors->has('price_administrative') ? '#ef4444' : '#e2e8f0' }}; border-radius: 12px; font-size: 1rem; outline: none;">
+                    @error('price_administrative') <p style="color: #ef4444; font-size: 0.75rem; margin-top: 0.25rem;">{{ $message }}</p> @enderror
                 </div>
             </div>
 

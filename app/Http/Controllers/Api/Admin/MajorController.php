@@ -93,4 +93,9 @@ class MajorController extends AdminApiController
         $major->delete();
         return $this->success(null, 'تم حذف التخصص بنجاح');
     }
+
+    public function getLevels(Major $major)
+    {
+        return $this->success($major->levels);
+    }
 }

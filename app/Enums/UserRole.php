@@ -9,6 +9,7 @@ enum UserRole: string
     case DELEGATE = 'delegate';
     case PRACTICAL_DELEGATE = 'practical_delegate';
     case STUDENT = 'student';
+    case ADMINISTRATIVE = 'administrative';
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum UserRole: string
             self::DELEGATE => 'Class Delegate',
             self::PRACTICAL_DELEGATE => 'Practical Delegate',
             self::STUDENT => 'Student',
+            self::ADMINISTRATIVE => 'College Admin',
         };
     }
 }

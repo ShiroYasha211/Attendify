@@ -30,11 +30,14 @@ class ExcuseController extends Controller
             return back()->with('error', 'لا يمكن تقديم عذر لمحاضرة لست غائباً فيها.');
         }
 
-        // 2. Check deadline (7 days)
+        // 2. Check deadline based on college settings
+        $college = $student->college;
+        $deadlineDays = $college ? $college->excuses_deadline_days : 7; // Default 7 if no college
+
         $lectureDate = Carbon::parse($attendance->date);
-        $deadline = $lectureDate->copy()->addDays(7);
+        $deadline = $lectureDate->copy()->addDays($deadlineDays);
         if (now()->gt($deadline)) {
-            return back()->with('error', 'عذراً، انتهت المهلة المحددة لتقديم العذر (أسبوع من تاريخ الغياب).');
+            return back()->with('error', "عذراً، انتهت المهلة المحددة لتقديم العذر ({$deadlineDays} أيام من تاريخ الغياب).");
         }
 
         // 3. Check if already submitted

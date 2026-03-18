@@ -687,14 +687,14 @@
                 <a href="{{ route('delegate.subjects.index') }}" class="btn btn-sm btn-secondary" style="font-size: 0.8rem;">عرض الكل</a>
             </div>
             <div class="table-responsive">
-<table class="subjects-table">
-                <thead>
-                    <tr>
-                        <th>المادة</th>
-                        <th>الدكتور</th>
-                        <th>الطلاب</th>
-                    </tr>
-                </thead>
+                <table class="subjects-table">
+                    <thead>
+                        <tr>
+                            <th>المادة</th>
+                            <th>الدكتور</th>
+                            <th>الطلاب</th>
+                        </tr>
+                    </thead>
                 <tbody>
                     @forelse($subjects as $subject)
                     <tr>
