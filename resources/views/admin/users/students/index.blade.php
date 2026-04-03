@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'إدارة الطلاب')
 
@@ -309,6 +309,7 @@
     editEmail: '',
     editStudentNumber: '',
     editLevelId: '',
+    editGender: 'male',
     
     viewStudent: {},
     viewSubjects: [],
@@ -502,6 +503,14 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="gender" class="form-label">الجنس</label>
+                    <select name="gender" id="gender" class="form-control" required>
+                        <option value="male">ذكر</option>
+                        <option value="female">أنثى</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label for="password" class="form-label">كلمة المرور</label>
                     <div class="input-with-icon">
                         <span class="icon">
@@ -544,6 +553,7 @@
                         <th>#</th>
                         <th>الطالب</th>
                         <th>الرقم الجامعي</th>
+                        <th>الجنس</th>
                         <th>الانتساب الأكاديمي</th>
                         <th>الإجراءات</th>
                     </tr>
@@ -565,6 +575,11 @@
                             <span class="student-number">{{ $student->student_number }}</span>
                         </td>
                         <td>
+                            <span style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: {{ $student->gender === 'female' ? '#fdf2f8' : '#eff6ff' }}; color: {{ $student->gender === 'female' ? '#db2777' : '#2563eb' }}; font-size: 0.8rem; font-weight: 700;">
+                                {{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}
+                            </span>
+                        </td>
+                        <td>
                             <div style="font-weight: 600;">{{ $student->level->name ?? '-' }}</div>
                             <div style="font-size: 0.8rem; color: var(--text-secondary);">
                                 {{ $student->major->name ?? '' }} ({{ $student->college->name ?? '' }})
@@ -579,6 +594,7 @@
                                             name: '{{ $student->name }}',
                                             email: '{{ $student->email }}',
                                             student_number: '{{ $student->student_number }}',
+                                            gender: '{{ $student->gender }}',
                                             level: '{{ $student->level->name ?? '-' }}',
                                             major: '{{ $student->major->name ?? '-' }}',
                                             college: '{{ $student->college->name ?? '-' }}',
@@ -611,6 +627,7 @@
                                         editEmail = '{{ $student->email }}';
                                         editStudentNumber = '{{ $student->student_number }}';
                                         editLevelId = '{{ $student->level_id }}';
+                                        editGender = '{{ $student->gender ?? 'male' }}';
                                     ">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -712,6 +729,14 @@
                 <input type="email" name="email" id="edit_email" class="form-control" x-model="editEmail" required>
             </div>
 
+            <div class="form-group">
+                <label for="edit_gender" class="form-label">الجنس</label>
+                <select name="gender" id="edit_gender" class="form-control" x-model="editGender" required style="font-size: 0.9rem;">
+                    <option value="male">ذكر</option>
+                    <option value="female">أنثى</option>
+                </select>
+            </div>
+
             <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
                 <label for="edit_password" class="form-label">كلمة المرور الجديدة (اختياري)</label>
                 <input type="password" name="password" id="edit_password" class="form-control" placeholder="اتركه فارغاً إذا كنت لا تريد تغييرها">
@@ -754,6 +779,14 @@
                             <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
                         </svg>
                         <span x-text="viewStudent.major"></span> - <span x-text="viewStudent.level"></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.25rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a5 5 0 0 1 5 5c0 2-1 3-2 4l-1 1v2"></path>
+                            <path d="M9 21h6"></path>
+                            <path d="M12 14v7"></path>
+                        </svg>
+                        <span x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></span>
                     </div>
                 </div>
             </div>

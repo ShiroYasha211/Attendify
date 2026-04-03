@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Enums\UserRole;
 
 class AuthController extends Controller
 {
@@ -75,12 +74,13 @@ class AuthController extends Controller
                 description: "تسجيل دخول: {$user->name} ({$user->role->value})"
             );
 
-            return match ($user->role) {
-                UserRole::ADMIN => redirect()->intended(route('admin.dashboard')),
-                UserRole::DOCTOR => redirect()->intended(route('doctor.dashboard')),
-                UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE => redirect()->intended(route('delegate.dashboard')),
-                UserRole::STUDENT => redirect()->intended(route('student.dashboard')),
-                UserRole::ADMINISTRATIVE => redirect()->intended(route('administrative.dashboard')),
+            return match ($user->preferredWorkspace()) {
+                'admin' => redirect()->intended(route('admin.dashboard')),
+                'doctor' => redirect()->intended(route('doctor.dashboard')),
+                'delegate' => redirect()->intended(route('delegate.dashboard')),
+                'practical_delegate' => redirect()->intended(route('delegate.dashboard')),
+                'student' => redirect()->intended(route('student.dashboard')),
+                'administrative' => redirect()->intended(route('administrative.dashboard')),
             };
         }
 

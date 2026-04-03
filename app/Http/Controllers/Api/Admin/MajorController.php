@@ -87,8 +87,9 @@ class MajorController extends AdminApiController
 
     public function destroy(Major $major)
     {
-        if ($major->levels()->exists()) {
-            return $this->error('لا يمكن حذف التخصص لأنه يحتوي على مستويات.', 422);
+        // Enforce data integrity: check for both levels and students
+        if ($major->levels()->exists() || $major->students()->exists()) {
+            return $this->error('لا يمكن حذف التخصص لوجود مستويات أو طلاب مسجلين به.', 422);
         }
         $major->delete();
         return $this->success(null, 'تم حذف التخصص بنجاح');

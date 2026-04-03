@@ -1,6 +1,6 @@
-@extends('layouts.delegate')
+﻿@extends('layouts.delegate')
 
-@section('title', 'تقرير حضور: ' . $subject->name)
+@section('title', $subject ? ('تقرير حضور: ' . $subject->name) : 'تقرير حضور غير رسمي')
 
 @section('content')
 
@@ -165,6 +165,18 @@
     }
 </style>
 
+@php
+    $reportUniversity = $subject?->major?->college?->university ?? $delegate?->major?->college?->university;
+    $reportCollege = $subject?->major?->college ?? $delegate?->major?->college;
+    $reportMajor = $subject?->major ?? $delegate?->major;
+    $reportLevel = $subject?->level?->name ?? $delegate?->level?->name ?? '-';
+    $reportSubjectLine = $subject ? "{$subject->name} ({$subject->code})" : 'محاضرة غير رسمية غير مرتبطة بمادة';
+    $reportLectureType = ($isUnofficial ?? false)
+        ? 'محاضرة غير رسمية مستقلة'
+        : (($lecture?->lecture_type ?? 'official') === 'special' ? 'محاضرة خاصة' : 'محاضرة رسمية');
+    $reportDoctorName = $subject?->doctor?->name ?? 'غير مرتبطة بدكتور مادة';
+@endphp
+
 <div class="container" style="max-width: 100%;">
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;" class="no-print">
@@ -190,15 +202,15 @@
             <!-- Header -->
             <div class="report-header">
                 <div class="header-right">
-                    <h3>{{ $subject->major->college->university->name ?? 'اسم الجامعة' }}</h3>
-                    <h3>كلية {{ $subject->major->college->name ?? 'اسم الكلية' }}</h3>
-                    <h3>قسم {{ $subject->major->name ?? 'اسم القسم' }}</h3>
+                    <h3>{{ $reportUniversity->name ?? 'اسم الجامعة' }}</h3>
+                    <h3>كلية {{ $reportCollege->name ?? 'اسم الكلية' }}</h3>
+                    <h3>قسم {{ $reportMajor->name ?? 'اسم القسم' }}</h3>
                 </div>
 
                 <div class="header-center">
                     <div class="university-logo-placeholder" style="border: none; background: transparent;">
-                        @if($subject->major->college->university->logo)
-                        <img src="{{ asset('storage/' . $subject->major->college->university->logo) }}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                        @if($reportUniversity?->logo)
+                        <img src="{{ asset('storage/' . $reportUniversity->logo) }}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
                         @else
                         <!-- Fallback Icon if no logo -->
                         <div style="width: 60px; height: 60px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">
@@ -222,15 +234,31 @@
             <div class="meta-grid">
                 <div class="meta-item">
                     <span class="meta-label">المقرر الدراسي:</span>
-                    <span>{{ $subject->name }} ({{ $subject->code }})</span>
+                    <span>{{ $reportSubjectLine }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">نوع المحاضرة:</span>
+                    <span>{{ $reportLectureType }}</span>
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">المستوى:</span>
-                    <span>{{ $subject->level->name ?? '-' }}</span>
+                    <span>{{ $reportLevel }}</span>
                 </div>
                 <div class="meta-item">
                     <span class="meta-label">دكتور المادة:</span>
-                    <span>{{ $subject->doctor->name ?? 'غير محدد' }}</span>
+                    <span>{{ $reportDoctorName }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">طريقة التحضير:</span>
+                    <span>{{ ($attendanceRecords->first()?->attendance_method ?? 'manual') === 'qr' ? 'باركود QR' : 'يدوي' }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">تم الرصد بواسطة:</span>
+                    <span>{{ $attendanceRecords->first()?->recorder?->name ?? 'غير محدد' }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">فلتر العرض:</span>
+                    <span>{{ ($genderFilter ?? 'all') === 'male' ? 'الأولاد فقط' : (($genderFilter ?? 'all') === 'female' ? 'البنات فقط' : 'الكل') }}</span>
                 </div>
             </div>
 
@@ -241,7 +269,10 @@
                     <tr>
                         <th style="width: 50px;">#</th>
                         <th style="text-align: right;">اسم الطالب</th>
+                        <th style="width: 100px;">الجنس</th>
                         <th style="width: 150px;">حالة الحضور</th>
+                        <th style="width: 130px;">طريقة التحضير</th>
+                        <th style="width: 160px;">تم بواسطة</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -256,6 +287,11 @@
                     <tr>
                         <td>{{ $index + 1 }}</td>
                         <td style="text-align: right; font-weight: bold;">{{ $student->name }}</td>
+                        <td>
+                            <span style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.7rem; border-radius: 999px; background: {{ $student->gender === 'female' ? '#fdf2f8' : '#eff6ff' }}; color: {{ $student->gender === 'female' ? '#db2777' : '#2563eb' }}; font-size: 0.78rem; font-weight: 700;">
+                                {{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}
+                            </span>
+                        </td>
                         <td style="font-weight: bold;">
                             @if($record)
                             @if($record->status == 'present')
@@ -271,6 +307,8 @@
                             <span style="color: grey;">غير مرصود</span>
                             @endif
                         </td>
+                        <td>{{ $record?->attendance_method === 'qr' ? 'QR' : ($record ? 'يدوي' : '-') }}</td>
+                        <td>{{ $record?->recorder?->name ?? '-' }}</td>
                     </tr>
                     @endforeach
                 </tbody>

@@ -2,17 +2,16 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class CheckUserRole
 {
     /**
      * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next, string $role): Response
     {
@@ -20,23 +19,27 @@ class CheckUserRole
             abort(403, 'غير مصرح لك بالوصول لهذه الصفحة.');
         }
 
-        $userRole = Auth::user()->role->value;
+        $user = Auth::user();
+        $userRole = $user->role->value;
 
         $isClinicalDelegate = \App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists();
 
         // Delegate context switching logic
-        // Allow clinical delegates to access delegate routes
         if ($role === 'delegate' && $isClinicalDelegate) {
             return $next($request);
         }
 
-        // Allow delegate and clinical_delegate to access student routes
         if ($role === 'student' && ($userRole === 'delegate' || $isClinicalDelegate)) {
             return $next($request);
         }
 
-        // If the route requires 'student' but user is clinical delegate, it's allowed above.
-        // If the route requires 'delegate' but user is clinical delegate, it's allowed above.
+        if ($role === 'doctor' && $user->canAccessDoctorWorkspace()) {
+            return $next($request);
+        }
+
+        if ($role === 'administrative' && $user->canAccessAdministrativeWorkspace()) {
+            return $next($request);
+        }
 
         if ($userRole !== $role) {
             abort(403, 'غير مصرح لك بالوصول لهذه الصفحة.');

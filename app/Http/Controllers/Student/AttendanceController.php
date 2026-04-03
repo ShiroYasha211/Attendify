@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\Setting;
+use App\Support\ExcuseWorkflow;
 
 class AttendanceController extends Controller
 {
@@ -26,10 +27,11 @@ class AttendanceController extends Controller
         $presentCount = $attendances->where('status', 'present')->count();
         $absentCount = $attendances->where('status', 'absent')->count();
         $lateCount = $attendances->where('status', 'late')->count();
+        $excusedCount = $attendances->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
 
         // Presence Percentage (Present + Late usually counts)
         $presencePercentage = $totalLectures > 0
-            ? round((($presentCount + $lateCount) / $totalLectures) * 100, 1)
+            ? round((($presentCount + $lateCount + $excusedCount) / $totalLectures) * 100, 1)
             : 0;
 
         // Group by Subject for the accordion/list view
@@ -71,6 +73,7 @@ class AttendanceController extends Controller
             'presentCount',
             'absentCount',
             'lateCount',
+            'excusedCount',
             'presencePercentage',
             'subjectWarnings'
         ));

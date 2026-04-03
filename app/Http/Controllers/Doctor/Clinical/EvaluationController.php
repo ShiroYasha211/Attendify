@@ -22,7 +22,8 @@ class EvaluationController extends Controller
         $user = Auth::user();
         $hiddenIds = $user->hiddenChecklists()->pluck('evaluation_checklists.id')->toArray();
 
-        $checklists = EvaluationChecklist::withCount('items')
+        $checklists = EvaluationChecklist::with(['creator', 'doctor'])
+            ->withCount('items')
             ->where(function ($q) use ($user, $hiddenIds) {
                 $q->whereNull('doctor_id');
                 if (!empty($hiddenIds)) {
@@ -73,6 +74,8 @@ class EvaluationController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'doctor_id' => Auth::id(),
+            'creator_type' => User::class,
+            'creator_id' => Auth::id(),
             'skill_type' => $request->skill_type,
             'time_limit_minutes' => $request->timer_type === 'fixed' ? $request->time_limit_minutes : null,
             'is_practice_allowed' => $request->has('is_practice_allowed'),
@@ -113,7 +116,24 @@ class EvaluationController extends Controller
             })
             ->findOrFail($id);
 
-        return view('doctor.clinical.evaluations.edit_checklist', compact('checklist'));
+        $itemsData = $checklist->items->whereNull('parent_id')->map(function ($mainItem) {
+            return [
+                'id' => $mainItem->id,
+                'description' => $mainItem->description,
+                'marks' => $mainItem->marks,
+                'sub_items' => $checklist->items
+                    ->where('parent_id', $mainItem->id)
+                    ->map(function ($subItem) {
+                        return [
+                            'id' => $subItem->id,
+                            'description' => $subItem->description,
+                            'marks' => $subItem->marks,
+                        ];
+                    })->values()->toArray(),
+            ];
+        })->values()->toArray();
+
+        return view('doctor.clinical.evaluations.edit_checklist', compact('checklist', 'itemsData'));
     }
 
     public function updateChecklist(Request $request, $id)
@@ -157,6 +177,8 @@ class EvaluationController extends Controller
                 'title' => $request->title,
                 'description' => $request->description,
                 'doctor_id' => $user->id,
+                'creator_type' => User::class,
+                'creator_id' => $user->id,
                 'skill_type' => $request->skill_type,
                 'time_limit_minutes' => $request->timer_type === 'fixed' ? $request->time_limit_minutes : null,
                 'is_practice_allowed' => $request->has('is_practice_allowed'),

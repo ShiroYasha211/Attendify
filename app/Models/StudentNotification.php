@@ -69,6 +69,32 @@ class StudentNotification extends Model
     }
 
     /**
+     * Scope for broadcast notifications shared with a batch.
+     */
+    public function scopeBroadcasts($query)
+    {
+        return $query->whereNotNull('batch_id')
+            ->whereIn('type', ['announcement', 'exam', 'assignment', 'poll']);
+    }
+
+    /**
+     * Scope for administrative broadcasts.
+     */
+    public function scopeAdministrativeBroadcasts($query)
+    {
+        return $query->broadcasts()
+            ->whereHas('sender', function ($senderQuery) {
+                $senderQuery->where(function ($roleQuery) {
+                    $roleQuery->whereIn('role', ['admin', 'administrative'])
+                        ->orWhere(function ($doctorQuery) {
+                            $doctorQuery->where('role', 'doctor')
+                                ->where('administrative_access', true);
+                        });
+                });
+            });
+    }
+
+    /**
      * Mark as read.
      */
     public function markAsRead()

@@ -6,14 +6,45 @@
 <div x-data="{ 
     showDetails: false, 
     resDetail: {},
-    openDetails(res) {
-        this.resDetail = res;
-        this.showDetails = true;
+    selectedIds: [],
+    selectAll: false,
+    toggleAll() {
+        this.selectAll = !this.selectAll;
+        if (this.selectAll) {
+            this.selectedIds = Array.from(document.querySelectorAll('input[name=\'ids[]\']')).map(el => el.value);
+        } else {
+            this.selectedIds = [];
+        }
     },
-    closeDetails() {
-        this.showDetails = false;
+    updateSelectAll() {
+        const total = document.querySelectorAll('input[name=\'ids[]\']').length;
+        this.selectAll = this.selectedIds.length === total && total > 0;
     }
 }">
+    <!-- Bulk Actions Floating Bar -->
+    <template x-if="selectedIds.length > 0">
+        <div style="position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); z-index: 1000; background: #1e293b; color: white; padding: 1rem 2rem; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); display: flex; align-items: center; gap: 2rem; border: 1px solid rgba(255,255,255,0.1); animation: slideUp 0.3s ease-out;">
+            <div>
+                <span x-text="selectedIds.length" style="font-weight: 800; color: #38bdf8; font-size: 1.2rem;"></span>
+                <span style="margin-right: 0.5rem; font-weight: 600;">ملفات مختارة</span>
+            </div>
+            <div style="height: 24px; width: 1px; background: rgba(255,255,255,0.2);"></div>
+            <div style="display: flex; gap: 1rem;">
+                <form action="{{ route('admin.library.bulk-destroy') }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف الملفات المختارة نهائياً؟')">
+                    @csrf
+                    <template x-for="id in selectedIds">
+                        <input type="hidden" name="ids[]" :value="id">
+                    </template>
+                    <button type="submit" style="background: #ef4444; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 12px; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                        حذف المحدد
+                    </button>
+                </form>
+                <button type="button" @click="selectedIds = []; selectAll = false" style="background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 0.6rem 1.25rem; border-radius: 12px; font-weight: 700; cursor: pointer;">إلغاء</button>
+            </div>
+        </div>
+    </template>
+
     <!-- Page Header -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
@@ -25,6 +56,14 @@
             </h1>
             <p style="color: var(--text-secondary); margin: 0; font-size: 1rem;">التحكم الكامل ومراقبة جميع الملفات التعليمية المرفوعة في النظام</p>
         </div>
+        <a href="{{ route('admin.library.create') }}" 
+           style="background: var(--primary-color); color: white; text-decoration: none; padding: 0.85rem 1.75rem; border-radius: 15px; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; transition: all 0.3s; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            رفع ملف جديد
+        </a>
     </div>
 
     <!-- Stats Overview -->
@@ -185,6 +224,9 @@
             <table style="width: 100%; border-collapse: collapse; min-width: 1000px;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 2px solid #f1f5f9;">
+                        <th style="padding: 1.25rem 1.5rem; text-align: center; width: 50px;">
+                            <input type="checkbox" @click="toggleAll()" :checked="selectAll" style="width: 18px; height: 18px; cursor: pointer; border-radius: 4px;">
+                        </th>
                         <th style="padding: 1.25rem 1.5rem; text-align: right; color: var(--text-secondary); font-weight: 700; font-size: 0.9rem;">الملف</th>
                         <th style="padding: 1.25rem 1.5rem; text-align: right; color: var(--text-secondary); font-weight: 700; font-size: 0.9rem;">المادة والنوع</th>
                         <th style="padding: 1.25rem 1.5rem; text-align: right; color: var(--text-secondary); font-weight: 700; font-size: 0.9rem;">الناشر</th>
@@ -195,7 +237,10 @@
                 </thead>
                 <tbody>
                     @forelse($resources as $resource)
-                    <tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s;" onmouseover="this.style.background='#fcfdff'" onmouseout="this.style.background='white'">
+                    <tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s;" :class="{'bg-primary-soft': selectedIds.includes('{{ $resource->id }}')}" onmouseover="this.style.background='#fcfdff'" onmouseout="this.style.background='white'">
+                        <td style="padding: 1.25rem 1.5rem; text-align: center;">
+                            <input type="checkbox" name="ids[]" value="{{ $resource->id }}" x-model="selectedIds" @change="updateSelectAll()" style="width: 18px; height: 18px; cursor: pointer; border-radius: 4px;">
+                        </td>
                         <td style="padding: 1.25rem 1.5rem;">
                             <div style="display: flex; align-items: center; gap: 1rem;">
                                 <div style="width: 48px; height: 48px; border-radius: 12px; background: {{ in_array($resource->file_type, ['pdf']) ? 'rgba(239, 68, 68, 0.1)' : (in_array($resource->file_type, ['ppt', 'pptx']) ? 'rgba(245, 158, 11, 0.1)' : 'rgba(79, 70, 229, 0.1)') }}; display: flex; align-items: center; justify-content: center; color: {{ in_array($resource->file_type, ['pdf']) ? '#ef4444' : (in_array($resource->file_type, ['ppt', 'pptx']) ? '#f59e0b' : 'var(--primary-color)') }};">

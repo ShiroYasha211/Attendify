@@ -20,6 +20,21 @@ use App\Http\Controllers\Api\Admin\ClinicalDelegateController as AdminClinicalDe
 use App\Http\Controllers\Api\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Api\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Api\Admin\ActivityController as AdminActivityController;
+use App\Http\Controllers\Api\Admin\FlashcardController as AdminFlashcardController;
+use App\Http\Controllers\Api\Admin\LibraryController;
+use App\Http\Controllers\Api\Admin\QuizController as AdminApiQuizController;
+use App\Http\Controllers\Api\Admin\StarController as AdminApiStarController;
+use App\Http\Controllers\Api\Admin\RegistrationRequestController as AdminRegistrationRequestController;
+use App\Http\Controllers\Api\Admin\AdministrativeController as AdminAdministrativeController;
+use App\Http\Controllers\Api\Admin\DelegateTransferController as AdminDelegateTransferController;
+use App\Http\Controllers\Api\Admin\PackageController as AdminPackageController;
+use App\Http\Controllers\Api\Admin\CardController as AdminCardController;
+use App\Http\Controllers\Api\Admin\FinanceController as AdminFinanceController;
+use App\Http\Controllers\Api\Admin\StorageController as AdminStorageController;
+use App\Http\Controllers\Api\Admin\Clinical\ClinicalDepartmentController as AdminClinicalDepartmentController;
+use App\Http\Controllers\Api\Admin\Clinical\BodySystemController as AdminBodySystemController;
+use App\Http\Controllers\Api\Admin\Clinical\EvaluationChecklistController as AdminEvaluationChecklistController;
+use App\Http\Controllers\Api\Admin\InfoController as AdminInfoController;
 
 // Delegate API Controllers
 use App\Http\Controllers\Api\Delegate\AuthController as DelegateAuthController;
@@ -56,6 +71,15 @@ use App\Http\Controllers\Api\Doctor\Clinical\VolunteerController as DoctorVolunt
 // ══════════════════════════════════════════════════════════════
 Route::post('register', [ApiRegisterController::class, 'register']);
 
+// Public Academic Data (For Registration Form)
+Route::prefix('public')->group(function () {
+    Route::get('universities', [\App\Http\Controllers\Api\Public\DataController::class, 'universities']);
+    Route::get('colleges/{university}', [\App\Http\Controllers\Api\Public\DataController::class, 'colleges']);
+    Route::get('majors/{college}', [\App\Http\Controllers\Api\Public\DataController::class, 'majors']);
+    Route::get('levels/{major}', [\App\Http\Controllers\Api\Public\DataController::class, 'levels']);
+    Route::get('subjects/{level}', [\App\Http\Controllers\Api\Public\DataController::class, 'subjects']);
+});
+
 // ══════════════════════════════════════════════════════════════
 // Admin API — Public (No Auth Required)
 // ══════════════════════════════════════════════════════════════
@@ -82,7 +106,9 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('colleges', AdminCollegeController::class)->names('api.admin.colleges');
 
     // Academic — Majors
-    Route::apiResource('majors', AdminMajorController::class)->names('api.admin.majors');
+        Route::get('users/{user}/permissions', [AdminUserController::class, 'getPermissions']);
+        Route::post('users/{user}/permissions', [AdminUserController::class, 'updatePermissions']);
+        Route::apiResource('users', AdminUserController::class)->names('api.admin.users');
     Route::get('majors/{major}/levels', [AdminMajorController::class, 'getLevels']);
 
     // Academic — Subjects
@@ -90,15 +116,25 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
 
     // User Management
     Route::get('users', [AdminUserController::class, 'index']);
+    Route::get('users/export', [AdminUserController::class, 'export']);
     Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus']);
     Route::post('users/{user}/reset-password', [AdminUserController::class, 'resetPassword']);
     Route::post('users/{user}/kick', [AdminUserController::class, 'kickSession']);
+    Route::post('users/{user}/activate-subscription', [AdminUserController::class, 'activateSubscription']);
     Route::delete('users/{user}', [AdminUserController::class, 'destroy']);
     Route::post('users/bulk-activate', [AdminUserController::class, 'bulkActivate']);
     Route::post('users/bulk-deactivate', [AdminUserController::class, 'bulkDeactivate']);
     Route::post('users/bulk-delete', [AdminUserController::class, 'bulkDelete']);
 
+    // Registration Requests
+    Route::prefix('registration-requests')->group(function () {
+        Route::get('/', [AdminRegistrationRequestController::class, 'index']);
+        Route::post('approve', [AdminRegistrationRequestController::class, 'approve']);
+        Route::post('reject', [AdminRegistrationRequestController::class, 'reject']);
+    });
+
     // Students
+    Route::post('students/{student}/permissions', [AdminStudentController::class, 'updatePermissions']);
     Route::apiResource('students', AdminStudentController::class)->names('api.admin.students');
 
     // Doctors
@@ -107,9 +143,40 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     // Delegates
     Route::apiResource('delegates', AdminDelegateController::class)->names('api.admin.delegates');
 
+    // Administrative Officials
+    Route::apiResource('administratives', AdminAdministrativeController::class)->names('api.admin.administratives');
+
     // Clinical Delegates
     Route::apiResource('clinical-delegates', AdminClinicalDelegateController::class)
         ->only(['index', 'store', 'destroy'])->names('api.admin.clinical-delegates');
+
+    // Delegate Transfers
+    Route::prefix('delegate-transfer')->group(function () {
+        Route::get('/', [AdminDelegateTransferController::class, 'index']);
+        Route::get('/{major}/{level}', [AdminDelegateTransferController::class, 'show']);
+        Route::post('/execute', [AdminDelegateTransferController::class, 'transfer']);
+    });
+
+    // Packages
+    Route::post('packages/{package}/toggle', [AdminPackageController::class, 'toggleStatus']);
+    Route::get('packages/{package}/subscribers', [AdminPackageController::class, 'subscribers']);
+    Route::post('subscriptions/{subscription}/cancel', [AdminPackageController::class, 'cancelSubscription']);
+    Route::apiResource('packages', AdminPackageController::class)->names('api.admin.packages');
+
+    // Cards
+    Route::post('cards/generate', [AdminCardController::class, 'generate']);
+    Route::apiResource('cards', AdminCardController::class)->only(['index', 'destroy'])->names('api.admin.cards');
+
+    // Finance & Transactions
+    Route::get('finance/stats', [AdminFinanceController::class, 'index']);
+    Route::get('finance/transactions', [AdminFinanceController::class, 'transactions']);
+
+    // Storage Management
+    Route::prefix('storage')->group(function () {
+        Route::get('stats', [AdminStorageController::class, 'index']);
+        Route::get('files', [AdminStorageController::class, 'files']);
+        Route::post('delete', [AdminStorageController::class, 'destroy']);
+    });
 
     // Reports
     Route::prefix('reports')->group(function () {
@@ -120,6 +187,18 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
         Route::get('system-overview', [AdminReportController::class, 'systemOverview']);
     });
 
+    // Clinical Master Data
+    Route::prefix('clinical')->group(function () {
+        Route::apiResource('departments', AdminClinicalDepartmentController::class);
+        Route::apiResource('body-systems', AdminBodySystemController::class);
+        Route::apiResource('checklists', AdminEvaluationChecklistController::class);
+    });
+
+    // Info & Support
+    Route::get('info/developer', [AdminInfoController::class, 'developer']);
+    Route::get('info/system', [AdminInfoController::class, 'system']);
+    Route::post('change-password', [AdminAuthController::class, 'changePassword']);
+
     // Settings
     Route::get('settings', [AdminSettingController::class, 'index']);
     Route::put('settings', [AdminSettingController::class, 'update']);
@@ -127,6 +206,37 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     // Activity Log
     Route::get('activities', [AdminActivityController::class, 'index']);
     Route::delete('activities/cleanup', [AdminActivityController::class, 'cleanup']);
+
+    // Flashcard / One Line Shot Management
+    Route::prefix('flashcards')->group(function () {
+        Route::get('/', [AdminFlashcardController::class, 'index']);
+        Route::post('/', [AdminFlashcardController::class, 'store']);
+        Route::get('{id}', [AdminFlashcardController::class, 'show']);
+        Route::put('{id}', [AdminFlashcardController::class, 'update']);
+        Route::delete('{id}', [AdminFlashcardController::class, 'destroy']);
+        Route::post('{id}/publish', [AdminFlashcardController::class, 'publishToStore']);
+        Route::post('{id}/assign', [AdminFlashcardController::class, 'assignToUser']);
+        Route::post('{id}/import', [AdminFlashcardController::class, 'import']);
+    });
+
+    // Quiz Management
+    Route::prefix('quizzes')->group(function () {
+        Route::post('{quiz}/publish', [AdminApiQuizController::class, 'publish']);
+        Route::post('{quiz}/close', [AdminApiQuizController::class, 'close']);
+        Route::get('{quiz}/results', [AdminApiQuizController::class, 'results']);
+    });
+    Route::apiResource('quizzes', AdminApiQuizController::class)->names('api.admin.quizzes');
+
+    // Star Management
+    Route::prefix('stars')->group(function () {
+        Route::get('students', [AdminApiStarController::class, 'index']);
+        Route::post('grant', [AdminApiStarController::class, 'grant']);
+    });
+
+    // Shared Library Management
+    Route::get('library/{id}/download', [LibraryController::class, 'download'])->name('api.admin.library.download');
+    Route::post('library/bulk-delete', [LibraryController::class, 'bulkDestroy']);
+    Route::apiResource('library', LibraryController::class)->names('api.admin.library');
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -160,6 +270,8 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('students', [DelegateStudentController::class, 'index']);
     Route::post('students', [DelegateStudentController::class, 'store']);
     Route::patch('students/{student}', [DelegateStudentController::class, 'update']);
+    Route::get('students/{student}/permissions', [DelegateStudentController::class, 'permissions']);
+    Route::post('students/{student}/permissions', [DelegateStudentController::class, 'updatePermissions']);
     Route::delete('students/{student}', [DelegateStudentController::class, 'destroy']);
     Route::post('students/import', [DelegateStudentController::class, 'import']);
     
@@ -180,11 +292,23 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('announcements', DelegateAnnouncementController::class)->names('api.delegate.announcements');
     Route::apiResource('reminders', DelegateReminderController::class)->except(['show'])->names('api.delegate.reminders');
 
+    // News Center (College Admin News)
+    Route::prefix('news')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Delegate\NewsController::class, 'index']);
+        Route::get('{batchId}', [\App\Http\Controllers\Api\Delegate\NewsController::class, 'show']);
+        Route::post('{batchId}/vote', [\App\Http\Controllers\Api\Delegate\NewsController::class, 'vote']);
+        Route::post('{batchId}/read', [\App\Http\Controllers\Api\Delegate\NewsController::class, 'markAsRead']);
+        Route::post('read-all', [\App\Http\Controllers\Api\Delegate\NewsController::class, 'markAllAsRead']);
+    });
+
     // Messaging
+    Route::get('messages/eligible-students', [DelegateMessageController::class, 'eligibleStudents']);
     Route::get('messages', [DelegateMessageController::class, 'index']);
     Route::get('messages/{user}', [DelegateMessageController::class, 'show']);
     Route::post('messages', [DelegateMessageController::class, 'store']);
 
+    // Doctor Communication
+    Route::get('doctor-chats/eligible-doctors', [DelegateDoctorChatController::class, 'eligibleDoctors']);
     Route::get('doctor-chats', [DelegateDoctorChatController::class, 'index']);
     Route::get('doctor-chats/{doctor}', [DelegateDoctorChatController::class, 'show']);
     Route::post('doctor-chats', [DelegateDoctorChatController::class, 'store']);
@@ -198,8 +322,18 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     // Tracking
     Route::get('attendances/alerts', [DelegateAttendanceController::class, 'alerts']);
     Route::get('attendances', [DelegateAttendanceController::class, 'index']);
+    Route::get('attendances/{subject}/create', [DelegateAttendanceController::class, 'create']);
     Route::post('attendances', [DelegateAttendanceController::class, 'store']);
+    Route::get('attendances/{subject}/{date}/report', [DelegateAttendanceController::class, 'report']);
     Route::get('attendances/{lecture}', [DelegateAttendanceController::class, 'show']);
+
+    Route::get('authorized-grades', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'index']);
+    Route::get('authorized-grades/{category}', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'show']);
+    Route::post('authorized-grades/{category}/store', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'store']);
+    Route::get('grade-helper-delegations', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'index']);
+    Route::get('grade-helper-delegations/students', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'getStudents']);
+    Route::post('grade-helper-delegations', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'store']);
+    Route::delete('grade-helper-delegations/{delegation}', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'revoke']);
 
     Route::get('notifications', [DelegateNotificationController::class, 'index']);
     Route::post('notifications', [DelegateNotificationController::class, 'store']);
@@ -215,6 +349,15 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
         Route::post('cases/{id}/approve', [DelegateClinicalCaseController::class, 'approve']);
         Route::post('cases/{id}/reject', [DelegateClinicalCaseController::class, 'reject']);
     });
+
+    // Financial & Subscription (Delegates use student logic but via delegate prefix)
+    Route::get('subscription', [\App\Http\Controllers\Api\Delegate\SubscriptionController::class, 'index']);
+    Route::post('subscription/redeem', [\App\Http\Controllers\Api\Delegate\SubscriptionController::class, 'redeem']);
+    Route::post('subscription/subscribe', [\App\Http\Controllers\Api\Delegate\SubscriptionController::class, 'subscribe']);
+    Route::post('subscription/auto-renew', [\App\Http\Controllers\Api\Delegate\SubscriptionController::class, 'toggleAutoRenew']);
+
+    Route::get('ledger', [\App\Http\Controllers\Api\Delegate\FinancialController::class, 'ledger']);
+    Route::get('ledger/export', [\App\Http\Controllers\Api\Delegate\FinancialController::class, 'exportPdf']);
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -229,7 +372,7 @@ Route::middleware(['web', 'auth'])->prefix('qr-attendance')->group(function () {
     Route::post('{session}/finalize', [QrAttendanceController::class, 'finalize']);
 
     // ── Student Endpoint ──
-    Route::post('scan', [QrAttendanceController::class, 'scan']);
+    // Moved to Student API (Sanctum)
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -249,6 +392,65 @@ use App\Http\Controllers\Api\Student\ScheduleController as StudentBatchScheduleC
 // ══════════════════════════════════════════════════════════════
 // Student API — Public (No Auth Required)
 // ══════════════════════════════════════════════════════════════
+Route::prefix('administrative')->group(function () {
+    Route::post('login', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'login']);
+});
+
+Route::prefix('administrative')->middleware(['auth:sanctum', 'administrative', 'status'])->group(function () {
+    Route::post('logout', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'logout']);
+    Route::get('me', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'me']);
+    Route::post('change-password', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'changePassword']);
+
+    Route::get('dashboard', [\App\Http\Controllers\Api\Administrative\DashboardController::class, 'index']);
+    Route::get('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'show']);
+    Route::put('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'update']);
+
+    Route::get('subscription', [\App\Http\Controllers\Api\Administrative\SubscriptionController::class, 'index']);
+    Route::post('subscription/redeem', [\App\Http\Controllers\Api\Administrative\SubscriptionController::class, 'redeem']);
+    Route::post('subscription/subscribe', [\App\Http\Controllers\Api\Administrative\SubscriptionController::class, 'subscribe']);
+    Route::post('subscription/auto-renew', [\App\Http\Controllers\Api\Administrative\SubscriptionController::class, 'toggleAutoRenew']);
+
+    Route::get('ledger', [\App\Http\Controllers\Api\Administrative\FinancialController::class, 'ledger']);
+    Route::get('ledger/export', [\App\Http\Controllers\Api\Administrative\FinancialController::class, 'exportPdf']);
+
+    Route::get('delegates', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'index']);
+    Route::patch('delegates/{user}/role', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'updateRole']);
+    Route::post('delegates/{user}/permissions', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'updatePermissions']);
+
+    Route::get('majors/{major}/levels', [\App\Http\Controllers\Api\Administrative\MajorController::class, 'getLevels']);
+
+    Route::get('notifications/create-data', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'createData']);
+    Route::get('notifications', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'index']);
+    Route::post('notifications', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'store']);
+    Route::get('notifications/{batchId}', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'show']);
+    Route::delete('notifications/{batchId}', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'destroy']);
+
+    Route::get('excuses', [\App\Http\Controllers\Administrative\ApiExcuseManagementController::class, 'index']);
+    Route::patch('excuses/{excuse}', [\App\Http\Controllers\Administrative\ApiExcuseManagementController::class, 'update']);
+    Route::patch('attendance/{attendance}', [\App\Http\Controllers\Administrative\ApiAttendanceController::class, 'update']);
+
+    Route::get('reports', [\App\Http\Controllers\Administrative\ApiReportController::class, 'index']);
+    Route::get('reports/attendance', [\App\Http\Controllers\Administrative\ApiReportController::class, 'attendance']);
+    Route::get('reports/subject', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'subjectReport']);
+    Route::get('reports/threshold', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'thresholdReport']);
+    Route::get('reports/level-summary', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'levelSummary']);
+    Route::get('reports/doctor-performance', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'doctorPerformance']);
+
+    Route::apiResource('students', \App\Http\Controllers\Api\Administrative\StudentController::class);
+    Route::apiResource('doctors', \App\Http\Controllers\Api\Administrative\DoctorController::class);
+    Route::apiResource('majors', \App\Http\Controllers\Api\Administrative\MajorController::class)->except(['create', 'edit']);
+    Route::apiResource('subjects', \App\Http\Controllers\Api\Administrative\SubjectController::class)->except(['create', 'edit']);
+
+    Route::get('exams/create-data', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'createData']);
+    Route::get('exams/helper/levels/{major}', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'getLevels']);
+    Route::get('exams/helper/subjects/{level}', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'getSubjects']);
+    Route::apiResource('exams', \App\Http\Controllers\Api\Administrative\ExamScheduleController::class)->except(['create', 'edit']);
+
+    Route::get('schedules/create-data', [\App\Http\Controllers\Api\Administrative\AcademicScheduleController::class, 'createData']);
+    Route::get('schedules/helper/subjects/{level}', [\App\Http\Controllers\Api\Administrative\AcademicScheduleController::class, 'getSubjectsWithDoctors']);
+    Route::apiResource('schedules', \App\Http\Controllers\Api\Administrative\AcademicScheduleController::class)->except(['create', 'edit']);
+});
+
 Route::prefix('student')->group(function () {
     Route::post('login', [StudentAuthController::class, 'login']);
 });
@@ -263,12 +465,17 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::post('change-password', [StudentAuthController::class, 'changePassword']);
     Route::get('me', [StudentAuthController::class, 'me']);
 
-    // Notifications
+    // ─── News Center ───
+    Route::get('news-hub', [\App\Http\Controllers\Api\Student\NewsHubController::class, 'index']);
+    Route::get('announcements', [\App\Http\Controllers\Api\Student\AnnouncementController::class, 'index']);
+    Route::get('doctor-announcements', [\App\Http\Controllers\Api\Student\DoctorAnnouncementController::class, 'index']);
     Route::get('notifications', [\App\Http\Controllers\Api\Student\NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [\App\Http\Controllers\Api\Student\NotificationController::class, 'unreadCount']);
     Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAsRead']);
     Route::post('notifications/{id}/vote', [\App\Http\Controllers\Api\Student\NotificationController::class, 'vote']);
     Route::post('notifications/mark-all-read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAllAsRead']);
+    Route::get('reminders', [\App\Http\Controllers\Api\Student\ReminderController::class, 'index']);
+    Route::get('resources', [\App\Http\Controllers\Api\Student\ResourceController::class, 'index']);
 
     // Dashboard
     Route::get('dashboard', [StudentDashboardController::class, 'index']);
@@ -283,10 +490,6 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::post('library/upload', [\App\Http\Controllers\Api\Student\LibraryController::class, 'store']);
     Route::get('library/{resource}/download', [\App\Http\Controllers\Api\Student\LibraryController::class, 'incrementDownload']);
 
-    // Display & Communication
-    Route::get('announcements', [\App\Http\Controllers\Api\Student\AnnouncementController::class, 'index']);
-    Route::get('reminders', [\App\Http\Controllers\Api\Student\ReminderController::class, 'index']);
-    Route::get('resources', [\App\Http\Controllers\Api\Student\ResourceController::class, 'index']);
 
     // Batch Study Schedule & Exams
     Route::get('schedules', [StudentBatchScheduleController::class, 'index']); // (Read-only mirror of Delegate's)
@@ -310,8 +513,10 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::post('assignments/{assignment_id}/priority', [StudentAssignmentController::class, 'updatePriority']);
 
     // Card Generation (Balance-based)
-    Route::get('cards-generate', [\App\Http\Controllers\Api\Student\CardGenerationController::class, 'index']);
-    Route::post('cards-generate', [\App\Http\Controllers\Api\Student\CardGenerationController::class, 'generate']);
+    Route::middleware('permission:generate_cards')->group(function () {
+        Route::get('cards-generate', [\App\Http\Controllers\Api\Student\CardGenerationController::class, 'index']);
+        Route::post('cards-generate', [\App\Http\Controllers\Api\Student\CardGenerationController::class, 'generate']);
+    });
 
     // Subscription Management
     Route::get('subscription', [\App\Http\Controllers\Api\Student\SubscriptionController::class, 'index']);
@@ -327,12 +532,33 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
 
     // Inquiries (Doctor Questions)
     Route::get('inquiries', [\App\Http\Controllers\Api\Student\InquiryController::class, 'index']);
+    Route::get('inquiries/options', [\App\Http\Controllers\Api\Student\InquiryController::class, 'options']);
     Route::post('inquiries', [\App\Http\Controllers\Api\Student\InquiryController::class, 'store']);
     Route::get('inquiries/{inquiry}', [\App\Http\Controllers\Api\Student\InquiryController::class, 'show']);
 
     // Financial Ledger
     Route::get('ledger', [\App\Http\Controllers\Api\Student\FinancialController::class, 'ledger']);
     Route::get('ledger/export', [\App\Http\Controllers\Api\Student\FinancialController::class, 'exportPdf']);
+
+    // Flashcard / One Line Shot
+    Route::prefix('flashcards')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'store']);
+        Route::get('store', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'publicStore']);
+        Route::post('clone/{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'clonePack']);
+        Route::get('daily-queue', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'getDailyQueue']);
+        Route::post('progress', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'recordProgress']);
+        Route::get('{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'show']);
+        Route::put('{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'update']);
+        Route::delete('{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'destroy']);
+        Route::post('{id}/toggle', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'toggleActive']);
+        Route::put('{id}/settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateSettings']);
+        Route::post('{id}/import', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'import']);
+        Route::post('{id}/items', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'storeItem']);
+        Route::put('items/{itemId}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateItem']);
+        Route::delete('items/{itemId}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'destroyItem']);
+        Route::get('{id}/review', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'review']);
+    });
 
     // PDF Reports
     Route::get('reports/attendance', [\App\Http\Controllers\Api\Student\ReportController::class, 'attendancePdf']);
@@ -345,13 +571,14 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::post('excuse', [\App\Http\Controllers\Api\Student\ExcuseController::class, 'store']);
 
     // Clinical Section
-    Route::prefix('clinical')->group(function () {
+    Route::prefix('clinical')->middleware('clinical.major')->group(function () {
 
         // Logbook
         Route::get('logbook', [StudentLogbookController::class, 'index']);
         Route::post('logbook', [StudentLogbookController::class, 'store']);
         Route::put('logbook/{log_id}', [StudentLogbookController::class, 'update']);
         Route::delete('logbook/{log_id}', [StudentLogbookController::class, 'destroy']);
+        Route::post('assignments/{assignment_id}/submit-review', [StudentLogbookController::class, 'submitAssignment']);
         Route::get('logbook/export-pdf', [StudentLogbookController::class, 'exportPdf']);
 
         // Evaluations (OSCE)
@@ -366,17 +593,41 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
         Route::get('mock-exams/results/{evaluation_id}', [StudentMockExamController::class, 'showResult']);
 
         // Pending Cases for Sub-Delegates
-        Route::get('cases/pending', [StudentClinicalCaseController::class, 'pending']);
+        Route::middleware('clinical_delegate')->group(function () {
+            Route::get('cases/pending', [StudentClinicalCaseController::class, 'pending']);
+        });
 
         // Rare Cases
         Route::get('rare-cases', [StudentRareCaseController::class, 'index']);
         Route::get('rare-cases/{id}', [StudentRareCaseController::class, 'show']);
+
     });
+
+    // ─── Quizzes (MCQ Exams) ───
+    Route::get('quizzes', [\App\Http\Controllers\Api\Student\QuizController::class, 'index']);
+    Route::get('quizzes/{quiz}/take', [\App\Http\Controllers\Api\Student\QuizController::class, 'take']);
+    Route::post('quizzes/{attempt}/submit', [\App\Http\Controllers\Api\Student\QuizController::class, 'submit']);
+    Route::get('quizzes/results/{attempt}', [\App\Http\Controllers\Api\Student\QuizController::class, 'result']);
+
+    // ─── My Stars (نجومي) ───
+    Route::get('stars', [\App\Http\Controllers\Api\Student\StarController::class, 'index']);
+    Route::get('stars/search-users', [\App\Http\Controllers\Api\Student\StarController::class, 'searchUsers']);
+    Route::post('stars/gift', [\App\Http\Controllers\Api\Student\StarController::class, 'gift']);
+
+    // ─── QR Attendance (Student Scan) ───
+    Route::post('qr-attendance/scan', [\App\Http\Controllers\Api\QrAttendanceController::class, 'scan']);
+
+    // ─── Authorized Delegations (Monitoring) ───
+    Route::get('authorized-grades', [\App\Http\Controllers\Api\Student\AuthorizedGradeController::class, 'index']);
+    Route::get('authorized-grades/{category}', [\App\Http\Controllers\Api\Student\AuthorizedGradeController::class, 'show']);
+    Route::post('authorized-grades/{category}/store', [\App\Http\Controllers\Api\Student\AuthorizedGradeController::class, 'store']);
 });
 
 // ══════════════════════════════════════════════════════════════
 // Doctor API Controllers
 // ══════════════════════════════════════════════════════════════
+use App\Http\Controllers\Api\Doctor\DoctorAnnouncementController as DoctorAnnouncementApiController;
+use App\Http\Controllers\Api\Student\DoctorAnnouncementController as StudentDoctorAnnouncementApiController;
 use App\Http\Controllers\Api\Doctor\AuthController as DoctorAuthController;
 use App\Http\Controllers\Api\Doctor\AttendanceController as DoctorAttendanceController;
 use App\Http\Controllers\Api\Doctor\DashboardController as DoctorDashboardController;
@@ -385,8 +636,17 @@ use App\Http\Controllers\Api\Doctor\ReportController as DoctorReportController;
 use App\Http\Controllers\Api\Doctor\AssignmentController as DoctorAssignmentController;
 use App\Http\Controllers\Api\Doctor\InquiryController as DoctorInquiryController;
 use App\Http\Controllers\Api\Doctor\GradeController as DoctorGradeController;
+use App\Http\Controllers\Api\Doctor\GradeCategoryController as DoctorGradeCategoryController;
+use App\Http\Controllers\Api\Doctor\GradeApprovalController as DoctorGradeApprovalController;
 use App\Http\Controllers\Api\Doctor\MessageController as DoctorMessageController;
+use App\Http\Controllers\Api\Doctor\NewsController as DoctorNewsController;
 use App\Http\Controllers\Api\Doctor\NotificationController as DoctorNotificationController;
+use App\Http\Controllers\Api\Doctor\SubscriptionController as DoctorSubscriptionController;
+use App\Http\Controllers\Api\Doctor\FinancialController as DoctorFinancialController;
+use App\Http\Controllers\Api\Doctor\CardGenerationController as DoctorCardGenerationController;
+use App\Http\Controllers\Api\Doctor\LibraryController as DoctorLibraryController;
+use App\Http\Controllers\Api\Doctor\QuizController as DoctorQuizController;
+use App\Http\Controllers\Api\Doctor\StarController as DoctorStarApiController;
 use App\Http\Controllers\Api\Doctor\Clinical\ClinicalController as DoctorClinicalController;
 use App\Http\Controllers\Api\Doctor\Clinical\TrainingCenterController as DoctorTrainingCenterController;
 use App\Http\Controllers\Api\Doctor\Clinical\DepartmentController as DoctorDepartmentController;
@@ -411,6 +671,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     // Auth
     Route::post('logout', [DoctorAuthController::class, 'logout']);
     Route::get('me', [DoctorAuthController::class, 'me']);
+    Route::post('change-password', [DoctorAuthController::class, 'changePassword']);
 
     // Dashboard
     Route::get('dashboard', [DoctorDashboardController::class, 'index']);
@@ -419,14 +680,20 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     Route::get('attendances', [DoctorAttendanceController::class, 'index']);
     Route::post('attendances', [DoctorAttendanceController::class, 'store']);
     Route::get('attendances/{lecture}', [DoctorAttendanceController::class, 'show']);
+    Route::get('attendance', [DoctorAttendanceController::class, 'index']);
+    Route::get('attendance/{subject}/create', [DoctorAttendanceController::class, 'create']);
+    Route::post('attendance/{subject}', [DoctorAttendanceController::class, 'storeForSubject']);
+    Route::patch('attendance-records/{attendance}', [\App\Http\Controllers\Doctor\ApiAttendanceRecordController::class, 'update']);
+    Route::post('attendance/{subject}/toggle-delegate', [DoctorAttendanceController::class, 'toggleDelegate']);
+    Route::get('attendance/{subject}/{date}/report', [DoctorAttendanceController::class, 'report']);
 
     // Excuses
     Route::get('excuses', [DoctorExcuseController::class, 'index']);
     Route::put('excuses/{excuse}', [DoctorExcuseController::class, 'update']);
 
     // Reports
-    Route::get('reports', [DoctorReportController::class, 'index']);
-    Route::get('reports/{subject}', [DoctorReportController::class, 'show']);
+    Route::get('reports', [\App\Http\Controllers\Doctor\ApiReportController::class, 'index']);
+    Route::get('reports/{subject}', [\App\Http\Controllers\Doctor\ApiReportController::class, 'show']);
 
     // Assignments
     Route::get('assignments', [DoctorAssignmentController::class, 'index']);
@@ -438,6 +705,8 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
 
     // Inquiries
     Route::get('inquiries', [DoctorInquiryController::class, 'index']);
+    Route::get('inquiries/settings', [DoctorInquiryController::class, 'settings']);
+    Route::patch('inquiries/subjects/{subject}/settings', [DoctorInquiryController::class, 'updateSettings']);
     Route::get('inquiries/{id}', [DoctorInquiryController::class, 'show']);
     Route::post('inquiries/{id}/answer', [DoctorInquiryController::class, 'answer']);
 
@@ -447,20 +716,67 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     Route::post('grades/{subject}', [DoctorGradeController::class, 'store']);
     Route::get('grades/{subject}/report', [DoctorGradeController::class, 'report']);
     Route::post('grades/{subject}/note/{student}', [DoctorGradeController::class, 'storeNote']);
+    Route::get('grades/{subject}/categories', [DoctorGradeCategoryController::class, 'index']);
+    Route::post('grades/{subject}/categories', [DoctorGradeCategoryController::class, 'store']);
+    Route::delete('grades/categories/{category}', [DoctorGradeCategoryController::class, 'destroy']);
+    Route::get('grades/{subject}/delegations', [DoctorGradeCategoryController::class, 'delegations']);
+    Route::post('grades/categories/{category}/delegate', [DoctorGradeCategoryController::class, 'delegate']);
+    Route::post('grades/categories/{category}/revoke', [DoctorGradeCategoryController::class, 'revoke']);
+    Route::get('grades/{subject}/approvals', [DoctorGradeApprovalController::class, 'index']);
+    Route::post('grades/approvals/bulk-action', [DoctorGradeApprovalController::class, 'bulkAction']);
 
     // Messages
     Route::get('messages', [DoctorMessageController::class, 'index']);
     Route::get('messages/{conversation}', [DoctorMessageController::class, 'show']);
     Route::post('messages', [DoctorMessageController::class, 'store']);
+    Route::post('messages/start', [DoctorMessageController::class, 'store']);
     Route::post('messages/{conversation}/send', [DoctorMessageController::class, 'send']);
+
+    // News Center
+    Route::get('news', [DoctorNewsController::class, 'index']);
+    Route::get('news/{batchId}', [DoctorNewsController::class, 'show']);
+    Route::post('news/{batchId}/vote', [DoctorNewsController::class, 'vote']);
 
     // Notifications
     Route::get('notifications', [DoctorNotificationController::class, 'index']);
     Route::post('notifications/{id}/read', [DoctorNotificationController::class, 'markAsRead']);
     Route::post('notifications/mark-all-read', [DoctorNotificationController::class, 'markAllAsRead']);
 
+    // Financial & Subscription
+    Route::get('ledger', [DoctorFinancialController::class, 'ledger']);
+    Route::get('ledger/export', [DoctorFinancialController::class, 'exportPdf']);
+    Route::get('subscription', [DoctorSubscriptionController::class, 'index']);
+    Route::post('subscription/redeem', [DoctorSubscriptionController::class, 'redeem']);
+    Route::post('subscription/subscribe', [DoctorSubscriptionController::class, 'subscribe']);
+    Route::post('subscription/auto-renew', [DoctorSubscriptionController::class, 'toggleAutoRenew']);
+
+    // Content & Interaction
+    Route::get('announcements', [DoctorAnnouncementApiController::class, 'index']);
+    Route::post('announcements', [DoctorAnnouncementApiController::class, 'store']);
+    Route::get('announcements/{id}', [DoctorAnnouncementApiController::class, 'show']);
+    Route::put('announcements/{id}', [DoctorAnnouncementApiController::class, 'update']);
+    Route::delete('announcements/{id}', [DoctorAnnouncementApiController::class, 'destroy']);
+    Route::get('quizzes', [DoctorQuizController::class, 'index']);
+    Route::post('quizzes', [DoctorQuizController::class, 'store']);
+    Route::get('quizzes/{quiz}', [DoctorQuizController::class, 'show']);
+    Route::put('quizzes/{quiz}', [DoctorQuizController::class, 'update']);
+    Route::delete('quizzes/{quiz}', [DoctorQuizController::class, 'destroy']);
+    Route::get('quizzes/{quiz}/results', [DoctorQuizController::class, 'results']);
+    Route::patch('quizzes/{quiz}/publish', [DoctorQuizController::class, 'publish']);
+    Route::patch('quizzes/{quiz}/close', [DoctorQuizController::class, 'close']);
+    Route::post('quizzes/{quiz}/share-results', [DoctorQuizController::class, 'shareResults']);
+    Route::get('stars', [DoctorStarApiController::class, 'index']);
+    Route::post('stars/grant', [DoctorStarApiController::class, 'grant']);
+    Route::get('library', [DoctorLibraryController::class, 'index']);
+    Route::post('library/upload', [DoctorLibraryController::class, 'store']);
+    Route::get('library/{resource}/download', [DoctorLibraryController::class, 'incrementDownload']);
+    Route::middleware('permission:generate_cards')->group(function () {
+        Route::get('cards-generate', [DoctorCardGenerationController::class, 'index']);
+        Route::post('cards-generate', [DoctorCardGenerationController::class, 'generate']);
+    });
+
     // Clinical Section
-    Route::prefix('clinical')->group(function () {
+    Route::prefix('clinical')->middleware('clinical.major')->group(function () {
 
         // Overview
         Route::get('overview', [DoctorClinicalController::class, 'index']);
@@ -495,6 +811,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         // Case Assignments
         Route::get('assignments', [DoctorCaseAssignmentController::class, 'index']);
         Route::post('assignments', [DoctorCaseAssignmentController::class, 'store']);
+        Route::post('assignments/{assignment}/review', [DoctorCaseAssignmentController::class, 'review']);
 
         // Logbook / QR
         Route::post('logbook/scan', [DoctorLogbookController::class, 'processQr']);
@@ -523,5 +840,12 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::post('volunteers', [DoctorVolunteerController::class, 'store']);
         Route::patch('volunteers/{id}/toggle', [DoctorVolunteerController::class, 'toggleStatus']);
         Route::delete('volunteers/{id}', [DoctorVolunteerController::class, 'destroy']);
+
+        // Doctor Announcements (إعلاناتي)
+        Route::get('announcements', [DoctorAnnouncementApiController::class, 'index']);
+        Route::post('announcements', [DoctorAnnouncementApiController::class, 'store']);
+        Route::get('announcements/{id}', [DoctorAnnouncementApiController::class, 'show']);
+        Route::put('announcements/{id}', [DoctorAnnouncementApiController::class, 'update']);
+        Route::delete('announcements/{id}', [DoctorAnnouncementApiController::class, 'destroy']);
     });
 });

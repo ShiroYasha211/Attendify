@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class StudentController extends AdminApiController
 {
@@ -41,6 +42,7 @@ class StudentController extends AdminApiController
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => 'required|email|unique:users',
             'student_number' => 'required|string|unique:users,student_number|max:50',
             'password' => 'required|string|min:8',
@@ -51,6 +53,7 @@ class StudentController extends AdminApiController
 
         $student = User::create([
             'name' => $request->name,
+            'gender' => $request->gender,
             'email' => $request->email,
             'student_number' => $request->student_number,
             'password' => Hash::make($request->password),
@@ -70,6 +73,7 @@ class StudentController extends AdminApiController
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => 'required|email|unique:users,email,' . $student->id,
             'student_number' => 'required|string|max:50|unique:users,student_number,' . $student->id,
             'level_id' => 'required|exists:levels,id',
@@ -79,6 +83,7 @@ class StudentController extends AdminApiController
 
         $data = [
             'name' => $request->name,
+            'gender' => $request->gender,
             'email' => $request->email,
             'student_number' => $request->student_number,
             'level_id' => $level->id,
@@ -102,8 +107,30 @@ class StudentController extends AdminApiController
         if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE])) {
             return $this->error('المستخدم ليس طالباً.', 422);
         }
-        $this->logDelete('Student', $student, "تم حذف الطالب: {$student->name}");
+        $this->logDelete('Student', $student, "تم حذف الطالب نهائياً من الـ API: {$student->name}");
         $student->forceDelete();
-        return $this->success(null, 'تم حذف الطالب بنجاح');
+        return $this->success(null, 'تم حذف الطالب بنجاح واستئصال بياناته');
+    }
+
+    public function updatePermissions(Request $request, User $student)
+    {
+        if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE])) {
+            return $this->error('المستخدم ليس طالباً.', 422);
+        }
+
+        $request->validate([
+            'permissions' => 'array',
+            'permissions.*' => 'string|exists:permissions,slug'
+        ]);
+
+        $student->permissions()->detach();
+        if ($request->has('permissions')) {
+            $permissionIds = \App\Models\Permission::whereIn('slug', $request->permissions)->pluck('id');
+            $student->permissions()->attach($permissionIds);
+        }
+
+        $this->logUpdate('StudentPermissions', $student, "تم تحديث صلاحيات الطالب عبر الـ API: {$student->name}");
+
+        return $this->success($student->load('permissions'), 'تم تحديث صلاحيات الطالب بنجاح');
     }
 }

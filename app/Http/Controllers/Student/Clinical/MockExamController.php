@@ -20,7 +20,7 @@ class MockExamController extends Controller
     {
         $student = Auth::user();
 
-        $checklists = EvaluationChecklist::where('is_active', true)
+        $checklists = EvaluationChecklist::with(['creator', 'doctor'])
             ->forStudent($student->id)
             ->get();
 
@@ -37,7 +37,10 @@ class MockExamController extends Controller
      */
     public function take($checklist_id)
     {
-        $checklist = EvaluationChecklist::with('items')->findOrFail($checklist_id);
+        $checklist = EvaluationChecklist::with(['creator', 'doctor'])
+            ->forStudent(Auth::id())
+            ->with('items')
+            ->findOrFail($checklist_id);
 
         if (!$checklist->is_active) {
             return redirect()->route('student.clinical.mock.index')->with('error', 'هذا النموذج غير متاح حالياً.');
@@ -58,7 +61,10 @@ class MockExamController extends Controller
         ]);
 
         $student = Auth::user();
-        $checklist = EvaluationChecklist::with('items')->findOrFail($request->checklist_id);
+        $checklist = EvaluationChecklist::with(['creator', 'doctor'])
+            ->forStudent($student->id)
+            ->with('items')
+            ->findOrFail($request->checklist_id);
 
         $totalMaxMarks = 0;
         $totalObtainedMarks = 0;

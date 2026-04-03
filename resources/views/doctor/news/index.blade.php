@@ -103,6 +103,7 @@
     .type-exam .card-banner { background: var(--news-danger); }
     .type-poll .card-banner { background: var(--news-accent); }
     .type-assignment .card-banner { background: var(--news-warning); }
+    .type-attendance .card-banner { background: #0ea5e9; }
 
     .card-content {
         padding: 2rem;
@@ -131,6 +132,7 @@
     .type-exam .type-badge { background: #fee2e2; color: #b91c1c; }
     .type-poll .type-badge { background: #d1fae5; color: #065f46; }
     .type-assignment .type-badge { background: #fef3c7; color: #92400e; }
+    .type-attendance .type-badge { background: #e0f2fe; color: #0369a1; }
 
     .card-date {
         font-size: 0.85rem;

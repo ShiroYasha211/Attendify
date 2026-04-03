@@ -38,6 +38,12 @@ class AnnouncementController extends DelegateApiController
             'urgent' => Announcement::where('major_id', $delegate->major_id)
                 ->where('level_id', $delegate->level_id)
                 ->where('category', 'urgent')->count(),
+            'academic' => Announcement::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->where('category', 'academic')->count(),
+            'general' => Announcement::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->where('category', 'general')->count(),
             'pinned' => Announcement::where('major_id', $delegate->major_id)
                 ->where('level_id', $delegate->level_id)
                 ->where('is_pinned', true)->count(),

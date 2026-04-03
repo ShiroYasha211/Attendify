@@ -1,556 +1,302 @@
 @extends('layouts.doctor')
 
-@section('title', 'توزيع الحالات السريرية')
+@section('title', 'المهام السريرية')
 
 @section('content')
 <style>
-    .clinical-page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.75rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .clinical-page-header .right-side h1 {
-        font-size: 1.6rem;
-        font-weight: 800;
-        color: var(--text-primary);
-        margin: 0 0 0.15rem 0;
-    }
-
-    .clinical-page-header .right-side p {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        margin: 0;
-    }
-
-    .clinical-page-header .left-side {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-    }
-
-    .btn-back {
-        background: white;
-        color: var(--text-secondary);
-        border: 1.5px solid #e2e8f0;
-        padding: 0.55rem 1.1rem;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.88rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-    }
-
-    .btn-back:hover {
-        border-color: #cbd5e1;
-        background: #f8fafc;
-        color: var(--text-primary);
-        text-decoration: none;
-    }
-
-    .assignments-layout {
+    .page-grid {
         display: grid;
-        grid-template-columns: 1fr 2fr;
+        grid-template-columns: 360px 1fr;
         gap: 1.5rem;
         align-items: start;
     }
 
     @media (max-width: 992px) {
-        .assignments-layout {
+        .page-grid {
             grid-template-columns: 1fr;
         }
     }
 
-    .card-section {
-        background: white;
-        border-radius: 18px;
-        border: 1px solid #e2e8f0;
-        padding: 1.5rem;
+    .panel {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+        padding: 1.35rem;
     }
 
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.25rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid #f1f5f9;
-    }
-
-    .section-title {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .form-group {
-        margin-bottom: 1.15rem;
-    }
-
-    .form-label {
-        display: block;
-        font-weight: 600;
-        font-size: 0.88rem;
-        color: var(--text-primary);
-        margin-bottom: 0.4rem;
-    }
-
-    .form-control,
-    .form-select {
-        width: 100%;
-        padding: 0.65rem 0.85rem;
-        font-size: 0.9rem;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 10px;
-        background: #f8fafc;
-        transition: all 0.2s;
-        font-family: inherit;
-    }
-
-    .form-control:focus,
-    .form-select:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        background: white;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
-    }
-
-    textarea.form-control {
-        resize: vertical;
-        min-height: 80px;
-    }
-
-    .btn-submit {
-        background: linear-gradient(135deg, #4f46e5, #6366f1);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.25s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        width: 100%;
-        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
-    }
-
-    .btn-submit:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
-    }
-
-    /* --- Filter Bar --- */
-    .filter-bar {
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-        padding: 1.25rem;
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 1.5rem;
-    }
-
-    .filter-bar .filter-title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: var(--text-secondary);
+    .field {
         margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
+    }
+
+    .field label {
+        display: block;
+        font-weight: 700;
+        margin-bottom: 0.45rem;
+        color: #0f172a;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        border: 1px solid #dbe2ea;
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+        font: inherit;
+        background: #fff;
+    }
+
+    .submit-btn,
+    .approve-btn,
+    .reject-btn,
+    .filter-btn {
+        border: none;
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .submit-btn,
+    .filter-btn,
+    .approve-btn {
+        background: #1d4ed8;
+        color: #fff;
+    }
+
+    .reject-btn {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+
+    .task-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .task-table th,
+    .task-table td {
+        padding: 0.9rem 0.75rem;
+        border-bottom: 1px solid #eef2f7;
+        vertical-align: top;
+    }
+
+    .task-table th {
+        color: #64748b;
+        font-size: 0.82rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.04em;
+    }
+
+    .badge-status,
+    .task-type {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 0.78rem;
+    }
+
+    .badge-status.assigned { background: #fef3c7; color: #92400e; }
+    .badge-status.submitted_for_review { background: #dbeafe; color: #1d4ed8; }
+    .badge-status.approved { background: #dcfce7; color: #166534; }
+    .badge-status.rejected { background: #fee2e2; color: #991b1b; }
+    .task-type.history_taking { background: #e0f2fe; color: #0369a1; }
+    .task-type.clinical_examination { background: #fce7f3; color: #be185d; }
+    .task-type.follow_up { background: #dcfce7; color: #166534; }
+
+    .small-note {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.7rem 0.8rem;
+        font-size: 0.85rem;
+        color: #334155;
+        margin-top: 0.55rem;
     }
 
     .filter-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 0.85rem;
-        align-items: end;
-    }
-
-    .filter-group label {
-        display: block;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #64748b;
-        margin-bottom: 0.35rem;
-    }
-
-    .filter-group select {
-        width: 100%;
-        padding: 0.55rem 0.75rem;
-        font-size: 0.88rem;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 9px;
-        background: white;
-        transition: all 0.2s;
-        font-family: inherit;
-    }
-
-    .filter-group select:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
-    }
-
-    .filter-actions {
-        display: flex;
-        gap: 0.5rem;
-        align-items: flex-end;
-    }
-
-    .btn-filter {
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        padding: 0.55rem 1.2rem;
-        border-radius: 9px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-    .btn-filter:hover {
-        background: #4338ca;
-    }
-
-    .btn-filter-reset {
-        background: white;
-        color: #64748b;
-        border: 1.5px solid #e2e8f0;
-        padding: 0.55rem 1rem;
-        border-radius: 9px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .btn-filter-reset:hover {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-        color: var(--text-primary);
-        text-decoration: none;
-    }
-
-    /* --- Table --- */
-    .table-modern {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .table-modern th {
-        background: #f8fafc;
-        font-weight: 600;
-        color: var(--text-secondary);
-        padding: 0.85rem 1rem;
-        text-align: right;
-        font-size: 0.82rem;
-        border-bottom: 2px solid #e2e8f0;
-    }
-
-    .table-modern td {
-        padding: 0.85rem 1rem;
-        vertical-align: middle;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 0.9rem;
-        color: var(--text-primary);
-    }
-
-    .table-modern tr:hover td {
-        background: #fafbfe;
-    }
-
-    .table-modern tr:last-child td {
-        border-bottom: none;
-    }
-
-    .student-name {
-        font-weight: 700;
-        color: var(--primary-color);
-    }
-
-    .task-type-badge {
-        background: #e0e7ff;
-        color: #4338ca;
-        padding: 0.2rem 0.5rem;
-        border-radius: 5px;
-        font-size: 0.78rem;
-        font-weight: 600;
-    }
-
-    .badge-status {
-        padding: 0.25rem 0.55rem;
-        border-radius: 6px;
-        font-weight: 700;
-        font-size: 0.78rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .badge-status.completed {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .badge-status.pending {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .alert-banner {
-        padding: 0.85rem 1.25rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-
-    .alert-banner.success {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #6ee7b7;
-    }
-
-    .alert-banner.danger {
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fca5a5;
-    }
-
-    .form-hint {
-        color: var(--text-secondary);
-        font-size: 0.78rem;
-        margin-top: 0.25rem;
-        display: block;
+        margin-bottom: 1rem;
     }
 </style>
 
-{{-- ====== Page Header ====== --}}
-<div class="clinical-page-header">
-    <div class="right-side">
-        <h1>توزيع الحالات السريرية 📋</h1>
-        <p>تكليف الطلاب بمهام سريرية على الحالات المرضية المتاحة</p>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <div class="text-uppercase text-muted fw-bold small mb-2">Clinical tasks</div>
+        <h1 class="h3 fw-bold mb-2">إدارة المهام السريرية</h1>
+        <p class="text-muted mb-0">إنشاء مهام للطالب ثم مراجعة رسالة الإنجاز واعتمادها أو رفضها.</p>
     </div>
-    <div class="left-side">
-        <a href="{{ route('doctor.clinical.index') }}" class="btn-back">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-            القسم العملي
-        </a>
-    </div>
+    <a href="{{ route('doctor.clinical.index') }}" class="btn btn-outline-secondary">القسم العملي</a>
 </div>
 
-@if(session('success'))<div class="alert-banner success">✅ {{ session('success') }}</div>@endif
-@if(session('error'))<div class="alert-banner danger">⚠️ {{ session('error') }}</div>@endif
+@if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+    <div class="alert alert-danger">{{ session('error') }}</div>
+@endif
 
-<div class="assignments-layout">
-    {{-- ====== Assignment Form ====== --}}
-    <div class="card-section">
-        <div class="section-header" style="margin-bottom: 1rem;">
-            <h3 class="section-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-                تكليف جديد
-            </h3>
-        </div>
+<div class="page-grid">
+    <div class="panel">
+        <h2 class="h5 fw-bold mb-3">تكليف جديد</h2>
         <form action="{{ route('doctor.clinical.assignments.store') }}" method="POST">
             @csrf
-            <div class="form-group">
-                <label class="form-label">الطالب المستهدف <span style="color:red">*</span></label>
-                <select name="student_id" class="form-select select2" required>
-                    <option value="">-- ابحث عن الطالب --</option>
-                    @foreach($students as $s)
-                    <option value="{{ $s->id }}">{{ $s->name }} ({{ $s->student_number ?? 'بدون رقم' }})</option>
+            <div class="field">
+                <label>الطالب</label>
+                <select name="student_id" required>
+                    <option value="">اختر الطالب</option>
+                    @foreach($students as $student)
+                        <option value="{{ $student->id }}">{{ $student->name }}{{ $student->student_number ? ' (' . $student->student_number . ')' : '' }}</option>
                     @endforeach
                 </select>
-                <small class="form-hint">جميع الطلاب يظهرون للبحث.</small>
             </div>
-
-            <div class="form-group">
-                <label class="form-label">الحالة السريرية (المريض) <span style="color:red">*</span></label>
-                <select name="clinical_case_id" class="form-select select2" required>
-                    <option value="">-- اختر الحالة --</option>
-                    @foreach($cases as $c)
-                    <option value="{{ $c->id }}">{{ $c->patient_name }} ({{ $c->trainingCenter->name ?? '' }})</option>
+            <div class="field">
+                <label>الحالة السريرية</label>
+                <select name="clinical_case_id" required>
+                    <option value="">اختر الحالة</option>
+                    @foreach($cases as $case)
+                        <option value="{{ $case->id }}">{{ $case->patient_name }}{{ $case->trainingCenter?->name ? ' - ' . $case->trainingCenter->name : '' }}</option>
                     @endforeach
                 </select>
-                <small class="form-hint">تظهر فقط حالاتك "النشطة".</small>
             </div>
-
-            <div class="form-group">
-                <label class="form-label">نوع المهمة <span style="color:red">*</span></label>
-                <select name="task_type" class="form-select" required>
-                    <option value="history_taking">أخذ قصة مرضية (History Taking)</option>
-                    <option value="clinical_examination">فحص سريري (Clinical Examination)</option>
-                    <option value="follow_up">متابعة ومرور (Follow Up / Round)</option>
+            <div class="field">
+                <label>نوع المهمة</label>
+                <select name="task_type" required>
+                    <option value="history_taking">قصة مرضية</option>
+                    <option value="clinical_examination">فحص سريري</option>
+                    <option value="follow_up">متابعة ومرور</option>
                 </select>
             </div>
-
-            <div class="form-group">
-                <label class="form-label">تعليمات إضافية (اختياري)</label>
-                <textarea name="instructions" class="form-control" placeholder="مثال: ركز على الصمامات في الفحص..."></textarea>
+            <div class="field">
+                <label>تعليمات إضافية</label>
+                <textarea name="instructions" rows="4" placeholder="تعليمات مختصرة للطالب"></textarea>
             </div>
-
-            <button type="submit" class="btn-submit">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-                إرسال التكليف للطالب
-            </button>
+            <button type="submit" class="submit-btn w-100">إرسال التكليف</button>
         </form>
     </div>
 
-    {{-- ====== Assignments List ====== --}}
-    <div>
-        {{-- Filter Bar --}}
-        <div class="filter-bar">
-            <div class="filter-title">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                </svg>
-                تصفية التكليفات
-            </div>
-            <form action="{{ route('doctor.clinical.assignments.index') }}" method="GET">
-                <div class="filter-grid">
-                    <div class="filter-group">
-                        <label>الطالب</label>
-                        <select name="filter_student_id" class="select2">
-                            <option value="">الكل</option>
-                            @foreach($students as $s)
-                            <option value="{{ $s->id }}" {{ request('filter_student_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>الحالة</label>
-                        <select name="filter_case_id" class="select2">
-                            <option value="">الكل</option>
-                            @foreach($cases as $c)
-                            <option value="{{ $c->id }}" {{ request('filter_case_id') == $c->id ? 'selected' : '' }}>{{ $c->patient_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>المهمة</label>
-                        <select name="filter_task_type" class="select2">
-                            <option value="">الكل</option>
-                            <option value="history_taking" {{ request('filter_task_type') == 'history_taking' ? 'selected' : '' }}>قصة مرضية</option>
-                            <option value="clinical_examination" {{ request('filter_task_type') == 'clinical_examination' ? 'selected' : '' }}>فحص سريري</option>
-                            <option value="follow_up" {{ request('filter_task_type') == 'follow_up' ? 'selected' : '' }}>متابعة (Round)</option>
-                        </select>
-                    </div>
-                    <div class="filter-actions">
-                        <button type="submit" class="btn-filter">بحث</button>
-                        <a href="{{ route('doctor.clinical.assignments.index') }}" class="btn-filter-reset">إلغاء</a>
-                    </div>
+    <div class="panel">
+        <h2 class="h5 fw-bold mb-3">سجل المهام</h2>
+        <form action="{{ route('doctor.clinical.assignments.index') }}" method="GET">
+            <div class="filter-grid">
+                <div class="field mb-0">
+                    <label>الطالب</label>
+                    <select name="filter_student_id">
+                        <option value="">الكل</option>
+                        @foreach($students as $student)
+                            <option value="{{ $student->id }}" {{ request('filter_student_id') == $student->id ? 'selected' : '' }}>{{ $student->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
-            </form>
-        </div>
-
-        {{-- Table --}}
-        <div class="card-section">
-            <div class="section-header" style="margin-bottom: 1rem;">
-                <h3 class="section-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    سجل التكليفات السابقة
-                </h3>
+                <div class="field mb-0">
+                    <label>الحالة السريرية</label>
+                    <select name="filter_case_id">
+                        <option value="">الكل</option>
+                        @foreach($cases as $case)
+                            <option value="{{ $case->id }}" {{ request('filter_case_id') == $case->id ? 'selected' : '' }}>{{ $case->patient_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field mb-0">
+                    <label>نوع المهمة</label>
+                    <select name="filter_task_type">
+                        <option value="">الكل</option>
+                        <option value="history_taking" {{ request('filter_task_type') === 'history_taking' ? 'selected' : '' }}>قصة مرضية</option>
+                        <option value="clinical_examination" {{ request('filter_task_type') === 'clinical_examination' ? 'selected' : '' }}>فحص سريري</option>
+                        <option value="follow_up" {{ request('filter_task_type') === 'follow_up' ? 'selected' : '' }}>متابعة ومرور</option>
+                    </select>
+                </div>
+                <div class="field mb-0">
+                    <label>الحالة</label>
+                    <select name="filter_status">
+                        <option value="">الكل</option>
+                        <option value="assigned" {{ request('filter_status') === 'assigned' ? 'selected' : '' }}>مكلف</option>
+                        <option value="submitted_for_review" {{ request('filter_status') === 'submitted_for_review' ? 'selected' : '' }}>قيد المراجعة</option>
+                        <option value="approved" {{ request('filter_status') === 'approved' ? 'selected' : '' }}>تم الاعتماد</option>
+                        <option value="rejected" {{ request('filter_status') === 'rejected' ? 'selected' : '' }}>مرفوض</option>
+                    </select>
+                </div>
             </div>
-            <div style="overflow-x: auto;">
-                <div class="table-responsive">
-<table class="table-modern">
-                    <thead>
+            <button type="submit" class="filter-btn">تطبيق الفلاتر</button>
+        </form>
+
+        <div class="table-responsive mt-3">
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th>الطالب</th>
+                        <th>الحالة</th>
+                        <th>المهمة</th>
+                        <th>الحالة الحالية</th>
+                        <th>الإجراء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($assignments as $assignment)
                         <tr>
-                            <th width="5%">#</th>
-                            <th width="25%">الطالب</th>
-                            <th width="25%">الحالة</th>
-                            <th width="20%">المهمة</th>
-                            <th width="25%">الإنجاز</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($assignments as $assignment)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td class="student-name">{{ $assignment->student->name ?? '-' }}</td>
                             <td>
-                                <div style="font-weight: 600;">{{ $assignment->clinicalCase->patient_name ?? '-' }}</div>
+                                <div class="fw-bold">{{ $assignment->student->name ?? '-' }}</div>
+                                <div class="text-muted small">{{ $assignment->student->student_number ?? '' }}</div>
                             </td>
                             <td>
-                                <span class="task-type-badge">
-                                    @if($assignment->task_type == 'history_taking') قصة مرضية
-                                    @elseif($assignment->task_type == 'clinical_examination') فحص سريري
-                                    @else متابعة (Round) @endif
-                                </span>
+                                <div class="fw-bold">{{ $assignment->clinicalCase->patient_name ?? '-' }}</div>
+                                <div class="text-muted small">{{ $assignment->clinicalCase->trainingCenter->name ?? '' }}</div>
                             </td>
                             <td>
-                                @if($assignment->is_completed)
-                                <span class="badge-status completed">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                    </svg>
-                                    أُنجزت ({{ $assignment->completed_at->format('Y-m-d') }})
-                                </span>
+                                <span class="task-type {{ $assignment->task_type }}">{{ $assignment->task_type_label }}</span>
+                                @if($assignment->instructions)
+                                    <div class="small-note"><strong>تعليمات:</strong> {{ $assignment->instructions }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="badge-status {{ $assignment->status }}">{{ $assignment->status_label }}</span>
+                                @if($assignment->student_completion_message)
+                                    <div class="small-note"><strong>رسالة الطالب:</strong> {{ $assignment->student_completion_message }}</div>
+                                @endif
+                                @if($assignment->review_notes)
+                                    <div class="small-note"><strong>{{ $assignment->status === 'rejected' ? 'سبب الرفض' : 'ملاحظات المراجعة' }}:</strong> {{ $assignment->review_notes }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                @if($assignment->status === 'submitted_for_review')
+                                    <form action="{{ route('doctor.clinical.assignments.review', $assignment) }}" method="POST" class="mb-2">
+                                        @csrf
+                                        <input type="hidden" name="action" value="approve">
+                                        <button type="submit" class="approve-btn w-100">اعتماد الإنجاز</button>
+                                    </form>
+                                    <form action="{{ route('doctor.clinical.assignments.review', $assignment) }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="action" value="reject">
+                                        <textarea name="review_notes" rows="3" placeholder="سبب الرفض" required class="mb-2"></textarea>
+                                        <button type="submit" class="reject-btn w-100">رفض الإنجاز</button>
+                                    </form>
+                                @elseif($assignment->status === 'approved')
+                                    <div class="text-success small fw-bold">تم اعتماد المهمة</div>
+                                @elseif($assignment->status === 'rejected')
+                                    <div class="text-danger small fw-bold">بانتظار إعادة إرسال الطالب</div>
                                 @else
-                                <span class="badge-status pending">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <polyline points="12 6 12 12 16 14"></polyline>
-                                    </svg>
-                                    قيد الإنجاز
-                                </span>
+                                    <div class="text-muted small">لم يرسل الطالب الإنجاز بعد</div>
                                 @endif
                             </td>
                         </tr>
-                        @empty
+                    @empty
                         <tr>
-                            <td colspan="5" style="text-align:center; color:var(--text-secondary); padding:3rem 1rem;">
-                                <p>لم تقم بتوزيع أي مهام بعد.</p>
-                            </td>
+                            <td colspan="5" class="text-center text-muted py-4">لا توجد مهام مطابقة للفلاتر الحالية.</td>
                         </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-</div>
-            </div>
-            @if($assignments->hasPages())<div style="margin-top:1.5rem;">{{ $assignments->links() }}</div>@endif
+                    @endforelse
+                </tbody>
+            </table>
         </div>
+
+        @if($assignments->hasPages())
+            <div class="mt-3">{{ $assignments->links() }}</div>
+        @endif
     </div>
 </div>
 @endsection
-
-@push('scripts')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script>
-    $(document).ready(function() {
-        $('.select2').select2({
-            dir: "rtl",
-            width: '100%'
-        });
-    });
-</script>
-@endpush

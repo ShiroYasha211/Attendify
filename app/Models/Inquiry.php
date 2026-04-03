@@ -14,6 +14,7 @@ class Inquiry extends Model
         'student_id',
         'subject_id',
         'delegate_id',
+        'answered_by',
         'title',
         'question',
         'answer',
@@ -47,6 +48,14 @@ class Inquiry extends Model
     public function delegate()
     {
         return $this->belongsTo(User::class, 'delegate_id');
+    }
+
+    /**
+     * Get the user who answered the inquiry.
+     */
+    public function answeredBy()
+    {
+        return $this->belongsTo(User::class, 'answered_by');
     }
 
     /**

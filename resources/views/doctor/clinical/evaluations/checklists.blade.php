@@ -275,6 +275,9 @@
                 <span class="meta-badge time">⏱ {{ $cl->time_limit_minutes }} دقيقة</span>
                 <span class="meta-badge items">{{ $cl->items_count }} عنصر</span>
             </div>
+            <div style="font-size:0.78rem; color:#7c3aed; font-weight:700; margin-top:0.2rem; margin-bottom:0.35rem;">
+                المنشئ: {{ $cl->creator?->name ?? $cl->doctor?->name ?? 'غير محدد' }}
+            </div>
             @if($cl->description)<p style="font-size:0.82rem; color:var(--text-secondary); margin:0;">{{ Str::limit($cl->description, 80) }}</p>@endif
             <div class="checklist-actions">
                 <a href="{{ route('doctor.clinical.evaluations.checklists.edit', $cl->id) }}" class="action-btn edit">✏️ تعديل</a>

@@ -38,18 +38,21 @@ class QrAttendanceSession extends Model
 
     // ────────────── Token Logic ──────────────
 
-    /**
-     * Generate a new random token and set its expiry.
-     * Token lifetime = 30 seconds (generous enough for 10-second rotation).
-     */
     public function rotateToken(): string
     {
         $newToken = Str::random(48) . bin2hex(random_bytes(8));
         $this->current_token = $newToken;
-        $this->token_expires_at = Carbon::now()->addSeconds(30);
+        $this->token_expires_at = Carbon::now()->addSeconds($this->rotationSeconds());
         $this->save();
 
         return $newToken;
+    }
+
+    public function rotationSeconds(): int
+    {
+        $seconds = (int) ($this->subject?->major?->college?->qr_rotation_seconds ?? 30);
+
+        return max(5, $seconds);
     }
 
     /**

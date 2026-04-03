@@ -25,6 +25,11 @@ class Card extends Model
         return $this->belongsTo(User::class, 'used_by_id');
     }
 
+    public function usedBy()
+    {
+        return $this->belongsTo(User::class, 'used_by_id');
+    }
+
     public function generatedBy()
     {
         return $this->belongsTo(User::class, 'generated_by_id');

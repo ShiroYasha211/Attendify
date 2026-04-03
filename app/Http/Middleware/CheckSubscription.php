@@ -26,6 +26,7 @@ class CheckSubscription
         $allowedRoutes = [
             'student.subscription.*',
             'student.dashboard',
+            'student.attendance.scan',
             'student.profile.password',
             'student.profile.password.update',
             'student.ledger',

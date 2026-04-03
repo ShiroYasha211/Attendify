@@ -53,7 +53,7 @@
         showMessage('جاري تسجيل الحضور...', 'info');
 
         try {
-            const response = await fetch('/api/qr-attendance/scan', {
+            const response = await fetch('/api/student/qr-attendance/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

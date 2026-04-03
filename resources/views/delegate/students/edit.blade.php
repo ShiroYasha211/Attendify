@@ -48,6 +48,15 @@
                     <input type="email" name="email" class="form-control" required value="{{ old('email', $student->email) }}">
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold small text-uppercase">الجنس <span class="text-danger">*</span></label>
+                    <select name="gender" class="form-control" required>
+                        <option value="">اختر الجنس</option>
+                        <option value="male" {{ old('gender', $student->gender) === 'male' ? 'selected' : '' }}>ذكر</option>
+                        <option value="female" {{ old('gender', $student->gender) === 'female' ? 'selected' : '' }}>أنثى</option>
+                    </select>
+                </div>
+
                 <div class="alert alert-light border small text-muted mb-4 d-flex align-items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>

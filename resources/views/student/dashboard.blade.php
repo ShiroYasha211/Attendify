@@ -491,7 +491,7 @@
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
             آخر الإعلانات
-            <a href="{{ route('student.announcements.index') }}" style="margin-right: auto; font-size: 0.85rem; color: var(--primary-color); text-decoration: none;">عرض الكل</a>
+            <a href="{{ route('student.news.index') }}" style="margin-right: auto; font-size: 0.85rem; color: var(--primary-color); text-decoration: none;">عرض الكل</a>
         </div>
         <div class="section-body">
             @forelse($announcements as $post)
@@ -558,6 +558,21 @@
             </div>
             <div class="section-body">
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                    <a href="{{ route('student.attendance.scan') }}" class="quick-link">
+                        <div class="quick-link-icon" style="background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%); color: #78350f;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+                                <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+                                <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+                                <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+                                <path d="M7 12h10"></path>
+                                <path d="M7 16h6"></path>
+                                <path d="M7 8h8"></path>
+                            </svg>
+                        </div>
+                        <span class="quick-link-text">مسح QR</span>
+                    </a>
+
                     <a href="{{ route('student.subjects.index') }}" class="quick-link">
                         <div class="quick-link-icon" style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #4f46e5;">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

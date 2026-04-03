@@ -21,10 +21,13 @@ class Subject extends Model
         'max_absences',
         'lecture_count',
         'allow_delegate_attendance',
+        'inquiries_enabled',
+        'inquiries_closed_reason',
     ];
 
     protected $casts = [
         'allow_delegate_attendance' => 'boolean',
+        'inquiries_enabled' => 'boolean',
     ];
 
     public function major(): BelongsTo
@@ -65,5 +68,10 @@ class Subject extends Model
     public function gradeCategories(): HasMany
     {
         return $this->hasMany(\App\Models\GradeCategory::class);
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(\App\Models\Attendance::class);
     }
 }

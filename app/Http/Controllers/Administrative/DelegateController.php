@@ -17,6 +17,10 @@ class DelegateController extends Controller
     public function index(Request $request)
     {
         $college = auth()->user()->college;
+
+        if (!$college) {
+            abort(403, 'حسابك غير مرتبط بكلية.');
+        }
         
         $query = User::where('college_id', $college->id)
             ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE]);
@@ -83,8 +87,13 @@ class DelegateController extends Controller
             'role' => 'required|in:student,delegate,practical_delegate',
         ]);
 
-        $oldRole = $user->role->label();
         $newRoleValue = $request->role;
+
+        if ($newRoleValue === 'practical_delegate' && !optional($user->major)->has_clinical) {
+            return back()->with('error', 'لا يمكن تعيين مندوب عملي لطالب لا ينتمي إلى تخصص سريري.');
+        }
+
+        $oldRole = $user->role->label();
         $user->update(['role' => $newRoleValue]);
         $newRole = $user->role->label();
 

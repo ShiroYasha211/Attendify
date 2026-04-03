@@ -17,14 +17,18 @@ class InquiryController extends Controller
     {
         $user = Auth::user();
         $status = $request->get('status');
+        $subjects = Subject::with('level:id,name')
+            ->where('doctor_id', $user->id)
+            ->orderBy('name')
+            ->get();
 
         // Get subjects assigned to this doctor
-        $subjectIds = Subject::where('doctor_id', $user->id)->pluck('id');
+        $subjectIds = $subjects->pluck('id');
 
         // Get inquiries for these subjects that have been forwarded
         $query = Inquiry::whereIn('subject_id', $subjectIds)
             ->where('status', '!=', 'pending')
-            ->with(['student', 'subject'])
+            ->with(['student', 'subject', 'answeredBy'])
             ->latest();
 
         if ($status) {
@@ -50,7 +54,7 @@ class InquiryController extends Controller
             'closed' => $statsRaw->closed ?? 0,
         ];
 
-        return view('doctor.inquiries.index', compact('inquiries', 'stats', 'status'));
+        return view('doctor.inquiries.index', compact('inquiries', 'stats', 'status', 'subjects'));
     }
 
     /**
@@ -62,7 +66,7 @@ class InquiryController extends Controller
         $subjectIds = Subject::where('doctor_id', $user->id)->pluck('id');
 
         $inquiry = Inquiry::whereIn('subject_id', $subjectIds)
-            ->with(['student', 'subject'])
+            ->with(['student', 'subject', 'answeredBy'])
             ->findOrFail($id);
 
         return view('doctor.inquiries.show', compact('inquiry'));
@@ -91,5 +95,32 @@ class InquiryController extends Controller
 
         return redirect()->route('doctor.inquiries.index')
             ->with('success', 'تم الرد على الاستفسار بنجاح');
+    }
+
+    /**
+     * Update inquiry settings for one subject.
+     */
+    public function updateSettings(Request $request, Subject $subject)
+    {
+        $user = Auth::user();
+
+        abort_unless($subject->doctor_id === $user->id, 403);
+
+        $validated = $request->validate([
+            'inquiries_enabled' => ['required', 'boolean'],
+            'inquiries_closed_reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $enabled = filter_var($validated['inquiries_enabled'], FILTER_VALIDATE_BOOLEAN);
+        $reason = trim((string) ($validated['inquiries_closed_reason'] ?? ''));
+
+        $subject->update([
+            'inquiries_enabled' => $enabled,
+            'inquiries_closed_reason' => $enabled ? null : ($reason !== '' ? $reason : $subject->inquiries_closed_reason),
+        ]);
+
+        return back()->with('success', $enabled
+            ? 'تم فتح الاستفسارات لهذه المادة.'
+            : 'تم إغلاق الاستفسارات لهذه المادة.');
     }
 }

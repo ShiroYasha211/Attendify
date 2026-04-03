@@ -22,7 +22,7 @@ class InquiryController extends Controller
             $q->where('major_id', $user->major_id)
                 ->where('level_id', $user->level_id);
         })
-            ->with(['student', 'subject'])
+            ->with(['student', 'subject', 'answeredBy', 'delegate'])
             ->latest();
 
         if ($status) {
@@ -60,7 +60,7 @@ class InquiryController extends Controller
             $q->where('major_id', $user->major_id)
                 ->where('level_id', $user->level_id);
         })
-            ->with(['student', 'subject'])
+            ->with(['student', 'subject', 'answeredBy', 'delegate'])
             ->findOrFail($id);
 
         return view('delegate.inquiries.show', compact('inquiry'));
@@ -106,6 +106,7 @@ class InquiryController extends Controller
             'answer' => $request->answer,
             'status' => 'answered',
             'delegate_id' => $user->id,
+            'answered_by' => $user->id,
             'answered_at' => now(),
         ]);
 

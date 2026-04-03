@@ -1,12 +1,21 @@
 @php
-    $layout = 'layouts.student';
-    if (auth()->user()->role === \App\Enums\UserRole::DOCTOR) {
-        $layout = 'layouts.doctor';
-    } elseif (in_array(auth()->user()->role, [\App\Enums\UserRole::DELEGATE, \App\Enums\UserRole::PRACTICAL_DELEGATE])) {
-        $layout = 'layouts.delegate';
-    } elseif (auth()->user()->role === \App\Enums\UserRole::ADMINISTRATIVE) {
-        $layout = 'layouts.administrative';
-    }
+    $routeName = request()->route()?->getName() ?? '';
+    $workspace = str_starts_with($routeName, 'administrative.')
+        ? 'administrative'
+        : (str_starts_with($routeName, 'doctor.')
+            ? 'doctor'
+            : (str_starts_with($routeName, 'delegate.')
+                ? 'delegate'
+                : 'student'));
+
+    $layout = match ($workspace) {
+        'doctor' => 'layouts.doctor',
+        'delegate' => 'layouts.delegate',
+        'administrative' => 'layouts.administrative',
+        default => 'layouts.student',
+    };
+
+    $ledgerRoutePrefix = $workspace === 'administrative' ? 'administrative' : $workspace;
 @endphp
 
 @extends($layout)
@@ -15,7 +24,7 @@
 <div class="container-fluid" style="padding: 2rem; direction: rtl; text-align: right;">
     <!-- PDF Download Button - Forced physically to the left -->
     <div style="display: flex; justify-content: flex-start; margin-bottom: 2rem;">
-        <a href="{{ route(auth()->user()->role->value . '.ledger.export') }}" class="btn" style="background: var(--primary-color); border: none; color: white; font-weight: 700; border-radius: 12px; display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.8rem 1.75rem; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);">
+        <a href="{{ route($ledgerRoutePrefix . '.ledger.export') }}" class="btn" style="background: var(--primary-color); border: none; color: white; font-weight: 700; border-radius: 12px; display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.8rem 1.75rem; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
@@ -45,7 +54,7 @@
                     <h2 style="font-size: 3rem; font-weight: 900; margin-top: 5px; margin-bottom: 0;">{{ number_format($user->balance, 2) }} <span style="font-size: 1.25rem;">ريال</span></h2>
                 </div>
                 <div class="col-md-6 text-md-start text-center">
-                    <a href="{{ route(auth()->user()->role->value . '.subscription.index') }}" class="btn" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 12px; font-weight: 700; padding: 0.75rem 1.5rem; backdrop-filter: blur(5px);">
+                    <a href="{{ route($ledgerRoutePrefix . '.subscription.index') }}" class="btn" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 12px; font-weight: 700; padding: 0.75rem 1.5rem; backdrop-filter: blur(5px);">
                         إدارة الاشتراكات والرصيد
                     </a>
                 </div>

@@ -3,25 +3,19 @@
 namespace App\Http\Controllers\Doctor\Clinical;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-
 use App\Models\Clinical\StudentDailyLog;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class LogbookScannerController extends Controller
 {
-    /**
-     * Show QR scanner page.
-     */
     public function scanner()
     {
         return view('doctor.clinical.scanner');
     }
 
-    /**
-     * Process scanned QR token (AJAX).
-     */
     public function processQr(Request $request)
     {
         $request->validate(['qr_token' => 'required|string']);
@@ -31,7 +25,8 @@ class LogbookScannerController extends Controller
             'trainingCenter',
             'department',
             'doctor',
-            'activities.bodySystem'
+            'activities.bodySystem',
+            'activities.confirmedBy',
         ])->where('qr_token', $request->qr_token)->first();
 
         if (!$log) {
@@ -39,85 +34,116 @@ class LogbookScannerController extends Controller
         }
 
         if ($log->status === 'confirmed') {
-            return response()->json(['success' => false, 'message' => 'هذا السجل مؤكد بالفعل.']);
+            return response()->json(['success' => false, 'message' => 'هذا السجل معتمد بالكامل بالفعل.']);
         }
 
-        if ($log->isExpired()) {
-            return response()->json(['success' => false, 'message' => 'انتهت صلاحية رمز QR (30 دقيقة).']);
+        if ($log->status === 'rejected') {
+            return response()->json(['success' => false, 'message' => 'هذا السجل مرفوض ولا يمكن اعتماده من هذه الشاشة.']);
         }
 
-        // Separate activities
-        $histories = $log->activities->where('activity_type', 'history_taking');
-        $exams = $log->activities->where('activity_type', 'clinical_examination');
-        $rounds = $log->activities->where('activity_type', 'round');
+        if ($log->status === 'pending' && $log->isExpired()) {
+            return response()->json(['success' => false, 'message' => 'انتهت صلاحية رمز QR لهذا السجل.']);
+        }
 
         return response()->json([
             'success' => true,
             'log_id' => $log->id,
-            'data' => [
-                'student_name' => $log->student->name ?? '-',
-                'student_number' => $log->student->student_number ?? '-',
-                'training_center' => $log->trainingCenter->name ?? '-',
-                'department' => $log->department->name ?? '-',
-                'doctor_name' => $log->doctor->name ?? '-',
-                'log_date' => $log->log_date->format('Y-m-d'),
-                'log_time' => $log->log_time,
-                'history_count' => $log->history_count,
-                'exam_count' => $log->exam_count,
-                'did_round' => $log->did_round,
-                'round_notes' => $log->round_notes,
-                'histories' => $histories->map(fn($h) => [
-                    'body_system' => $h->bodySystem->name ?? '-',
-                ])->values(),
-                'exams' => $exams->map(fn($e) => [
-                    'body_system' => $e->bodySystem->name ?? '-',
-                ])->values(),
-                'rounds' => $rounds->map(fn($r) => [
-                    'case_name' => $r->case_name,
-                ])->values(),
-            ],
+            'data' => $this->serializeLog($log),
         ]);
     }
 
-    /**
-     * Confirm or reject a daily log (AJAX) — this is the "4 signatures" action.
-     */
     public function confirm(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'log_id' => 'required|exists:student_daily_logs,id',
             'action' => 'required|in:confirm,reject',
             'doctor_notes' => 'nullable|string|max:1000',
+            'confirmations' => 'nullable|array',
+            'confirmations.history.confirm' => 'nullable|boolean',
+            'confirmations.history.diagnosis' => 'nullable|string|max:1000',
+            'confirmations.exam.confirm' => 'nullable|boolean',
+            'confirmations.exam.diagnosis' => 'nullable|string|max:1000',
+            'confirmations.round.confirm' => 'nullable|boolean',
+            'confirmations.round.diagnosis' => 'nullable|string|max:1000',
         ]);
 
-        $log = StudentDailyLog::findOrFail($request->log_id);
+        $log = StudentDailyLog::with('activities')->findOrFail($validated['log_id']);
 
-        if ($log->status !== 'pending') {
-            return response()->json(['success' => false, 'message' => 'هذا السجل تمت معالجته بالفعل.']);
+        if (!in_array($log->status, ['pending', 'partially_confirmed'], true)) {
+            return response()->json(['success' => false, 'message' => 'تمت معالجة هذا السجل مسبقًا.']);
         }
 
-        if ($request->action === 'confirm') {
-            $log->update([
-                'status' => 'confirmed',
-                'confirmed_by' => Auth::id(),
-                'confirmed_at' => now(),
-                'doctor_notes' => $request->doctor_notes,
+        if ($validated['action'] === 'reject') {
+            $log->activities()->update([
+                'is_confirmed' => false,
+                'diagnosis' => null,
+                'confirmed_by' => null,
+                'confirmed_at' => null,
             ]);
-            return response()->json(['success' => true, 'message' => 'تم تأكيد السجل بنجاح ✅ (حضور + قصص + فحوصات + مرور)']);
-        } else {
+
             $log->update([
                 'status' => 'rejected',
                 'confirmed_by' => Auth::id(),
                 'confirmed_at' => now(),
-                'doctor_notes' => $request->doctor_notes,
+                'doctor_notes' => $validated['doctor_notes'] ?? null,
             ]);
-            return response()->json(['success' => true, 'message' => 'تم رفض السجل ❌']);
+
+            return response()->json(['success' => true, 'message' => 'تم رفض السجل السريري.']);
         }
+
+        $groups = $log->groupedActivities();
+        $confirmations = $validated['confirmations'] ?? [];
+        $selectedAny = false;
+
+        DB::transaction(function () use ($log, $groups, $confirmations, &$selectedAny, $validated) {
+            foreach ($groups as $key => $group) {
+                $selection = (bool) data_get($confirmations, $key . '.confirm', false);
+                if (!$selection) {
+                    continue;
+                }
+
+                $selectedAny = true;
+                $diagnosis = trim((string) data_get($confirmations, $key . '.diagnosis', ''));
+
+                $log->activities()
+                    ->where('activity_type', $group['activity_type'])
+                    ->update([
+                        'is_confirmed' => true,
+                        'diagnosis' => $diagnosis !== '' ? $diagnosis : null,
+                        'confirmed_by' => Auth::id(),
+                        'confirmed_at' => now(),
+                    ]);
+            }
+
+            if (!$selectedAny) {
+                return;
+            }
+
+            $log->refresh();
+            $log->syncApprovalStatus();
+            $log->update([
+                'confirmed_by' => Auth::id(),
+                'confirmed_at' => now(),
+                'doctor_notes' => $validated['doctor_notes'] ?? null,
+            ]);
+        });
+
+        if (!$selectedAny) {
+            return response()->json(['success' => false, 'message' => 'اختر قسمًا واحدًا على الأقل لاعتماده.']);
+        }
+
+        $log->refresh();
+        $message = $log->status === 'confirmed'
+            ? 'تم اعتماد جميع عناصر السجل.'
+            : 'تم اعتماد جزء من عناصر السجل، وما زال المتبقي بانتظار المراجعة.';
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'status' => $log->status,
+        ]);
     }
 
-    /**
-     * Manual attendance — doctor marks student as present without QR.
-     */
     public function manualAttendance()
     {
         $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
@@ -146,9 +172,6 @@ class LogbookScannerController extends Controller
         return view('doctor.clinical.manual_attendance', compact('students', 'trainingCenters', 'departments'));
     }
 
-    /**
-     * Store manual attendance.
-     */
     public function storeManualAttendance(Request $request)
     {
         $request->validate([
@@ -158,7 +181,7 @@ class LogbookScannerController extends Controller
             'doctor_notes' => 'nullable|string|max:1000',
         ]);
 
-        $log = StudentDailyLog::create([
+        StudentDailyLog::create([
             'student_id' => $request->student_id,
             'training_center_id' => $request->training_center_id,
             'department_id' => $request->department_id,
@@ -167,20 +190,24 @@ class LogbookScannerController extends Controller
             'status' => 'confirmed',
             'confirmed_by' => Auth::id(),
             'confirmed_at' => now(),
-            'doctor_notes' => $request->doctor_notes ?? 'تحضير يدوي',
+            'doctor_notes' => $request->doctor_notes ?: 'تحضير يدوي',
             'log_date' => now()->toDateString(),
             'log_time' => now()->toTimeString(),
         ]);
 
-        return redirect()->back()->with('success', 'تم تسجيل حضور الطالب يدوياً ✅');
+        return redirect()->back()->with('success', 'تم تسجيل حضور الطالب يدويًا.');
     }
 
-    /**
-     * View all daily log records.
-     */
     public function records(Request $request)
     {
-        $query = StudentDailyLog::with(['student', 'trainingCenter', 'department', 'confirmedBy']);
+        $query = StudentDailyLog::with([
+            'student',
+            'trainingCenter',
+            'department',
+            'confirmedBy',
+            'activities.bodySystem',
+            'activities.confirmedBy',
+        ]);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -192,5 +219,45 @@ class LogbookScannerController extends Controller
         $logs = $query->latest()->paginate(20)->withQueryString();
 
         return view('doctor.clinical.logbook_records', compact('logs'));
+    }
+
+    protected function serializeLog(StudentDailyLog $log): array
+    {
+        $groups = [];
+        foreach ($log->groupedActivities() as $key => $group) {
+            $items = $group['items'];
+            $groups[] = [
+                'key' => $key,
+                'label' => $group['label'],
+                'count' => $items->count(),
+                'confirmed' => $items->every(fn ($item) => (bool) $item->is_confirmed),
+                'diagnosis' => $items->pluck('diagnosis')->filter()->first(),
+                'items' => $items->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'label' => $item->activity_type === 'round'
+                            ? ($item->case_name ?: 'Round case')
+                            : ($item->bodySystem->name ?? '-'),
+                        'is_confirmed' => (bool) $item->is_confirmed,
+                        'diagnosis' => $item->diagnosis,
+                        'confirmed_at' => optional($item->confirmed_at)?->format('Y-m-d H:i'),
+                    ];
+                })->values(),
+            ];
+        }
+
+        return [
+            'student_name' => $log->student->name ?? '-',
+            'student_number' => $log->student->student_number ?? '-',
+            'training_center' => $log->trainingCenter->name ?? '-',
+            'department' => $log->department->name ?? '-',
+            'doctor_name' => $log->doctor->name ?? '-',
+            'log_date' => $log->log_date->format('Y-m-d'),
+            'log_time' => $log->log_time,
+            'status' => $log->status,
+            'status_label' => $log->status_label,
+            'doctor_notes' => $log->doctor_notes,
+            'groups' => $groups,
+        ];
     }
 }

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Attendance;
 use App\Models\Academic\Lecture;
 use App\Enums\UserRole;
+use App\Support\ExcuseWorkflow;
 
 class AttendanceController extends Controller
 {
@@ -28,10 +29,10 @@ class AttendanceController extends Controller
         $subjectIds = $subjects->pluck('id');
 
         // Get attendance sessions for the Reports tab (grouped by lecture)
-        $sessions = Attendance::selectRaw('subject_id, date, lecture_id, count(*) as total_records')
+        $sessions = Attendance::selectRaw('subject_id, date, lecture_id, recorded_by, attendance_method, count(*) as total_records')
             ->whereIn('subject_id', $subjectIds)
-            ->groupBy('subject_id', 'date', 'lecture_id')
-            ->with(['subject'])
+            ->groupBy('subject_id', 'date', 'lecture_id', 'recorded_by', 'attendance_method')
+            ->with(['subject', 'lecture', 'recorder'])
             ->latest('date')
             ->paginate(10);
 
@@ -51,6 +52,9 @@ class AttendanceController extends Controller
         }
 
         $date = $request->input('date') ?? date('Y-m-d');
+        $genderFilter = in_array($request->input('gender_filter'), ['male', 'female'], true)
+            ? $request->input('gender_filter')
+            : 'all';
         $qrSessionId = $request->input('qr_session_id');
 
         // Fetch Students in the same scope
@@ -101,13 +105,14 @@ class AttendanceController extends Controller
                 $prefill['title'] = $prefill['title'] ?? $lecture->title;
                 $prefill['lecture_number'] = $prefill['lecture_number'] ?? $lecture->lecture_number;
                 $prefill['description'] = $lecture->description;
+                $prefill['lecture_type'] = $lecture->lecture_type;
                 $prefill['start_time'] = $lecture->start_time ? \Carbon\Carbon::parse($lecture->start_time)->format('H:i') : null;
                 $prefill['end_time'] = $lecture->end_time ? \Carbon\Carbon::parse($lecture->end_time)->format('H:i') : null;
                 $prefill['date'] = $date;
             }
         }
 
-        return view('doctor.attendance.create', compact('subject', 'students', 'attendanceRecords', 'prefill'));
+        return view('doctor.attendance.create', compact('subject', 'students', 'attendanceRecords', 'prefill', 'genderFilter'));
     }
 
     /**
@@ -126,12 +131,14 @@ class AttendanceController extends Controller
         $validated = $request->validate([
             'date' => 'required|date',
             'title' => 'required|string|max:255',
+            'lecture_type' => 'nullable|in:official,special',
             'lecture_number' => 'nullable|string|max:50',
             'description' => 'nullable|string|max:2000',
             'start_time' => 'nullable',
             'end_time' => 'nullable',
+            'gender_filter' => 'nullable|in:all,male,female',
             'attendance' => 'required|array',
-            'attendance.*' => 'required|in:present,absent,late,excused',
+            'attendance.*' => 'required|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
         ]);
 
         // Determine attendance method (QR session review = qr, otherwise manual)
@@ -143,6 +150,7 @@ class AttendanceController extends Controller
             'subject_id' => $subject->id,
             'date' => $validated['date'],
             'title' => $validated['title'],
+            'lecture_type' => $validated['lecture_type'] ?? 'official',
         ];
         if (!empty($validated['lecture_number'])) {
             $lectureKey['lecture_number'] = $validated['lecture_number'];
@@ -152,6 +160,7 @@ class AttendanceController extends Controller
             $lectureKey,
             [
                 'title' => $validated['title'],
+                'lecture_type' => $validated['lecture_type'] ?? 'official',
                 'lecture_number' => $validated['lecture_number'],
                 'description' => $validated['description'] ?? null,
                 'start_time' => $validated['start_time'] ?? null,
@@ -198,7 +207,7 @@ class AttendanceController extends Controller
     /**
      * Show attendance report for a specific subject and date.
      */
-    public function showReport($subjectId, $date)
+    public function showReport(Request $request, $subjectId, $date)
     {
         $doctor = Auth::user();
 
@@ -206,18 +215,40 @@ class AttendanceController extends Controller
             ->where('doctor_id', $doctor->id)
             ->firstOrFail();
 
+        $genderFilter = in_array($request->input('gender_filter'), ['male', 'female'], true)
+            ? $request->input('gender_filter')
+            : 'all';
+
         $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
+            ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
             ->orderBy('name')
             ->get();
 
-        $attendanceRecords = Attendance::where('subject_id', $subject->id)
-            ->where('date', $date)
-            ->get()
-            ->keyBy('student_id');
+        $lecture = null;
+        if ($request->filled('lecture_id')) {
+            $lecture = Lecture::where('id', $request->input('lecture_id'))
+                ->where('subject_id', $subject->id)
+                ->first();
+        }
+        if (!$lecture) {
+            $lecture = Lecture::where('subject_id', $subject->id)
+                ->where('date', $date)
+                ->latest()
+                ->first();
+        }
 
-        return view('doctor.attendance.report', compact('subject', 'students', 'attendanceRecords', 'date'));
+        $attendanceQuery = Attendance::where('subject_id', $subject->id)
+            ->where('date', $date)
+            ->with('recorder');
+        if ($lecture) {
+            $attendanceQuery->where('lecture_id', $lecture->id);
+        }
+
+        $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
+
+        return view('doctor.attendance.report-clean', compact('subject', 'students', 'attendanceRecords', 'date', 'genderFilter', 'lecture'));
     }
 
     /**

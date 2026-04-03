@@ -7,6 +7,13 @@ use App\Models\Academic\Subject;
 
 class Attendance extends Model
 {
+    public const STATUS_PRESENT = 'present';
+    public const STATUS_ABSENT = 'absent';
+    public const STATUS_LATE = 'late';
+    public const STATUS_EXCUSED = 'excused';
+    public const STATUS_PERMITTED = 'permitted';
+    public const STATUS_EXEMPTED = 'exempted';
+
     protected $fillable = [
         'student_id',
         'subject_id',

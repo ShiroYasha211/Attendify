@@ -23,7 +23,7 @@ class InquiryController extends DelegateApiController
             ->pluck('id');
 
         $query = Inquiry::whereIn('subject_id', $subjectIds)
-            ->with(['student:id,name', 'subject:id,name'])
+            ->with(['student:id,name', 'subject:id,name', 'answeredBy:id,name,role', 'delegate:id,name,role'])
             ->orderBy('created_at', 'desc');
 
         if ($request->has('status')) {
@@ -54,7 +54,7 @@ class InquiryController extends DelegateApiController
     {
         $delegate = $request->user();
 
-        $inquiry = Inquiry::with(['student:id,name', 'subject:id,name'])->find($id);
+        $inquiry = Inquiry::with(['student:id,name', 'subject:id,name', 'answeredBy:id,name,role', 'delegate:id,name,role'])->find($id);
 
         if (!$inquiry) {
             return $this->error('الاستفسار غير موجود', 404);
@@ -143,9 +143,10 @@ class InquiryController extends DelegateApiController
         }
 
         $inquiry->update([
-            'reply' => $request->reply,
+            'answer' => $request->reply,
             'status' => 'answered',
             'delegate_id' => $delegate->id,
+            'answered_by' => $delegate->id,
             'answered_at' => now(),
         ]);
 

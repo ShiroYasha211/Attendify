@@ -1,6 +1,6 @@
-@extends('layouts.delegate')
+﻿@extends('layouts.delegate')
 
-@section('title', 'رصد الحضور')
+@section('title', ($isUnofficial ?? false) ? 'رصد محاضرة غير رسمية' : 'رصد الحضور')
 
 @section('content')
 
@@ -8,24 +8,31 @@
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
-            <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">رصد الحضور</h1>
+            <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+                {{ ($isUnofficial ?? false) ? 'رصد محاضرة غير رسمية' : 'رصد الحضور' }}
+            </h1>
             <p style="color: var(--text-secondary);">
-                المادة: <span style="font-weight: 700; color: var(--primary-color);">{{ $subject->name }}</span> ({{ $subject->code }})
+                @if(($isUnofficial ?? false))
+                    الجلسة: <span style="font-weight: 700; color: var(--primary-color);">محاضرة مستقلة غير مرتبطة بمادة</span>
+                @else
+                    المادة: <span style="font-weight: 700; color: var(--primary-color);">{{ $subject->name }}</span> ({{ $subject->code }})
+                @endif
             </p>
         </div>
-        <a href="{{ route('delegate.subjects.index') }}" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.5rem;">
+        <a href="{{ route('delegate.attendance.index') }}" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.5rem;">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-            عودة للمواد
+            عودة للحضور
         </a>
     </div>
 
-    <form id="attendance-form" action="{{ route('delegate.attendance.store', $subject->id) }}" method="POST">
+    <form id="attendance-form" action="{{ $formAction }}" method="POST">
         @csrf
+        <input type="hidden" name="gender_filter" value="{{ $genderFilter ?? 'all' }}">
 
-        @if(!empty($prefill['from_qr']))
+        @if(!($isUnofficial ?? false) && !empty($prefill['from_qr']))
         <input type="hidden" name="qr_session_id" value="{{ request('qr_session_id') }}">
         @endif
 
@@ -51,6 +58,19 @@
                     <input type="text" name="lecture_number" id="lecture_number" value="{{ $prefill['lecture_number'] ?? old('lecture_number') }}" placeholder="مثال: 1، 2..." class="form-control" style="width: 100%;">
                 </div>
 
+                <div style="flex: 0 0 180px;">
+                    <label for="lecture_type" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">نوع المحاضرة:</label>
+                    @if(($isUnofficial ?? false))
+                        <input type="hidden" name="lecture_type" id="lecture_type" value="special">
+                        <input type="text" class="form-control" value="محاضرة غير رسمية مستقلة" readonly style="width: 100%; background: #fff7ed; color: #c2410c; font-weight: 700;">
+                    @else
+                        <select name="lecture_type" id="lecture_type" class="form-control" style="width: 100%;">
+                            <option value="official" {{ ($prefill['lecture_type'] ?? old('lecture_type', 'official')) === 'official' ? 'selected' : '' }}>محاضرة رسمية</option>
+                            <option value="special" {{ ($prefill['lecture_type'] ?? old('lecture_type')) === 'special' ? 'selected' : '' }}>محاضرة خاصة سريعة</option>
+                        </select>
+                    @endif
+                </div>
+
                 <!-- Start Time Input (Optional) -->
                 <div style="flex: 0 0 150px;">
                     <label for="start_time" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">وقت البداية: <span style="color: var(--text-secondary); font-size: 0.8rem;">(اختياري)</span></label>
@@ -66,6 +86,22 @@
             </div>
         </div>
 
+        <div class="card" style="margin-bottom: 1.5rem; background: #f8fafc; border: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: end; flex-wrap: wrap;">
+                <div style="flex: 0 0 240px;">
+                    <label for="gender_filter" style="font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 0.5rem;">فرز التحضير</label>
+                    <select id="gender_filter" class="form-control" onchange="updateAttendanceFilter(this.value)">
+                        <option value="all" {{ ($genderFilter ?? 'all') === 'all' ? 'selected' : '' }}>الكل</option>
+                        <option value="male" {{ ($genderFilter ?? 'all') === 'male' ? 'selected' : '' }}>الأولاد فقط</option>
+                        <option value="female" {{ ($genderFilter ?? 'all') === 'female' ? 'selected' : '' }}>البنات فقط</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 260px; color: var(--text-secondary); font-size: 0.9rem;">
+                    يمكنك تحضير مجموعة واحدة الآن ثم إكمال المجموعة الأخرى لاحقًا، وسيتم دمج السجلات لنفس المحاضرة.
+                </div>
+            </div>
+        </div>
+
         <!-- Student List Card -->
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
@@ -76,14 +112,16 @@
 
                 <!-- Bulk Selection Buttons -->
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <button type="button" @click="openQrModal()" class="btn btn-sm" style="background: #6366f1; color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                        </svg>
-                        تحضير بـ QR
-                    </button>
+                    @unless($isUnofficial ?? false)
+                        <button type="button" @click="openQrModal()" class="btn btn-sm" style="background: #6366f1; color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                            </svg>
+                            تحضير بـ QR
+                        </button>
+                    @endunless
                     <button type="button" onclick="selectAll('present')" class="btn btn-sm" style="background: var(--success-color); color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="20 6 9 17 4 12"></polyline>
@@ -119,6 +157,7 @@
                         <tr style="background-color: #f8fafc; text-align: right;">
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); width: 60px;">#</th>
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color);">الطالب</th>
+                            <th style="padding: 1rem; border-bottom: 1px solid var(--border-color);">الجنس</th>
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">حاضر</th>
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">غائب</th>
                             <th style="padding: 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">تأخر</th>
@@ -144,6 +183,11 @@
                                     @endif
                                 </div>
                                 <div style="font-family: monospace; font-size: 0.8rem; color: var(--text-secondary);">{{ $student->student_number }}</div>
+                            </td>
+                            <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9;">
+                                <span style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.7rem; border-radius: 999px; background: {{ $student->gender === 'female' ? '#fdf2f8' : '#eff6ff' }}; color: {{ $student->gender === 'female' ? '#db2777' : '#2563eb' }}; font-size: 0.78rem; font-weight: 700;">
+                                    {{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}
+                                </span>
                             </td>
 
                             <!-- Radio Buttons -->
@@ -203,6 +247,7 @@
     </form>
 
     <!-- QR Code Modal (Integrated into Create Page) -->
+    @unless($isUnofficial ?? false)
     <div x-show="showQrModal" style="display: none;"
         class="qr-modal-overlay"
         x-transition.opacity>
@@ -265,6 +310,7 @@
             </div>
         </div>
     </div>
+    @endunless
 
 </div>
 
@@ -389,6 +435,7 @@
             timerWidth: 100,
             scannedCount: 0,
             totalStudents: {{ $students->count() }},
+            subjectId: @json($subject?->id),
             tokenInterval: null,
             statusInterval: null,
             animationInterval: null,
@@ -421,10 +468,11 @@
 
             async startQrSession() {
                 const formData = {
-                    subject_id: '{{ $subject->id }}',
+                    subject_id: this.subjectId,
                     date: document.getElementById('date').value,
                     title: document.getElementById('title').value,
                     lecture_number: document.getElementById('lecture_number').value || null,
+                    lecture_type: document.getElementById('lecture_type').value || 'official',
                 };
 
                 try {
@@ -615,6 +663,12 @@
         showToast(messages[status]);
     }
 
+    function updateAttendanceFilter(value) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('gender_filter', value);
+        window.location.href = url.toString();
+    }
+
     function showToast(message) {
         // Create toast element if not exists
         let toast = document.getElementById('bulk-toast');
@@ -645,6 +699,7 @@
         const date = dateInput.value;
         if (!date) return;
 
+        @if(!($isUnofficial ?? false))
         fetch(`{{ route('delegate.attendance.check', $subject->id) }}?date=${date}`)
             .then(response => response.json())
             .then(data => {
@@ -659,14 +714,16 @@
                 }
             })
             .catch(error => console.error('Error checking attendance:', error));
+        @endif
     }
 
+    @if(!($isUnofficial ?? false))
     dateInput.addEventListener('change', checkAttendance);
 
-    // Check on load if date is present
     if (dateInput.value) {
         checkAttendance();
     }
+    @endif
 
     function confirmOverwrite() {
         modal.style.display = 'none';

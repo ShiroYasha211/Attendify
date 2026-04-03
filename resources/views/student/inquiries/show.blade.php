@@ -111,6 +111,19 @@
         white-space: pre-wrap;
     }
 
+    .responder-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(16, 185, 129, 0.12);
+        color: #065f46;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
     .waiting-section {
         padding: 2rem;
         text-align: center;
@@ -170,18 +183,32 @@
         <div class="question-text">{{ $inquiry->question }}</div>
     </div>
 
-    @if($inquiry->answer)
+        @if($inquiry->answer)
     <div class="answer-section">
         <div class="section-label">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            رد الدكتور
+            &#1575;&#1604;&#1585;&#1583;
             @if($inquiry->answered_at)
             <span style="font-weight: 400; font-size: 0.7rem;">({{ $inquiry->answered_at->diffForHumans() }})</span>
             @endif
         </div>
         <div class="answer-text">{{ $inquiry->answer }}</div>
+        @php
+            $responder = $inquiry->answeredBy ?? $inquiry->delegate;
+            $responderRole = $responder?->role;
+            $responderRoleLabel = is_object($responderRole) && isset($responderRole->value) ? $responderRole->value : $responderRole;
+        @endphp
+        @if($responder)
+            <div class="responder-meta">
+                <i class="fa-solid fa-user-check"></i>
+                <span>&#1585;&#1583; &#1576;&#1608;&#1575;&#1587;&#1591;&#1577;: {{ $responder->name }}</span>
+                @if($responderRoleLabel)
+                    <span>({{ $responderRoleLabel }})</span>
+                @endif
+            </div>
+        @endif
     </div>
     @elseif($inquiry->status != 'closed')
     <div class="waiting-section">

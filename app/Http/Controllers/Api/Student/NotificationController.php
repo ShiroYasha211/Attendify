@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Api\Student;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\StudentNotification;
-use Illuminate\Support\Facades\Auth;
-
 use App\Models\PollOption;
 use App\Models\PollVote;
+use App\Models\StudentNotification;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends StudentApiController
 {
@@ -18,35 +16,42 @@ class NotificationController extends StudentApiController
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         $notifications = StudentNotification::where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
+            ->orderByDesc('created_at')
             ->paginate(20);
 
-        // Transform to include poll data if any
         $notifications->getCollection()->transform(function ($notification) use ($user) {
             if ($notification->type === 'poll') {
                 $options = PollOption::where('batch_id', $notification->batch_id)->get();
                 $votedOption = PollVote::where('batch_id', $notification->batch_id)
                     ->where('student_id', $user->id)
                     ->first();
-                
+
                 $notification->poll_data = [
-                    'options' => $options->map(function ($opt) {
+                    'options' => $options->map(function ($option) {
                         return [
-                            'id' => $opt->id,
-                            'text' => $opt->option_text,
-                            'votes_count' => PollVote::where('poll_option_id', $opt->id)->count(),
+                            'id' => $option->id,
+                            'text' => $option->option_text,
+                            'votes_count' => PollVote::where('poll_option_id', $option->id)->count(),
                         ];
                     }),
-                    'has_voted' => $votedOption ? true : false,
-                    'voted_option_id' => $votedOption ? $votedOption->poll_option_id : null,
+                    'has_voted' => (bool) $votedOption,
+                    'voted_option_id' => $votedOption?->poll_option_id,
                 ];
             }
+
             return $notification;
         });
 
-        return $this->paginated($notifications, 'تم جلب الإشعارات بنجاح');
+        return $this->success([
+            'module' => [
+                'name' => 'student_notifications_feed',
+                'purpose' => 'Personal notification feed for the student including polls, unread state, and targeted alerts.',
+                'how_to_use' => 'Use this endpoint for inbox-style notifications. For the unified public stream, prefer news-hub.',
+            ],
+            'notifications' => $notifications,
+        ], 'تم جلب الإشعارات بنجاح');
     }
 
     /**
@@ -59,7 +64,7 @@ class NotificationController extends StudentApiController
             ->findOrFail($notificationId);
 
         if ($notification->type !== 'poll') {
-            return $this->error('هذا الإشعار ليس استفتاءً', 400);
+            return $this->error('هذا الإشعار ليس استطلاعًا.', 400);
         }
 
         $request->validate([
@@ -68,16 +73,15 @@ class NotificationController extends StudentApiController
 
         $option = PollOption::findOrFail($request->poll_option_id);
         if ($option->batch_id !== $notification->batch_id) {
-            return $this->error('خيار التصويت غير صالح لهذا الاستفتاء', 400);
+            return $this->error('خيار التصويت غير صالح لهذا الاستطلاع.', 400);
         }
 
-        // Check if already voted
         $existingVote = PollVote::where('batch_id', $notification->batch_id)
             ->where('student_id', $user->id)
             ->first();
 
         if ($existingVote) {
-            return $this->error('لقد قمت بالتصويت مسبقاً في هذا الاستفتاء', 400);
+            return $this->error('لقد قمت بالتصويت مسبقًا في هذا الاستطلاع.', 400);
         }
 
         PollVote::create([
@@ -86,7 +90,6 @@ class NotificationController extends StudentApiController
             'student_id' => $user->id,
         ]);
 
-        // Mark as read automatically when voting
         $notification->markAsRead();
 
         return $this->success(null, 'تم تسجيل تصويتك بنجاح');
@@ -126,6 +129,12 @@ class NotificationController extends StudentApiController
             ->whereNull('read_at')
             ->count();
 
-        return $this->success(['unread_count' => $count], 'تم جلب عدد الإشعارات غير المقروءة');
+        return $this->success([
+            'module' => [
+                'name' => 'student_notifications_unread_count',
+                'purpose' => 'Returns the unread count for the personal student notification inbox.',
+            ],
+            'unread_count' => $count,
+        ], 'تم جلب عدد الإشعارات غير المقروءة');
     }
 }

@@ -29,10 +29,43 @@
 @endif
 
 <!-- Filters -->
-<div class="card" style="padding: 1rem; border-radius: 15px; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center;">
-    <a href="{{ route('admin.cards.index') }}" class="btn" style="padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-weight: 700; {{ !request('status') ? 'background: var(--primary-color); color: white;' : 'background: #f1f5f9; color: var(--text-secondary);' }}">الكل</a>
-    <a href="{{ route('admin.cards.index', ['status' => 'unused']) }}" class="btn" style="padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-weight: 700; {{ request('status') == 'unused' ? 'background: #10b981; color: white;' : 'background: #f1f5f9; color: var(--text-secondary);' }}">غير مستخدمة</a>
-    <a href="{{ route('admin.cards.index', ['status' => 'used']) }}" class="btn" style="padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-weight: 700; {{ request('status') == 'used' ? 'background: #64748b; color: white;' : 'background: #f1f5f9; color: var(--text-secondary);' }}">مستخدمة</a>
+<div class="card" style="padding: 1rem; border-radius: 15px; margin-bottom: 1.5rem;">
+    <form method="GET" action="{{ route('admin.cards.index') }}" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items:end;">
+        <div>
+            <label style="display:block; margin-bottom:0.35rem; font-weight:700;">الحالة</label>
+            <select name="status" class="form-control">
+                <option value="">الكل</option>
+                <option value="unused" @selected(request('status') === 'unused')>غير مستخدمة</option>
+                <option value="used" @selected(request('status') === 'used')>مستخدمة</option>
+            </select>
+        </div>
+        <div>
+            <label style="display:block; margin-bottom:0.35rem; font-weight:700;">منشئ الكرت</label>
+            <select name="generated_by_id" class="form-control">
+                <option value="">الكل</option>
+                @foreach($creators as $creator)
+                    <option value="{{ $creator->id }}" @selected((string) request('generated_by_id') === (string) $creator->id)>{{ $creator->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label style="display:block; margin-bottom:0.35rem; font-weight:700;">مستخدم الكرت</label>
+            <select name="used_by_id" class="form-control">
+                <option value="">الكل</option>
+                @foreach($redeemers as $redeemer)
+                    <option value="{{ $redeemer->id }}" @selected((string) request('used_by_id') === (string) $redeemer->id)>{{ $redeemer->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label style="display:block; margin-bottom:0.35rem; font-weight:700;">بحث بالكود</label>
+            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="CARD123">
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn" style="background: var(--primary-color); color: white; flex:1;">تطبيق</button>
+            <a href="{{ route('admin.cards.index') }}" class="btn" style="background:#f1f5f9; color:var(--text-secondary); flex:1; text-align:center;">إعادة</a>
+        </div>
+    </form>
 </div>
 
 <div class="card" style="padding: 0; border-radius: 20px; overflow: hidden; border: 1px solid #f1f5f9;">
@@ -42,6 +75,7 @@
                 <th style="padding: 1.25rem; font-weight: 800; color: var(--text-secondary); font-size: 0.85rem;">الكود (Code)</th>
                 <th style="padding: 1.25rem; font-weight: 800; color: var(--text-secondary); font-size: 0.85rem;">القيمة (Amount)</th>
                 <th style="padding: 1.25rem; font-weight: 800; color: var(--text-secondary); font-size: 0.85rem;">الحالة</th>
+                <th style="padding: 1.25rem; font-weight: 800; color: var(--text-secondary); font-size: 0.85rem;">منشئ الكرت</th>
                 <th style="padding: 1.25rem; font-weight: 800; color: var(--text-secondary); font-size: 0.85rem;">المستخدم</th>
                 <th style="padding: 1.25rem; font-weight: 800; color: var(--text-secondary); font-size: 0.85rem;">تاريخ الاستخدام</th>
                 <th style="padding: 1.25rem; font-weight: 800; color: var(--text-secondary); font-size: 0.85rem;">إجراءات</th>
@@ -60,7 +94,10 @@
                         </span>
                     </td>
                     <td style="padding: 1.25rem; color: var(--text-primary); font-weight: 600;">
-                        {{ $card->user->name ?? '-' }}
+                        {{ $card->generatedBy->name ?? 'النظام' }}
+                    </td>
+                    <td style="padding: 1.25rem; color: var(--text-primary); font-weight: 600;">
+                        {{ $card->usedBy->name ?? '-' }}
                     </td>
                     <td style="padding: 1.25rem; color: var(--text-secondary); font-size: 0.85rem;">
                         {{ $card->used_at ? $card->used_at->format('Y-m-d H:i') : '-' }}

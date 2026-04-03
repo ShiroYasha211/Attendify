@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\ActivityLog;
+use App\Models\Academic\Major;
+use App\Models\Academic\University;
 use Illuminate\Http\Request;
 use App\Enums\UserRole;
 
@@ -12,10 +14,18 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::latest();
+        $query = User::with(['university', 'college', 'major', 'level'])->latest();
 
         if ($request->has('role') && $request->role != 'all') {
             $query->where('role', $request->role);
+        }
+
+        if ($request->filled('university_id')) {
+            $query->where('university_id', $request->integer('university_id'));
+        }
+
+        if ($request->filled('major_id')) {
+            $query->where('major_id', $request->integer('major_id'));
         }
 
         if ($request->has('search') && $request->search != '') {
@@ -26,7 +36,10 @@ class UserController extends Controller
         }
 
         $users = $query->paginate(10);
-        return view('admin.users.index', compact('users'));
+        $universities = University::orderBy('name')->get(['id', 'name']);
+        $majors = Major::with('college')->orderBy('name')->get(['id', 'name', 'college_id']);
+
+        return view('admin.users.index', compact('users', 'universities', 'majors'));
     }
 
     public function updateStatus(Request $request, User $user)
@@ -88,6 +101,14 @@ class UserController extends Controller
             $query->where('role', $request->role);
         }
 
+        if ($request->filled('university_id')) {
+            $query->where('university_id', $request->integer('university_id'));
+        }
+
+        if ($request->filled('major_id')) {
+            $query->where('major_id', $request->integer('major_id'));
+        }
+
         $users = $query->get();
 
         // Build CSV content
@@ -102,8 +123,10 @@ class UserController extends Controller
             $roleLabel = match ($user->role) {
                 UserRole::ADMIN => 'مدير',
                 UserRole::DOCTOR => 'دكتور',
-                UserRole::DELEGATE => 'مندوب',
+                UserRole::DELEGATE => 'مندوب دفعة',
+                UserRole::PRACTICAL_DELEGATE => 'مندوب عملي',
                 UserRole::STUDENT => 'طالب',
+                UserRole::ADMINISTRATIVE => 'مسؤول إداري',
                 default => '-'
             };
 

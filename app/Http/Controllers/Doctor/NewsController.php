@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StudentNotification;
 use App\Models\PollOption;
 use App\Models\PollVote;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,10 +15,30 @@ class NewsController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $news = StudentNotification::where('user_id', $user->id)
-            ->whereIn('type', ['announcement', 'exam', 'assignment', 'poll'])
+        $newsItems = StudentNotification::with('sender:id,name,role')
+            ->where('user_id', $user->id)
+            ->whereNotNull('batch_id')
+            ->whereIn('type', ['announcement', 'exam', 'assignment', 'attendance', 'poll'])
             ->latest()
-            ->paginate(12);
+            ->get()
+            ->groupBy('batch_id')
+            ->map(function ($group) {
+                return $group->first();
+            })
+            ->values();
+
+        $perPage = 12;
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $news = new LengthAwarePaginator(
+            $newsItems->forPage($page, $perPage)->values(),
+            $newsItems->count(),
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
 
         return view('doctor.news.index', compact('news'));
     }

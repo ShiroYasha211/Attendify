@@ -225,6 +225,29 @@
         transform: translateY(-1px);
         box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
     }
+
+    .creator-card {
+        background: linear-gradient(135deg, #eff6ff, #f8fafc);
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .creator-label {
+        font-size: 0.82rem;
+        color: #2563eb;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .creator-value {
+        color: var(--text-primary);
+        font-weight: 700;
+    }
 </style>
 
 <div class="clinical-page-header">
@@ -247,6 +270,18 @@
     @if(isset($checklist)) @method('PUT') @endif
 
     <div class="card-section">
+        <div class="creator-card">
+            <div style="width: 40px; height: 40px; border-radius: 12px; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5z"></path>
+                    <path d="M4 21a8 8 0 0 1 16 0"></path>
+                </svg>
+            </div>
+            <div>
+                <div class="creator-label">منشئ القائمة</div>
+                <div class="creator-value">{{ Auth::user()->name }}</div>
+            </div>
+        </div>
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label">عنوان القائمة <span style="color:red">*</span></label>

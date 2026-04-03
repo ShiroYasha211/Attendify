@@ -3,46 +3,58 @@
 namespace App\Http\Controllers\Api\Student\Clinical;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Clinical\StudentDailyLog;
-use App\Models\Clinical\DailyLogActivity;
-use App\Models\Clinical\CaseAssignment;
-use App\Models\Clinical\TrainingCenter;
-use App\Models\Clinical\ClinicalDepartment;
 use App\Models\Clinical\BodySystem;
+use App\Models\Clinical\CaseAssignment;
+use App\Models\Clinical\ClinicalDepartment;
+use App\Models\Clinical\DailyLogActivity;
+use App\Models\Clinical\StudentDailyLog;
+use App\Models\Clinical\TrainingCenter;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LogbookController extends Controller
 {
-    /**
-     * Get Logbook Dashboard & List (Includes Form Options)
-     */
     public function index(Request $request)
     {
         $student = $request->user();
 
-        // 1. Fetch Student Logs (Pending and Confirmed)
-        $logs = StudentDailyLog::with(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem'])
-            ->where('student_id', $student->id)
+        $logs = StudentDailyLog::with([
+            'trainingCenter',
+            'department',
+            'doctor',
+            'confirmedBy',
+            'activities.bodySystem',
+            'activities.confirmedBy',
+        ])->where('student_id', $student->id)
             ->latest()
             ->get();
 
         $confirmedCount = $logs->where('status', 'confirmed')->count();
-        $pendingCount = $logs->where('status', 'pending')->count();
+        $pendingCount = $logs->whereIn('status', ['pending', 'partially_confirmed'])->count();
 
-        // 2. Fetch Assignments
-        $assignments = CaseAssignment::with(['clinicalCase.trainingCenter', 'clinicalCase.clinicalDepartment', 'clinicalCase.bodySystem', 'assigner'])
-            ->where('student_id', $student->id)
+        $assignments = CaseAssignment::with([
+            'clinicalCase.trainingCenter',
+            'clinicalCase.clinicalDepartment',
+            'clinicalCase.bodySystem',
+            'assigner',
+            'reviewer',
+        ])->where('student_id', $student->id)
             ->latest()
             ->get();
 
-        // 3. Dropdown options for the mobile app form
         $options = [
             'training_centers' => TrainingCenter::select('id', 'name')->orderBy('name')->get(),
             'departments' => ClinicalDepartment::select('id', 'name')->orderBy('name')->get(),
             'body_systems' => BodySystem::select('id', 'name')->orderBy('name')->get(),
-            'doctors' => User::where('role', 'doctor')->select('id', 'name')->orderBy('name')->get(),
+            'doctors' => User::where('role', 'doctor')
+                ->whereHas('subjects', function ($query) use ($student) {
+                    $query->where('major_id', $student->major_id)
+                        ->where('level_id', $student->level_id);
+                })
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get(),
         ];
 
         return response()->json([
@@ -55,13 +67,10 @@ class LogbookController extends Controller
                 'assignments' => $assignments,
                 'logs' => $logs,
                 'form_options' => $options,
-            ]
-        ], 200);
+            ],
+        ]);
     }
 
-    /**
-     * Store a new daily log
-     */
     public function store(Request $request)
     {
         $student = $request->user();
@@ -69,7 +78,7 @@ class LogbookController extends Controller
         $request->validate([
             'training_center_id' => 'required|exists:training_centers,id',
             'department_id' => 'required|exists:clinical_departments,id',
-            'doctor_id' => 'required|exists:users,id',
+            'doctor_id' => ['required', Rule::exists('users', 'id')->where('role', 'doctor')],
             'histories' => 'nullable|array',
             'histories.*.body_system_id' => 'required|exists:body_systems,id',
             'exams' => 'nullable|array',
@@ -77,21 +86,24 @@ class LogbookController extends Controller
             'did_round' => 'nullable|boolean',
             'rounds' => 'nullable|array',
             'rounds.*.case_name' => 'required|string|max:255',
-            'round_notes' => 'nullable|string'
+            'round_notes' => 'nullable|string',
         ]);
 
-        $historyCount = count($request->histories ?? []);
-        $examCount = count($request->exams ?? []);
-        $didRound = $request->boolean('did_round');
+        $doctor = User::where('role', 'doctor')
+            ->whereHas('subjects', function ($query) use ($student) {
+                $query->where('major_id', $student->major_id)
+                    ->where('level_id', $student->level_id);
+            })
+            ->findOrFail($request->doctor_id);
 
         $dailyLog = StudentDailyLog::create([
             'student_id' => $student->id,
             'training_center_id' => $request->training_center_id,
             'department_id' => $request->department_id,
-            'doctor_id' => $request->doctor_id,
-            'history_count' => $historyCount,
-            'exam_count' => $examCount,
-            'did_round' => $didRound,
+            'doctor_id' => $doctor->id,
+            'history_count' => count($request->histories ?? []),
+            'exam_count' => count($request->exams ?? []),
+            'did_round' => $request->boolean('did_round'),
             'round_notes' => $request->round_notes,
             'qr_token' => StudentDailyLog::generateToken(),
             'status' => 'pending',
@@ -99,31 +111,28 @@ class LogbookController extends Controller
             'log_time' => now()->toTimeString(),
         ]);
 
-        // Save individual history activities
-        foreach ($request->histories ?? [] as $h) {
+        foreach ($request->histories ?? [] as $history) {
             DailyLogActivity::create([
                 'daily_log_id' => $dailyLog->id,
                 'activity_type' => 'history_taking',
-                'body_system_id' => $h['body_system_id'],
+                'body_system_id' => $history['body_system_id'],
             ]);
         }
 
-        // Save exam activities
-        foreach ($request->exams ?? [] as $e) {
+        foreach ($request->exams ?? [] as $exam) {
             DailyLogActivity::create([
                 'daily_log_id' => $dailyLog->id,
                 'activity_type' => 'clinical_examination',
-                'body_system_id' => $e['body_system_id'],
+                'body_system_id' => $exam['body_system_id'],
             ]);
         }
 
-        // Save round cases
-        if ($didRound) {
-            foreach ($request->rounds ?? [] as $r) {
+        if ($request->boolean('did_round')) {
+            foreach ($request->rounds ?? [] as $round) {
                 DailyLogActivity::create([
                     'daily_log_id' => $dailyLog->id,
                     'activity_type' => 'round',
-                    'case_name' => $r['case_name'],
+                    'case_name' => $round['case_name'],
                 ]);
             }
         }
@@ -132,14 +141,11 @@ class LogbookController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تسجيل الحالة اليومية بنجاح.',
-            'data' => $dailyLog
+            'message' => 'Clinical daily log created successfully.',
+            'data' => $dailyLog,
         ], 201);
     }
 
-    /**
-     * Update an existing pending daily log
-     */
     public function update(Request $request, $id)
     {
         $student = $request->user();
@@ -149,63 +155,62 @@ class LogbookController extends Controller
         if ($dailyLog->status !== 'pending') {
             return response()->json([
                 'success' => false,
-                'message' => 'لا يمكن تعديل سجل تم اعتماده مسبقاً.'
+                'message' => 'Only pending logs can be updated.',
             ], 403);
         }
 
         $request->validate([
             'training_center_id' => 'required|exists:training_centers,id',
             'department_id' => 'required|exists:clinical_departments,id',
-            'doctor_id' => 'required|exists:users,id',
+            'doctor_id' => ['required', Rule::exists('users', 'id')->where('role', 'doctor')],
             'histories' => 'nullable|array',
             'exams' => 'nullable|array',
             'did_round' => 'nullable|boolean',
             'rounds' => 'nullable|array',
-            'round_notes' => 'nullable|string'
+            'round_notes' => 'nullable|string',
         ]);
 
-        $historyCount = count($request->histories ?? []);
-        $examCount = count($request->exams ?? []);
-        $didRound = $request->boolean('did_round');
+        $doctor = User::where('role', 'doctor')
+            ->whereHas('subjects', function ($query) use ($student) {
+                $query->where('major_id', $student->major_id)
+                    ->where('level_id', $student->level_id);
+            })
+            ->findOrFail($request->doctor_id);
 
         $dailyLog->update([
             'training_center_id' => $request->training_center_id,
             'department_id' => $request->department_id,
-            'doctor_id' => $request->doctor_id,
-            'history_count' => $historyCount,
-            'exam_count' => $examCount,
-            'did_round' => $didRound,
+            'doctor_id' => $doctor->id,
+            'history_count' => count($request->histories ?? []),
+            'exam_count' => count($request->exams ?? []),
+            'did_round' => $request->boolean('did_round'),
             'round_notes' => $request->round_notes,
         ]);
 
-        // Clear old activities
         $dailyLog->activities()->delete();
 
-        // Save new history activities
-        foreach ($request->histories ?? [] as $h) {
+        foreach ($request->histories ?? [] as $history) {
             DailyLogActivity::create([
                 'daily_log_id' => $dailyLog->id,
                 'activity_type' => 'history_taking',
-                'body_system_id' => $h['body_system_id'] ?? null,
+                'body_system_id' => $history['body_system_id'] ?? null,
             ]);
         }
 
-        // Save new exam activities
-        foreach ($request->exams ?? [] as $e) {
+        foreach ($request->exams ?? [] as $exam) {
             DailyLogActivity::create([
                 'daily_log_id' => $dailyLog->id,
                 'activity_type' => 'clinical_examination',
-                'body_system_id' => $e['body_system_id'] ?? null,
+                'body_system_id' => $exam['body_system_id'] ?? null,
             ]);
         }
 
-        // Save new round cases
-        if ($didRound) {
-            foreach ($request->rounds ?? [] as $r) {
+        if ($request->boolean('did_round')) {
+            foreach ($request->rounds ?? [] as $round) {
                 DailyLogActivity::create([
                     'daily_log_id' => $dailyLog->id,
                     'activity_type' => 'round',
-                    'case_name' => $r['case_name'] ?? 'بدون اسم',
+                    'case_name' => $round['case_name'] ?? 'Round case',
                 ]);
             }
         }
@@ -214,14 +219,11 @@ class LogbookController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديث السجل بنجاح.',
-            'data' => $dailyLog
-        ], 200);
+            'message' => 'Clinical daily log updated successfully.',
+            'data' => $dailyLog,
+        ]);
     }
 
-    /**
-     * Delete a pending daily log
-     */
     public function destroy(Request $request, $id)
     {
         $student = $request->user();
@@ -230,7 +232,7 @@ class LogbookController extends Controller
         if ($dailyLog->status !== 'pending') {
             return response()->json([
                 'success' => false,
-                'message' => 'لا يمكن حذف سجل تم اعتماده مسبقاً.'
+                'message' => 'Only pending logs can be deleted.',
             ], 403);
         }
 
@@ -238,28 +240,52 @@ class LogbookController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف السجل بنجاح.',
-        ], 200);
+            'message' => 'Clinical daily log deleted successfully.',
+        ]);
     }
 
-    /**
-     * Provide a PDF download link or base64 PDF representation
-     * For API, returning a direct download link is usually the best approach.
-     */
-    public function exportPdf(Request $request)
+    public function submitAssignment(Request $request, $assignmentId)
     {
         $student = $request->user();
+        $assignment = CaseAssignment::where('student_id', $student->id)->findOrFail($assignmentId);
 
-        // Return a signed URL or direct web route link so the mobile app can launch it
-        // Since we already have a web route for this, we can just return the URL
-        $pdfUrl = route('student.clinical.logbook.pdf'); // Assuming this web route exists, wait, let me check the web routes.
+        if (!in_array($assignment->status, ['assigned', 'rejected'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This assignment cannot be submitted right now.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'student_completion_message' => 'required|string|min:5|max:2000',
+        ]);
+
+        $assignment->update([
+            'status' => 'submitted_for_review',
+            'student_completion_message' => trim($validated['student_completion_message']),
+            'submitted_at' => now(),
+            'reviewed_at' => null,
+            'reviewed_by' => null,
+            'review_notes' => null,
+            'is_completed' => false,
+            'completed_at' => null,
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'استخدم هذا الرابط لتحميل السجل كملف PDF.',
+            'message' => 'Assignment submitted for review successfully.',
+            'data' => $assignment->fresh(['clinicalCase', 'assigner', 'reviewer']),
+        ]);
+    }
+
+    public function exportPdf()
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Use this URL to download the PDF logbook.',
             'data' => [
-                'download_url' => url('/student/clinical/logbook/export-pdf'), // Exact web route
-            ]
-        ], 200);
+                'download_url' => url('/student/clinical/logbook/export-pdf'),
+            ],
+        ]);
     }
 }

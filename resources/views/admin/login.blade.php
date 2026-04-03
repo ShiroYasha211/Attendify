@@ -4,611 +4,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - النظام الأكاديمي</title>
+    <title>تسجيل الدخول - المنصة الأكاديمية الشاملة</title>
 
+    @if($favicon = \App\Models\Setting::get('app_favicon'))
+        <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
+    @endif
+
+    <!-- Bootstrap 5 RTL (Local) -->
+    <link rel="stylesheet" href="{{ asset('css/bootstrap.rtl.min.css') }}">
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
     <style>
         :root {
-            --primary-color: #4f46e5;
-            --primary-dark: #4338ca;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --text-light: #94a3b8;
-            --bg-light: #f8fafc;
-            --border-color: #e2e8f0;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            --secondary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.12);
+            --border-glass: rgba(255, 255, 255, 0.25);
+            --card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
         }
 
         body {
             font-family: 'Tajawal', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--secondary-gradient);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
+            margin: 0;
+            overflow-x: hidden;
         }
 
-        .login-container {
-            display: flex;
+        /* Entrance Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .animate-up { animation: fadeInUp 0.8s ease-out both; }
+        .animate-up-delay-1 { animation: fadeInUp 0.8s ease-out 0.2s both; }
+        .animate-up-delay-2 { animation: fadeInUp 0.8s ease-out 0.4s both; }
+
+        .login-wrapper {
             width: 100%;
             max-width: 1100px;
-            min-height: 600px;
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 20px;
         }
 
-        /* Left Side - Form */
-        .login-left {
-            flex: 1;
-            background: white;
+        .login-card {
+            background: #fff;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            border: none;
+            transition: transform 0.3s ease;
+        }
+
+        /* Side Visual */
+        .login-visual {
+            background: var(--primary-gradient);
             padding: 3rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
-        }
-
-        .login-form-container {
-            max-width: 400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        /* Logo */
-        .logo-container {
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            color: white;
             text-align: center;
-            margin-bottom: 2rem;
         }
 
-        .logo-icon {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            border-radius: 16px;
+        .login-visual::before {
+            content: '';
+            position: absolute;
+            width: 400px; height: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -150px; right: -150px;
+            animation: pulse 10s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.1; }
+            100% { transform: scale(1.2); opacity: 0.2; }
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--border-glass);
+            border-radius: 30px;
+            padding: 3rem;
+            z-index: 1;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            animation: fadeInRight 0.8s ease-out both;
+        }
+
+        /* Branding */
+        .brand-icon {
+            width: 75px;
+            height: 75px;
+            background: var(--primary-gradient);
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
-            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
-        }
-
-        .logo-icon svg {
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
             color: white;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .logo-title {
-            font-size: 1.5rem;
+        .brand-icon:hover { transform: rotate(10deg) scale(1.1); }
+
+        .brand-title {
+            font-size: 1.6rem;
             font-weight: 800;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .logo-subtitle {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
-
-        /* Welcome Text */
-        .welcome-text {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .welcome-text h2 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--text-primary);
+            color: #1e293b;
             margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
         }
 
-        .welcome-text p {
-            color: var(--text-secondary);
-        }
-
-        /* Alert */
-        .alert-error {
-            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-            border: 1px solid #fecaca;
-            color: #991b1b;
-            padding: 1rem 1.25rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-weight: 500;
-        }
-
-        .alert-error svg {
-            flex-shrink: 0;
-        }
-
-        /* Form Group */
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-
+        /* Form Controls Refresh */
         .form-label {
-            display: block;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 0.6rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .input-wrapper {
-            position: relative;
+        .input-group {
+            background: #f8fafc;
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 2px solid #e2e8f0;
         }
 
-        .input-icon {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-light);
-            pointer-events: none;
+        .input-group:focus-within {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+            background: #fff;
+        }
+
+        .input-group-text {
+            background-color: transparent;
+            border: none;
+            color: #94a3b8;
+            padding-right: 1.2rem;
+            font-size: 1.1rem;
         }
 
         .form-control {
-            width: 100%;
-            padding: 0.875rem 1rem;
-            padding-right: 2.75rem;
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            font-size: 1rem;
-            font-family: inherit;
-            transition: all 0.2s;
-            background: white;
+            border: none !important;
+            background: transparent !important;
+            padding: 0.85rem 0.5rem;
+            font-weight: 500;
+            color: #1e293b;
+            border-radius: 0 !important;
         }
 
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
-        }
+        .form-control:focus { box-shadow: none; }
 
-        .form-control::placeholder {
-            color: var(--text-light);
-        }
-
-        /* Password toggle */
         .password-toggle {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
             cursor: pointer;
-            color: var(--text-light);
-            transition: color 0.2s;
-        }
-
-        .password-toggle:hover {
-            color: var(--primary-color);
-        }
-
-        /* Checkbox & Links Row */
-        .form-options {
+            color: #94a3b8;
+            transition: color 0.3s;
+            padding: 0 1rem;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.5rem;
         }
 
-        .remember-me {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
+        .password-toggle:hover { color: #4f46e5; }
 
-        .remember-me input {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--primary-color);
-        }
-
-        .forgot-link {
-            font-size: 0.9rem;
-            color: var(--primary-color);
-            font-weight: 600;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .forgot-link:hover {
-            color: var(--primary-dark);
-            text-decoration: underline;
-        }
-
-        /* Submit Button */
+        /* Buttons Refresh */
         .btn-submit {
-            width: 100%;
-            padding: 1rem;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
+            background: var(--primary-gradient);
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
+            padding: 1rem;
             font-size: 1.1rem;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px -3px rgba(79, 70, 229, 0.4);
-        }
-
-        .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px -3px rgba(79, 70, 229, 0.5);
-        }
-
-        .btn-submit:active {
-            transform: translateY(0);
-        }
-
-        .btn-submit:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-submit .spinner {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
-            margin-left: 0.5rem;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Footer */
-        .login-footer {
-            margin-top: 2rem;
-            text-align: center;
-            color: var(--text-light);
-            font-size: 0.85rem;
-        }
-
-        /* Right Side - Visual */
-        .login-right {
-            flex: 1.1;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 3rem;
+            font-weight: 800;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 20px -5px rgba(79, 70, 229, 0.4);
             position: relative;
             overflow: hidden;
         }
 
-        /* Glassmorphism card */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 24px;
-            padding: 3rem;
-            text-align: center;
-            color: white;
-            max-width: 450px;
+        .btn-submit::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
         }
 
+        .btn-submit:hover::after { left: 100%; }
+
+        .btn-submit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px -5px rgba(79, 70, 229, 0.5);
+            color: white;
+        }
+
+        .btn-submit:active { transform: translateY(-1px); }
+
+        /* Slides Refresh */
         .slide {
             display: none;
-            animation: fadeInSlide 0.8s ease;
+            animation: slideIn 0.8s ease;
         }
+        .slide.active { display: block; }
 
-        .slide.active {
-            display: block;
-        }
-
-        .slide h1 {
-            font-size: 2.25rem;
-            font-weight: 800;
-            margin-bottom: 1rem;
-            line-height: 1.3;
-        }
-
-        .slide p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-            line-height: 1.8;
-        }
-
-        /* Slider Dots */
-        .slider-dots {
-            margin-top: 2rem;
-            display: flex;
-            gap: 0.75rem;
-            justify-content: center;
+        @keyframes slideIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
 
         .dot {
-            width: 10px;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
+            width: 10px; height: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
             cursor: pointer;
             transition: all 0.3s;
         }
-
         .dot.active {
             background: white;
-            transform: scale(1.3);
+            width: 25px;
         }
 
-        /* Decorative elements */
-        .login-right::before {
-            content: '';
-            position: absolute;
-            width: 300px;
-            height: 300px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            top: -100px;
-            right: -100px;
-        }
-
-        .login-right::after {
-            content: '';
-            position: absolute;
-            width: 200px;
-            height: 200px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 50%;
-            bottom: -50px;
-            left: -50px;
-        }
-
-        /* Animation */
-        @keyframes fadeInSlide {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Responsive */
-        @media (max-width: 900px) {
-            .login-container {
-                flex-direction: column;
-                max-width: 500px;
-            }
-
-            .login-right {
-                display: none;
-            }
-
-            .login-left {
-                padding: 2rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 0;
-            }
-
-            .login-container {
-                border-radius: 0;
-                min-height: 100vh;
-            }
-
-            .login-left {
-                padding: 1.5rem;
-            }
-
-            .logo-icon {
-                width: 60px;
-                height: 60px;
-            }
-
-            .welcome-text h2 {
-                font-size: 1.5rem;
-            }
+        @media (max-width: 991.98px) {
+            .login-visual { display: none; }
+            .login-card { max-width: 500px; margin: 0 auto; border-radius: 30px; }
         }
     </style>
 </head>
 
 <body>
 
-    <div class="login-container">
-
-        <!-- Left Side: Form -->
-        <div class="login-left">
-            <div class="login-form-container">
-
-                <!-- Logo -->
-                <div class="logo-container">
-                    <div class="logo-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-                            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-                        </svg>
+    <div class="login-wrapper">
+        <div class="card login-card animate-up">
+            <div class="row g-0">
+                <!-- Form Side -->
+                <div class="col-lg-6 p-4 p-md-5">
+                    <div class="text-center mb-5 animate-up-delay-1">
+                        <div class="brand-icon">
+                            <i class="fas fa-graduation-cap fa-2x"></i>
+                        </div>
+                        <h1 class="brand-title">المنصة الأكاديمية الشاملة</h1>
+                        <p class="text-muted fw-500">بوابتك المتكاملة للإدارة والتواصل الأكاديمي</p>
                     </div>
-                    <h1 class="logo-title">المنصة الأكاديمية الشاملة</h1>
-                    <p class="logo-subtitle">بوابتك المتكاملة للإدارة والتواصل الأكاديمي</p>
+
+                    @if(session('success'))
+                        <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4 animate-up-delay-2" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
+                    @if($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm mb-4 animate-up-delay-2" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            {{ $errors->first() }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
+                    <form action="{{ route('admin.login') }}" method="POST" id="loginForm" class="animate-up-delay-2">
+                        @csrf
+
+                        <div class="mb-4">
+                            <label for="email" class="form-label text-primary-gradient">البريد الإلكتروني</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" id="email" name="email" class="form-control" placeholder="name@example.com" value="{{ old('email') }}" required autofocus>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label">كلمة المرور</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+                                <div class="password-toggle" onclick="togglePassword()">
+                                    <i class="fas fa-eye" id="eyeIcon"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between mb-4 px-1">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="remember" id="remember">
+                                <label class="form-check-label text-muted small fw-bold" for="remember">تذكرني</label>
+                            </div>
+                            <div class="small">
+                                <a href="{{ route('admin.register') }}" class="text-primary text-decoration-none fw-800">حساب جديد</a>
+                                <span class="text-muted mx-2 opacity-50">|</span>
+                                <a href="#" onclick="showForgotModal(); return false;" class="text-muted text-decoration-none hover-primary transition-all">نسيت كلمة المرور؟</a>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-submit w-100 mb-3" id="submitBtn">
+                            <span class="btn-text">تسجيل الدخول</span>
+                            <div class="spinner-border spinner-border-sm text-light d-none ms-2" role="status" id="submitSpinner"></div>
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-5 text-muted small animate-up-delay-2 opacity-75">
+                        جميع الحقوق محفوظة &copy; {{ date('Y') }} المنصة الأكاديمية
+                    </div>
                 </div>
 
-                <!-- Welcome -->
-                <!-- Success Alert -->
-                @if(session('success'))
-                <div class="alert-success" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    <span>{{ session('success') }}</span>
-                </div>
-                @endif
-
-                <!-- Error Alert -->
-                @if($errors->any())
-                <div class="alert-error">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <span>{{ $errors->first() }}</span>
-                </div>
-                @endif
-
-                <form action="{{ route('admin.login') }}" method="POST">
-                    @csrf
-
-                    <!-- Email -->
-                    <div class="form-group">
-                        <label for="email" class="form-label">البريد الإلكتروني</label>
-                        <div class="input-wrapper">
-                            <span class="input-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                    <polyline points="22,6 12,13 2,6"></polyline>
-                                </svg>
-                            </span>
-                            <input type="email" id="email" name="email" class="form-control" placeholder="name@example.com" value="{{ old('email') }}" required autofocus>
+                <!-- Visual Side -->
+                <div class="col-lg-6 login-visual">
+                    <div class="glass-panel text-center">
+                        <div class="slides-container mb-4">
+                            <div class="slide active">
+                                <div class="fs-1 mb-3">🎓</div>
+                                <h2 class="fw-800 mb-3">المنصة الأكاديمية</h2>
+                                <p class="opacity-75 lead px-2">نظام متكامل لإدارة العملية التعليمية من الحضور والتكاليف إلى الدرجات والتواصل</p>
+                            </div>
+                            <div class="slide">
+                                <div class="fs-1 mb-3">📊</div>
+                                <h2 class="fw-800 mb-3">التقارير اللحظية</h2>
+                                <p class="opacity-75 lead px-2">تتبع دقيق للحضور والغياب، إدارة الدرجات، وتقارير تفصيلية وإحصائيات فورية</p>
+                            </div>
+                            <div class="slide">
+                                <div class="fs-1 mb-3">📝</div>
+                                <h2 class="fw-800 mb-3">إدارة التكاليف</h2>
+                                <p class="opacity-75 lead px-2">إنشاء التكاليف ومتابعة تسليمات الطلاب مع نظام تقييم ومراجعة متكامل</p>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center gap-2 mt-4">
+                            <div class="dot active" onclick="setSlide(0)"></div>
+                            <div class="dot" onclick="setSlide(1)"></div>
+                            <div class="dot" onclick="setSlide(2)"></div>
                         </div>
                     </div>
-
-                    <!-- Password -->
-                    <div class="form-group">
-                        <label for="password" class="form-label">كلمة المرور</label>
-                        <div class="input-wrapper">
-                            <span class="input-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                </svg>
-                            </span>
-                            <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required style="padding-left: 2.75rem;">
-                            <span class="password-toggle" onclick="togglePassword()">
-                                <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                                <svg id="eye-off-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Options Row -->
-                    <div class="form-options">
-                        <label class="remember-me">
-                            <input type="checkbox" name="remember">
-                            تذكرني
-                        </label>
-                        <div>
-                            <a href="{{ route('admin.register') }}" class="forgot-link" style="margin-left: 1rem; color: var(--text-secondary);">إنشاء حساب جديد</a>
-                            <a href="#" class="forgot-link" onclick="showForgotModal(); return false;" style="color: var(--text-secondary);">نسيت كلمة المرور؟</a>
-                        </div>
-                    </div>
-
-                    <!-- Submit -->
-                    <button type="submit" class="btn-submit" id="loginBtn">
-                        <span id="btnText">تسجيل الدخول</span>
-                        <span class="spinner" id="btnSpinner"></span>
-                    </button>
-                </form>
-
-                <!-- Footer -->
-                <div class="login-footer">
-                    جميع الحقوق محفوظة &copy; {{ date('Y') }} النظام الأكاديمي
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Right Side: Visual -->
-        <div class="login-right">
-            <div class="glass-card">
-                <div class="slide active">
-                    <h1>🎓 المنصة الأكاديمية الشاملة</h1>
-                    <p>
-                        نظام متكامل لإدارة العملية التعليمية<br>من الحضور والتكاليف إلى الدرجات والتواصل
-                    </p>
-                </div>
-                <div class="slide">
-                    <h1>📊 الحضور والدرجات والتقارير</h1>
-                    <p>
-                        تتبع دقيق للحضور والغياب، إدارة الدرجات،<br>وتقارير تفصيلية وإحصائيات لحظية
-                    </p>
-                </div>
-                <div class="slide">
-                    <h1>📝 التكاليف والتسليمات</h1>
-                    <p>
-                        إنشاء التكاليف ومتابعة تسليمات الطلاب<br>مع نظام تقييم ومراجعة متكامل
-                    </p>
-                </div>
-                <div class="slide">
-                    <h1>💬 التواصل والاستفسارات</h1>
-                    <p>
-                        نظام رسائل متكامل بين الطلاب والمدرسين<br>وقنوات استفسار فورية مع الإدارة
-                    </p>
-                </div>
-                <div class="slide">
-                    <h1>📋 الأعذار والموارد التعليمية</h1>
-                    <p>
-                        إدارة طلبات الأعذار الطبية،<br>ومشاركة الملفات والموارد التعليمية
-                    </p>
-                </div>
-
-                <div class="slider-dots">
-                    <div class="dot active" onclick="setSlide(0)"></div>
-                    <div class="dot" onclick="setSlide(1)"></div>
-                    <div class="dot" onclick="setSlide(2)"></div>
-                    <div class="dot" onclick="setSlide(3)"></div>
-                    <div class="dot" onclick="setSlide(4)"></div>
                 </div>
             </div>
         </div>
-
     </div>
+
+    <!-- Forgot Password Modal -->
+    <div class="modal fade" id="forgotModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-5 shadow-lg">
+                <div class="modal-body text-center p-5">
+                    <div class="mb-4 text-primary animate-up">
+                        <div class="bg-primary bg-opacity-10 d-inline-block p-4 rounded-circle">
+                            <i class="fas fa-key fa-3x"></i>
+                        </div>
+                    </div>
+                    <h4 class="fw-800 mb-3">نسيت كلمة المرور؟</h4>
+                    <p class="text-muted mb-4 lead">لإعادة ضبط كلمة المرور الخاصة بك، يرجى التواصل مع إدارة النظام أو الدعم الفني وتزويدهم بالبيانات اللازمة للتحقق من هويتك.</p>
+                    <button type="button" class="btn btn-primary w-100 rounded-4 py-3 fw-bold shadow-sm" data-bs-dismiss="modal">حسناً، فهمت</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS (Local) -->
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 
     <script>
         // Password Toggle
         function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const eyeIcon = document.getElementById('eye-icon');
-            const eyeOffIcon = document.getElementById('eye-off-icon');
-
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                eyeIcon.style.display = 'none';
-                eyeOffIcon.style.display = 'block';
+            const input = document.getElementById('password');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
             } else {
-                passwordInput.type = 'password';
-                eyeIcon.style.display = 'block';
-                eyeOffIcon.style.display = 'none';
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
             }
         }
 
@@ -620,79 +409,41 @@
         function showSlide(index) {
             slides.forEach(s => s.classList.remove('active'));
             dots.forEach(d => d.classList.remove('active'));
-
-            slides[index].classList.add('active');
-            dots[index].classList.add('active');
+            if (slides[index]) slides[index].classList.add('active');
+            if (dots[index]) dots[index].classList.add('active');
         }
 
-        function nextSlide() {
+        let slideInterval = setInterval(() => {
             currentSlide = (currentSlide + 1) % slides.length;
             showSlide(currentSlide);
-        }
+        }, 5000);
 
         function setSlide(index) {
+            clearInterval(slideInterval);
             currentSlide = index;
             showSlide(currentSlide);
+            slideInterval = setInterval(() => {
+                currentSlide = (currentSlide + 1) % slides.length;
+                showSlide(currentSlide);
+            }, 5000);
         }
 
-        setInterval(nextSlide, 5000);
-
-        // Loading spinner on form submit
-        document.querySelector('form').addEventListener('submit', function() {
-            const btn = document.getElementById('loginBtn');
-            const text = document.getElementById('btnText');
-            const spinner = document.getElementById('btnSpinner');
-            btn.disabled = true;
+        // Form Submit
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const btn = document.getElementById('submitBtn');
+            const text = btn.querySelector('.btn-text');
+            const spinner = document.getElementById('submitSpinner');
+            btn.classList.add('disabled');
+            btn.style.opacity = '0.8';
             text.textContent = 'جاري تسجيل الدخول...';
-            spinner.style.display = 'inline-block';
+            spinner.classList.remove('d-none');
         });
-    </script>
-    
-    <!-- Forgot Password Modal -->
-    <div id="forgotModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
-        <div style="background:#fff; border-radius:16px; width:90%; max-width:400px; padding:2rem; text-align:center; box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: translateY(-20px); transition: all 0.3s ease; opacity: 0;" id="forgotModalContent">
-            <div style="background:rgba(79, 70, 229, 0.1); width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; color:var(--primary-color);">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
-                </svg>
-            </div>
-            <h3 style="font-size:1.25rem; font-weight:700; color:var(--text-primary); margin-bottom:1rem;">نسيت كلمة المرور؟</h3>
-            <p style="color:var(--text-secondary); font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;">
-                لإعادة ضبط كلمة المرور الخاصة بك، يرجى التواصل مع إدارة النظام أو الدعم الفني وتزويدهم برقم القيد أو الإيميل للتحقق من هويتك.
-            </p>
-            <button onclick="closeForgotModal()" style="background:var(--primary-color); color:white; border:none; border-radius:8px; padding:0.75rem 2rem; font-size:1rem; font-family:inherit; font-weight:600; cursor:pointer; width:100%; transition:background 0.2s;">
-                حسناً، فهمت
-            </button>
-        </div>
-    </div>
 
-    <script>
+        // Forgot Modal
         function showForgotModal() {
-            const modal = document.getElementById('forgotModal');
-            const content = document.getElementById('forgotModalContent');
-            modal.style.display = 'flex';
-            // Trigger reflow
-            void modal.offsetWidth;
-            content.style.opacity = '1';
-            content.style.transform = 'translateY(0)';
+            const modal = new bootstrap.Modal(document.getElementById('forgotModal'));
+            modal.show();
         }
-
-        function closeForgotModal() {
-            const modal = document.getElementById('forgotModal');
-            const content = document.getElementById('forgotModalContent');
-            content.style.opacity = '0';
-            content.style.transform = 'translateY(-20px)';
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        }
-
-        // Close on outside click
-        document.getElementById('forgotModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeForgotModal();
-            }
-        });
     </script>
 </body>
 

@@ -60,7 +60,7 @@
     .filter-row {
         display: flex;
         gap: 0.5rem;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
         flex-wrap: wrap;
     }
 
@@ -122,6 +122,43 @@
         font-size: 0.8rem;
         font-weight: 600;
         color: var(--text-secondary);
+    }
+
+    .inquiry-subject-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .subject-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        width: fit-content;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+    }
+
+    .subject-status.open {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .subject-status.closed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .closed-note {
+        font-size: 0.82rem;
+        color: #b45309;
+        background: #fff7ed;
+        border-right: 3px solid #f59e0b;
+        padding: 0.5rem 0.75rem;
+        border-radius: 10px;
+        line-height: 1.6;
     }
 
     .inquiry-title {
@@ -248,15 +285,29 @@
 @if($inquiries->count() > 0)
 <div class="inquiry-list">
     @foreach($inquiries as $inquiry)
+    @php
+        $subject = $inquiry->subject;
+        $canReceive = (bool) ($subject && $subject->doctor_id && $subject->inquiries_enabled);
+    @endphp
     <div class="inquiry-card">
         <div class="inquiry-header">
             <div>
-                <div class="inquiry-subject">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                    {{ $inquiry->subject->name ?? 'غير محدد' }}
+                <div class="inquiry-subject-wrap">
+                    <div class="inquiry-subject">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                        {{ $subject->name ?? 'غير محدد' }}
+                    </div>
+                    <span class="subject-status {{ $canReceive ? 'open' : 'closed' }}">
+                        {{ $canReceive ? 'الاستفسارات مفتوحة' : 'الاستفسارات مغلقة' }}
+                    </span>
+                    @if(!$canReceive)
+                        <div class="closed-note">
+                            {{ $subject->inquiries_closed_reason ?: 'هذه المادة لا تستقبل استفسارات جديدة حالياً.' }}
+                        </div>
+                    @endif
                 </div>
                 <h3 class="inquiry-title" style="margin-top: 0.5rem;">{{ $inquiry->title }}</h3>
                 <p class="inquiry-preview">{{ Str::limit($inquiry->question, 100) }}</p>
@@ -291,7 +342,6 @@
     {{ $inquiries->appends(['status' => $status])->links() }}
 </div>
 @endif
-
 @else
 <div class="empty-state">
     <div class="empty-icon">
@@ -302,7 +352,7 @@
         </svg>
     </div>
     <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">لا توجد استفسارات</h3>
-    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">يمكنك إرسال استفسار جديد للدكتور عبر المندوب.</p>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">يمكنك إرسال استفسار جديد للدكتور عبر المادة المتاحة.</p>
     <a href="{{ route('student.inquiries.create') }}" class="new-inquiry-btn" style="display: inline-flex;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"></line>

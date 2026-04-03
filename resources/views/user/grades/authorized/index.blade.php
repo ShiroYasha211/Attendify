@@ -161,4 +161,44 @@
     </div>
     @endforelse
 </div>
+@if(($helperTasks ?? collect())->isNotEmpty())
+<div class="row g-4 mt-1">
+    @foreach($helperTasks as $task)
+    <div class="col-md-6 col-lg-4">
+        <div class="glass-card p-4 h-100 task-card d-flex flex-column border border-warning border-opacity-25">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="score-badge" style="background: rgba(245, 158, 11, 0.12); color: #b45309;">
+                    <i class="fa-solid fa-user-group me-1"></i>
+                    {{ $task->delegation_type === 'partial' ? 'تفويض جزئي' : 'تفويض كامل' }}
+                </div>
+                <div class="bg-warning bg-opacity-10 p-2 rounded-3">
+                    <i class="fa-solid fa-people-arrows-left-right text-warning"></i>
+                </div>
+            </div>
+
+            <h4 class="fw-900 text-dark mb-1">{{ $task->title }}</h4>
+            <p class="text-secondary fw-700 small mb-2"><i class="fa-solid fa-book-open me-1"></i>{{ $task->category->subject->name }}</p>
+            <p class="text-secondary small fw-700 mb-3">{{ $task->notes ?: 'مهمة مساعدة في رصد الدرجات' }}</p>
+
+            <div class="doctor-info mb-4">
+                <div class="doctor-avatar" style="background: #fef3c7; color: #b45309;">
+                    {{ mb_substr($task->delegatedBy->name, 0, 1) }}
+                </div>
+                <div>
+                    <div class="small text-secondary fw-600">أسندها إليك</div>
+                    <div class="fw-800 text-dark">{{ $task->delegatedBy->name }}</div>
+                </div>
+            </div>
+
+            <div class="mt-auto">
+                <a href="{{ route(Auth::user()->role === \App\Enums\UserRole::DELEGATE ? 'delegate.authorized-grades.show' : 'student.authorized-grades.show', $task->category_id) }}"
+                    class="btn btn-premium w-100" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    فتح المهمة <i class="fa-solid fa-arrow-left ms-2"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    @endforeach
+</div>
+@endif
 @endsection

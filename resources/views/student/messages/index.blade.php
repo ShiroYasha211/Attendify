@@ -22,23 +22,11 @@
         }
 
         .conversations-list {
-            display: {
-                    {
-                    isset($conversation) ? 'none': 'block'
-                }
-            }
-
-            !important;
+            display: {{ isset($conversation) ? 'none' : 'block' }} !important;
         }
 
         .chat-area {
-            display: {
-                    {
-                    isset($conversation) ? 'flex': 'none'
-                }
-            }
-
-            !important;
+            display: {{ isset($conversation) ? 'flex' : 'none' }} !important;
         }
     }
 

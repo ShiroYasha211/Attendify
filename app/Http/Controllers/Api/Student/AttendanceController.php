@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Setting;
+use App\Support\ExcuseWorkflow;
 
 class AttendanceController extends StudentApiController
 {
@@ -27,10 +28,11 @@ class AttendanceController extends StudentApiController
         $presentCount = $attendances->where('status', 'present')->count();
         $absentCount = $attendances->where('status', 'absent')->count();
         $lateCount = $attendances->where('status', 'late')->count();
+        $excusedCount = $attendances->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
 
         // Presence Percentage
         $presencePercentage = $totalLectures > 0
-            ? round((($presentCount + $lateCount) / $totalLectures) * 100, 1)
+            ? round((($presentCount + $lateCount + $excusedCount) / $totalLectures) * 100, 1)
             : 0;
 
         // Group by Subject for warnings and subject-specific stats
@@ -76,8 +78,9 @@ class AttendanceController extends StudentApiController
                     'subject_name' => $subjectName,
                     'date' => $rec->date,
                     'status' => $rec->status,
-                    'is_excused' => $rec->excuse ? true : false,
+                    'is_excused' => in_array($rec->status, ExcuseWorkflow::countedAsExcusedStatuses(), true) || $rec->excuse !== null,
                     'excuse_status' => $rec->excuse ? $rec->excuse->status : null,
+                    'excuse_resolution' => $rec->excuse ? $rec->excuse->resolution : null,
                 ];
             }
         }
@@ -93,6 +96,7 @@ class AttendanceController extends StudentApiController
                 'present_count' => $presentCount,
                 'absent_count' => $absentCount,
                 'late_count' => $lateCount,
+                'excused_count' => $excusedCount,
                 'presence_percentage' => $presencePercentage,
             ],
             'subjects_status' => $subjectWarnings,

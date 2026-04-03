@@ -486,6 +486,30 @@
         إجراءات سريعة
     </h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+        @if($doctor->canAccessClinicalWorkspace())
+        <a href="{{ route('doctor.clinical.index') }}" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-primary); transition: all 0.2s;">
+            <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(14, 165, 233, 0.12); color: #0284c7; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 3H5a2 2 0 0 0-2 2v4"></path>
+                    <path d="M15 3h4a2 2 0 0 1 2 2v4"></path>
+                    <path d="M21 15v4a2 2 0 0 1-2 2h-4"></path>
+                    <path d="M3 15v4a2 2 0 0 0 2 2h4"></path>
+                    <path d="M8 12h8"></path>
+                    <path d="M12 8v8"></path>
+                </svg>
+            </div>
+            <span style="font-weight: 600; font-size: 0.9rem;">القسم السريري</span>
+        </a>
+        <a href="{{ route('doctor.clinical.evaluations.start') }}" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-primary); transition: all 0.2s;">
+            <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(16, 185, 129, 0.12); color: #059669; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 11 12 14 22 4"></polyline>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+            </div>
+            <span style="font-weight: 600; font-size: 0.9rem;">تقييم سريري مباشر</span>
+        </a>
+        @endif
         <a href="{{ route('doctor.assignments.index') }}" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-primary); transition: all 0.2s;">
             <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

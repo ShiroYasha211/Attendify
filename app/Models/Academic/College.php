@@ -14,6 +14,7 @@ class College extends Model
         'absence_deprivation_percentage',
         'excuses_deadline_days',
         'excuse_receiver',
+        'qr_rotation_seconds',
     ];
 
     /**
@@ -30,5 +31,13 @@ class College extends Model
     public function majors(): HasMany
     {
         return $this->hasMany(Major::class);
+    }
+
+    /**
+     * College has many Users (Students, Doctors, etc.).
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(\App\Models\User::class);
     }
 }

@@ -62,6 +62,8 @@ class ExamScheduleController extends Controller
             'items.*.location' => 'nullable|string|max:255',
         ]);
 
+        $this->assertScheduleScope($request->all());
+
         try {
             DB::beginTransaction();
 
@@ -153,6 +155,8 @@ class ExamScheduleController extends Controller
             'items.*.location' => 'nullable|string|max:255',
         ]);
 
+        $this->assertScheduleScope($request->all());
+
         try {
             DB::beginTransaction();
 
@@ -236,6 +240,32 @@ class ExamScheduleController extends Controller
     {
         if ($exam->major->college_id !== Auth::user()->college_id) {
             abort(403);
+        }
+    }
+
+    private function assertScheduleScope(array $payload): void
+    {
+        $major = Major::findOrFail($payload['major_id']);
+        $level = Level::with('major')->findOrFail($payload['level_id']);
+        $term = Term::findOrFail($payload['term_id']);
+
+        if ($major->college_id !== Auth::user()->college_id || $level->major->college_id !== Auth::user()->college_id) {
+            abort(403);
+        }
+
+        if ((int) $level->major_id !== (int) $major->id) {
+            abort(422, 'المستوى المحدد لا يتبع التخصص المحدد.');
+        }
+
+        if ((int) $term->level_id !== (int) $level->id) {
+            abort(422, 'الترم المحدد لا يتبع المستوى المحدد.');
+        }
+
+        foreach ($payload['items'] ?? [] as $item) {
+            $subject = Subject::findOrFail($item['subject_id']);
+            if ((int) $subject->major_id !== (int) $major->id || (int) $subject->level_id !== (int) $level->id) {
+                abort(422, 'إحدى المواد لا تنتمي إلى التخصص أو المستوى المحدد.');
+            }
         }
     }
 }

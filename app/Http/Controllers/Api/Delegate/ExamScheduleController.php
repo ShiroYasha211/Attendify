@@ -35,7 +35,7 @@ class ExamScheduleController extends DelegateApiController
         $delegate = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'terms_id' => 'required|exists:terms,id', // Matches form input names (terms_id)
+            'term_id' => 'required|exists:terms,id', 
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -43,12 +43,31 @@ class ExamScheduleController extends DelegateApiController
             'items.*.exam_date' => 'required|date',
             'items.*.start_time' => 'required|date_format:H:i',
             'items.*.end_time' => 'required|date_format:H:i|after:items.*.start_time',
-            'items.*.hall_name' => 'required|string|max:255',
+            'items.*.location' => 'nullable|string|max:255',
+            'items.*.hall_name' => 'nullable|string|max:255',
             'items.*.exam_type' => 'required|in:midterm,final,practical,quiz,other',
         ]);
 
         if ($validator->fails()) {
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
+        }
+
+        // 1. Subject Scope Validation
+        foreach ($request->items as $item) {
+            $subject = \App\Models\Academic\Subject::where('id', $item['subject_id'])
+                ->where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->first();
+
+            if (!$subject) {
+                return $this->error("المادة ذات المعرف ({$item['subject_id']}) غير تابعة لتخصصك أو مستواك الدراسي.", 403);
+            }
+        }
+
+        // 2. Overlap Validation
+        $overlapError = $this->validateNoOverlap($request->items, $request->term_id, $delegate);
+        if ($overlapError) {
+            return $this->error($overlapError, 422);
         }
 
         try {
@@ -57,7 +76,7 @@ class ExamScheduleController extends DelegateApiController
             $schedule = ExamSchedule::create([
                 'major_id' => $delegate->major_id,
                 'level_id' => $delegate->level_id,
-                'term_id' => $request->terms_id,
+                'term_id' => $request->term_id,
                 'title' => $request->title,
                 'description' => $request->description,
                 'is_published' => true,
@@ -65,8 +84,14 @@ class ExamScheduleController extends DelegateApiController
             ]);
 
             foreach ($request->items as $item) {
-                // Ideally, validate if subject_id belongs to the delegate's scope here
-                $schedule->items()->create($item);
+                $schedule->items()->create([
+                    'subject_id' => $item['subject_id'],
+                    'exam_date' => $item['exam_date'],
+                    'start_time' => $item['start_time'],
+                    'end_time' => $item['end_time'],
+                    'location' => $item['location'] ?? $item['hall_name'] ?? null,
+                    'exam_type' => $item['exam_type'] ?? 'other',
+                ]);
             }
 
             DB::commit();
@@ -92,7 +117,7 @@ class ExamScheduleController extends DelegateApiController
         }
 
         $validator = Validator::make($request->all(), [
-            'terms_id' => 'required|exists:terms,id', // Matches form input names (terms_id)
+            'term_id' => 'required|exists:terms,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -100,7 +125,8 @@ class ExamScheduleController extends DelegateApiController
             'items.*.exam_date' => 'required|date',
             'items.*.start_time' => 'required|date_format:H:i',
             'items.*.end_time' => 'required|date_format:H:i|after:items.*.start_time',
-            'items.*.hall_name' => 'required|string|max:255',
+            'items.*.location' => 'nullable|string|max:255',
+            'items.*.hall_name' => 'nullable|string|max:255',
             'items.*.exam_type' => 'required|in:midterm,final,practical,quiz,other',
         ]);
 
@@ -108,11 +134,29 @@ class ExamScheduleController extends DelegateApiController
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
+        // 1. Subject Scope Validation
+        foreach ($request->items as $item) {
+            $subject = \App\Models\Academic\Subject::where('id', $item['subject_id'])
+                ->where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->first();
+
+            if (!$subject) {
+                return $this->error("المادة ذات المعرف ({$item['subject_id']}) غير تابعة لتخصصك أو مستواك الدراسي.", 403);
+            }
+        }
+
+        // 2. Overlap Validation
+        $overlapError = $this->validateNoOverlap($request->items, $request->term_id, $delegate, $schedule->id);
+        if ($overlapError) {
+            return $this->error($overlapError, 422);
+        }
+
         try {
             DB::beginTransaction();
 
             $schedule->update([
-                'term_id' => $request->terms_id,
+                'term_id' => $request->term_id,
                 'title' => $request->title,
                 'description' => $request->description,
             ]);
@@ -121,7 +165,14 @@ class ExamScheduleController extends DelegateApiController
             $schedule->items()->delete();
 
             foreach ($request->items as $item) {
-                $schedule->items()->create($item);
+                $schedule->items()->create([
+                    'subject_id' => $item['subject_id'],
+                    'exam_date' => $item['exam_date'],
+                    'start_time' => $item['start_time'],
+                    'end_time' => $item['end_time'],
+                    'location' => $item['location'] ?? $item['hall_name'] ?? null,
+                    'exam_type' => $item['exam_type'] ?? 'other',
+                ]);
             }
 
             DB::commit();
@@ -149,5 +200,39 @@ class ExamScheduleController extends DelegateApiController
         $schedule->delete();
 
         return $this->success(null, 'تم حذف جدول الاختبارات بنجاح');
+    }
+
+    /**
+     * Validate that no exams overlap in date and time for the same major/level.
+     */
+    private function validateNoOverlap($items, $termId, $user, $ignoreScheduleId = null)
+    {
+        foreach ($items as $item) {
+            $query = \App\Models\ExamScheduleItem::whereHas('schedule', function ($q) use ($user, $termId, $ignoreScheduleId) {
+                $q->where('major_id', $user->major_id)
+                    ->where('level_id', $user->level_id)
+                    ->where('term_id', $termId);
+
+                if ($ignoreScheduleId) {
+                    $q->where('id', '!=', $ignoreScheduleId);
+                }
+            })
+                ->where('exam_date', $item['exam_date'])
+                ->where(function ($q) use ($item) {
+                    // Check for time overlap
+                    $q->whereBetween('start_time', [$item['start_time'], $item['end_time']])
+                        ->orWhereBetween('end_time', [$item['start_time'], $item['end_time']])
+                        ->orWhere(function ($subQ) use ($item) {
+                            $subQ->where('start_time', '<=', $item['start_time'])
+                                ->where('end_time', '>=', $item['end_time']);
+                        });
+                });
+
+            if ($query->exists()) {
+                $subject = \App\Models\Academic\Subject::find($item['subject_id']);
+                return "يوجد تعارض في وقت الاختبار لمادة ({$subject->name}) في يوم {$item['exam_date']}. يرجى اختيار وقت آخر.";
+            }
+        }
+        return null;
     }
 }

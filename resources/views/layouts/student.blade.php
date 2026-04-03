@@ -269,7 +269,7 @@
                     <span>الجدول الدراسي للدفعة</span>
                 </a>
 
-                <a href="{{ route('student.news.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.news.*') ? 'active' : '' }}" title="المركز الإخباري">
+                <a href="{{ route('student.news.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.news.*') || request()->routeIs('student.doctor-announcements.*') || request()->routeIs('student.announcements.*') ? 'active' : '' }}" title="الأخبار والإعلانات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2z"></path>
                         <polyline points="14 4 14 8 19 8"></polyline>
@@ -277,7 +277,7 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <span>المركز الإخباري</span>
+                    <span>الأخبار والإعلانات</span>
                     @php
                         $unreadNewsCount = \App\Models\StudentNotification::where('user_id', Auth::id())
                             ->whereIn('type', ['announcement', 'exam', 'assignment', 'poll'])
@@ -288,6 +288,21 @@
                         <span style="background: #ef4444; color: white; font-size: 0.65rem; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: auto;">
                             {{ $unreadNewsCount }}
                         </span>
+                    @endif
+                </a>
+
+                <!-- Student Quizzes -->
+                <a href="{{ route('student.quizzes.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.quizzes.*') ? 'active' : '' }}" title="الكويزات">
+                    <i class="fa-solid fa-clipboard-question" style="width: 20px; font-size: 1.1rem;"></i>
+                    <span>الكويزات</span>
+                </a>
+
+                <!-- Student Stars -->
+                <a href="{{ route('student.stars.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.stars.*') ? 'active' : '' }}" title="نجومي">
+                    <i class="fa-solid fa-star" style="width: 20px; font-size: 1.1rem; color: #f59e0b;"></i>
+                    <span>نجومي ⭐</span>
+                    @if(Auth::user()->stars_balance > 0)
+                    <span style="background: linear-gradient(135deg,#f59e0b,#d97706); color: white; font-size: 0.65rem; font-weight: 800; padding: 0.1rem 0.45rem; border-radius: 50px; margin-right: auto;">{{ Auth::user()->stars_balance }}</span>
                     @endif
                 </a>
 
@@ -336,6 +351,15 @@
                     <span>المكتبة المشتركة</span>
                 </a>
 
+                <a href="{{ route('student.flashcards.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.flashcards.*') ? 'active' : '' }}" title="Oneline Shot">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                    <span>Oneline Shot</span>
+                </a>
+
                 <a href="{{ route('student.assignments.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.assignments.*') ? 'active' : '' }}" title="التكاليف والواجبات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -347,16 +371,16 @@
                     <span>التكاليف والواجبات</span>
                 </a>
 
+                @php
+                    $myDelegationsCount = Auth::user()->delegatedGradeCategories()->count();
+                @endphp
+                @if($myDelegationsCount > 0)
                 <a href="{{ route('student.authorized-grades.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('student.authorized-grades.*') ? 'active' : '' }}" title="مهام الرصد المفوضة">
                     <i class="fa-solid fa-file-signature" style="width: 20px; font-size: 1.1rem;"></i>
                     <span>مهام الرصد المفوضة</span>
-                    @php
-                        $myDelegationsCount = Auth::user()->delegatedGradeCategories()->count();
-                    @endphp
-                    @if($myDelegationsCount > 0)
-                        <span style="background: #4f46e5; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $myDelegationsCount }}</span>
-                    @endif
+                    <span style="background: #4f46e5; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $myDelegationsCount }}</span>
                 </a>
+                @endif
 
                 <div class="nav-group-label" title="الحضور والغياب">تقارير</div>
 

@@ -1,253 +1,142 @@
 @extends('layouts.student')
+
 @section('title', 'سجلي السريري')
+
 @section('content')
 <style>
-    .clinical-page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.75rem;
-        flex-wrap: wrap;
+    .log-wrapper {
+        display: grid;
         gap: 1rem;
     }
 
-    .clinical-page-header .right-side h1 {
-        font-size: 1.5rem;
+    .log-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+        padding: 1.2rem 1.3rem;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
         font-weight: 800;
-        color: var(--text-primary);
-        margin: 0 0 0.15rem 0;
     }
 
-    .clinical-page-header .right-side p {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        margin: 0;
-    }
+    .status-pill.pending { background: #fef3c7; color: #92400e; }
+    .status-pill.partially_confirmed { background: #dbeafe; color: #1d4ed8; }
+    .status-pill.confirmed { background: #dcfce7; color: #166534; }
+    .status-pill.rejected { background: #fee2e2; color: #991b1b; }
 
-    .btn-back {
-        background: white;
-        color: var(--text-secondary);
-        border: 1.5px solid #e2e8f0;
-        padding: 0.55rem 1.1rem;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.88rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-
-    .btn-back:hover {
-        border-color: #cbd5e1;
-        background: #f8fafc;
-        text-decoration: none;
-    }
-
-    .card-section {
-        background: white;
-        border-radius: 18px;
-        border: 1px solid #e2e8f0;
-        padding: 1.5rem;
-    }
-
-    .log-entry {
-        background: #fafbfe;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        transition: all 0.2s;
-    }
-
-    .log-entry:hover {
-        border-color: #c7d2fe;
-        box-shadow: 0 2px 12px rgba(79, 70, 229, 0.06);
-    }
-
-    .log-header {
+    .meta-row,
+    .group-items {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-    }
-
-    .log-date {
-        font-weight: 700;
-        font-size: 1rem;
-        color: var(--text-primary);
-    }
-
-    .status-badge {
-        padding: 0.2rem 0.5rem;
-        border-radius: 6px;
-        font-weight: 700;
-        font-size: 0.78rem;
-    }
-
-    .status-badge.confirmed {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .status-badge.pending {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .status-badge.rejected {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .log-meta {
-        display: flex;
-        flex-wrap: wrap;
         gap: 0.6rem;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        margin-bottom: 0.4rem;
+        flex-wrap: wrap;
+        color: #64748b;
+        font-size: 0.85rem;
     }
 
-    .btn-export {
-        background: #fef2f2;
-        color: #ef4444;
-        border: 1px solid #fecaca;
-        padding: 0.55rem 1.1rem;
-        border-radius: 10px;
-        font-weight: 700;
-        font-size: 0.88rem;
+    .approval-box {
+        margin-top: 0.9rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+    }
+
+    .approval-box h3 {
+        font-size: 0.95rem;
+        margin-bottom: 0.6rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .item-pill {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-
-    .btn-export:hover {
-        background: #fee2e2;
-        border-color: #fca5a5;
-        color: #b91c1c;
-        text-decoration: none;
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .stats-row {
-        display: flex;
         gap: 0.35rem;
-        flex-wrap: wrap;
-    }
-
-    .sig-row {
-        display: flex;
-        gap: 0.35rem;
-        flex-wrap: wrap;
-    }
-
-    .sig-pill {
-        font-size: 0.75rem;
-        padding: 0.2rem 0.5rem;
-        border-radius: 5px;
+        padding: 0.3rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
         font-weight: 700;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        color: #334155;
     }
 
-    .sig-pill.on {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .sig-pill.off {
-        background: #f1f5f9;
-        color: #94a3b8;
-    }
-
-    .log-activities {
-        font-size: 0.8rem;
-        color: #475569;
-        margin-top: 0.4rem;
-    }
-
-    .log-activities span {
-        margin-left: 0.75rem;
-    }
-
-    .notes-box {
-        background: #f1f5f9;
-        padding: 0.5rem 0.75rem;
-        border-radius: 8px;
-        font-size: 0.82rem;
-        color: #475569;
-        margin-top: 0.5rem;
+    .item-pill.confirmed {
+        background: #dcfce7;
+        border-color: #86efac;
+        color: #166534;
     }
 </style>
 
-<div class="clinical-page-header">
-    <div class="right-side">
-        <h1>📖 سجلي السريري (Logbook)</h1>
-        <p>كل تسجيلات تدريبك العملي المؤرشفة</p>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <div class="text-uppercase text-muted fw-bold small mb-2">Logbook</div>
+        <h1 class="h3 fw-bold mb-2">سجلي السريري</h1>
+        <p class="text-muted mb-0">تفاصيل ما سجلته يوميًا وما اعتمده الدكتور فعليًا لكل قسم.</p>
     </div>
-    <div class="left-side header-actions">
-        <a href="{{ route('student.clinical.logbook.export_pdf') }}" class="btn-export">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            تصدير كـ PDF 📄
-        </a>
-        <a href="{{ route('student.clinical.index') }}" class="btn-back">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-            القسم العملي
-        </a>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ route('student.clinical.logbook.export_pdf') }}" class="btn btn-outline-danger">تصدير PDF</a>
+        <a href="{{ route('student.clinical.index') }}" class="btn btn-outline-secondary">العودة للقسم</a>
     </div>
 </div>
 
-<div class="card-section">
-    @forelse($entries as $e)
-    <div class="log-entry">
-        <div class="log-header">
-            <span class="log-date">{{ $e->log_date->format('Y-m-d') }} — {{ $e->log_date->locale('ar')->dayName }}</span>
-            <span class="status-badge {{ $e->status }}">{{ $e->status_label }}</span>
+<div class="log-wrapper">
+    @forelse($entries as $entry)
+        <div class="log-card">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-2">
+                <div>
+                    <div class="fw-bold fs-5">{{ $entry->log_date->format('Y-m-d') }}</div>
+                    <div class="meta-row mt-2">
+                        <span>{{ $entry->trainingCenter->name ?? '-' }}</span>
+                        <span>{{ $entry->department->name ?? '-' }}</span>
+                        <span>د. {{ $entry->doctor->name ?? '-' }}</span>
+                    </div>
+                </div>
+                <span class="status-pill {{ $entry->status }}">{{ $entry->status_label }}</span>
+            </div>
+
+            @foreach($entry->groupedActivities() as $group)
+                @php
+                    $items = $group['items'];
+                    $diagnosis = $items->pluck('diagnosis')->filter()->first();
+                    $allConfirmed = $items->every(fn ($item) => $item->is_confirmed);
+                @endphp
+                <div class="approval-box">
+                    <h3>{{ $group['label'] }} <span class="text-muted small">({{ $items->count() }})</span></h3>
+                    <div class="group-items">
+                        @foreach($items as $item)
+                            <span class="item-pill {{ $item->is_confirmed ? 'confirmed' : '' }}">
+                                {{ $item->activity_type === 'round' ? ($item->case_name ?: 'Round case') : ($item->bodySystem->name ?? '-') }}
+                            </span>
+                        @endforeach
+                    </div>
+                    <div class="mt-2 small {{ $allConfirmed ? 'text-success' : 'text-muted' }}">
+                        {{ $allConfirmed ? 'تم اعتماد هذا القسم بالكامل' : 'هذا القسم لم يعتمد بالكامل بعد' }}
+                    </div>
+                    @if($diagnosis)
+                        <div class="mt-2"><strong>التشخيص:</strong> {{ $diagnosis }}</div>
+                    @endif
+                </div>
+            @endforeach
+
+            @if($entry->doctor_notes)
+                <div class="approval-box"><strong>ملاحظات الدكتور:</strong> {{ $entry->doctor_notes }}</div>
+            @endif
         </div>
-        <div class="log-meta">
-            <span>🏥 {{ $e->trainingCenter->name ?? '-' }}</span>
-            <span>🏷 {{ $e->department->name ?? '-' }}</span>
-            <span>👨‍⚕️ د. {{ $e->doctor->name ?? '-' }}</span>
-        </div>
-        <div class="sig-row">
-            <span class="sig-pill on">حضور ✓</span>
-            <span class="sig-pill {{ $e->history_count > 0 ? 'on' : 'off' }}">📋 قصص: {{ $e->history_count }}</span>
-            <span class="sig-pill {{ $e->exam_count > 0 ? 'on' : 'off' }}">🩺 فحص: {{ $e->exam_count }}</span>
-            <span class="sig-pill {{ $e->did_round ? 'on' : 'off' }}">🔄 مرور {{ $e->did_round ? '✓' : '✗' }}</span>
-        </div>
-        @if($e->activities->count())
-        <div class="log-activities">
-            @foreach($e->activities->where('activity_type', 'history_taking') as $a)<span>📋 {{ $a->bodySystem->name ?? '-' }}</span>@endforeach
-            @foreach($e->activities->where('activity_type', 'clinical_examination') as $a)<span>🩺 {{ $a->bodySystem->name ?? '-' }}</span>@endforeach
-            @foreach($e->activities->where('activity_type', 'round') as $a)<span>🔄 {{ $a->case_name }}</span>@endforeach
-        </div>
-        @endif
-        @if($e->doctor_notes)
-        <div class="notes-box"><strong>ملاحظة الدكتور:</strong> {{ $e->doctor_notes }}</div>
-        @endif
-    </div>
     @empty
-    <div style="text-align:center;padding:2.5rem;color:var(--text-secondary);">
-        <p>لا توجد تسجيلات بعد. ابدأ بتسجيل بيانات يومك.</p>
-    </div>
+        <div class="log-card text-center text-muted py-5">لا توجد سجلات سريرية بعد.</div>
     @endforelse
-
-    {{ $entries->links() }}
 </div>
+
+@if($entries->hasPages())
+    <div class="mt-4">{{ $entries->links() }}</div>
+@endif
 @endsection

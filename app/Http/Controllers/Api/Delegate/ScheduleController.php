@@ -44,7 +44,7 @@ class ScheduleController extends DelegateApiController
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
-            'hall_name' => 'required|string|max:255',
+            'hall_name' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -61,7 +61,14 @@ class ScheduleController extends DelegateApiController
             return $this->error('المادة غير موجودة أو غير مصرح لك', 403);
         }
 
-        $schedule = Schedule::create($request->all());
+        $schedule = Schedule::create([
+            'subject_id' => $request->subject_id,
+            'day_of_week' => $request->day_of_week,
+            'start_time' => $request->start_time,
+            'end_time' => $request->end_time,
+            'hall_name' => $request->filled('hall_name') ? $request->hall_name : null,
+            'created_by' => $delegate->id,
+        ]);
 
         return $this->success($schedule, 'تمت إضافة المحاضرة للجدول بنجاح', 201);
     }
@@ -84,7 +91,7 @@ class ScheduleController extends DelegateApiController
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required|date_format:H:i|string',
             'end_time' => 'required|date_format:H:i|string|after:start_time',
-            'hall_name' => 'required|string|max:255',
+            'hall_name' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -103,7 +110,13 @@ class ScheduleController extends DelegateApiController
             }
         }
 
-        $schedule->update($request->all());
+        $schedule->update([
+            'subject_id' => $request->subject_id,
+            'day_of_week' => $request->day_of_week,
+            'start_time' => $request->start_time,
+            'end_time' => $request->end_time,
+            'hall_name' => $request->filled('hall_name') ? $request->hall_name : null,
+        ]);
 
         return $this->success($schedule, 'تم تحديث المحاضرة بنجاح');
     }

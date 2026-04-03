@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Enums\UserRole;
+use App\Http\Controllers\Controller;
 use App\Models\Academic\College;
+use App\Models\User;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,24 +15,22 @@ class DoctorController extends Controller
     use LogsActivity;
 
     /**
-     * عرض قائمة الدكاترة.
+     * Display the doctors list.
      */
     public function index()
     {
-        // جلب الدكاترة مع بياناتهم + المواد التي يدرسونها (وتفاصيل المواد)
         $doctors = User::where('role', UserRole::DOCTOR)
             ->with(['university', 'college', 'subjects.term.level.major'])
             ->latest()
             ->paginate(10);
 
-        // نحتاج الجامعات والكليات للقوائم المنسدلة
         $universities = \App\Models\Academic\University::with('colleges')->get();
 
         return view('admin.users.doctors.index', compact('doctors', 'universities'));
     }
 
     /**
-     * تخزين دكتور جديد.
+     * Store a newly created doctor.
      */
     public function store(Request $request)
     {
@@ -41,8 +39,9 @@ class DoctorController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'college_id' => 'required|exists:colleges,id',
+            'administrative_access' => 'nullable|boolean',
         ], [
-            'college_id.required' => 'يرجى تحديد الكلية التي يتبع لها الدكتور.',
+            'college_id.required' => 'يرجى تحديد الكلية التابعة لها.',
             'email.unique' => 'البريد الإلكتروني مسجل مسبقاً.',
         ]);
 
@@ -55,6 +54,7 @@ class DoctorController extends Controller
             'role' => UserRole::DOCTOR,
             'college_id' => $college->id,
             'university_id' => $college->university_id,
+            'administrative_access' => $request->boolean('administrative_access'),
         ]);
 
         $this->logCreate('Doctor', $doctor, "تم إضافة الدكتور: {$doctor->name}");
@@ -64,7 +64,7 @@ class DoctorController extends Controller
     }
 
     /**
-     * تحديث بيانات الدكتور.
+     * Update doctor information.
      */
     public function update(Request $request, User $doctor)
     {
@@ -72,6 +72,7 @@ class DoctorController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $doctor->id,
             'college_id' => 'required|exists:colleges,id',
+            'administrative_access' => 'nullable|boolean',
         ]);
 
         $college = College::findOrFail($request->college_id);
@@ -81,9 +82,9 @@ class DoctorController extends Controller
             'email' => $request->email,
             'college_id' => $college->id,
             'university_id' => $college->university_id,
+            'administrative_access' => $request->boolean('administrative_access'),
         ];
 
-        // Update password only if provided
         if ($request->filled('password')) {
             $request->validate(['password' => 'string|min:8']);
             $updateData['password'] = Hash::make($request->password);
@@ -98,7 +99,30 @@ class DoctorController extends Controller
     }
 
     /**
-     * حذف دكتور.
+     * Update only administrative rank for the doctor.
+     */
+    public function updateAdministrativeAccess(Request $request, User $doctor)
+    {
+        if ($doctor->role !== UserRole::DOCTOR) {
+            return back()->with('error', 'لا يمكن تعديل الرتبة لهذا المستخدم من هنا.');
+        }
+
+        $request->validate([
+            'administrative_access' => 'nullable|boolean',
+        ]);
+
+        $doctor->update([
+            'administrative_access' => $request->boolean('administrative_access'),
+        ]);
+
+        $this->logUpdate('Doctor', $doctor, "تم تحديث رتبة المسؤول الإداري للدكتور: {$doctor->name}");
+
+        return redirect()->route('admin.doctors.index')
+            ->with('success', 'تم تحديث الرتبة الإدارية بنجاح.');
+    }
+
+    /**
+     * Delete a doctor.
      */
     public function destroy(User $doctor)
     {
@@ -108,7 +132,8 @@ class DoctorController extends Controller
 
         $this->logDelete('Doctor', $doctor, "تم حذف الدكتور: {$doctor->name}");
 
-        $doctor->delete();
+        $doctor->forceDelete();
+
         return redirect()->route('admin.doctors.index')
             ->with('success', 'تم حذف الدكتور بنجاح.');
     }

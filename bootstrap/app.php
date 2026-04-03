@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckUserRole::class,
             'status' => \App\Http\Middleware\CheckUserStatus::class,
             'clinical_delegate' => \App\Http\Middleware\EnsureClinicalDelegate::class,
+            'clinical.major' => \App\Http\Middleware\EnsureClinicalMajor::class,
+            'permission' => \App\Http\Middleware\EnsureUserPermission::class,
             'subscribed' => \App\Http\Middleware\CheckSubscription::class,
             'administrative' => \App\Http\Middleware\AdministrativeMiddleware::class,
             'delegate.permission' => \App\Http\Middleware\CheckDelegatePermission::class,
@@ -29,7 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(function () {
             $user = \Illuminate\Support\Facades\Auth::user();
             if ($user && $user->role) {
-                return match ($user->role->value) {
+                return match ($user->preferredWorkspace()) {
                     \App\Enums\UserRole::ADMIN->value => route('admin.dashboard'),
                     \App\Enums\UserRole::ADMINISTRATIVE->value => route('administrative.dashboard'),
                     \App\Enums\UserRole::DOCTOR->value => route('doctor.dashboard'),

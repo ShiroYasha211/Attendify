@@ -253,7 +253,7 @@
 $now = \Carbon\Carbon::now();
 $upcomingCount = $reminders->filter(fn($r) => $r->event_date > $now)->count();
 $todayCount = $reminders->filter(fn($r) => $r->event_date->isToday())->count();
-$urgentCount = $reminders->filter(fn($r) => $r->event_date->diffInDays($now, false) >= -2 && $r->event_date > $now)->count();
+$urgentCount = $reminders->filter(fn($r) => $r->event_date > $now && $now->diffInDays($r->event_date, false) <= 2)->count();
 @endphp
 
 <div class="stats-grid">
@@ -303,8 +303,9 @@ $urgentCount = $reminders->filter(fn($r) => $r->event_date->diffInDays($now, fal
 <div class="reminders-grid">
     @foreach($reminders as $reminder)
     @php
-    $isPassed = $reminder->event_date < $now;
-        $daysLeft=(int) floor($now->startOfDay()->diffInDays($reminder->event_date->startOfDay(), false));
+    $eventDate = $reminder->event_date->copy();
+    $isPassed = $eventDate < $now;
+        $daysLeft=(int) floor($now->copy()->startOfDay()->diffInDays($eventDate->copy()->startOfDay(), false));
 
         if ($isPassed) {
         $stripeClass = 'passed';
@@ -353,8 +354,8 @@ $urgentCount = $reminders->filter(fn($r) => $r->event_date->diffInDays($now, fal
                             </svg>
                         </div>
                         <div>
-                            <div style="font-weight: 600; color: var(--text-primary);">{{ $reminder->event_date->format('Y/m/d') }}</div>
-                            <div style="font-size: 0.75rem;">{{ $reminder->event_date->format('h:i A') }}</div>
+                            <div style="font-weight: 600; color: var(--text-primary);">{{ $eventDate->format('Y/m/d') }}</div>
+                            <div style="font-size: 0.75rem;">{{ $eventDate->format('h:i A') }}</div>
                         </div>
                     </div>
 

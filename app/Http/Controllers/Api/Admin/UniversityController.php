@@ -34,8 +34,8 @@ class UniversityController extends AdminApiController
 
     public function destroy(University $university)
     {
-        if ($university->colleges()->exists()) {
-            return $this->error('لا يمكن حذف الجامعة لأنها تحتوي على كليات.', 422);
+        if ($university->colleges()->exists() || $university->users()->exists()) {
+            return $this->error('لا يمكن حذف الجامعة لوجود كليات أو مستخدمين (طلاب/دكاترة) مرتبطين بها.', 422);
         }
         $university->delete();
         return $this->success(null, 'تم حذف الجامعة بنجاح');

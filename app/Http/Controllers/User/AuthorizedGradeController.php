@@ -24,7 +24,12 @@ class AuthorizedGradeController extends Controller
             ->with(['subject', 'doctor'])
             ->get();
 
-        return view('user.grades.authorized.index', compact('delegations'));
+        $helperTasks = $user->delegatedGradeHelperTasks()
+            ->active()
+            ->with(['category.subject', 'category.doctor', 'delegatedBy', 'students'])
+            ->get();
+
+        return view('user.grades.authorized.index', compact('delegations', 'helperTasks'));
     }
 
     /**
@@ -33,23 +38,32 @@ class AuthorizedGradeController extends Controller
     public function show($categoryId)
     {
         $user = Auth::user();
-        
-        $category = $user->delegatedGradeCategories()
-            ->with(['subject'])
-            ->findOrFail($categoryId);
 
-        $subject = $category->subject;
+        [$category, $helperTask, $students] = $this->resolveCategoryAccess($user, (int) $categoryId);
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
-            ->where('major_id', $subject->major_id)
-            ->where('level_id', $subject->level_id)
-            ->with(['grades' => function($q) use ($category) {
-                $q->where('category_id', $category->id);
-            }])
-            ->orderBy('name')
-            ->get();
+        $delegateHelperCandidates = collect();
+        $delegateHelperTasks = collect();
+        $delegateHelperStudentScope = collect();
 
-        return view('user.grades.authorized.show', compact('category', 'students'));
+        if ($user->role === UserRole::DELEGATE && !$helperTask) {
+            $delegateHelperCandidates = $this->eligibleStudentsQuery($category)
+                ->where('id', '!=', $user->id)
+                ->orderBy('name')
+                ->get();
+
+            $delegateHelperStudentScope = $this->eligibleStudentsQuery($category)
+                ->orderBy('name')
+                ->get();
+
+            $delegateHelperTasks = $user->issuedGradeHelperTasks()
+                ->active()
+                ->where('category_id', $category->id)
+                ->with(['helperUser', 'students'])
+                ->latest()
+                ->get();
+        }
+
+        return view('user.grades.authorized.show', compact('category', 'students', 'helperTask', 'delegateHelperCandidates', 'delegateHelperTasks', 'delegateHelperStudentScope'));
     }
 
     /**
@@ -59,7 +73,8 @@ class AuthorizedGradeController extends Controller
     {
         $user = Auth::user();
         
-        $category = $user->delegatedGradeCategories()->findOrFail($categoryId);
+        [$category, $helperTask, $students] = $this->resolveCategoryAccess($user, (int) $categoryId);
+        $allowedStudentIds = $students->pluck('id');
 
         $request->validate([
             'grades' => 'required|array',
@@ -71,6 +86,10 @@ class AuthorizedGradeController extends Controller
         try {
             foreach ($request->grades as $gradeData) {
                 if ($gradeData['score'] === null) continue;
+
+                if (!$allowedStudentIds->contains((int) $gradeData['student_id'])) {
+                    return back()->with('error', 'بعض الطلاب المحددين خارج نطاق التفويض المسموح لك.');
+                }
 
                 Grade::updateOrCreate(
                     [
@@ -99,5 +118,46 @@ class AuthorizedGradeController extends Controller
 
         return redirect()->route($redirectRoute)
             ->with('success', 'تم حفظ الدرجات وإرسالها للمراجعة.');
+    }
+    protected function resolveCategoryAccess(User $user, int $categoryId): array
+    {
+        $category = $user->delegatedGradeCategories()
+            ->with(['subject', 'doctor'])
+            ->find($categoryId);
+
+        $helperTask = null;
+
+        if (!$category) {
+            $helperTask = $user->delegatedGradeHelperTasks()
+                ->active()
+                ->with(['category.subject', 'category.doctor', 'students'])
+                ->where('category_id', $categoryId)
+                ->latest()
+                ->firstOrFail();
+
+            $category = $helperTask->category;
+        }
+
+        $students = $this->eligibleStudentsQuery($category)
+            ->with(['grades' => function ($query) use ($category) {
+                $query->where('category_id', $category->id);
+            }])
+            ->orderBy('name');
+
+        if ($helperTask && $helperTask->delegation_type === \App\Models\DelegateGradeDelegation::TYPE_PARTIAL) {
+            $students->whereIn('id', $helperTask->students->pluck('id'));
+        }
+
+        return [$category, $helperTask, $students->get()];
+    }
+
+    protected function eligibleStudentsQuery(GradeCategory $category)
+    {
+        $subject = $category->subject;
+
+        return User::query()
+            ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
+            ->where('major_id', $subject->major_id)
+            ->where('level_id', $subject->level_id);
     }
 }

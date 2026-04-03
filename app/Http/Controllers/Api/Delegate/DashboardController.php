@@ -94,11 +94,67 @@ class DashboardController extends DelegateApiController
             ->take(5)
             ->get();
 
-        // 10. Subjects List (Summary)
-        $subjects = Subject::where('major_id', $delegate->major_id)
+        // 11. At-Risk Students (Students with high absence percentage in any subject)
+        // Threshold: 20% absence rate = at risk of probation
+        $atRiskStudents = collect();
+        $allStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+            ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->with('doctor:id,name')
-            ->get(['id', 'name', 'code', 'doctor_id']);
+            ->get()->keyBy('id');
+
+        $subjectsIds = $subjects->pluck('id');
+
+        // Get total sessions count per student per subject
+        $totalSessionsQuery = \App\Models\Attendance::whereIn('student_id', $allStudents->pluck('id'))
+            ->whereIn('subject_id', $subjectsIds)
+            ->select('student_id', 'subject_id', \Illuminate\Support\Facades\DB::raw('count(*) as total'))
+            ->groupBy('student_id', 'subject_id')
+            ->get();
+
+        // Get absences count per student per subject
+        $absencesQuery = \App\Models\Attendance::whereIn('student_id', $allStudents->pluck('id'))
+            ->whereIn('subject_id', $subjectsIds)
+            ->where('status', 'absent')
+            ->select('student_id', 'subject_id', \Illuminate\Support\Facades\DB::raw('count(*) as absences'))
+            ->groupBy('student_id', 'subject_id')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->student_id . '_' . $item->subject_id;
+            });
+
+        foreach ($totalSessionsQuery as $sessionStat) {
+            $studentId = $sessionStat->student_id;
+            $subjectId = $sessionStat->subject_id;
+            $totalSessions = $sessionStat->total;
+
+            if ($totalSessions >= 3) {
+                $absenceKey = $studentId . '_' . $subjectId;
+                $absences = $absencesQuery->has($absenceKey) ? $absencesQuery->get($absenceKey)->absences : 0;
+                $absenceRate = ($absences / $totalSessions) * 100;
+
+                if ($absenceRate >= 20) {
+                    $student = $allStudents->get($studentId);
+                    $subject = $subjects->firstWhere('id', $subjectId);
+
+                    if ($student && $subject) {
+                        $atRiskStudents->push([
+                            'student' => [
+                                'id' => $student->id,
+                                'name' => $student->name,
+                                'avatar' => $student->avatar
+                            ],
+                            'subject' => [
+                                'id' => $subject->id,
+                                'name' => $subject->name
+                            ],
+                            'absence_rate' => round($absenceRate, 1),
+                            'absences' => $absences,
+                            'total' => $totalSessions
+                        ]);
+                    }
+                }
+            }
+        }
 
         return $this->success([
             'stats' => [
@@ -112,6 +168,7 @@ class DashboardController extends DelegateApiController
             ],
             'subjects' => $subjects,
             'top_absent_students' => $topAbsentStudents,
+            'at_risk_students' => $atRiskStudents->sortByDesc('absence_rate')->values()->take(5),
             'latest_attendance' => $latestAttendance,
             'latest_students' => User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
                 ->where('major_id', $delegate->major_id)

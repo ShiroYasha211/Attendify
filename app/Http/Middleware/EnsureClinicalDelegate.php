@@ -20,6 +20,13 @@ class EnsureClinicalDelegate
             return $next($request);
         }
 
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This section is reserved for Clinical Delegates.',
+            ], 403);
+        }
+
         abort(403, 'Unauthorized action. This section is reserved for Clinical Delegates.');
     }
 }

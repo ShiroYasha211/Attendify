@@ -21,9 +21,11 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'gender',
         'email',
         'password',
         'role',
+        'administrative_access',
         'status',
         'student_number',
         'university_id',
@@ -54,6 +56,8 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'role' => UserRole::class,
+        'gender' => 'string',
+        'administrative_access' => 'boolean',
         'balance' => 'decimal:2',
         'subscribed_until' => 'datetime',
         'auto_renew' => 'boolean',
@@ -88,6 +92,81 @@ class User extends Authenticatable
             return $this->role->value === $role;
         }
         return $this->role === $role;
+    }
+
+    /**
+     * Check whether this doctor can access the administrative workspace.
+     */
+    public function isDoctorWithAdministrativeAccess(): bool
+    {
+        return $this->role === UserRole::DOCTOR && (bool) $this->administrative_access;
+    }
+
+    /**
+     * Check whether the user can access the doctor workspace.
+     */
+    public function canAccessDoctorWorkspace(): bool
+    {
+        return in_array($this->role, [UserRole::DOCTOR, UserRole::ADMINISTRATIVE], true);
+    }
+
+    /**
+     * Check whether the user can access the administrative workspace.
+     */
+    public function canAccessAdministrativeWorkspace(): bool
+    {
+        return $this->role === UserRole::ADMINISTRATIVE || $this->isDoctorWithAdministrativeAccess();
+    }
+
+    public function canAccessClinicalWorkspace(): bool
+    {
+        if ($this->major?->has_clinical) {
+            return true;
+        }
+
+        if ($this->role === UserRole::DOCTOR) {
+            return $this->subjects()
+                ->whereHas('major', function ($query) {
+                    $query->where('has_clinical', true);
+                })
+                ->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * Return all workspaces available to the user.
+     */
+    public function availableWorkspaces(): array
+    {
+        $workspaces = [];
+
+        if ($this->canAccessDoctorWorkspace()) {
+            $workspaces[] = 'doctor';
+        }
+
+        if ($this->canAccessAdministrativeWorkspace()) {
+            $workspaces[] = 'administrative';
+        }
+
+        return array_values(array_unique($workspaces));
+    }
+
+    /**
+     * Return the default workspace for redirects.
+     */
+    public function preferredWorkspace(): string
+    {
+        if ($this->role === UserRole::ADMINISTRATIVE) {
+            return 'administrative';
+        }
+
+        if ($this->role === UserRole::DOCTOR) {
+            return 'doctor';
+        }
+
+        return $this->role->value;
     }
     public function university()
     {
@@ -287,6 +366,16 @@ class User extends Authenticatable
         return $this->belongsToMany(\App\Models\GradeCategory::class, 'grade_permissions', 'authorized_user_id', 'category_id')->withTimestamps();
     }
 
+    public function delegatedGradeHelperTasks()
+    {
+        return $this->hasMany(\App\Models\DelegateGradeDelegation::class, 'helper_user_id');
+    }
+
+    public function issuedGradeHelperTasks()
+    {
+        return $this->hasMany(\App\Models\DelegateGradeDelegation::class, 'delegated_by_id');
+    }
+
     /**
      * جلسات التحضير الخاصة بالدكتور (عبر المواد التي يدرسها).
      */
@@ -328,8 +417,18 @@ class User extends Authenticatable
      */
     public function grantAllDelegatePermissions(int $grantedBy): void
     {
+        $excluded = [
+            'students.update',
+            'students.delete',
+            'exams.update',
+        ];
+
         foreach (\App\Models\DelegatePermission::RESOURCES as $resource => $label) {
             foreach (\App\Models\DelegatePermission::ACTIONS as $action => $actionLabel) {
+                if (in_array("{$resource}.{$action}", $excluded, true)) {
+                    continue;
+                }
+
                 \App\Models\DelegatePermission::firstOrCreate(
                     ['user_id' => $this->id, 'resource' => $resource, 'action' => $action],
                     ['granted_by' => $grantedBy]
@@ -344,5 +443,78 @@ class User extends Authenticatable
     public function revokeDelegatePermissions(): void
     {
         $this->delegatePermissions()->delete();
+    }
+
+    // ─── Flashcard / One Line Shot ───
+
+    /**
+     * Get all flashcard packs belonging to this user.
+     */
+    public function flashcardPacks()
+    {
+        return $this->hasMany(FlashcardPack::class);
+    }
+
+    // ─── Stars Currency System ───
+
+    /**
+     * Get all star transactions for this user.
+     */
+    public function starTransactions()
+    {
+        return $this->hasMany(StarTransaction::class);
+    }
+
+    /**
+     * Add stars to this user's balance.
+     */
+    public function addStars(int $amount, string $type, ?int $grantedBy = null, ?string $description = null, ?object $reference = null): StarTransaction
+    {
+        $this->increment('stars_balance', $amount);
+        $this->increment('total_stars_earned', $amount);
+
+        return StarTransaction::create([
+            'user_id'        => $this->id,
+            'granted_by'     => $grantedBy,
+            'type'           => $type,
+            'amount'         => $amount,
+            'balance_after'  => $this->fresh()->stars_balance,
+            'description'    => $description,
+            'reference_type' => $reference ? get_class($reference) : null,
+            'reference_id'   => $reference?->id,
+        ]);
+    }
+
+    /**
+     * Deduct stars from this user's balance.
+     */
+    public function deductStars(int $amount, string $type, ?int $grantedBy = null, ?string $description = null): StarTransaction
+    {
+        $amount = abs($amount);
+        $this->decrement('stars_balance', min($amount, $this->stars_balance));
+
+        return StarTransaction::create([
+            'user_id'       => $this->id,
+            'granted_by'    => $grantedBy,
+            'type'          => $type,
+            'amount'        => -$amount,
+            'balance_after' => $this->fresh()->stars_balance,
+            'description'   => $description,
+        ]);
+    }
+
+    /**
+     * Gift stars to another user.
+     */
+    public function giftStars(User $recipient, int $amount, ?string $description = null): bool
+    {
+        if ($this->stars_balance < $amount) {
+            return false;
+        }
+
+        $this->deductStars($amount, 'gifted', null, $description ?? 'هدية لـ ' . $recipient->name);
+        $recipient->addStars($amount, 'received_gift', $this->id, $description ?? 'هدية من ' . $this->name);
+
+        return true;
     }
 }

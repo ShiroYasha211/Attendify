@@ -8,6 +8,7 @@ use App\Models\GradePermission;
 use App\Models\Academic\Subject;
 use App\Models\User;
 use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -39,9 +40,7 @@ class GradeCategoryController extends Controller
             ->with(['permissions.authorizedUser'])
             ->get();
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
-            ->where('major_id', $subject->major_id)
-            ->where('level_id', $subject->level_id)
+        $students = $this->eligibleUsersQuery($subject)
             ->orderBy('name')
             ->get();
 
@@ -81,15 +80,24 @@ class GradeCategoryController extends Controller
      */
     public function delegate(Request $request, $categoryId)
     {
-        $request->validate([
-            'authorized_user_id' => 'required|exists:users,id',
+        $category = GradeCategory::where('doctor_id', Auth::id())->findOrFail($categoryId);
+        $subject = $category->subject;
+
+        $validated = $request->validate([
+            'authorized_user_id' => 'required|integer',
         ]);
 
-        $category = GradeCategory::where('doctor_id', Auth::id())->findOrFail($categoryId);
+        $authorizedUser = $this->eligibleUsersQuery($subject)
+            ->whereKey($validated['authorized_user_id'])
+            ->first();
+
+        if (!$authorizedUser) {
+            return back()->with('error', 'الطالب المحدد غير مؤهل للتفويض في هذه المادة.');
+        }
 
         // Check if already delegated
         $exists = GradePermission::where('category_id', $categoryId)
-            ->where('authorized_user_id', $request->authorized_user_id)
+            ->where('authorized_user_id', $authorizedUser->id)
             ->exists();
 
         if ($exists) {
@@ -98,7 +106,7 @@ class GradeCategoryController extends Controller
 
         GradePermission::create([
             'category_id' => $categoryId,
-            'authorized_user_id' => $request->authorized_user_id,
+            'authorized_user_id' => $authorizedUser->id,
         ]);
 
         return back()->with('success', 'تم تفويض الطالب بنجاح.');
@@ -137,5 +145,13 @@ class GradeCategoryController extends Controller
         $category->delete();
 
         return back()->with('success', 'تم حذف التصنيف بنجاح.');
+    }
+
+    protected function eligibleUsersQuery(Subject $subject): Builder
+    {
+        return User::query()
+            ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
+            ->where('major_id', $subject->major_id)
+            ->where('level_id', $subject->level_id);
     }
 }

@@ -10,6 +10,7 @@ use App\Models\Academic\Assignment;
 use App\Models\Academic\StudentLectureStatus;
 use App\Models\Attendance;
 use App\Models\Setting;
+use App\Support\ExcuseWorkflow;
 use Illuminate\Support\Facades\Auth;
 
 class SubjectController extends StudentApiController
@@ -96,17 +97,17 @@ class SubjectController extends StudentApiController
         $presentCount = $attendanceRecords->where('status', 'present')->count();
         $absentCount = $attendanceRecords->where('status', 'absent')->count();
         $lateCount = $attendanceRecords->where('status', 'late')->count();
-        $excusedCount = $attendanceRecords->where('status', 'excused')->count();
+        $excusedCount = $attendanceRecords->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
         $totalLecturesHeld = $attendanceRecords->count();
         
         $attendancePercentage = $totalLecturesHeld > 0 
-            ? round((($presentCount + $lateCount) / $totalLecturesHeld) * 100) 
+            ? round((($presentCount + $lateCount + $excusedCount) / $totalLecturesHeld) * 100) 
             : 0;
 
         // 4. Deprivation Warning Logic
         $maxAbsences = (int) Setting::get('default_max_absences', 3);
         $deprivationThreshold = (int) Setting::get('deprivation_threshold', 25);
-        $excuseDeadlineDays = (int) Setting::get('excuse_deadline_days', 3);
+        $excuseDeadlineDays = (int) ($student->college?->excuses_deadline_days ?? 3);
 
         $absencePercent = $totalLecturesHeld > 0 ? round(($absentCount / $totalLecturesHeld) * 100) : 0;
         $warningLevel = null;
@@ -131,11 +132,14 @@ class SubjectController extends StudentApiController
                 'id' => $rec->id,
                 'date' => $rec->date,
                 'status' => $rec->status,
-                'is_excused' => $rec->status == 'excused' || ($rec->excuse && $rec->excuse->status == 'accepted'),
+                'is_excused' => in_array($rec->status, ExcuseWorkflow::countedAsExcusedStatuses(), true) || ($rec->excuse && $rec->excuse->status == 'accepted'),
                 'excuse' => $rec->excuse ? [
                     'id' => $rec->excuse->id,
                     'reason' => $rec->excuse->reason,
                     'status' => $rec->excuse->status,
+                    'receiver_type' => $rec->excuse->receiver_type,
+                    'resolution' => $rec->excuse->resolution,
+                    'resolution_label' => ExcuseWorkflow::resolutionLabel($rec->excuse->resolution),
                     'attachment_url' => $rec->excuse->attachment ? asset('storage/' . $rec->excuse->attachment) : null,
                     'doctor_comment' => $rec->excuse->doctor_comment,
                     'created_at' => $rec->excuse->created_at->format('Y-m-d H:i'),

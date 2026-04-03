@@ -23,17 +23,31 @@ class ReminderController extends DelegateApiController
             ->with('creator:id,name');
 
         if ($request->has('filter') && $request->filter === 'past') {
-            $remindersQuery->where('event_date', '<', Carbon::now())
+            $remindersQuery->where('notify_at', '<', Carbon::now())
                 ->orderBy('event_date', 'desc');
         } else {
-            // Default to upcoming
-            $remindersQuery->where('event_date', '>=', Carbon::now())
+            // Default to upcoming (notify_at is in the future)
+            $remindersQuery->where('notify_at', '>=', Carbon::now())
                 ->orderBy('event_date', 'asc');
         }
 
         $reminders = $remindersQuery->get();
 
-        return $this->success($reminders, 'تم جلب التذكيرات بنجاح');
+        $stats = [
+            'total' => Reminder::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)->count(),
+            'upcoming' => Reminder::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->where('notify_at', '>=', Carbon::now())->count(),
+            'past' => Reminder::where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->where('notify_at', '<', Carbon::now())->count(),
+        ];
+
+        return $this->success([
+            'stats' => $stats,
+            'reminders' => $reminders
+        ], 'تم جلب التذكيرات بنجاح');
     }
 
     /**

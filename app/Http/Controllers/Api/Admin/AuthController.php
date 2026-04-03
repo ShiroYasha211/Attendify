@@ -27,7 +27,7 @@ class AuthController extends AdminApiController
             return $this->error('بيانات الدخول غير صحيحة.', 401);
         }
 
-        if ($user->role !== UserRole::ADMIN) {
+        if (! in_array($user->role, [UserRole::ADMIN]) && ! $user->canAccessAdministrativeWorkspace()) {
             return $this->error('ليس لديك صلاحية الوصول إلى لوحة الإدارة.', 403);
         }
 
@@ -46,6 +46,8 @@ class AuthController extends AdminApiController
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'available_workspaces' => $user->availableWorkspaces(),
+                'administrative_access' => $user->canAccessAdministrativeWorkspace(),
             ],
             'token' => $token,
         ], 'تم تسجيل الدخول بنجاح');
@@ -73,10 +75,36 @@ class AuthController extends AdminApiController
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
+            'available_workspaces' => $user->availableWorkspaces(),
+            'administrative_access' => $user->canAccessAdministrativeWorkspace(),
             'status' => $user->status,
             'university' => $user->university?->name,
             'college' => $user->college?->name,
             'major' => $user->major?->name,
         ]);
+    }
+    /**
+     * POST /api/admin/change-password
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->old_password, $user->password)) {
+            return $this->error('كلمة المرور القديمة غير صحيحة.', 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        \App\Models\ActivityLog::log('update', 'User', $user->id, $user->name, "قام الأدمن بتغيير كلمة مروره الشخصية عبر الـ API");
+
+        return $this->success(null, 'تم تغيير كلمة المرور بنجاح.');
     }
 }

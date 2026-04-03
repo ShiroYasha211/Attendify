@@ -11,6 +11,7 @@ use App\Models\Academic\Level;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 use App\Models\PollOption;
 use App\Models\PollVote;
@@ -72,24 +73,36 @@ class NotificationController extends Controller
             'message' => 'required|string',
             'type' => 'required|in:announcement,exam,assignment,attendance,poll',
             'target' => 'required|in:all,major,level,doctors,delegates',
-            'major_id' => 'required_if:target,major,level|exists:majors,id',
-            'level_id' => 'required_if:target,level|exists:levels,id',
+            'major_id' => [
+                'required_if:target,major,level',
+                Rule::exists('majors', 'id')->where(fn ($query) => $query->where('college_id', $college->id)),
+            ],
+            'level_id' => [
+                'required_if:target,level',
+                Rule::exists('levels', 'id')->where(function ($query) use ($college) {
+                    $query->whereIn('major_id', Major::where('college_id', $college->id)->pluck('id'));
+                }),
+            ],
             'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240', // 10MB max
             'poll_options' => 'required_if:type,poll|array|min:2',
             'poll_options.*' => 'required_if:type,poll|string|max:255',
         ]);
 
-        $query = User::where('college_id', $college->id)
-            ->where('id', '!=', $admin->id);
+        $query = User::where('college_id', $college->id);
 
         if ($request->target == 'major') {
+            $query->where('id', '!=', $admin->id);
             $query->where('major_id', $request->major_id);
         } elseif ($request->target == 'level') {
+            $query->where('id', '!=', $admin->id);
             $query->where('level_id', $request->level_id);
         } elseif ($request->target == 'doctors') {
             $query->where('role', UserRole::DOCTOR);
         } elseif ($request->target == 'delegates') {
+            $query->where('id', '!=', $admin->id);
             $query->whereIn('role', [UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE]);
+        } else {
+            $query->where('id', '!=', $admin->id);
         }
 
         $users = $query->get();

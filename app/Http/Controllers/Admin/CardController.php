@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Card;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -11,7 +12,7 @@ class CardController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Card::with('user')->whereNull('generated_by_id')->latest();
+        $query = Card::with(['usedBy', 'generatedBy'])->latest();
 
         if ($request->has('status')) {
             if ($request->status == 'used') {
@@ -21,8 +22,26 @@ class CardController extends Controller
             }
         }
 
-        $cards = $query->paginate(30);
-        return view('admin.cards.index', compact('cards'));
+        if ($request->filled('generated_by_id')) {
+            $query->where('generated_by_id', $request->integer('generated_by_id'));
+        }
+
+        if ($request->filled('used_by_id')) {
+            $query->where('used_by_id', $request->integer('used_by_id'));
+        }
+
+        if ($request->filled('search')) {
+            $query->where('code', 'like', '%' . $request->search . '%');
+        }
+
+        $cards = $query->paginate(30)->withQueryString();
+        $creatorIds = Card::whereNotNull('generated_by_id')->distinct()->pluck('generated_by_id');
+        $usedByIds = Card::whereNotNull('used_by_id')->distinct()->pluck('used_by_id');
+
+        $creators = User::whereIn('id', $creatorIds)->orderBy('name')->get(['id', 'name']);
+        $redeemers = User::whereIn('id', $usedByIds)->orderBy('name')->get(['id', 'name']);
+
+        return view('admin.cards.index', compact('cards', 'creators', 'redeemers'));
     }
 
     public function generate(Request $request)

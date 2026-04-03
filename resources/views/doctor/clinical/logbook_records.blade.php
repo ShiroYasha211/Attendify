@@ -1,211 +1,148 @@
 @extends('layouts.doctor')
-@section('title', 'سجل التحضير')
+
+@section('title', 'سجل السجلات السريرية')
+
 @section('content')
 <style>
-    .clinical-page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.75rem;
-        flex-wrap: wrap;
+    .records-grid {
+        display: grid;
         gap: 1rem;
     }
 
-    .clinical-page-header .right-side h1 {
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: var(--text-primary);
-        margin: 0 0 0.15rem 0;
+    .record-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        padding: 1.2rem 1.3rem;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
     }
 
-    .clinical-page-header .right-side p {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        margin: 0;
-    }
-
-    .btn-back {
-        background: white;
-        color: var(--text-secondary);
-        border: 1.5px solid #e2e8f0;
-        padding: 0.55rem 1.1rem;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.88rem;
+    .status-pill {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-
-    .btn-back:hover {
-        border-color: #cbd5e1;
-        background: #f8fafc;
-        text-decoration: none;
-    }
-
-    .filter-bar {
-        display: flex;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
-        flex-wrap: wrap;
-    }
-
-    .filter-bar select,
-    .filter-bar input {
-        padding: 0.5rem 0.75rem;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        background: white;
-        font-family: inherit;
-    }
-
-    .filter-bar button {
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .card-section {
-        background: white;
-        border-radius: 18px;
-        border: 1px solid #e2e8f0;
-        padding: 1.5rem;
-    }
-
-    .log-card {
-        background: #fafbfe;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 1rem 1.25rem;
-        margin-bottom: 0.75rem;
-        transition: all 0.2s;
-    }
-
-    .log-card:hover {
-        border-color: #c7d2fe;
-    }
-
-    .log-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 0.4rem;
-    }
-
-    .log-name {
-        font-weight: 700;
-        font-size: 1rem;
-    }
-
-    .status-badge {
-        padding: 0.2rem 0.5rem;
-        border-radius: 6px;
-        font-weight: 700;
-        font-size: 0.78rem;
-    }
-
-    .status-badge.confirmed {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .status-badge.pending {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .status-badge.rejected {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .log-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.6rem;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-    }
-
-    .sig-mini {
-        display: inline-flex;
         gap: 0.35rem;
-        margin-top: 0.4rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 800;
     }
 
-    .sig-mini span {
-        font-size: 0.72rem;
-        padding: 0.15rem 0.4rem;
-        border-radius: 4px;
-        font-weight: 600;
+    .status-pill.pending { background: #fef3c7; color: #92400e; }
+    .status-pill.partially_confirmed { background: #dbeafe; color: #1d4ed8; }
+    .status-pill.confirmed { background: #dcfce7; color: #166534; }
+    .status-pill.rejected { background: #fee2e2; color: #991b1b; }
+
+    .group-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        margin-top: 0.9rem;
     }
 
-    .sig-mini .on {
-        background: #d1fae5;
-        color: #065f46;
+    .group-label {
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 0.55rem;
     }
 
-    .sig-mini .off {
-        background: #f1f5f9;
-        color: #94a3b8;
+    .pill-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .item-pill {
+        padding: 0.28rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        color: #334155;
+    }
+
+    .item-pill.confirmed {
+        background: #dcfce7;
+        border-color: #86efac;
+        color: #166534;
     }
 </style>
 
-<div class="clinical-page-header">
-    <div class="right-side">
-        <h1>📋 سجل التحضير اليومي</h1>
-        <p>كل السجلات اليومية للطلاب</p>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <div class="text-uppercase text-muted fw-bold small mb-2">Clinical records</div>
+        <h1 class="h3 fw-bold mb-2">سجل السجلات اليومية</h1>
+        <p class="text-muted mb-0">يعرض ما تم تسجيله من الطالب وما تم اعتماده فعليًا لكل قسم.</p>
     </div>
-    <div class="left-side"><a href="{{ route('doctor.clinical.index') }}" class="btn-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg> القسم العملي</a></div>
+    <a href="{{ route('doctor.clinical.index') }}" class="btn btn-outline-secondary">القسم العملي</a>
 </div>
 
-<form class="filter-bar">
-    <select name="status">
-        <option value="">كل الحالات</option>
-        <option value="confirmed" {{ request('status')=='confirmed'?'selected':'' }}>مؤكد</option>
-        <option value="pending" {{ request('status')=='pending'?'selected':'' }}>بانتظار</option>
-        <option value="rejected" {{ request('status')=='rejected'?'selected':'' }}>مرفوض</option>
-    </select>
-    <input type="date" name="date" value="{{ request('date') }}">
-    <button type="submit">🔍 بحث</button>
+<form class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label class="form-label fw-bold">الحالة</label>
+        <select name="status" class="form-select">
+            <option value="">الكل</option>
+            <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>بانتظار التأكيد</option>
+            <option value="partially_confirmed" {{ request('status') === 'partially_confirmed' ? 'selected' : '' }}>اعتماد جزئي</option>
+            <option value="confirmed" {{ request('status') === 'confirmed' ? 'selected' : '' }}>مؤكد</option>
+            <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>مرفوض</option>
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label fw-bold">التاريخ</label>
+        <input type="date" name="date" value="{{ request('date') }}" class="form-control">
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">تصفية</button>
+    </div>
 </form>
 
-<div class="card-section">
+<div class="records-grid">
     @forelse($logs as $log)
-    <div class="log-card">
-        <div class="log-header">
-            <span class="log-name">{{ $log->student->name ?? '-' }}</span>
-            <span class="status-badge {{ $log->status }}">{{ $log->status_label }}</span>
-        </div>
-        <div class="log-meta">
-            <span>🏥 {{ $log->trainingCenter->name ?? '-' }}</span>
-            <span>🏷 {{ $log->department->name ?? '-' }}</span>
-            <span>📅 {{ $log->log_date->format('Y-m-d') }}</span>
-            @if($log->confirmed_by)<span>✍ {{ $log->confirmedBy->name ?? '-' }}</span>@endif
-        </div>
-        <div class="sig-mini">
-            <span class="on">حضور ✓</span>
-            <span class="{{ $log->history_count > 0 ? 'on' : 'off' }}">قصص: {{ $log->history_count }}</span>
-            <span class="{{ $log->exam_count > 0 ? 'on' : 'off' }}">فحص: {{ $log->exam_count }}</span>
-            <span class="{{ $log->did_round ? 'on' : 'off' }}">مرور {{ $log->did_round ? '✓' : '✗' }}</span>
-        </div>
-    </div>
-    @empty
-    <div style="text-align:center;padding:2.5rem;color:var(--text-secondary);">
-        <p>لا توجد سجلات بعد.</p>
-    </div>
-    @endforelse
+        <div class="record-card">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-2">
+                <div>
+                    <div class="fw-bold fs-5">{{ $log->student->name ?? '-' }}</div>
+                    <div class="text-muted small mt-2">
+                        {{ $log->trainingCenter->name ?? '-' }} |
+                        {{ $log->department->name ?? '-' }} |
+                        {{ $log->log_date->format('Y-m-d') }}
+                    </div>
+                </div>
+                <span class="status-pill {{ $log->status }}">{{ $log->status_label }}</span>
+            </div>
 
-    {{ $logs->links() }}
+            @foreach($log->groupedActivities() as $group)
+                @php
+                    $items = $group['items'];
+                    $diagnosis = $items->pluck('diagnosis')->filter()->first();
+                @endphp
+                <div class="group-box">
+                    <div class="group-label">{{ $group['label'] }}</div>
+                    <div class="pill-row">
+                        @foreach($items as $item)
+                            <span class="item-pill {{ $item->is_confirmed ? 'confirmed' : '' }}">
+                                {{ $item->activity_type === 'round' ? ($item->case_name ?: 'Round case') : ($item->bodySystem->name ?? '-') }}
+                            </span>
+                        @endforeach
+                    </div>
+                    @if($diagnosis)
+                        <div class="mt-2 small"><strong>التشخيص:</strong> {{ $diagnosis }}</div>
+                    @endif
+                </div>
+            @endforeach
+
+            @if($log->doctor_notes)
+                <div class="group-box"><strong>ملاحظات الدكتور:</strong> {{ $log->doctor_notes }}</div>
+            @endif
+        </div>
+    @empty
+        <div class="record-card text-center text-muted py-5">لا توجد سجلات مطابقة.</div>
+    @endforelse
 </div>
+
+@if($logs->hasPages())
+    <div class="mt-4">{{ $logs->links() }}</div>
+@endif
 @endsection

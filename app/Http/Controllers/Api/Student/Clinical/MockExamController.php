@@ -19,7 +19,7 @@ class MockExamController extends Controller
     {
         $student = $request->user();
 
-        $checklists = EvaluationChecklist::where('is_active', true)
+        $checklists = EvaluationChecklist::with(['creator', 'doctor'])
             ->forStudent($student->id)
             ->get();
 
@@ -120,7 +120,11 @@ class MockExamController extends Controller
      */
     public function take($checklist_id)
     {
-        $checklist = EvaluationChecklist::with('items')->findOrFail($checklist_id);
+        $student = request()->user();
+        $checklist = EvaluationChecklist::with(['creator', 'doctor'])
+            ->forStudent($student->id)
+            ->with('items')
+            ->findOrFail($checklist_id);
 
         if (!$checklist->is_active) {
             return response()->json(['success' => false, 'message' => 'هذا النموذج غير متاح حالياً.'], 403);
@@ -143,7 +147,10 @@ class MockExamController extends Controller
         ]);
 
         $student = $request->user();
-        $checklist = EvaluationChecklist::with('items')->findOrFail($checklist_id);
+        $checklist = EvaluationChecklist::with(['creator', 'doctor'])
+            ->forStudent($student->id)
+            ->with('items')
+            ->findOrFail($checklist_id);
 
         $totalMaxMarks = 0;
         $totalObtainedMarks = 0;

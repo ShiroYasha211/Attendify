@@ -60,6 +60,7 @@ class StudentController extends Controller implements HasMiddleware
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => 'required|string|email|max:255|unique:users',
             'student_number' => 'required|string|max:20|unique:users',
             'password' => 'required|string|min:6|confirmed',
@@ -67,6 +68,7 @@ class StudentController extends Controller implements HasMiddleware
 
         $user = User::create([
             'name' => $validated['name'],
+            'gender' => $validated['gender'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => UserRole::STUDENT,
@@ -108,6 +110,7 @@ class StudentController extends Controller implements HasMiddleware
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($student->id)],
             'student_number' => ['required', 'string', 'max:20', Rule::unique('users')->ignore($student->id)],
             'password' => 'nullable|string|min:6|confirmed',
@@ -115,6 +118,7 @@ class StudentController extends Controller implements HasMiddleware
 
         $data = [
             'name' => $validated['name'],
+            'gender' => $validated['gender'],
             'email' => $validated['email'],
             'student_number' => $validated['student_number'],
         ];
@@ -232,6 +236,7 @@ class StudentController extends Controller implements HasMiddleware
                 try {
                     User::create([
                         'name' => $name,
+                        'gender' => 'male',
                         'email' => $email,
                         'password' => Hash::make($studentNumber), // Default password is student number
                         'role' => UserRole::STUDENT,

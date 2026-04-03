@@ -332,17 +332,17 @@
                     <span>التكاليف الدراسية</span>
                 </a>
 
+                @php
+                    $myDelegationsCount = Auth::user()->delegatedGradeCategories()->count();
+                @endphp
+                @if($myDelegationsCount > 0)
                 <a href="{{ route('delegate.authorized-grades.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.authorized-grades.*') ? 'active' : '' }}" title="مهام الرصد المفوضة">
                     <i class="fa-solid fa-file-signature" style="width: 20px; font-size: 1.1rem;"></i>
                     <span>مهام الرصد المفوضة</span>
-                    @php
-                        $myDelegationsCount = Auth::user()->delegatedGradeCategories()->count();
-                    @endphp
-                    @if($myDelegationsCount > 0)
-                        <span style="background: #4f46e5; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $myDelegationsCount }}</span>
-                    @endif
+                    <span style="background: #4f46e5; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 50px; margin-right: auto;">{{ $myDelegationsCount }}</span>
                 </a>
-+
+                @endif
+
 
                 <a href="{{ route('delegate.news.index') }}" class="nav-link {{ !Auth::user()->isSubscribed() ? 'locked' : '' }} {{ request()->routeIs('delegate.news.*') ? 'active' : '' }}" title="المركز الإخباري الرسمي">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

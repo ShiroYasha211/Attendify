@@ -16,4 +16,12 @@ class University extends Model
     {
         return $this->hasMany(College::class);
     }
+
+    /**
+     * University has many Users (Students, Doctors, etc.).
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(\App\Models\User::class);
+    }
 }

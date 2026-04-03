@@ -30,7 +30,12 @@ class SubjectController extends AdminApiController
             'name' => 'required|string|max:255',
             'term_id' => 'required|exists:terms,id',
             'semester_id' => 'nullable|exists:semesters,id',
-            'doctor_id' => 'nullable|exists:users,id',
+            'doctor_id' => [
+                'nullable',
+                \Illuminate\Validation\Rule::exists('users', 'id')->where(function ($query) {
+                    $query->where('role', \App\Enums\UserRole::DOCTOR->value);
+                }),
+            ],
             'max_absences' => 'required|integer|min:1',
             'lecture_count' => 'nullable|integer|min:0',
         ]);
@@ -56,7 +61,12 @@ class SubjectController extends AdminApiController
             'name' => 'required|string|max:255',
             'term_id' => 'required|exists:terms,id',
             'semester_id' => 'nullable|exists:semesters,id',
-            'doctor_id' => 'nullable|exists:users,id',
+            'doctor_id' => [
+                'nullable',
+                \Illuminate\Validation\Rule::exists('users', 'id')->where(function ($query) {
+                    $query->where('role', \App\Enums\UserRole::DOCTOR->value);
+                }),
+            ],
             'max_absences' => 'required|integer|min:1',
             'lecture_count' => 'nullable|integer|min:0',
         ]);
@@ -79,6 +89,11 @@ class SubjectController extends AdminApiController
 
     public function destroy(Subject $subject)
     {
+        // منع الحذف إذا كان هناك سجلات مرتبطة لحماية البيانات
+        if ($subject->attendances()->exists() || $subject->grades()->exists()) {
+            return $this->error('لا يمكن حذف المادة لوجود سجلات حضور أو درجات مرتبطة بها.', 422);
+        }
+        
         $subject->delete();
         return $this->success(null, 'تم حذف المادة بنجاح');
     }

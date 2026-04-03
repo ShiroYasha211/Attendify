@@ -14,6 +14,7 @@ class Lecture extends Model
         'subject_id',
         'date',
         'lecture_number',
+        'lecture_type',
         'title',
         'description',
         'start_time',
@@ -23,6 +24,11 @@ class Lecture extends Model
     protected $casts = [
         'date' => 'date',
     ];
+
+    public function isSpecial(): bool
+    {
+        return $this->lecture_type === 'special';
+    }
 
     public function subject()
     {

@@ -61,7 +61,7 @@ class ScheduleController extends Controller implements HasMiddleware
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required',
             'end_time' => 'required|after:start_time',
-            'hall_name' => 'required|string|max:255',
+            'hall_name' => 'nullable|string|max:255',
         ]);
 
         // Validation Scope Check
@@ -106,7 +106,7 @@ class ScheduleController extends Controller implements HasMiddleware
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required',
             'end_time' => 'required|after:start_time',
-            'hall_name' => 'required|string|max:255',
+            'hall_name' => 'nullable|string|max:255',
         ]);
 
         // Validation Scope Check (New Subject)

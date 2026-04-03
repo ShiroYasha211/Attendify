@@ -2,8 +2,8 @@
 
 namespace App\Models\Clinical;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class StudentDailyLog extends Model
@@ -31,8 +31,6 @@ class StudentDailyLog extends Model
         'confirmed_at' => 'datetime',
         'log_date' => 'date',
     ];
-
-    // ─── Relationships ───
 
     public function student()
     {
@@ -64,18 +62,20 @@ class StudentDailyLog extends Model
         return $this->hasMany(DailyLogActivity::class, 'daily_log_id');
     }
 
-    // ─── Scopes ───
-
-    public function scopePending($q)
+    public function scopePending($query)
     {
-        return $q->where('status', 'pending');
-    }
-    public function scopeConfirmed($q)
-    {
-        return $q->where('status', 'confirmed');
+        return $query->where('status', 'pending');
     }
 
-    // ─── Helpers ───
+    public function scopeConfirmed($query)
+    {
+        return $query->where('status', 'confirmed');
+    }
+
+    public function scopeReviewable($query)
+    {
+        return $query->whereIn('status', ['pending', 'partially_confirmed']);
+    }
 
     public static function generateToken(): string
     {
@@ -91,9 +91,56 @@ class StudentDailyLog extends Model
     {
         return match ($this->status) {
             'pending' => 'بانتظار التأكيد',
-            'confirmed' => 'مؤكد ✅',
-            'rejected' => 'مرفوض ❌',
+            'partially_confirmed' => 'اعتماد جزئي',
+            'confirmed' => 'مؤكد',
+            'rejected' => 'مرفوض',
             default => $this->status,
         };
+    }
+
+    public function groupedActivities(): array
+    {
+        $groups = [
+            'history' => [
+                'key' => 'history',
+                'label' => 'القصص المرضية',
+                'activity_type' => 'history_taking',
+                'items' => $this->activities->where('activity_type', 'history_taking')->values(),
+            ],
+            'exam' => [
+                'key' => 'exam',
+                'label' => 'الفحوصات السريرية',
+                'activity_type' => 'clinical_examination',
+                'items' => $this->activities->where('activity_type', 'clinical_examination')->values(),
+            ],
+            'round' => [
+                'key' => 'round',
+                'label' => 'المرور',
+                'activity_type' => 'round',
+                'items' => $this->activities->where('activity_type', 'round')->values(),
+            ],
+        ];
+
+        return array_filter($groups, fn ($group) => $group['items']->isNotEmpty());
+    }
+
+    public function syncApprovalStatus(): string
+    {
+        $activities = $this->activities;
+        if ($activities->isEmpty()) {
+            return $this->status;
+        }
+
+        $confirmedCount = $activities->where('is_confirmed', true)->count();
+        $newStatus = match (true) {
+            $confirmedCount === 0 => 'pending',
+            $confirmedCount === $activities->count() => 'confirmed',
+            default => 'partially_confirmed',
+        };
+
+        $this->status = $newStatus;
+        $this->save();
+
+        return $newStatus;
     }
 }

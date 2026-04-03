@@ -21,9 +21,10 @@ class NotificationController extends DelegateApiController
     public function index(Request $request)
     {
         $delegate = $request->user();
+        $filter = $request->get('filter', 'all');
 
-        // 1. Get Absence Statistics (Optimized query as in web version)
-        $absenceStats = DB::table('attendances as a')
+        // 1. Get Base Absence Statistics
+        $absenceStatsQuery = DB::table('attendances as a')
             ->join('users as u', 'a.student_id', '=', 'u.id')
             ->join('subjects as s', 'a.subject_id', '=', 's.id')
             ->where('s.major_id', $delegate->major_id)
@@ -38,10 +39,36 @@ class NotificationController extends DelegateApiController
                 DB::raw('COUNT(a.id) as absence_count')
             )
             ->groupBy('u.id', 'u.name', 'u.university_id', 's.id', 's.name')
-            ->orderByDesc('absence_count')
-            ->get();
+            ->orderByDesc('absence_count');
 
-        // 2. Get history of sent warnings
+        $allStats = $absenceStatsQuery->get();
+
+        // 2. Classify and Filter
+        $report = [];
+        foreach ($allStats as $stat) {
+            $report[] = [
+                'student_id' => $stat->student_id,
+                'student_name' => $stat->student_name,
+                'student_university_id' => $stat->student_university_id,
+                'subject_id' => $stat->subject_id,
+                'subject_name' => $stat->subject_name,
+                'absence_count' => $stat->absence_count,
+                'status' => $stat->absence_count >= 5 ? 'danger' : ($stat->absence_count >= 3 ? 'warning' : 'normal')
+            ];
+        }
+
+        $stats = [
+            'total' => count($report),
+            'danger' => count(array_filter($report, fn($r) => $r['absence_count'] >= 5)),
+            'warning' => count(array_filter($report, fn($r) => $r['absence_count'] >= 3 && $r['absence_count'] < 5)),
+            'normal' => count(array_filter($report, fn($r) => $r['absence_count'] < 3)),
+        ];
+
+        if ($filter !== 'all') {
+            $report = array_values(array_filter($report, fn($r) => $r['status'] === $filter));
+        }
+
+        // 3. Get history of sent warnings
         $sentWarnings = StudentNotification::where('sender_id', $delegate->id)
             ->where('type', 'absence_warning')
             ->with(['student:id,name,university_id'])
@@ -49,9 +76,10 @@ class NotificationController extends DelegateApiController
             ->get();
 
         return $this->success([
-            'absence_stats' => $absenceStats,
+            'stats' => $stats,
+            'absence_stats' => $report,
             'sent_warnings' => $sentWarnings,
-        ], 'تم جلب إحصائيات الغياب المحدثة بنجاح');
+        ], 'تم جلب إحصائيات الغياب بنجاح');
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Models\Academic\Assignment;
 use App\Models\Academic\Level;
 use App\Models\Attendance;
 use App\Models\Setting;
+use App\Support\ExcuseWorkflow;
 
 class SubjectController extends Controller
 {
@@ -56,7 +57,7 @@ class SubjectController extends Controller
         $presentCount = $attendanceRecords->where('status', 'present')->count();
         $absentCount = $attendanceRecords->where('status', 'absent')->count();
         $lateCount = $attendanceRecords->where('status', 'late')->count();
-        $excusedCount = $attendanceRecords->where('status', 'excused')->count();
+        $excusedCount = $attendanceRecords->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
 
         $totalLectures = $attendanceRecords->count();
         $attendancePercentage = $totalLectures > 0 ? round(($presentCount / $totalLectures) * 100) : 0;

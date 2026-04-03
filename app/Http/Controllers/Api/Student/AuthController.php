@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\Student;
 
-use App\Models\User;
 use App\Enums\UserRole;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -20,22 +20,22 @@ class AuthController extends StudentApiController
         ]);
 
         $login = $request->login;
-        $user = User::where(function($q) use ($login) {
+        $user = User::where(function ($q) use ($login) {
             $q->where('email', $login)
-              ->orWhere('student_number', $login);
+                ->orWhere('student_number', $login);
         })->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return $this->error('بيانات الدخول غير صحيحة.', 401);
+            return $this->error('ظ¨ظٹط§ظ†ط§طھ ط§ظ„ط¯ط®ظˆظ„ ط؛ظٹط± طµط­ظٹط­ط©.', 401);
         }
 
         // Allow students, delegates, and practical delegates to use the student app
         if (!in_array($user->role->value, [UserRole::STUDENT->value, UserRole::DELEGATE->value, UserRole::PRACTICAL_DELEGATE->value])) {
-            return $this->error('غير مصرح لك بالدخول إلى تطبيق الطالب.', 403);
+            return $this->error('ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ط¯ط®ظˆظ„ ط¥ظ„ظ‰ طھط·ط¨ظٹظ‚ ط§ظ„ط·ط§ظ„ط¨.', 403);
         }
 
         if ($user->status !== 'active') {
-            return $this->error('حسابك موقوف حالياً. يرجى مراجعة الإدارة.', 403);
+            return $this->error('ط­ط³ط§ط¨ظƒ ظ…ظˆظ‚ظˆظپ ط­ط§ظ„ظٹط§ظ‹. ظٹط±ط¬ظ‰ ظ…ط±ط§ط¬ط¹ط© ط§ظ„ط¥ط¯ط§ط±ط©.', 403);
         }
 
         // Load relationships for profile data
@@ -63,7 +63,7 @@ class AuthController extends StudentApiController
                 ] : null,
                 'academic_year' => $user->academic_year,
             ],
-        ], 'تم تسجيل الدخول بنجاح');
+        ], 'طھظ… طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ط¨ظ†ط¬ط§ط­');
     }
 
     /**
@@ -104,7 +104,7 @@ class AuthController extends StudentApiController
     {
         $request->user()->currentAccessToken()->delete();
 
-        return $this->success(null, 'تم تسجيل الخروج بنجاح.');
+        return $this->success(null, 'طھظ… طھط³ط¬ظٹظ„ ط§ظ„ط®ط±ظˆط¬ ط¨ظ†ط¬ط§ط­.');
     }
 
     /**
@@ -113,20 +113,22 @@ class AuthController extends StudentApiController
     public function changePassword(Request $request)
     {
         $request->validate([
-            'old_password' => 'required',
+            'current_password' => 'required_without:old_password',
+            'old_password' => 'required_without:current_password',
             'new_password' => 'required|min:8|confirmed',
         ]);
 
         $user = $request->user();
+        $currentPassword = $request->input('current_password', $request->input('old_password'));
 
-        if (!Hash::check($request->old_password, $user->password)) {
-            return $this->error('كلمة المرور القديمة غير صحيحة.', 422);
+        if (!Hash::check($currentPassword, $user->password)) {
+            return $this->error('ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط§ظ„ظ‚ط¯ظٹظ…ط© ط؛ظٹط± طµط­ظٹط­ط©.', 422);
         }
 
         $user->update([
             'password' => Hash::make($request->new_password)
         ]);
 
-        return $this->success(null, 'تم تغيير كلمة المرور بنجاح.');
+        return $this->success(null, 'طھظ… طھط؛ظٹظٹط± ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¨ظ†ط¬ط§ط­.');
     }
 }

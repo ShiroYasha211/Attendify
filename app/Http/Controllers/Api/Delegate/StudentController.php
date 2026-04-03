@@ -37,6 +37,7 @@ class StudentController extends DelegateApiController
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => 'required|string|email|max:255|unique:users',
             'student_number' => 'required|string|max:20|unique:users',
             'password' => 'required|string|min:6|confirmed',
@@ -44,6 +45,7 @@ class StudentController extends DelegateApiController
 
         $user = User::create([
             'name' => $validated['name'],
+            'gender' => $validated['gender'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => UserRole::STUDENT,
@@ -72,6 +74,7 @@ class StudentController extends DelegateApiController
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($student->id)],
             'student_number' => ['required', 'string', 'max:20', Rule::unique('users')->ignore($student->id)],
             'password' => 'nullable|string|min:6|confirmed',
@@ -80,6 +83,7 @@ class StudentController extends DelegateApiController
 
         $data = [
             'name' => $validated['name'],
+            'gender' => $validated['gender'],
             'email' => $validated['email'],
             'student_number' => $validated['student_number'],
         ];
@@ -165,6 +169,7 @@ class StudentController extends DelegateApiController
                 try {
                     User::create([
                         'name' => $name,
+                        'gender' => 'male',
                         'email' => $email,
                         'password' => Hash::make($studentNumber),
                         'role' => UserRole::STUDENT,
@@ -187,5 +192,70 @@ class StudentController extends DelegateApiController
             'success_count' => $successCount,
             'errors' => $errors,
         ], "اكتمل الاستيراد. تم إضافة $successCount طالب.");
+    }
+
+    /**
+     * Get permission status for a student.
+     */
+    public function permissions(Request $request, User $student)
+    {
+        $delegate = $request->user();
+
+        // Enforce Scope
+        if ($student->major_id != $delegate->major_id || $student->level_id != $delegate->level_id) {
+            return $this->error('غير مصرح لك بالوصول', 403);
+        }
+
+        return $this->success([
+            'student_id' => $student->id,
+            'student_name' => $student->name,
+            'can_upload_library' => $student->hasPermission('upload_shared_library'),
+            'available_permissions' => [
+                [
+                    'slug' => 'upload_shared_library',
+                    'name' => 'الرفع للمكتبة المشتركة',
+                    'description' => 'يسمح للطالب برفع ملفات ومحاضرات للمكتبة العامة للمواد.'
+                ]
+            ]
+        ], 'تم جلب حالة الصلاحيات بنجاح');
+    }
+
+    /**
+     * Update permissions for a specific student.
+     * Restricted to library_upload only.
+     */
+    public function updatePermissions(Request $request, User $student)
+    {
+        $delegate = $request->user();
+
+        // Enforce Scope
+        if ($student->major_id != $delegate->major_id || $student->level_id != $delegate->level_id) {
+            return $this->error('غير مصرح لك بتعديل هذا الطالب', 403);
+        }
+
+        $validated = $request->validate([
+            'permissions' => 'array',
+            'permissions.*' => 'string|in:upload_shared_library'
+        ], [
+            'permissions.*.in' => 'لا يمكنك منح هذه الصلاحية. المندوب مخول بمنح صلاحية الرفع للمكتبة فقط.'
+        ]);
+
+        // Sync (only for the allowed restricted set)
+        $allowedSlugs = ['upload_shared_library'];
+        
+        // Remove currently held allowed permissions to refresh
+        $student->permissions()->detach(\App\Models\Permission::whereIn('slug', $allowedSlugs)->pluck('id'));
+
+        // Attach requested
+        if (!empty($validated['permissions'])) {
+            foreach ($validated['permissions'] as $slug) {
+                $permission = \App\Models\Permission::where('slug', $slug)->first();
+                if ($permission) {
+                    $student->permissions()->syncWithoutDetaching([$permission->id]);
+                }
+            }
+        }
+
+        return $this->success(null, 'تم تحديث صلاحيات الطالب بنجاح');
     }
 }

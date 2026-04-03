@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Grade;
 use App\Models\ExamScheduleItem;
 use App\Models\Academic\Subject;
+use App\Support\ExcuseWorkflow;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -39,7 +40,7 @@ class ReportController extends Controller
             $stats['present'] += $subject->attendances->where('status', 'present')->count();
             $stats['absent'] += $subject->attendances->where('status', 'absent')->count();
             $stats['late'] += $subject->attendances->where('status', 'late')->count();
-            $stats['excused'] += $subject->attendances->where('status', 'excused')->count();
+            $stats['excused'] += $subject->attendances->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
         }
 
         $data = [

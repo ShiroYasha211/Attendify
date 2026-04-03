@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'إضافة دكتور جديد')
 
@@ -39,7 +39,7 @@
             </div>
 
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">الكلية التابع لها <span style="color: red">*</span></label>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">الكلية التابعة لها <span style="color: red">*</span></label>
                 <select name="college_id" required style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px; background: white;">
                     <option value="">-- اختر الكلية --</option>
                     @foreach($colleges as $college)
@@ -50,6 +50,16 @@
                 </select>
             </div>
 
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem; padding:0.9rem 1rem; border:1px solid #e5e7eb; border-radius:8px; background:#f8fafc;">
+                <div>
+                    <div style="font-weight:700; margin-bottom:0.25rem;">رتبة المسؤول الإداري</div>
+                    <div style="font-size:0.85rem; color:#6b7280;">تمنح هذا الطبيب وصولاً إلى لوحة المسؤول الإداري.</div>
+                </div>
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:700;">
+                    <input type="checkbox" name="administrative_access" value="1" {{ old('administrative_access') ? 'checked' : '' }}>
+                    تفعيل
+                </label>
+            </div>
             <div style="display: flex; gap: 1rem;">
                 <button type="submit" style="flex: 1; background: #007bff; color: white; border: none; padding: 0.75rem; border-radius: 4px; cursor: pointer; font-size: 1rem;">
                     حفظ الدكتور

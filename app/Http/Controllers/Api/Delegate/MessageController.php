@@ -111,4 +111,22 @@ class MessageController extends DelegateApiController
 
         return $this->success($message->load('sender:id,name,avatar'), 'تم إرسال الرسالة بنجاح', 201);
     }
+
+    /**
+     * Get a list of students in the delegate's batch to start a conversation.
+     */
+    public function eligibleStudents(Request $request)
+    {
+        $delegate = $request->user();
+
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+            ->where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->where('id', '!=', $delegate->id)
+            ->select('id', 'name', 'university_id', 'avatar')
+            ->orderBy('name')
+            ->get();
+
+        return $this->success($students, 'تم جلب قائمة الطلاب بنجاح');
+    }
 }

@@ -19,6 +19,12 @@ class UserController extends AdminApiController
         if ($request->status) {
             $query->where('status', $request->status);
         }
+        if ($request->filled('university_id')) {
+            $query->where('university_id', $request->integer('university_id'));
+        }
+        if ($request->filled('major_id')) {
+            $query->where('major_id', $request->integer('major_id'));
+        }
         if ($request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', "%{$request->search}%")
@@ -131,5 +137,176 @@ class UserController extends AdminApiController
         );
 
         return $this->success(null, 'تم طرد المستخدم ' . $user->name . ' من الجلسة بنجاح.');
+    }
+
+    /**
+     * تفعيل الاشتراك يدوياً للمستخدم
+     */
+    public function activateSubscription(Request $request, User $user)
+    {
+        $request->validate([
+            'days' => 'required|integer|min:1|max:3650'
+        ]);
+
+        $days = (int) $request->days;
+        $expiry = now()->addDays($days);
+
+        $user->update([
+            'subscribed_until' => $expiry
+        ]);
+
+        ActivityLog::log(
+            'update',
+            'User',
+            $user->id,
+            $user->name,
+            "تفعيل اشتراك يدوي عبر الـ API للمستخدم: {$user->name} لمدة {$days} أيام"
+        );
+
+        return $this->success([
+            'subscribed_until' => $expiry->format('Y-m-d H:i:s')
+        ], "تم تفعيل اشتراك المستخدم {$user->name} بنجاح لمدة {$days} أيام.");
+    }
+
+    /**
+     * تصدير جميع المستخدمين إلى ملف CSV
+     */
+    public function export(Request $request)
+    {
+        $query = User::with(['university', 'college', 'major', 'level']);
+
+        if ($request->role && $request->role !== 'all') {
+            $query->where('role', $request->role);
+        }
+        if ($request->filled('university_id')) {
+            $query->where('university_id', $request->integer('university_id'));
+        }
+        if ($request->filled('major_id')) {
+            $query->where('major_id', $request->integer('major_id'));
+        }
+
+        $users = $query->get();
+        $csvContent = chr(0xEF) . chr(0xBB) . chr(0xBF); // BOM for UTF-8
+        $headers = ['الرقم', 'الاسم', 'البريد الإلكتروني', 'الدور', 'الحالة', 'الجامعة', 'الكلية', 'التخصص', 'المستوى', 'تاريخ التسجيل'];
+        $csvContent .= implode(',', $headers) . "\n";
+
+        foreach ($users as $index => $user) {
+            $roleLabel = match ($user->role) {
+                UserRole::ADMIN => 'مدير',
+                UserRole::DOCTOR => 'دكتور',
+                UserRole::DELEGATE => 'مندوب دفعة',
+                UserRole::PRACTICAL_DELEGATE => 'مندوب عملي',
+                UserRole::STUDENT => 'طالب',
+                UserRole::ADMINISTRATIVE => 'مسؤول إداري',
+                default => '-'
+            };
+
+            $statusLabel = $user->status === 'active' ? 'نشط' : 'معطل';
+
+            $row = [
+                $index + 1,
+                '"' . str_replace('"', '""', $user->name) . '"',
+                $user->email,
+                $roleLabel,
+                $statusLabel,
+                '"' . str_replace('"', '""', $user->university->name ?? '-') . '"',
+                '"' . str_replace('"', '""', $user->college->name ?? '-') . '"',
+                '"' . str_replace('"', '""', $user->major->name ?? '-') . '"',
+                '"' . str_replace('"', '""', $user->level->name ?? '-') . '"',
+                $user->created_at ? $user->created_at->format('Y-m-d H:i') : '-'
+            ];
+
+            $csvContent .= implode(',', $row) . "\n";
+        }
+
+        $filename = 'users_export_' . date('Y-m-d_His') . '.csv';
+
+        return response($csvContent)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    /**
+     * Get all permissions and user's current assignments.
+     */
+    public function getPermissions(User $user)
+    {
+        // Technical Permissions (Stored in permission_user)
+        $permissions = \App\Models\Permission::all(['id', 'name', 'slug']);
+        $userPermissions = $user->permissions->pluck('slug')->toArray();
+
+        // Delegate Component Permissions (Stored in delegate_permissions)
+        $delegateResources = \App\Models\DelegatePermission::RESOURCES;
+        $delegateActions = \App\Models\DelegatePermission::ACTIONS;
+        
+        $userDelegatePermissions = $user->delegatePermissions()
+            ->get(['resource', 'action'])
+            ->map(fn($p) => "{$p->resource}.{$p->action}")
+            ->toArray();
+
+        return $this->success([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'role' => $user->role->value,
+            ],
+            'technical_permissions' => [
+                'available' => $permissions,
+                'current' => $userPermissions
+            ],
+            'delegate_permissions' => [
+                'resources' => $delegateResources,
+                'actions' => $delegateActions,
+                'current' => $userDelegatePermissions
+            ]
+        ], 'تم جلب الصلاحيات بنجاح');
+    }
+
+    /**
+     * Update permissions for a user (Admin Only).
+     */
+    public function updatePermissions(Request $request, User $user)
+    {
+        $request->validate([
+            'permissions' => 'array',
+            'permissions.*' => 'string|exists:permissions,slug',
+            'delegate_permissions' => 'array',
+            'delegate_permissions.*' => 'string' // Format: resource.action
+        ]);
+
+        // 1. Sync Technical Permissions
+        $user->permissions()->detach();
+        if ($request->has('permissions')) {
+            foreach ($request->permissions as $slug) {
+                $permission = \App\Models\Permission::where('slug', $slug)->first();
+                if ($permission) {
+                    $user->permissions()->attach($permission->id);
+                }
+            }
+        }
+
+        // 2. Sync Delegate Permissions
+        $user->delegatePermissions()->delete();
+        if ($request->has('delegate_permissions')) {
+            foreach ($request->delegate_permissions as $permString) {
+                if (str_contains($permString, '.')) {
+                    [$resource, $action] = explode('.', $permString);
+                    if (isset(\App\Models\DelegatePermission::RESOURCES[$resource]) && 
+                        isset(\App\Models\DelegatePermission::ACTIONS[$action])) {
+                        
+                        \App\Models\DelegatePermission::create([
+                            'user_id' => $user->id,
+                            'resource' => $resource,
+                            'action' => $action,
+                            'granted_by' => auth()->id()
+                        ]);
+                    }
+                }
+            }
+        }
+
+        ActivityLog::log('update_permissions', 'User', $user->id, $user->name, "تحديث صلاحيات المستخدم: {$user->name}");
+
+        return $this->success(null, 'تم تحديث الصلاحيات بنجاح');
     }
 }

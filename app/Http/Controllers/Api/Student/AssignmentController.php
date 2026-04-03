@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Api\Student;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use App\Models\Academic\Assignment;
 use App\Models\Academic\Subject;
 use App\Models\AssignmentSubmission;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AssignmentController extends StudentApiController
 {
@@ -18,10 +17,8 @@ class AssignmentController extends StudentApiController
     {
         $student = $request->user();
 
-        // 1. Fetch Sort Preference (Default to due_date)
         $sortBy = $request->get('sort_by', $student->assignment_sort_by ?: 'due_date');
 
-        // 2. Update preference if changed via URL
         if ($request->has('sort_by') && $request->sort_by !== $student->assignment_sort_by) {
             $student->update(['assignment_sort_by' => $request->sort_by]);
         }
@@ -35,15 +32,14 @@ class AssignmentController extends StudentApiController
                 $q->where('student_id', $student->id);
             }]);
 
-        // Apply Sorting based on Preference
         if ($sortBy === 'priority') {
             $query->leftJoin('student_assignment_priorities', function ($join) use ($student) {
                 $join->on('assignments.id', '=', 'student_assignment_priorities.assignment_id')
-                     ->where('student_assignment_priorities.user_id', '=', $student->id);
+                    ->where('student_assignment_priorities.user_id', '=', $student->id);
             })
-            ->select('assignments.*')
-            ->orderByRaw('CASE WHEN student_assignment_priorities.priority IS NULL THEN 0 ELSE student_assignment_priorities.priority END DESC')
-            ->orderBy('assignments.due_date', 'asc');
+                ->select('assignments.*')
+                ->orderByRaw('CASE WHEN student_assignment_priorities.priority IS NULL THEN 0 ELSE student_assignment_priorities.priority END DESC')
+                ->orderBy('assignments.due_date', 'asc');
         } else {
             $query->orderBy('due_date', 'asc');
         }
@@ -58,8 +54,11 @@ class AssignmentController extends StudentApiController
             $isLate = now()->greaterThan($assignment->due_date);
 
             $status = 'available';
-            if ($submission) $status = 'submitted';
-            elseif ($isLate) $status = 'missing';
+            if ($submission) {
+                $status = 'submitted';
+            } elseif ($isLate) {
+                $status = 'missing';
+            }
 
             return [
                 'id' => $assignment->id,
@@ -71,20 +70,16 @@ class AssignmentController extends StudentApiController
                 'file_path' => $assignment->file_path ? asset('storage/' . $assignment->file_path) : null,
                 'status' => $status,
                 'my_priority' => $userPriorities[$assignment->id] ?? 0,
-                'submission' => $submission ? [
-                    'file_url' => asset('storage/' . $submission->file_path),
-                    'notes' => $submission->notes,
-                    'submitted_at' => $submission->submitted_at,
-                ] : null,
+                'submission' => $submission ? $this->serializeSubmission($submission) : null,
             ];
         });
 
-        $activeAssignments = $assignments->filter(function ($a) {
-            return \Carbon\Carbon::parse($a['due_date'])->isFuture() || $a['status'] === 'submitted';
+        $activeAssignments = $assignments->filter(function ($assignment) {
+            return \Carbon\Carbon::parse($assignment['due_date'])->isFuture() || $assignment['status'] === 'submitted';
         })->values();
 
-        $pastAssignments = $assignments->filter(function ($a) {
-            return \Carbon\Carbon::parse($a['due_date'])->isPast() && $a['status'] === 'missing';
+        $pastAssignments = $assignments->filter(function ($assignment) {
+            return \Carbon\Carbon::parse($assignment['due_date'])->isPast() && $assignment['status'] === 'missing';
         })->values();
 
         return $this->success([
@@ -108,7 +103,7 @@ class AssignmentController extends StudentApiController
             ['priority' => $request->priority]
         );
 
-        return $this->success([], 'تم تحديث الأولوية بنجاح.');
+        return $this->success([], 'طھظ… طھط­ط¯ظٹط« ط§ظ„ط£ظˆظ„ظˆظٹط© ط¨ظ†ط¬ط§ط­.');
     }
 
     /**
@@ -122,7 +117,7 @@ class AssignmentController extends StudentApiController
 
         $request->user()->update(['assignment_sort_by' => $request->sort_by]);
 
-        return $this->success([], 'تم حفظ تفضيلات الفرز.');
+        return $this->success([], 'طھظ… ط­ظپط¸ طھظپط¶ظٹظ„ط§طھ ط§ظ„ظپط±ط².');
     }
 
     /**
@@ -130,12 +125,11 @@ class AssignmentController extends StudentApiController
      */
     public function show(Request $request, $id)
     {
-        // This is essentially the same as getDetails for API
         return $this->getDetails($request, $id);
     }
 
     /**
-     * Get assignment details (AJAX).
+     * Get assignment details.
      */
     public function getDetails(Request $request, $id)
     {
@@ -161,15 +155,10 @@ class AssignmentController extends StudentApiController
                 'due_date' => $assignment->due_date,
                 'marks' => $assignment->marks,
                 'file_path' => $assignment->file_path ? asset('storage/' . $assignment->file_path) : null,
-                'requires_submission' => (bool)$assignment->requires_submission,
+                'requires_submission' => (bool) $assignment->requires_submission,
                 'subject' => $assignment->subject,
             ],
-            'submission' => $submission ? [
-                'file_url' => asset('storage/' . $submission->file_path),
-                'notes' => $submission->notes,
-                'submitted_at' => $submission->submitted_at,
-                'status' => $submission->status,
-            ] : null,
+            'submission' => $submission ? $this->serializeSubmission($submission) : null,
             'is_overdue' => $assignment->isOverdue(),
             'formatted_due_date' => \Carbon\Carbon::parse($assignment->due_date)->format('Y-m-d'),
             'formatted_submitted_at' => $submission ? \Carbon\Carbon::parse($submission->submitted_at)->format('Y-m-d H:i') : null,
@@ -178,7 +167,7 @@ class AssignmentController extends StudentApiController
     }
 
     /**
-     * Submit an assignment
+     * Submit an assignment.
      */
     public function submit(Request $request, $id)
     {
@@ -237,10 +226,30 @@ class AssignmentController extends StudentApiController
             ]
         );
 
-        return $this->success([
+        return $this->success(
+            $this->serializeSubmission($submission),
+            'طھظ… طھط³ظ„ظٹظ… ط§ظ„طھظƒظ„ظٹظپ ط¨ظ†ط¬ط§ط­.',
+            201
+        );
+    }
+
+    private function serializeSubmission(AssignmentSubmission $submission): array
+    {
+        $submission->loadMissing('assignment');
+
+        return [
+            'file_name' => $submission->file_name,
+            'file_path' => $submission->file_path,
             'file_url' => $submission->file_path ? asset('storage/' . $submission->file_path) : null,
+            'file_type' => $submission->file_type,
+            'file_size' => $submission->file_size,
+            'formatted_file_size' => $submission->formatted_file_size,
             'notes' => $submission->notes,
             'submitted_at' => $submission->submitted_at,
-        ], 'تم تسليم التكليف بنجاح.', 201);
+            'status' => $submission->status,
+            'grade' => $submission->grade,
+            'feedback' => $submission->feedback,
+            'is_late' => $submission->isLate(),
+        ];
     }
 }

@@ -47,6 +47,15 @@
                     <input type="email" name="email" class="form-control" required value="{{ old('email') }}" placeholder="student@university.edu.ye">
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold small text-uppercase">الجنس <span class="text-danger">*</span></label>
+                    <select name="gender" class="form-control" required>
+                        <option value="">اختر الجنس</option>
+                        <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>ذكر</option>
+                        <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>أنثى</option>
+                    </select>
+                </div>
+
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
                         <label class="form-label font-weight-bold small text-uppercase">كلمة المرور <span class="text-danger">*</span></label>

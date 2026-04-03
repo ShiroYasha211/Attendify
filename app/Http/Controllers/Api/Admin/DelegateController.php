@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class DelegateController extends AdminApiController
 {
@@ -30,6 +31,8 @@ class DelegateController extends AdminApiController
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
+            'student_number' => 'required|string|max:50|unique:users',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'password' => 'required|string|min:8',
             'level_id' => 'required|exists:levels,id',
         ]);
@@ -39,6 +42,8 @@ class DelegateController extends AdminApiController
         $delegate = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'student_number' => $request->student_number,
+            'gender' => $request->gender,
             'password' => Hash::make($request->password),
             'role' => UserRole::DELEGATE,
             'level_id' => $level->id,
@@ -56,6 +61,8 @@ class DelegateController extends AdminApiController
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $delegate->id,
+            'student_number' => 'required|string|max:50|unique:users,student_number,' . $delegate->id,
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'level_id' => 'required|exists:levels,id',
         ]);
 
@@ -64,6 +71,8 @@ class DelegateController extends AdminApiController
         $data = [
             'name' => $request->name,
             'email' => $request->email,
+            'student_number' => $request->student_number,
+            'gender' => $request->gender,
             'level_id' => $level->id,
             'major_id' => $level->major_id,
             'college_id' => $level->major->college_id,
@@ -79,10 +88,21 @@ class DelegateController extends AdminApiController
         return $this->success($delegate->fresh(), 'تم تحديث بيانات المندوب بنجاح');
     }
 
+    public function show(User $delegate)
+    {
+        if ($delegate->role !== UserRole::DELEGATE) {
+            return $this->error('المستخدم ليس مندوباً.', 404);
+        }
+        return $this->success($delegate->load(['university', 'college', 'major', 'level']));
+    }
+
     public function destroy(User $delegate)
     {
-        $this->logDelete('Delegate', $delegate, "تم حذف المندوب: {$delegate->name}");
+        if ($delegate->role !== UserRole::DELEGATE) {
+            return $this->error('المستخدم ليس مندوباً.', 404);
+        }
+        $this->logDelete('Delegate', $delegate, "تم حذف المندوب نهائياً عبر الـ API: {$delegate->name}");
         $delegate->forceDelete();
-        return $this->success(null, 'تم حذف المندوب بنجاح');
+        return $this->success(null, 'تم حذف المندوب بنجاح واستئصال بياناته');
     }
 }

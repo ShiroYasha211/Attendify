@@ -1,4 +1,4 @@
-@extends('layouts.administrative')
+﻿@extends('layouts.administrative')
 
 @section('title', 'إدارة الطلاب - ' . $college->name)
 
@@ -308,6 +308,7 @@
     editEmail: '',
     editStudentNumber: '',
     editLevelId: '',
+    editGender: 'male',
     
     viewStudent: {},
     viewSubjects: [],
@@ -418,6 +419,14 @@
                     </div>
                 </div>
 
+                <div class="form-group mb-4">
+                    <label class="form-label font-weight-bold mb-2">الجنس</label>
+                    <select name="gender" class="form-control" required>
+                        <option value="male">ذكر</option>
+                        <option value="female">أنثى</option>
+                    </select>
+                </div>
+
                 <div class="form-group mb-5">
                     <label class="form-label font-weight-bold mb-2">كلمة المرور</label>
                     <div class="input-with-icon">
@@ -449,6 +458,7 @@
                         <tr>
                             <th>الطالب</th>
                             <th>الرقم الجامعي</th>
+                            <th>الجنس</th>
                             <th>التخصص / المستوى</th>
                             <th style="width: 150px;">الإجراءات</th>
                         </tr>
@@ -474,6 +484,11 @@
                                 <span class="student-number">{{ $student->student_number }}</span>
                             </td>
                             <td>
+                                <span style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: {{ $student->gender === 'female' ? '#fdf2f8' : '#eff6ff' }}; color: {{ $student->gender === 'female' ? '#db2777' : '#2563eb' }}; font-size: 0.8rem; font-weight: 700;">
+                                    {{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}
+                                </span>
+                            </td>
+                            <td>
                                 <div style="font-weight: 700; color: #334155;">{{ $student->major->name ?? '-' }}</div>
                                 <div style="font-size: 0.8rem; color: #64748b;">{{ $student->level->name ?? '-' }}</div>
                             </td>
@@ -483,11 +498,11 @@
                                         showDetailsModal = true;
                                         viewStudent = {
                                             name: '{{ $student->name }}',
-                                            email: '{{ $student->email }}',
-                                            student_number: '{{ $student->student_number }}',
-                                            level: '{{ $student->level->name ?? '-' }}',
-                                            major: '{{ $student->major->name ?? '-' }}'
-                                        };
+                                        email: '{{ $student->email }}',
+                                        student_number: '{{ $student->student_number }}',
+                                        level: '{{ $student->level->name ?? '-' }}',
+                                        major: '{{ $student->major->name ?? '-' }}'
+                                    };
                                         viewSubjects = {{ json_encode($student->level ? $student->level->terms->flatMap->subjects->map(function($s) {
                                             return [
                                                 'name' => $s->name,
@@ -508,6 +523,7 @@
                                         editEmail = '{{ $student->email }}';
                                         editStudentNumber = '{{ $student->student_number }}';
                                         editLevelId = '{{ $student->level_id }}';
+                                        editGender = '{{ $student->gender ?? 'male' }}';
                                     " class="action-btn edit" title="تعديل">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -579,6 +595,14 @@
                 <input type="email" name="email" class="form-control" x-model="editEmail" required>
             </div>
 
+            <div class="form-group mb-3">
+                <label class="form-label">الجنس</label>
+                <select name="gender" class="form-control" x-model="editGender" required>
+                    <option value="male">ذكر</option>
+                    <option value="female">أنثى</option>
+                </select>
+            </div>
+
             <div class="form-group mb-4" style="background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px dashed #ced4da;">
                 <label class="form-label" style="color: #64748b;">كلمة المرور الجديدة (اختياري)</label>
                 <input type="password" name="password" class="form-control" placeholder="اتركه فارغاً للحفاظ على الكلمة الحالية">
@@ -604,13 +628,15 @@
                     </div>
                     <div>
                         <h2 x-text="viewStudent.name" style="margin: 0 0 0.5rem; font-size: 1.75rem; font-weight: 800;"></h2>
-                        <div style="display: flex; gap: 1rem; opacity: 0.8; font-size: 0.95rem;">
-                            <span x-text="viewStudent.major"></span>
-                            <span>•</span>
-                            <span x-text="viewStudent.level"></span>
-                        </div>
-                    </div>
+                <div style="display: flex; gap: 1rem; opacity: 0.8; font-size: 0.95rem;">
+                    <span x-text="viewStudent.major"></span>
+                    <span>•</span>
+                    <span x-text="viewStudent.level"></span>
+                    <span>•</span>
+                    <span x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></span>
                 </div>
+            </div>
+        </div>
             </div>
 
             <div style="padding: 2rem;">
@@ -622,6 +648,10 @@
                     <div style="background: #f8fafc; padding: 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0;">
                         <div style="color: #64748b; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">البريد الإلكتروني</div>
                         <div x-text="viewStudent.email" style="font-weight: 700; font-size: 1.1rem; color: #1e293b;"></div>
+                    </div>
+                    <div style="background: #f8fafc; padding: 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0;">
+                        <div style="color: #64748b; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">الجنس</div>
+                        <div style="font-weight: 700; font-size: 1.1rem; color: #1e293b;" x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></div>
                     </div>
                 </div>
 

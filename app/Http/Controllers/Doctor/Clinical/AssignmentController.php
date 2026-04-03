@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\Doctor\Clinical;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
 use App\Models\Clinical\CaseAssignment;
 use App\Models\Clinical\ClinicalCase;
 use App\Models\User;
-use App\Enums\UserRole;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AssignmentController extends Controller
@@ -17,12 +16,10 @@ class AssignmentController extends Controller
     {
         $doctor = Auth::user();
 
-        // Get cases that belong to this doctor
         $cases = ClinicalCase::where('doctor_id', $doctor->id)
             ->where('status', 'active')
             ->get();
 
-        // Get students filtered by doctor's subjects
         $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', $doctor->id)
             ->select('major_id', 'level_id')
             ->distinct()
@@ -32,19 +29,18 @@ class AssignmentController extends Controller
         if ($doctorSubjects->isNotEmpty()) {
             $studentsQuery->where(function ($query) use ($doctorSubjects) {
                 foreach ($doctorSubjects as $subject) {
-                    $query->orWhere(function ($q) use ($subject) {
-                        $q->where('major_id', $subject->major_id)
+                    $query->orWhere(function ($subQuery) use ($subject) {
+                        $subQuery->where('major_id', $subject->major_id)
                             ->where('level_id', $subject->level_id);
                     });
                 }
             });
         } else {
-            $studentsQuery->whereRaw('1 = 0'); // No subjects = no students
+            $studentsQuery->whereRaw('1 = 0');
         }
         $students = $studentsQuery->orderBy('name')->get();
 
-        // Get existing assignments by this doctor
-        $query = CaseAssignment::with(['student', 'clinicalCase'])
+        $query = CaseAssignment::with(['student', 'clinicalCase.trainingCenter', 'reviewer'])
             ->where('assigned_by', $doctor->id);
 
         if ($request->filled('filter_student_id')) {
@@ -55,6 +51,9 @@ class AssignmentController extends Controller
         }
         if ($request->filled('filter_task_type')) {
             $query->where('task_type', $request->filter_task_type);
+        }
+        if ($request->filled('filter_status')) {
+            $query->where('status', $request->filter_status);
         }
 
         $assignments = $query->latest()->paginate(20)->withQueryString();
@@ -72,20 +71,59 @@ class AssignmentController extends Controller
         ]);
 
         $validated['assigned_by'] = Auth::id();
+        $validated['status'] = 'assigned';
 
-        // Check if student is already assigned this case for this task
         $exists = CaseAssignment::where('student_id', $validated['student_id'])
             ->where('clinical_case_id', $validated['clinical_case_id'])
             ->where('task_type', $validated['task_type'])
             ->exists();
 
         if ($exists) {
-            return back()->with('error', 'هذا الطالب مكلف مسبقاً بنفس المهمة لهذه الحالة.');
+            return back()->with('error', 'هذا الطالب مكلف مسبقًا بنفس المهمة لهذه الحالة.');
         }
 
         CaseAssignment::create($validated);
 
         return redirect()->route('doctor.clinical.assignments.index')
             ->with('success', 'تم تكليف الطالب بالحالة بنجاح.');
+    }
+
+    public function review(Request $request, CaseAssignment $assignment)
+    {
+        abort_unless($assignment->assigned_by === Auth::id(), 403);
+
+        if ($assignment->status !== 'submitted_for_review') {
+            return back()->with('error', 'هذه المهمة ليست بانتظار المراجعة.');
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|in:approve,reject',
+            'review_notes' => 'required_if:action,reject|nullable|string|max:2000',
+        ]);
+
+        $now = now();
+        if ($validated['action'] === 'approve') {
+            $assignment->update([
+                'status' => 'approved',
+                'reviewed_at' => $now,
+                'reviewed_by' => Auth::id(),
+                'review_notes' => trim((string) ($validated['review_notes'] ?? '')) ?: null,
+                'is_completed' => true,
+                'completed_at' => $now,
+            ]);
+
+            return back()->with('success', 'تم اعتماد إنجاز المهمة.');
+        }
+
+        $assignment->update([
+            'status' => 'rejected',
+            'reviewed_at' => $now,
+            'reviewed_by' => Auth::id(),
+            'review_notes' => trim($validated['review_notes']),
+            'is_completed' => false,
+            'completed_at' => null,
+        ]);
+
+        return back()->with('success', 'تم رفض المهمة مع إرسال سبب الرفض للطالب.');
     }
 }

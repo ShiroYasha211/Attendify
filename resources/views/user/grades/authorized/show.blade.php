@@ -259,4 +259,103 @@
         </div>
     </form>
 </div>
+
+@if(Auth::user()->role === \App\Enums\UserRole::DELEGATE && empty($helperTask))
+<div class="glass-card overflow-hidden mb-5">
+    <div class="p-4 border-bottom bg-light bg-opacity-50">
+        <h4 class="fw-900 mb-1">تفويض مساعدين لرصد الدرجات</h4>
+        <p class="text-secondary mb-0 small">يمكنك إنشاء مهمة مساعدة كاملة أو جزئية لطلاب محددين. يبقى الاعتماد النهائي للدكتور فقط.</p>
+    </div>
+
+    <form action="{{ route('delegate.authorized-grades.helpers.store', $category->id) }}" method="POST" class="p-4">
+        @csrf
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label fw-700">عنوان المهمة</label>
+                <input type="text" name="title" class="form-control" placeholder="مثال: رصد درجات المجموعة الأولى" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-700">المساعد</label>
+                <select name="helper_user_id" class="form-select" required>
+                    <option value="">اختر الطالب أو المندوب</option>
+                    @foreach(($delegateHelperStudentScope ?? collect()) as $candidate)
+                    <option value="{{ $candidate->id }}">{{ $candidate->name }} - {{ $candidate->student_number }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-700">نوع التفويض</label>
+                <select name="delegation_type" class="form-select">
+                    <option value="full">كامل على الفئة</option>
+                    <option value="partial">جزئي على طلاب محددين</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-700">مهلة المهمة</label>
+                <input type="datetime-local" name="due_at" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-700">ملاحظات</label>
+                <input type="text" name="notes" class="form-control" placeholder="تفاصيل إضافية">
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-700">الطلاب المحددون للتفويض الجزئي</label>
+                <select name="student_ids[]" class="form-select" multiple size="8">
+                    @foreach($delegateHelperCandidates as $candidate)
+                    <option value="{{ $candidate->id }}">{{ $candidate->name }} - {{ $candidate->student_number }}</option>
+                    @endforeach
+                </select>
+                <div class="form-text">يُستخدم هذا الحقل فقط عند اختيار تفويض جزئي.</div>
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-between align-items-center">
+            <div class="small text-secondary">التفويض الكامل يسمح للمساعد بإدخال درجات جميع طلاب هذه الفئة، أما الجزئي فيقصره على الطلاب المحددين فقط.</div>
+            <button type="submit" class="btn btn-premium">
+                إنشاء مهمة مساعدة <i class="fa-solid fa-user-plus ms-2"></i>
+            </button>
+        </div>
+    </form>
+
+    @if(($delegateHelperTasks ?? collect())->isNotEmpty())
+    <div class="table-responsive border-top">
+        <table class="table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>المهمة</th>
+                    <th>المساعد</th>
+                    <th>النوع</th>
+                    <th>المهلة</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($delegateHelperTasks as $task)
+                <tr>
+                    <td>
+                        <div class="fw-700">{{ $task->title }}</div>
+                        <div class="small text-secondary">{{ $task->notes ?: 'بدون ملاحظات إضافية' }}</div>
+                    </td>
+                    <td>{{ $task->helperUser->name ?? '-' }}</td>
+                    <td>{{ $task->delegation_type === 'partial' ? 'جزئي' : 'كامل' }}</td>
+                    <td>{{ $task->due_at?->format('Y-m-d H:i') ?? 'غير محددة' }}</td>
+                    <td class="text-end">
+                        <form action="{{ route('delegate.authorized-grades.helpers.revoke', $task) }}" method="POST" onsubmit="return confirm('هل تريد سحب هذه المهمة؟');">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn btn-sm btn-outline-danger">سحب المهمة</button>
+                        </form>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
+</div>
+@elseif(!empty($helperTask))
+<div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4 fw-700 p-3">
+    تعمل هنا كمساعد رصد. نطاق هذه المهمة: {{ $helperTask->delegation_type === 'partial' ? 'طلاب محددون فقط' : 'كل طلاب الفئة' }}.
+</div>
+@endif
 @endsection

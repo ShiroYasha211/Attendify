@@ -44,4 +44,9 @@ class GradeCategory extends Model
     {
         return $this->hasManyThrough(User::class, GradePermission::class, 'category_id', 'id', 'id', 'authorized_user_id');
     }
+
+    public function delegateGradeDelegations()
+    {
+        return $this->hasMany(DelegateGradeDelegation::class, 'category_id');
+    }
 }

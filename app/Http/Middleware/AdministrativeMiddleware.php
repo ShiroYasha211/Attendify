@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Enums\UserRole;
 
 class AdministrativeMiddleware
 {
@@ -16,10 +15,17 @@ class AdministrativeMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (auth()->check() && auth()->user()->role === UserRole::ADMINISTRATIVE) {
+        if (auth()->check() && auth()->user()->canAccessAdministrativeWorkspace()) {
             return $next($request);
         }
 
-        abort(403, 'غير مصرح لك بالدخول لهذه الصفحة.');
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح لك بالوصول إلى هذا المورد.',
+            ], 403);
+        }
+
+        abort(403, 'غير مصرح لك بالدخول إلى هذه الصفحة.');
     }
 }

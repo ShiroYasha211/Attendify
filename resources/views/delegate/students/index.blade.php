@@ -1,4 +1,4 @@
-@extends('layouts.delegate')
+﻿@extends('layouts.delegate')
 
 @section('title', 'إدارة الطلاب')
 
@@ -376,6 +376,7 @@
     editName: '',
     editEmail: '',
     editStudentNumber: '',
+    editGender: 'male',
     viewStudent: {},
     viewSubjects: [],
     viewDelegate: null,
@@ -579,6 +580,21 @@
                         </div>
 
                         <div class="form-group">
+                            <label>الجنس</label>
+                            <div class="input-wrapper">
+                                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2a5 5 0 0 1 5 5c0 2-1 3-2 4l-1 1v2"></path>
+                                    <path d="M9 21h6"></path>
+                                    <path d="M12 14v7"></path>
+                                </svg>
+                                <select name="gender" required style="width: 100%; padding: 0.875rem 1rem 0.875rem 2.75rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.95rem; background: #fafafa;">
+                                    <option value="male">ذكر</option>
+                                    <option value="female">أنثى</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
                             <label>كلمة المرور</label>
                             <div class="input-wrapper">
                                 <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -638,6 +654,7 @@
                             <th>#</th>
                             <th>الطالب</th>
                             <th>الرقم الجامعي</th>
+                            <th>الجنس</th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
@@ -655,6 +672,11 @@
                                 </div>
                             </td>
                             <td><span class="student-number">{{ $student->student_number }}</span></td>
+                            <td>
+                                <span style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: {{ $student->gender === 'female' ? '#fdf2f8' : '#eff6ff' }}; color: {{ $student->gender === 'female' ? '#db2777' : '#2563eb' }}; font-size: 0.8rem; font-weight: 700;">
+                                    {{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}
+                                </span>
+                            </td>
                             <td>
                                 <div class="action-btns">
                                     <button type="button" class="action-btn view" style="color: #6366f1; background: #eef2ff;" title="الصلاحيات"
@@ -678,6 +700,7 @@
                                                 name: '{{ $student->name }}',
                                                 email: '{{ $student->email }}',
                                                 student_number: '{{ $student->student_number }}',
+                                                gender: '{{ $student->gender }}',
                                                 level: '{{ $student->level->name ?? '-' }}',
                                                 major: '{{ $student->major->name ?? '-' }}',
                                                 college: '{{ $student->college->name ?? '-' }}',
@@ -711,6 +734,7 @@
                                             editName = '{{ $student->name }}';
                                             editEmail = '{{ $student->email }}';
                                             editStudentNumber = '{{ $student->student_number }}';
+                                            editGender = '{{ $student->gender ?? 'male' }}';
                                         "
                                         @else
                                         title="ليس لديك صلاحية التعديل"
@@ -888,6 +912,14 @@
                     <input type="email" name="email" class="form-control" x-model="editEmail" required>
                 </div>
 
+                <div class="form-group">
+                    <label>الجنس</label>
+                    <select name="gender" class="form-control" x-model="editGender" required>
+                        <option value="male">ذكر</option>
+                        <option value="female">أنثى</option>
+                    </select>
+                </div>
+
                 <div class="form-group" style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
                     <label>كلمة المرور الجديدة (اختياري)</label>
                     <input type="password" name="password" class="form-control" placeholder="اتركه فارغاً إذا لم ترد التغيير">
@@ -933,6 +965,10 @@
                     <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">المستوى الدراسي</label>
                     <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.level"></div>
                 </div>
+                <div class="detail-item">
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem;">الجنس</label>
+                    <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></div>
+                </div>
             </div>
 
             <div style="margin-top: 2rem;">
@@ -975,6 +1011,7 @@
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">المندوب المسؤول</div>
                     <div style="font-weight: 600; color: var(--text-primary);" x-text="viewDelegate ? viewDelegate.name : ''"></div>
                 </div>
+                <div style="margin-right: auto; font-weight: 700; color: #0284c7;" x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></div>
             </div>
         </div>
     </div>

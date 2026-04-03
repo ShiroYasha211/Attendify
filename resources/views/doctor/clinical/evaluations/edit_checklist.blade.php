@@ -201,6 +201,13 @@
     }
 </style>
 
+@php
+    $editItemsData = old('items');
+    if ($editItemsData === null || empty($editItemsData)) {
+        $editItemsData = $itemsData ?? [];
+    }
+@endphp
+
 <div class="clinical-page-header">
     <div class="right-side">
         <h1>تعديل قائمة التقييم ✏️</h1>
@@ -258,7 +265,35 @@
             عناصر التقييم الرئيسية والفرعية
             <span id="total-marks-badge" style="margin-right: auto; background: #dbeafe; color: #1e40af; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; font-weight: 800; border: 1px solid #bfdbfe;">إجمالي الدرجات: 0</span>
         </h3>
-        <div class="items-container" id="items-container"></div>
+        <div class="items-container" id="items-container">
+            @forelse($editItemsData as $i => $mainItem)
+                <div class="main-item-block" data-index="{{ $i }}">
+                    <div class="main-item-header item-row" style="margin-bottom:0; background:white;">
+                        <span style="font-weight:700; color:var(--text-secondary); min-width:28px; text-align:center;">{{ $i + 1 }}</span>
+                        <input type="text" name="items[{{ $i }}][description]" class="form-control" placeholder="عنوان العنصر الرئيسي..." value="{{ old("items.$i.description", $mainItem['description'] ?? '') }}" required>
+                        <input type="number" name="items[{{ $i }}][marks]" class="form-control marks-input main-mark" placeholder="الدرجة الكلية" value="{{ old("items.$i.marks", $mainItem['marks'] ?? 5) }}" min="1" max="100" required>
+                        <button type="button" class="btn-remove-item" onclick="this.closest('.main-item-block').remove(); calculateTotalMarks()">×</button>
+                    </div>
+
+                    <div class="sub-items-container" id="sub-items-{{ $i }}">
+                        @foreach(($mainItem['sub_items'] ?? []) as $j => $subItem)
+                            <div class="sub-item-row item-row" style="margin-bottom:0.5rem;">
+                                <span style="color:#94a3b8;">↳</span>
+                                <input type="text" name="items[{{ $i }}][sub_items][{{ $j }}][description]" class="form-control" placeholder="وصف المعيار الفرعي..." value="{{ old("items.$i.sub_items.$j.description", $subItem['description'] ?? '') }}" style="font-size:0.85rem; padding:0.5rem;" required>
+                                <input type="number" name="items[{{ $i }}][sub_items][{{ $j }}][marks]" class="form-control marks-input sub-mark-{{ $i }}" placeholder="الدرجة" value="{{ old("items.$i.sub_items.$j.marks", $subItem['marks'] ?? 2) }}" style="width:70px; font-size:0.85rem; padding:0.5rem;" min="1" max="100" required>
+                                <button type="button" class="btn-remove-item" style="width:28px; height:28px; font-size:1rem;" onclick="this.parentElement.remove(); validateSubMarks({{ $i }})">×</button>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <button type="button" class="btn-add-sub-item" onclick="addSubItem({{ $i }})">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        إضافة معيار فرعي
+                    </button>
+                </div>
+            @empty
+            @endforelse
+        </div>
         <button type="button" class="btn-add-item" onclick="addMainItem()">+ إضافة عنصر رئيسي جديد</button>
     </div>
     <div style="text-align:left;margin-top:1rem;"><button type="submit" class="btn-submit">💾 تحديث القائمة</button></div>
@@ -266,35 +301,7 @@
 @endsection
 @push('scripts')
 <script>
-    let mainItemIndex = 0;
-    
-    // Convert to proper nested structure for frontend initialization if needed. 
-    // BUT thanks to Eloquent's `with('items')` previously returning flat structure, we need to load relations.
-    // Instead of rebuilding Eloquent payload, we'll parse the flat list into a tree here locally.
-    const flatItems = @json($checklist->items->toArray()); 
-    
-    function buildTree(items) {
-        const itemMap = new Map();
-        const rootItems = [];
-        
-        items.forEach(item => {
-            item.sub_items = [];
-            itemMap.set(item.id, item);
-        });
-        
-        items.forEach(item => {
-            if (item.parent_id) {
-                const parent = itemMap.get(item.parent_id);
-                if (parent) parent.sub_items.push(item);
-            } else {
-                rootItems.push(item);
-            }
-        });
-        
-        return rootItems;
-    }
-    
-    const treeItems = buildTree(flatItems);
+    let mainItemIndex = document.querySelectorAll('.main-item-block').length;
 
     function addMainItem(desc = '', marks = 5) {
         const container = document.getElementById('items-container');
@@ -436,17 +443,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        if (treeItems && treeItems.length > 0) {
-            treeItems.forEach(mainItem => {
-                const pIdx = addMainItem(mainItem.description, mainItem.marks);
-                if (mainItem.sub_items && mainItem.sub_items.length > 0) {
-                    mainItem.sub_items.forEach(sub => {
-                        addSubItem(pIdx, sub.description, sub.marks);
-                    });
-                    validateSubMarks(pIdx);
-                }
-            });
-        } else {
+        if (mainItemIndex === 0) {
             addMainItem();
         }
 
@@ -463,6 +460,9 @@
 
         toggleTimerInput();
         calculateTotalMarks();
+        document.querySelectorAll('.main-item-block').forEach(block => {
+            validateSubMarks(block.dataset.index);
+        });
     });
 </script>
 @endpush

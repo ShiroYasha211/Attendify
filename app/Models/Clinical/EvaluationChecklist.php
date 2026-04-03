@@ -58,11 +58,25 @@ class EvaluationChecklist extends Model
 
     public function scopeForStudent($query, $studentId)
     {
-        return $query->where(function ($q) use ($studentId) {
-            $q->whereNull('creator_id') // Official checklists
-                ->orWhere(function ($subq) use ($studentId) {
-                    $subq->where('creator_type', User::class)
-                        ->where('creator_id', $studentId);
+        $student = $studentId instanceof User ? $studentId : User::find($studentId);
+
+        if (!$student) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('is_active', true)->where(function ($q) use ($student) {
+            $q->whereNull('doctor_id')
+                ->orWhere(function ($studentOwned) use ($student) {
+                    $studentOwned->where('creator_type', User::class)
+                        ->where('creator_id', $student->id);
+                })
+                ->orWhere(function ($doctorPractice) use ($student) {
+                    $doctorPractice->whereNotNull('doctor_id')
+                        ->where('is_practice_allowed', true)
+                        ->whereHas('doctor.subjects', function ($subjectQuery) use ($student) {
+                            $subjectQuery->where('major_id', $student->major_id)
+                                ->where('level_id', $student->level_id);
+                        });
                 });
         });
     }

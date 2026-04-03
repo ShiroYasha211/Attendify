@@ -1,338 +1,360 @@
 @extends('layouts.doctor')
-@section('title', 'ماسح QR — التحضير')
+
+@section('title', 'ماسح السجل السريري')
+
 @section('content')
 <style>
-    .clinical-page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.75rem;
-        flex-wrap: wrap;
-        gap: 1rem;
+    .scanner-shell {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 1.5rem;
+        align-items: start;
     }
 
-    .clinical-page-header .right-side h1 {
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: var(--text-primary);
-        margin: 0 0 0.15rem 0;
+    @media (max-width: 992px) {
+        .scanner-shell {
+            grid-template-columns: 1fr;
+        }
     }
 
-    .clinical-page-header .right-side p {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        margin: 0;
-    }
-
-    .btn-back {
-        background: white;
-        color: var(--text-secondary);
-        border: 1.5px solid #e2e8f0;
-        padding: 0.55rem 1.1rem;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.88rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-
-    .btn-back:hover {
-        border-color: #cbd5e1;
-        background: #f8fafc;
-        text-decoration: none;
+    .scanner-card,
+    .review-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
     }
 
     .scanner-card {
-        background: white;
-        border-radius: 18px;
-        border: 1px solid #e2e8f0;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    #scanner-video {
-        width: 100%;
-        max-width: 400px;
-        border-radius: 14px;
-        margin: 0 auto 1rem;
-        display: block;
-        border: 2px solid #e2e8f0;
-    }
-
-    #manual-input {
-        display: flex;
-        gap: 0.75rem;
-        max-width: 500px;
-        margin: 0 auto;
-    }
-
-    #manual-input input {
-        flex: 1;
-        padding: 0.65rem 0.85rem;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 0.9rem;
-        background: #f8fafc;
-        font-family: inherit;
-    }
-
-    #manual-input button {
-        background: linear-gradient(135deg, #4f46e5, #6366f1);
-        color: white;
-        border: none;
-        padding: 0.65rem 1.5rem;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .result-popup {
-        display: none;
-        background: white;
-        border-radius: 18px;
-        border: 2px solid #c7d2fe;
-        padding: 1.5rem;
-        margin-top: 1rem;
-        box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);
-    }
-
-    .result-popup.show {
-        display: block;
-        animation: fadeIn 0.3s;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .student-info {
-        background: #f8fafc;
-        border-radius: 14px;
         padding: 1.25rem;
+        position: sticky;
+        top: 1.5rem;
+    }
+
+    .review-card {
+        padding: 1.5rem;
+    }
+
+    .section-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748b;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .page-title {
+        font-size: 1.7rem;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+        color: #0f172a;
+    }
+
+    .page-subtitle {
+        color: #475569;
+        font-size: 0.92rem;
+        margin-bottom: 1.25rem;
+    }
+
+    #scanner-container {
+        border: 2px dashed #cbd5e1;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #f8fafc;
+        min-height: 300px;
         margin-bottom: 1rem;
     }
 
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.35rem 0;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 0.88rem;
-    }
-
-    .info-row:last-child {
-        border-bottom: none;
-    }
-
-    .info-row .lbl {
-        color: var(--text-secondary);
-        font-weight: 600;
-    }
-
-    .info-row .val {
-        color: var(--text-primary);
-        font-weight: 700;
-    }
-
-    .signatures-section {
-        margin: 1rem 0;
-    }
-
-    .signatures-section h4 {
-        font-weight: 700;
-        font-size: 0.95rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .sig-grid {
+    .manual-box {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.5rem;
-    }
-
-    .sig-card {
-        border-radius: 10px;
-        padding: 0.75rem;
-        text-align: center;
-        font-size: 0.82rem;
-        font-weight: 700;
-    }
-
-    .sig-card.active {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
-    }
-
-    .sig-card.empty {
-        background: #fef3c7;
-        color: #92400e;
-        border: 1px solid #fde68a;
-    }
-
-    .activities-list {
-        background: #fafbfe;
-        border-radius: 10px;
-        padding: 0.75rem;
-        margin: 0.75rem 0;
-    }
-
-    .activity-item {
-        font-size: 0.82rem;
-        padding: 0.3rem 0;
-        color: #475569;
-        border-bottom: 1px solid #f1f5f9;
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .activity-item:last-child {
-        border-bottom: none;
-    }
-
-    .action-btns {
-        display: flex;
+        grid-template-columns: 1fr auto;
         gap: 0.75rem;
-        margin-top: 1rem;
     }
 
-    .btn-confirm {
-        flex: 1;
-        background: linear-gradient(135deg, #059669, #10b981);
-        color: white;
-        border: none;
-        padding: 0.75rem;
-        border-radius: 12px;
-        font-weight: 700;
-        font-size: 0.95rem;
-        cursor: pointer;
-    }
-
-    .btn-reject {
-        flex: 1;
-        background: #fef2f2;
-        color: #dc2626;
-        border: 1.5px solid #fca5a5;
-        padding: 0.75rem;
-        border-radius: 12px;
-        font-weight: 700;
-        font-size: 0.95rem;
-        cursor: pointer;
-    }
-
+    .manual-box input,
+    .diagnosis-input,
     .notes-input {
         width: 100%;
-        padding: 0.65rem 0.85rem;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 0.88rem;
+        border: 1px solid #dbe2ea;
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+        background: #fff;
+        font: inherit;
+    }
+
+    .primary-btn,
+    .secondary-btn,
+    .danger-btn {
+        border: none;
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .primary-btn:hover,
+    .secondary-btn:hover,
+    .danger-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .primary-btn {
+        background: linear-gradient(135deg, #1d4ed8, #2563eb);
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+    }
+
+    .secondary-btn {
+        background: #eef2ff;
+        color: #3730a3;
+    }
+
+    .danger-btn {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+
+    .review-empty {
+        min-height: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #64748b;
+        border: 2px dashed #e2e8f0;
+        border-radius: 18px;
+        background: linear-gradient(180deg, #f8fafc, #ffffff);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .info-box {
         background: #f8fafc;
-        font-family: inherit;
-        margin-top: 0.75rem;
-        box-sizing: border-box;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
     }
 
-    .alert {
-        padding: 0.85rem 1rem;
-        border-radius: 10px;
-        margin-top: 1rem;
-        font-weight: 600;
-        font-size: 0.9rem;
+    .info-box .label {
+        color: #64748b;
+        font-size: 0.78rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-box .value {
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-pill.confirmed {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-pill.partial {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .group-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 1rem 1.1rem;
+        margin-bottom: 1rem;
+        background: #fff;
+    }
+
+    .group-card.confirmed {
+        border-color: #86efac;
+        background: #f0fdf4;
+    }
+
+    .group-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .group-title {
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .group-count {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    .group-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .items-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .item-pill {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #334155;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+    }
+
+    .item-pill.confirmed {
+        background: #dcfce7;
+        border-color: #86efac;
+        color: #166534;
+    }
+
+    .diagnosis-wrap {
         display: none;
+        margin-top: 0.85rem;
     }
 
-    .alert.success {
-        background: #d1fae5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
+    .diagnosis-wrap.active {
+        display: block;
     }
 
-    .alert.error {
+    .actions-row {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.2rem;
+        flex-wrap: wrap;
+    }
+
+    .alert-box {
+        display: none;
+        margin-top: 1rem;
+        padding: 0.85rem 1rem;
+        border-radius: 12px;
+        font-weight: 700;
+    }
+
+    .alert-box.success {
+        display: none;
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .alert-box.error {
+        display: none;
         background: #fee2e2;
         color: #991b1b;
-        border: 1px solid #fca5a5;
     }
 </style>
 
-<div class="clinical-page-header">
-    <div class="right-side">
-        <h1>📷 ماسح QR — التحضير</h1>
-        <p>امسح رمز الطالب لتأكيد الحضور وتوقيع السجل اليومي</p>
+<div class="mb-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+        <div class="section-label">Clinical review</div>
+        <h1 class="page-title">اعتماد السجل العملي</h1>
+        <p class="page-subtitle">امسح QR ثم اختر الأقسام المعتمدة فعليًا وأضف التشخيص لكل قسم عند الحاجة.</p>
     </div>
-    <div class="left-side">
-        <a href="{{ route('doctor.clinical.manual-attendance') }}" class="btn-back">✍ تحضير يدوي</a>
-        <a href="{{ route('doctor.clinical.index') }}" class="btn-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg> القسم العملي</a>
-    </div>
-</div>
-
-<div class="scanner-card">
-    <div id="scanner-container" style="width: 100%; max-width: 400px; margin: 0 auto 1rem; border: 2px solid #e2e8f0; border-radius: 14px; overflow: hidden;"></div>
-    <div id="manual-input">
-        <input type="text" id="qr-input" placeholder="أو أدخل رمز QR يدوياً...">
-        <button onclick="processManualInput()">بحث</button>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ route('doctor.clinical.manual-attendance') }}" class="secondary-btn text-decoration-none">تحضير يدوي</a>
+        <a href="{{ route('doctor.clinical.index') }}" class="secondary-btn text-decoration-none">القسم العملي</a>
     </div>
 </div>
 
-<div class="result-popup" id="resultPopup">
-    <div class="student-info" id="studentInfo"></div>
-    <div class="signatures-section" id="sigSection"></div>
-    <div id="activitiesSection"></div>
-    <textarea class="notes-input" id="doctorNotes" rows="2" placeholder="ملاحظات الدكتور (اختياري)..."></textarea>
-    <div class="action-btns">
-        <button class="btn-confirm" onclick="confirmLog('confirm')">✅ تأكيد (4 توقيعات)</button>
-        <button class="btn-reject" onclick="confirmLog('reject')">❌ رفض</button>
-    </div>
+<div class="scanner-shell">
+    <section class="scanner-card">
+        <div class="section-label">Scan QR</div>
+        <div id="scanner-container"></div>
+        <div class="manual-box">
+            <input type="text" id="qr-input" placeholder="ألصق رمز QR هنا أو امسحه بالكاميرا">
+            <button type="button" class="primary-btn" onclick="processManualInput()">بحث</button>
+        </div>
+        <div id="successAlert" class="alert-box success"></div>
+        <div id="errorAlert" class="alert-box error"></div>
+    </section>
+
+    <section class="review-card">
+        <div id="reviewEmpty" class="review-empty">
+            <div>
+                <div class="fw-bold mb-2">لا يوجد سجل محمّل بعد</div>
+                <div>بعد المسح ستظهر بيانات الطالب والأقسام القابلة للاعتماد هنا.</div>
+            </div>
+        </div>
+
+        <div id="reviewPanel" style="display:none;">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                    <div class="section-label">Daily log</div>
+                    <h2 class="h4 mb-1" id="studentName"></h2>
+                    <div class="text-muted small" id="studentNumber"></div>
+                </div>
+                <span class="status-pill" id="statusPill"></span>
+            </div>
+
+            <div class="info-grid" id="infoGrid"></div>
+
+            <div id="groupsContainer"></div>
+
+            <div class="mt-3">
+                <label class="form-label fw-bold">ملاحظات الدكتور</label>
+                <textarea id="doctorNotes" class="notes-input" rows="3" placeholder="ملاحظات عامة على السجل"></textarea>
+            </div>
+
+            <div class="actions-row">
+                <button type="button" class="primary-btn" onclick="submitReview('confirm')">اعتماد المختار</button>
+                <button type="button" class="danger-btn" onclick="submitReview('reject')">رفض السجل</button>
+            </div>
+        </div>
+    </section>
 </div>
-
-<div class="alert success" id="successAlert"></div>
-<div class="alert error" id="errorAlert"></div>
-
 @endsection
 
 @push('scripts')
 <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
 <script>
-    let currentLogId = null;
+    let currentLog = null;
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', () => {
         try {
-            // Use Html5QrcodeScanner for automatic camera handling and UI
-            const html5QrcodeScanner = new Html5QrcodeScanner(
-                "scanner-container", {
-                    fps: 10,
-                    qrbox: {
-                        width: 250,
-                        height: 250
-                    },
-                    rememberLastUsedCamera: true
+            const scanner = new Html5QrcodeScanner('scanner-container', {
+                fps: 10,
+                qrbox: {
+                    width: 250,
+                    height: 250
                 },
-                /* verbose= */
-                false);
+                rememberLastUsedCamera: true
+            }, false);
 
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-        } catch (e) {
-            console.log('Scanner init error:', e);
-            showAlert('error', 'فشل في تهيئة الكاميرا. الرجاء التأكد من الأذونات.');
+            scanner.render(onScanSuccess, () => {});
+        } catch (error) {
+            showAlert('error', 'تعذر تهيئة الكاميرا. استخدم الإدخال اليدوي إذا لزم الأمر.');
         }
     });
-
-    function onScanFailure(error) {
-        // handle scan failure, usually better to ignore and keep scanning
-        // console.warn(`Code scan error = ${error}`);
-    }
 
     function onScanSuccess(token) {
         processToken(token);
@@ -345,96 +367,148 @@
     function processToken(token) {
         if (!token) return;
         hideAlerts();
+
         fetch("{{ route('doctor.clinical.scanner.process') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    qr_token: token
-                })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                qr_token: token
             })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) {
-                    showAlert('error', data.message);
-                    return;
-                }
-                currentLogId = data.log_id;
-                const d = data.data;
+        }).then(r => r.json()).then(data => {
+            if (!data.success) {
+                showAlert('error', data.message || 'فشل تحميل السجل.');
+                return;
+            }
 
-                document.getElementById('studentInfo').innerHTML = `
-            <div class="info-row"><span class="val">${d.student_name}</span><span class="lbl">الطالب</span></div>
-            <div class="info-row"><span class="val">${d.student_number}</span><span class="lbl">الرقم</span></div>
-            <div class="info-row"><span class="val">${d.training_center}</span><span class="lbl">المركز</span></div>
-            <div class="info-row"><span class="val">${d.department}</span><span class="lbl">القسم</span></div>
-            <div class="info-row"><span class="val">${d.doctor_name}</span><span class="lbl">الدكتور</span></div>
-            <div class="info-row"><span class="val">${d.log_date} — ${d.log_time}</span><span class="lbl">التاريخ</span></div>
-        `;
-
-                document.getElementById('sigSection').innerHTML = `
-            <h4>📋 ملخص التوقيعات</h4>
-            <div class="sig-grid">
-                <div class="sig-card active">✅ حضور</div>
-                <div class="sig-card ${d.history_count > 0 ? 'active' : 'empty'}">📋 قصص مرضية (${d.history_count})</div>
-                <div class="sig-card ${d.exam_count > 0 ? 'active' : 'empty'}">🩺 فحوصات (${d.exam_count})</div>
-                <div class="sig-card ${d.did_round ? 'active' : 'empty'}">🔄 مرور ${d.did_round ? '✓' : '✗'}</div>
-            </div>
-        `;
-
-                let acts = '';
-                if (d.histories && d.histories.length) {
-                    acts += '<strong>📋 القصص:</strong>';
-                    d.histories.forEach(h => acts += `<div class="activity-item"><span>•</span>${h.body_system}</div>`);
-                }
-                if (d.exams && d.exams.length) {
-                    acts += '<strong style="display:block;margin-top:0.5rem;">🩺 الفحوصات:</strong>';
-                    d.exams.forEach(e => acts += `<div class="activity-item"><span>•</span>${e.body_system}</div>`);
-                }
-                if (d.rounds && d.rounds.length) {
-                    acts += '<strong style="display:block;margin-top:0.5rem;">🔄 المرور:</strong>';
-                    d.rounds.forEach(r => acts += `<div class="activity-item"><span>•</span>${r.case_name}</div>`);
-                }
-                document.getElementById('activitiesSection').innerHTML = acts ? `<div class="activities-list">${acts}</div>` : '';
-
-                document.getElementById('resultPopup').classList.add('show');
-            })
-            .catch(err => showAlert('error', 'خطأ في الشبكة'));
+            currentLog = {
+                id: data.log_id,
+                ...data.data
+            };
+            renderReview(currentLog);
+        }).catch(() => showAlert('error', 'تعذر الاتصال بالخادم.'));
     }
 
-    function confirmLog(action) {
-        fetch("{{ route('doctor.clinical.scanner.confirm') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    log_id: currentLogId,
-                    action: action,
-                    doctor_notes: document.getElementById('doctorNotes').value
-                })
-            })
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('resultPopup').classList.remove('show');
-                showAlert(data.success ? 'success' : 'error', data.message);
-                currentLogId = null;
+    function renderReview(log) {
+        document.getElementById('reviewEmpty').style.display = 'none';
+        document.getElementById('reviewPanel').style.display = 'block';
+        document.getElementById('studentName').textContent = log.student_name || '-';
+        document.getElementById('studentNumber').textContent = 'الرقم الجامعي: ' + (log.student_number || '-');
+
+        const statusPill = document.getElementById('statusPill');
+        statusPill.textContent = log.status_label || log.status;
+        statusPill.className = 'status-pill';
+        if (log.status === 'confirmed') statusPill.classList.add('confirmed');
+        if (log.status === 'partially_confirmed') statusPill.classList.add('partial');
+
+        document.getElementById('infoGrid').innerHTML = `
+            <div class="info-box"><div class="label">المركز</div><div class="value">${escapeHtml(log.training_center || '-')}</div></div>
+            <div class="info-box"><div class="label">القسم</div><div class="value">${escapeHtml(log.department || '-')}</div></div>
+            <div class="info-box"><div class="label">الدكتور المختار</div><div class="value">${escapeHtml(log.doctor_name || '-')}</div></div>
+            <div class="info-box"><div class="label">التاريخ</div><div class="value">${escapeHtml(log.log_date || '-')} ${escapeHtml(log.log_time || '')}</div></div>
+        `;
+
+        const groupsContainer = document.getElementById('groupsContainer');
+        groupsContainer.innerHTML = '';
+
+        (log.groups || []).forEach(group => {
+            const card = document.createElement('div');
+            card.className = 'group-card' + (group.confirmed ? ' confirmed' : '');
+            card.innerHTML = `
+                <div class="group-head">
+                    <div>
+                        <div class="group-title">${escapeHtml(group.label)}</div>
+                        <div class="group-count">${group.count} عنصر</div>
+                    </div>
+                    <label class="group-toggle">
+                        <input type="checkbox" data-group-toggle="${group.key}" ${group.confirmed ? 'checked' : ''}>
+                        <span>اعتماد هذا القسم</span>
+                    </label>
+                </div>
+                <div class="items-list">
+                    ${(group.items || []).map(item => `<span class="item-pill ${item.is_confirmed ? 'confirmed' : ''}">${escapeHtml(item.label)}</span>`).join('')}
+                </div>
+                <div class="diagnosis-wrap ${group.confirmed ? 'active' : ''}" id="diagnosis-wrap-${group.key}">
+                    <label class="form-label fw-bold">التشخيص لهذا القسم</label>
+                    <textarea class="diagnosis-input" id="diagnosis-${group.key}" rows="3" placeholder="تشخيص اختياري لهذا القسم">${escapeHtml(group.diagnosis || '')}</textarea>
+                </div>
+            `;
+
+            groupsContainer.appendChild(card);
+        });
+
+        document.getElementById('doctorNotes').value = log.doctor_notes || '';
+
+        document.querySelectorAll('[data-group-toggle]').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                document.getElementById('diagnosis-wrap-' + this.dataset.groupToggle)
+                    .classList.toggle('active', this.checked);
             });
+        });
     }
 
-    function showAlert(type, msg) {
+    function submitReview(action) {
+        if (!currentLog) return;
+
+        const confirmations = {};
+        document.querySelectorAll('[data-group-toggle]').forEach(toggle => {
+            const key = toggle.dataset.groupToggle;
+            confirmations[key] = {
+                confirm: toggle.checked,
+                diagnosis: document.getElementById('diagnosis-' + key)?.value || ''
+            };
+        });
+
+        fetch("{{ route('doctor.clinical.scanner.confirm') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                log_id: currentLog.id,
+                action,
+                doctor_notes: document.getElementById('doctorNotes').value,
+                confirmations
+            })
+        }).then(r => r.json()).then(data => {
+            if (!data.success) {
+                showAlert('error', data.message || 'تعذر حفظ المراجعة.');
+                return;
+            }
+
+            showAlert('success', data.message || 'تم حفظ المراجعة.');
+            currentLog = null;
+            document.getElementById('reviewPanel').style.display = 'none';
+            document.getElementById('reviewEmpty').style.display = 'flex';
+            document.getElementById('qr-input').value = '';
+        }).catch(() => showAlert('error', 'تعذر الاتصال بالخادم.'));
+    }
+
+    function showAlert(type, message) {
         hideAlerts();
-        const el = document.getElementById(type === 'success' ? 'successAlert' : 'errorAlert');
-        el.textContent = msg;
-        el.style.display = 'block';
-        setTimeout(() => el.style.display = 'none', 5000);
+        const element = document.getElementById(type === 'success' ? 'successAlert' : 'errorAlert');
+        element.textContent = message;
+        element.style.display = 'block';
+        setTimeout(() => {
+            element.style.display = 'none';
+        }, 5000);
     }
 
     function hideAlerts() {
         document.getElementById('successAlert').style.display = 'none';
         document.getElementById('errorAlert').style.display = 'none';
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 </script>
 @endpush

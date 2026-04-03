@@ -39,6 +39,15 @@
             </div>
 
             <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">الجنس <span style="color: red">*</span></label>
+                <select name="gender" required style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px; background: white;">
+                    <option value="">-- اختر الجنس --</option>
+                    <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>ذكر</option>
+                    <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>أنثى</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">كلمة المرور <span style="color: red">*</span></label>
                 <input type="password" name="password" required style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 4px;">
             </div>

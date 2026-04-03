@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'إدارة أعضاء هيئة التدريس')
 
@@ -284,15 +284,19 @@
 <div x-data="{ 
     showDeleteModal: false, 
     showEditModal: false,
+    showRoleModal: false,
     showDetailsModal: false,
     deleteUrl: '', 
     modalTitle: '', 
     modalMessage: '',
     
     editUrl: '',
+    roleUrl: '',
+    roleDoctorName: '',
     editName: '',
     editEmail: '',
     editCollegeId: '',
+    editAdministrativeAccess: false,
     
     viewDoctor: {},
     viewSubjects: []
@@ -378,6 +382,10 @@
         </div>
     </div>
 
+    <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+        يمكنك منح الطبيب رتبة المسؤول الإداري من نموذج إضافة الدكتور مباشرة، أو من زر <strong>رتبة</strong> داخل جدول الدكاترة.
+    </div>
+
     <!-- Main Grid -->
     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; align-items: start;">
 
@@ -456,6 +464,16 @@
                     </div>
                 </div>
 
+                <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; background:#f8fafc; border:1px solid var(--border-color); border-radius:12px; padding:0.9rem 1rem; margin-top:1rem;">
+                    <div>
+                        <label for="administrative_access" class="form-label" style="margin-bottom:0.25rem;">رتبة المسؤول الإداري</label>
+                        <div style="font-size:0.85rem; color:var(--text-secondary);">تمنح هذا الطبيب وصولاً إلى لوحة المسؤول الإداري.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="administrative_access" name="administrative_access" value="1">
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-submit">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -485,8 +503,9 @@
                     <tr>
                         <th>#</th>
                         <th>الدكتور</th>
-                        <th>الكلية</th>
+                        <th>الجهة الأكاديمية</th>
                         <th>المواد</th>
+                        <th>الرتبة</th>
                         <th>الإجراءات</th>
                     </tr>
                 </thead>
@@ -500,14 +519,25 @@
                                 <div>
                                     <div style="font-weight: 600;">{{ $doctor->name }}</div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ $doctor->email }}</div>
+                                    @if($doctor->administrative_access)
+                                        <span class="badge" style="background:#ede9fe; color:#6d28d9; font-size:0.7rem; margin-top:0.35rem;">مسؤول إداري</span>
+                                    @endif
                                 </div>
                             </div>
                         </td>
                         <td>
-                            <span class="badge badge-warning">{{ $doctor->college->name ?? '-' }}</span>
+                            <div style="font-weight:600;">{{ $doctor->university->name ?? '-' }}</div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary);">{{ $doctor->college->name ?? '-' }}</div>
                         </td>
                         <td>
-                            <span class="badge badge-info">{{ $doctor->subjects->count() }} مواد</span>
+                            <span class="badge badge-info">{{ $doctor->subjects->count() }} مادة</span>
+                        </td>
+                        <td>
+                            @if($doctor->administrative_access)
+                                <span class="badge" style="background:#ede9fe; color:#6d28d9;">مسؤول إداري</span>
+                            @else
+                                <span class="badge" style="background:#f1f5f9; color:#64748b;">دكتور فقط</span>
+                            @endif
                         </td>
                         <td>
                             <div style="display: flex; gap: 0.5rem;">
@@ -518,7 +548,8 @@
                                             name: '{{ $doctor->name }}',
                                             email: '{{ $doctor->email }}',
                                             college: '{{ $doctor->college->name ?? '-' }}',
-                                            university: '{{ $doctor->university->name ?? '-' }}'
+                                            university: '{{ $doctor->university->name ?? '-' }}',
+                                            administrative_access: {{ $doctor->administrative_access ? 'true' : 'false' }}
                                         };
                                         viewSubjects = {{ json_encode($doctor->subjects->map(function($s) {
                                             return [
@@ -543,12 +574,22 @@
                                         editName = '{{ $doctor->name }}';
                                         editEmail = '{{ $doctor->email }}';
                                         editCollegeId = '{{ $doctor->college_id }}';
+                                        editAdministrativeAccess = {{ $doctor->administrative_access ? 'true' : 'false' }};
                                     ">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
                                     تعديل
+                                </button>
+                                <button type="button" class="action-btn" style="background:#ede9fe; color:#6d28d9;"
+                                    @click="
+                                        showRoleModal = true;
+                                        roleDoctorName = @js($doctor->name);
+                                        roleUrl = '{{ route('admin.doctors.administrative-access', $doctor) }}';
+                                        editAdministrativeAccess = {{ $doctor->administrative_access ? 'true' : 'false' }};
+                                    ">
+                                    رتبة
                                 </button>
                                 <button type="button" class="action-btn delete"
                                     @click="
@@ -568,7 +609,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" stroke-width="1.5" style="margin-bottom: 1rem;">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
@@ -632,6 +673,41 @@
         </form>
     </x-edit-modal>
 
+    <div x-show="showRoleModal" class="modal-overlay" style="display: none;"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0">
+        <div class="modal-container" style="text-align: right; max-width: 520px;" @click.away="showRoleModal = false">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.9rem;">
+                <h3 class="modal-title" style="margin:0;">إدارة الرتبة الإدارية</h3>
+                <button @click="showRoleModal = false" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:var(--text-secondary);">&times;</button>
+            </div>
+            <form :action="roleUrl" method="POST">
+                @csrf
+                @method('PATCH')
+                <div style="margin-bottom:1rem; color:var(--text-secondary);">
+                    تحديث رتبة الدكتور: <strong x-text="roleDoctorName" style="color:var(--text-primary);"></strong>
+                </div>
+                <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; background:#f8fafc; border:1px solid var(--border-color); border-radius:12px; padding:0.9rem 1rem; margin-top:1rem;">
+                    <div>
+                        <label for="role_administrative_access" class="form-label" style="margin-bottom:0.25rem;">رتبة المسؤول الإداري</label>
+                        <div style="font-size:0.85rem; color:var(--text-secondary);">تمنح هذا الطبيب وصولاً إلى لوحة المسؤول الإداري فقط.</div>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="role_administrative_access" name="administrative_access" value="1" x-model="editAdministrativeAccess">
+                    </div>
+                </div>
+                <div class="modal-actions" style="margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" @click="showRoleModal = false">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ الرتبة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Details Modal -->
     <div x-show="showDetailsModal" class="modal-overlay" style="display: none;"
         x-transition:enter="transition ease-out duration-300"
@@ -650,6 +726,9 @@
                 <div style="flex: 1;">
                     <div style="color: #0e7490; font-size: 0.85rem;">الاسم</div>
                     <div style="font-weight: 700; font-size: 1.1rem; color: #155e75;" x-text="viewDoctor.name"></div>
+                    <template x-if="viewDoctor.administrative_access">
+                        <span class="badge" style="background:#ede9fe; color:#6d28d9; margin-top:0.5rem;">مسؤول إداري</span>
+                    </template>
                 </div>
                 <div style="flex: 1;">
                     <div style="color: #0e7490; font-size: 0.85rem;">البريد الإلكتروني</div>
@@ -698,7 +777,7 @@
                         </template>
                         <tr x-show="viewSubjects.length === 0">
                             <td colspan="3" style="text-align: center; padding: 1.5rem; color: var(--text-secondary);">
-                                هذا الدكتور لا يدرس أي مواد حالياً.
+                                هذا الدكتور لا يدرس أي مواد حاليًا.
                             </td>
                         </tr>
                     </tbody>

@@ -173,19 +173,29 @@
                 <h6 class="fw-900 text-secondary text-uppercase small mb-4">إضافة مفوض جديد</h6>
                 <form action="{{ route('doctor.grades.categories.delegate', $category->id) }}" method="POST" class="row g-3 align-items-end">
                     @csrf
+                    @php
+                        $availableStudents = $students->reject(fn ($student) => $category->permissions->contains('authorized_user_id', $student->id));
+                    @endphp
                     <div class="col-md-9">
                         <label class="form-label fw-800 text-secondary small">اختر من قائمة طلاب الدفعة</label>
                         <select name="authorized_user_id" class="form-select form-select-lg rounded-4 border-0 shadow-sm" required style="background: white;">
-                            <option value="">بحث عن اسم الطالب..</option>
-                            @foreach($students as $student)
-                                @unless($category->permissions->contains('authorized_user_id', $student->id))
+                            @if($availableStudents->isEmpty())
+                                <option value="" disabled selected>لا يوجد طلاب متاحون للتفويض في هذا التصنيف حاليًا</option>
+                            @else
+                                <option value="">بحث عن اسم الطالب..</option>
+                                @foreach($availableStudents as $student)
                                 <option value="{{ $student->id }}">{{ $student->name }} | {{ $student->student_number ?? 'بدون رقم' }}</option>
-                                @endunless
-                            @endforeach
+                                @endforeach
+                            @endif
                         </select>
+                        @if($students->isEmpty())
+                            <div class="text-secondary small fw-700 mt-2">لا يوجد طلاب أو مندوبون مطابقون لتخصص ومستوى هذه المادة.</div>
+                        @elseif($availableStudents->isEmpty())
+                            <div class="text-secondary small fw-700 mt-2">كل الطلاب المطابقين تم تفويضهم بالفعل لهذا التصنيف.</div>
+                        @endif
                     </div>
                     <div class="col-md-3">
-                        <button type="submit" class="btn btn-delegate w-100 py-3">منح الصلاحية</button>
+                        <button type="submit" class="btn btn-delegate w-100 py-3" @disabled($availableStudents->isEmpty())>منح الصلاحية</button>
                     </div>
                 </form>
             </div>

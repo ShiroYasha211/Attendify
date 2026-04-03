@@ -15,7 +15,8 @@ class AnnouncementController extends StudentApiController
         $student = $request->user();
         $category = $request->query('category');
 
-        $baseQuery = Announcement::where('major_id', $student->major_id)
+        $baseQuery = Announcement::with('creator:id,name,role')
+            ->where('major_id', $student->major_id)
             ->where('level_id', $student->level_id);
 
         $stats = [
@@ -43,6 +44,15 @@ class AnnouncementController extends StudentApiController
         $announcements = $query->paginate(10);
 
         return $this->success([
+            'module' => [
+                'name' => 'student_batch_announcements',
+                'purpose' => 'Announcements targeted to the student major and level.',
+                'how_to_use' => 'Use this endpoint when you want only major-level announcements. In the unified news-hub, administrative and delegate announcements are separated by the creator role.',
+                'source_roles' => [
+                    'administration' => ['admin', 'administrative'],
+                    'delegate' => ['delegate', 'practical_delegate'],
+                ],
+            ],
             'stats' => $stats,
             'pinned' => $pinnedAnnouncements,
             'announcements' => $announcements,

@@ -20,11 +20,14 @@ class RegisterController extends BaseController
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', Rule::in(['student', 'doctor', 'delegate'])],
+            'gender' => ['required_if:role,student,delegate', 'nullable', Rule::in(['male', 'female'])],
             
-            // Required for student & delegate
+            // Required for student, delegate & doctor
+            'university_id' => ['required_if:role,student,delegate,doctor', 'nullable', 'exists:universities,id'],
+            'college_id' => ['required_if:role,student,delegate,doctor', 'nullable', 'exists:colleges,id'],
+            
+            // Required ONLY for student & delegate
             'student_number' => ['required_if:role,student,delegate', 'nullable', 'string', 'unique:users,student_number'],
-            'university_id' => ['required_if:role,student,delegate', 'nullable', 'exists:universities,id'],
-            'college_id' => ['required_if:role,student,delegate', 'nullable', 'exists:colleges,id'],
             'major_id' => ['required_if:role,student,delegate', 'nullable', 'exists:majors,id'],
             'level_id' => ['required_if:role,student,delegate', 'nullable', 'exists:levels,id'],
         ], [
@@ -40,8 +43,8 @@ class RegisterController extends BaseController
             'role.in' => 'حدد نوع حساب صالح.',
             'student_number.required_if' => 'رقم القيد الجامعي مطلوب للطلاب والمندوبين.',
             'student_number.unique' => 'رقم القيد الجامعي هذا مسجل مسبقاً.',
-            'university_id.required_if' => 'حقل الجامعة مطلوب.',
-            'college_id.required_if' => 'حقل الكلية مطلوب.',
+            'university_id.required_if' => 'حقل الجامعة مطلوب لجميع الرتب.',
+            'college_id.required_if' => 'حقل الكلية مطلوب لجميع الرتب.',
             'major_id.required_if' => 'حقل التخصص مطلوب.',
             'level_id.required_if' => 'حقل المستوى مطلوب.',
         ]);
@@ -54,12 +57,16 @@ class RegisterController extends BaseController
             'status' => 'pending', // Account requires admin approval
         ];
 
+        // Shared fields for all roles
+        $userData['university_id'] = $request->university_id;
+        $userData['college_id'] = $request->college_id;
+
+        // Specific academic fields for learners
         if (in_array($request->role, ['student', 'delegate'])) {
             $userData['student_number'] = $request->student_number;
-            $userData['university_id'] = $request->university_id;
-            $userData['college_id'] = $request->college_id;
             $userData['major_id'] = $request->major_id;
             $userData['level_id'] = $request->level_id;
+            $userData['gender'] = $request->gender;
         }
 
         $user = User::create($userData);

@@ -75,6 +75,7 @@ Route::prefix('admin')
         Route::resource('students', App\Http\Controllers\Admin\StudentController::class);
         Route::post('students/{student}/permissions', [App\Http\Controllers\Admin\StudentController::class, 'updatePermissions'])->name('students.permissions');
         Route::resource('doctors', App\Http\Controllers\Admin\DoctorController::class);
+        Route::patch('doctors/{doctor}/administrative-access', [App\Http\Controllers\Admin\DoctorController::class, 'updateAdministrativeAccess'])->name('doctors.administrative-access');
 
         // Clinical Delegate Management
         Route::resource('clinical-delegates', App\Http\Controllers\Admin\ClinicalDelegateController::class)
@@ -108,6 +109,7 @@ Route::prefix('admin')
         Route::delete('activities/cleanup', [App\Http\Controllers\Admin\ActivityController::class, 'cleanup'])->name('activities.cleanup');
 
         // Shared Library Management
+        Route::post('library/bulk-destroy', [App\Http\Controllers\Admin\LibraryController::class, 'bulkDestroy'])->name('library.bulk-destroy');
         Route::resource('library', App\Http\Controllers\Admin\LibraryController::class)->names('library');
         Route::get('library/{resource}/download', [App\Http\Controllers\Admin\LibraryController::class, 'download'])->name('library.download');
 
@@ -127,6 +129,54 @@ Route::prefix('admin')
         // Settings Routes
         Route::get('settings', [App\Http\Controllers\Admin\SettingController::class, 'index'])->name('settings.index');
         Route::put('settings', [App\Http\Controllers\Admin\SettingController::class, 'update'])->name('settings.update');
+
+        // ── Flashcard / One Line Shot Management ──
+        Route::prefix('flashcards')->name('flashcards.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\FlashcardController::class, 'index'])->name('index');
+            Route::get('create', [App\Http\Controllers\Admin\FlashcardController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\Admin\FlashcardController::class, 'store'])->name('store');
+            Route::get('store-mgmt', [App\Http\Controllers\Admin\FlashcardController::class, 'storeManagement'])->name('store-mgmt');
+            Route::get('{flashcard}', [App\Http\Controllers\Admin\FlashcardController::class, 'show'])->name('show');
+            Route::get('{flashcard}/edit', [App\Http\Controllers\Admin\FlashcardController::class, 'edit'])->name('edit');
+            Route::put('{flashcard}', [App\Http\Controllers\Admin\FlashcardController::class, 'update'])->name('update');
+            Route::delete('{flashcard}', [App\Http\Controllers\Admin\FlashcardController::class, 'destroy'])->name('destroy');
+            Route::post('{flashcard}/publish', [App\Http\Controllers\Admin\FlashcardController::class, 'publishToStore'])->name('publish');
+            Route::post('{flashcard}/clone-review', [App\Http\Controllers\Admin\FlashcardController::class, 'cloneAndReview'])->name('clone-review');
+            
+            // Assignment Management Routes
+            Route::get('management/assignments', [App\Http\Controllers\Admin\FlashcardController::class, 'assignmentsManagement'])->name('assignments');
+            Route::delete('management/assignments/{pack}', [App\Http\Controllers\Admin\FlashcardController::class, 'cancelAssignment'])->name('assignments.cancel');
+            
+            Route::post('{flashcard}/assign', [App\Http\Controllers\Admin\FlashcardController::class, 'assignToUser'])->name('assign');
+            Route::post('{flashcard}/import', [App\Http\Controllers\Admin\FlashcardController::class, 'import'])->name('import');
+            Route::post('{flashcard}/items', [App\Http\Controllers\Admin\FlashcardController::class, 'storeItem'])->name('items.store');
+            Route::put('items/{item}', [App\Http\Controllers\Admin\FlashcardController::class, 'updateItem'])->name('items.update');
+            Route::delete('items/{item}', [App\Http\Controllers\Admin\FlashcardController::class, 'destroyItem'])->name('items.destroy');
+            Route::get('{flashcard}/preview', [App\Http\Controllers\Admin\FlashcardController::class, 'preview'])->name('preview');
+            Route::post('{flashcard}/toggle-visibility', [App\Http\Controllers\Admin\FlashcardController::class, 'toggleVisibility'])->name('toggle-visibility');
+            Route::post('users/search', [App\Http\Controllers\Admin\FlashcardController::class, 'searchStudent'])->name('users.search');
+        });
+
+        // ── Admin Quiz Management ──
+        Route::prefix('quizzes')->name('quizzes.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\QuizController::class, 'index'])->name('index');
+            Route::get('create', [App\Http\Controllers\Admin\QuizController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\Admin\QuizController::class, 'store'])->name('store');
+            Route::get('{quiz}', [App\Http\Controllers\Admin\QuizController::class, 'show'])->name('show');
+            Route::get('{quiz}/edit', [App\Http\Controllers\Admin\QuizController::class, 'edit'])->name('edit');
+            Route::put('{quiz}', [App\Http\Controllers\Admin\QuizController::class, 'update'])->name('update');
+            Route::get('{quiz}/results', [App\Http\Controllers\Admin\QuizController::class, 'results'])->name('results');
+            Route::delete('{quiz}', [App\Http\Controllers\Admin\QuizController::class, 'destroy'])->name('destroy');
+            Route::patch('{quiz}/publish', [App\Http\Controllers\Admin\QuizController::class, 'publish'])->name('publish');
+            Route::patch('{quiz}/close', [App\Http\Controllers\Admin\QuizController::class, 'close'])->name('close');
+        });
+
+        // ── Admin Star Management ──
+        Route::prefix('stars')->name('stars.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\StarController::class, 'index'])->name('index');
+            Route::post('/grant', [App\Http\Controllers\Admin\StarController::class, 'grant'])->name('grant');
+            Route::post('/search-students', [App\Http\Controllers\Admin\StarController::class, 'searchStudents'])->name('search-students');
+        });
     });
 
 Route::prefix('doctor')
@@ -154,6 +204,7 @@ Route::prefix('doctor')
 
         // Inquiries Routes (Student Questions)
         Route::get('inquiries', [App\Http\Controllers\Doctor\InquiryController::class, 'index'])->name('inquiries.index');
+        Route::patch('inquiries/subjects/{subject}/settings', [App\Http\Controllers\Doctor\InquiryController::class, 'updateSettings'])->name('inquiries.settings.update');
         Route::get('inquiries/{inquiry}', [App\Http\Controllers\Doctor\InquiryController::class, 'show'])->name('inquiries.show');
         Route::post('inquiries/{inquiry}/answer', [App\Http\Controllers\Doctor\InquiryController::class, 'answer'])->name('inquiries.answer');
 
@@ -181,6 +232,7 @@ Route::prefix('doctor')
         Route::get('attendance', [App\Http\Controllers\Doctor\AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/{subject}/create', [App\Http\Controllers\Doctor\AttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance/{subject}', [App\Http\Controllers\Doctor\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::patch('attendance-records/{attendance}', [App\Http\Controllers\Doctor\AttendanceRecordController::class, 'update'])->name('attendance.records.update');
         Route::post('attendance/{subject}/toggle-delegate', [App\Http\Controllers\Doctor\AttendanceController::class, 'toggleDelegateAttendance'])->name('attendance.toggle-delegate');
         Route::get('attendance/{subject}/{date}/report', [App\Http\Controllers\Doctor\AttendanceController::class, 'showReport'])->name('attendance.report');
 
@@ -206,7 +258,7 @@ Route::prefix('doctor')
         Route::get('ledger/export', [App\Http\Controllers\FinancialController::class, 'exportPdf'])->name('ledger.export');
 
         // Clinical Training Hub
-        Route::prefix('clinical')->name('clinical.')->group(function () {
+        Route::prefix('clinical')->middleware('clinical.major')->name('clinical.')->group(function () {
             // Dashboard / Overview of Centers & Departments
             Route::get('/', [App\Http\Controllers\Doctor\ClinicalController::class, 'index'])->name('index');
 
@@ -227,6 +279,7 @@ Route::prefix('doctor')
             // Assign Cases to Students
             Route::get('assignments', [App\Http\Controllers\Doctor\Clinical\AssignmentController::class, 'index'])->name('assignments.index');
             Route::post('assignments', [App\Http\Controllers\Doctor\Clinical\AssignmentController::class, 'store'])->name('assignments.store');
+            Route::post('assignments/{assignment}/review', [App\Http\Controllers\Doctor\Clinical\AssignmentController::class, 'review'])->name('assignments.review');
 
             // QR Scanner & Logbook Records (Doctor scans student QR)
             Route::get('scanner', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'scanner'])->name('scanner');
@@ -261,6 +314,35 @@ Route::prefix('doctor')
             Route::patch('volunteers/{id}/toggle', [App\Http\Controllers\Doctor\Clinical\VolunteerController::class, 'toggleStatus'])->name('volunteers.toggle');
         });
 
+        // ── Doctor Announcements (إعلانات الدكتور) ──
+        Route::prefix('announcements')->name('announcements.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Doctor\DoctorAnnouncementController::class, 'index'])->name('index');
+            Route::get('create', [App\Http\Controllers\Doctor\DoctorAnnouncementController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\Doctor\DoctorAnnouncementController::class, 'store'])->name('store');
+            Route::get('{announcement}/edit', [App\Http\Controllers\Doctor\DoctorAnnouncementController::class, 'edit'])->name('edit');
+            Route::put('{announcement}', [App\Http\Controllers\Doctor\DoctorAnnouncementController::class, 'update'])->name('update');
+            Route::delete('{announcement}', [App\Http\Controllers\Doctor\DoctorAnnouncementController::class, 'destroy'])->name('destroy');
+        });
+
+        // ── Doctor Quizzes (كويزات الدكتور) ──
+        Route::prefix('quizzes')->name('quizzes.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Doctor\QuizController::class, 'index'])->name('index');
+            Route::get('create', [App\Http\Controllers\Doctor\QuizController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\Doctor\QuizController::class, 'store'])->name('store');
+            Route::get('{quiz}', [App\Http\Controllers\Doctor\QuizController::class, 'show'])->name('show');
+            Route::get('{quiz}/edit', [App\Http\Controllers\Doctor\QuizController::class, 'edit'])->name('edit');
+            Route::put('{quiz}', [App\Http\Controllers\Doctor\QuizController::class, 'update'])->name('update');
+            Route::get('{quiz}/results', [App\Http\Controllers\Doctor\QuizController::class, 'results'])->name('results');
+            Route::patch('{quiz}/publish', [App\Http\Controllers\Doctor\QuizController::class, 'publish'])->name('publish');
+            Route::patch('{quiz}/close', [App\Http\Controllers\Doctor\QuizController::class, 'close'])->name('close');
+            Route::post('{quiz}/share-results', [App\Http\Controllers\Doctor\QuizController::class, 'shareResults'])->name('share-results');
+            Route::delete('{quiz}', [App\Http\Controllers\Doctor\QuizController::class, 'destroy'])->name('destroy');
+        });
+
+        // ── Doctor Stars (نجوم الدكتور) ──
+        Route::get('stars', [App\Http\Controllers\Doctor\StarController::class, 'index'])->name('stars.index');
+        Route::post('stars/grant', [App\Http\Controllers\Doctor\StarController::class, 'grant'])->name('stars.grant');
+
         // Shared Subscription Routes
         Route::get('subscription', [App\Http\Controllers\Student\SubscriptionController::class, 'index'])->name('subscription.index');
         Route::post('subscription/redeem', [App\Http\Controllers\Student\SubscriptionController::class, 'redeem'])->name('subscription.redeem');
@@ -268,8 +350,10 @@ Route::prefix('doctor')
         Route::post('subscription/auto-renew', [App\Http\Controllers\Student\SubscriptionController::class, 'toggleAutoRenew'])->name('subscription.toggleAutoRenew');
 
         // Card Generation (Balance-based)
-        Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
-        Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
+        Route::middleware('permission:generate_cards')->group(function () {
+            Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
+            Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
+        });
 
         // Shared Study Library (Unified)
         Route::get('library', [App\Http\Controllers\Student\LibraryController::class, 'index'])->name('library.index');
@@ -305,6 +389,23 @@ Route::prefix('student')
         Route::get('reminders', [App\Http\Controllers\Student\ReminderController::class, 'index'])->name('reminders.index');
         Route::get('resources', [App\Http\Controllers\Student\ResourceController::class, 'index'])->name('resources.index');
         Route::get('announcements', [App\Http\Controllers\Student\AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('news', [App\Http\Controllers\Student\NewsHubController::class, 'index'])->name('news.index');
+
+        // Doctor Announcements (إعلانات الدكاترة)
+        Route::get('doctor-announcements', [App\Http\Controllers\Student\DoctorAnnouncementController::class, 'index'])->name('doctor-announcements.index');
+
+        // Student Quizzes (كويزات الطالب)
+        Route::prefix('quizzes')->name('quizzes.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Student\QuizController::class, 'index'])->name('index');
+            Route::get('{quiz}/take', [App\Http\Controllers\Student\QuizController::class, 'take'])->name('take');
+            Route::post('attempts/{attempt}/submit', [App\Http\Controllers\Student\QuizController::class, 'submit'])->name('submit');
+            Route::get('attempts/{attempt}/result', [App\Http\Controllers\Student\QuizController::class, 'result'])->name('result');
+        });
+
+        // Student Stars (نجوم الطالب)
+        Route::get('stars', [App\Http\Controllers\Student\StarController::class, 'index'])->name('stars.index');
+        Route::post('stars/gift', [App\Http\Controllers\Student\StarController::class, 'gift'])->name('stars.gift');
+
         Route::get('alerts', [App\Http\Controllers\Student\AlertController::class, 'index'])->name('alerts.index');
         Route::post('alerts/{id}/read', [App\Http\Controllers\Student\AlertController::class, 'markAsRead'])->name('alerts.read');
 
@@ -314,8 +415,7 @@ Route::prefix('student')
         // Grades - MOVED to Subject Details
         // Route::get('grades', [App\Http\Controllers\Student\GradeController::class, 'index'])->name('grades.index');
 
-        // News Center
-        Route::get('news', [App\Http\Controllers\Student\NewsController::class, 'index'])->name('news.index');
+        // News Center details / voting
         Route::get('news/{batchId}', [App\Http\Controllers\Student\NewsController::class, 'show'])->name('news.show');
         Route::post('news/{batchId}/vote', [App\Http\Controllers\Student\NewsController::class, 'vote'])->name('news.vote');
 
@@ -335,8 +435,10 @@ Route::prefix('student')
         Route::post('messages/{conversation}/send', [App\Http\Controllers\Student\MessageController::class, 'send'])->name('messages.send');
 
         // Card Generation (Balance-based)
-        Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
-        Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
+        Route::middleware('permission:generate_cards')->group(function () {
+            Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
+            Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
+        });
 
         // Inquiries (Doctor Questions)
         Route::get('inquiries', [App\Http\Controllers\Student\InquiryController::class, 'index'])->name('inquiries.index');
@@ -349,13 +451,14 @@ Route::prefix('student')
         Route::get('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'show'])->name('authorized-grades.show');
         Route::post('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'store'])->name('authorized-grades.store');
 
-        Route::prefix('clinical')->name('clinical.')->group(function () {
+        Route::prefix('clinical')->middleware('clinical.major')->name('clinical.')->group(function () {
             Route::get('/', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'index'])->name('index');
             Route::get('daily-log/create', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'createDailyLog'])->name('daily-log.create');
             Route::post('daily-log', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'storeDailyLog'])->name('daily-log.store');
             Route::get('daily-log/{id}/qr', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'showQr'])->name('show-qr');
             Route::post('daily-log/{id}/regenerate', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'regenerateQr'])->name('daily-log.regenerate');
             Route::delete('daily-log/{id}/cancel', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'cancelDailyLog'])->name('daily-log.cancel');
+            Route::post('assignments/{assignment}/submit-review', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'submitAssignment'])->name('assignments.submit');
             Route::get('logbook', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'myLogbook'])->name('logbook');
             Route::get('logbook/export-pdf', [App\Http\Controllers\Student\Clinical\LogbookController::class, 'exportPdf'])->name('logbook.export_pdf');
             // Route::post('logbook/store', [LogbookController::class, 'store'])->name('logbook.store'); // This line was malformed in the instruction, assuming it's not needed or should be fixed.
@@ -369,6 +472,7 @@ Route::prefix('student')
             Route::post('mock-exams/store', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'store'])->name('mock.store');
             Route::get('mock-exams/{id}', [App\Http\Controllers\Student\Clinical\MockExamController::class, 'show'])->name('mock.show');
 
+            Route::get('evaluations', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'index'])->name('evaluations');
             Route::get('evaluations/{id}', [App\Http\Controllers\Student\Clinical\EvaluationController::class, 'show'])->name('evaluations.show');
 
             // Rare Clinical Cases
@@ -402,6 +506,27 @@ Route::prefix('student')
         Route::get('library/create', [App\Http\Controllers\Student\LibraryController::class, 'create'])->name('library.create');
         Route::post('library/upload', [App\Http\Controllers\Student\LibraryController::class, 'store'])->name('library.store');
         Route::get('library/{resource}/download', [App\Http\Controllers\Student\LibraryController::class, 'incrementDownload'])->name('library.download');
+
+        // ── Flashcard / One Line Shot ──
+        Route::prefix('flashcards')->name('flashcards.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Student\FlashcardController::class, 'index'])->name('index');
+            Route::get('create', [App\Http\Controllers\Student\FlashcardController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\Student\FlashcardController::class, 'store'])->name('store');
+            Route::get('store', [App\Http\Controllers\Student\FlashcardController::class, 'publicStore'])->name('public-store');
+            Route::post('clone/{flashcard}', [App\Http\Controllers\Student\FlashcardController::class, 'clonePack'])->name('clone');
+            Route::get('{flashcard}', [App\Http\Controllers\Student\FlashcardController::class, 'show'])->name('show');
+            Route::get('{flashcard}/edit', [App\Http\Controllers\Student\FlashcardController::class, 'edit'])->name('edit');
+            Route::put('{flashcard}', [App\Http\Controllers\Student\FlashcardController::class, 'update'])->name('update');
+            Route::delete('{flashcard}', [App\Http\Controllers\Student\FlashcardController::class, 'destroy'])->name('destroy');
+            Route::patch('{flashcard}/toggle', [App\Http\Controllers\Student\FlashcardController::class, 'toggleActive'])->name('toggle');
+            Route::put('{flashcard}/settings', [App\Http\Controllers\Student\FlashcardController::class, 'updateSettings'])->name('settings');
+            Route::post('{flashcard}/import', [App\Http\Controllers\Student\FlashcardController::class, 'import'])->name('import');
+            Route::post('{flashcard}/items', [App\Http\Controllers\Student\FlashcardController::class, 'storeItem'])->name('items.store');
+            Route::put('items/{item}', [App\Http\Controllers\Student\FlashcardController::class, 'updateItem'])->name('items.update');
+            Route::delete('items/{item}', [App\Http\Controllers\Student\FlashcardController::class, 'destroyItem'])->name('items.destroy');
+            Route::get('{flashcard}/review', [App\Http\Controllers\Student\FlashcardController::class, 'review'])->name('review');
+            Route::post('progress', [App\Http\Controllers\Student\FlashcardController::class, 'recordProgress'])->name('progress');
+        });
 
         // Shared Subscription Routes
         Route::get('subscription', [App\Http\Controllers\Student\SubscriptionController::class, 'index'])->name('subscription.index');
@@ -464,6 +589,9 @@ Route::prefix('delegate')
 
         // Attendance
         Route::get('attendance', [App\Http\Controllers\Delegate\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/unofficial/create', [App\Http\Controllers\Delegate\AttendanceController::class, 'createUnofficial'])->name('attendance.unofficial.create');
+        Route::post('attendance/unofficial', [App\Http\Controllers\Delegate\AttendanceController::class, 'storeUnofficial'])->name('attendance.unofficial.store');
+        Route::get('attendance/unofficial/{lecture}/report', [App\Http\Controllers\Delegate\AttendanceController::class, 'showUnofficialReport'])->name('attendance.unofficial.report');
         Route::get('attendance/{subject}/create', [App\Http\Controllers\Delegate\AttendanceController::class, 'create'])->name('attendance.create');
         Route::get('attendance/{subject}/check', [App\Http\Controllers\Delegate\AttendanceController::class, 'check'])->name('attendance.check');
         Route::post('attendance/{subject}', [App\Http\Controllers\Delegate\AttendanceController::class, 'store'])->name('attendance.store');
@@ -521,6 +649,8 @@ Route::prefix('delegate')
         Route::get('authorized-grades', [App\Http\Controllers\User\AuthorizedGradeController::class, 'index'])->name('authorized-grades.index');
         Route::get('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'show'])->name('authorized-grades.show');
         Route::post('authorized-grades/{category}', [App\Http\Controllers\User\AuthorizedGradeController::class, 'store'])->name('authorized-grades.store');
+        Route::post('authorized-grades/{category}/helpers', [App\Http\Controllers\Delegate\GradeHelperDelegationController::class, 'store'])->name('authorized-grades.helpers.store');
+        Route::delete('authorized-grades/helpers/{delegation}', [App\Http\Controllers\Delegate\GradeHelperDelegationController::class, 'revoke'])->name('authorized-grades.helpers.revoke');
 
         // Doctor Chat (Chat with Doctors)
         Route::get('doctor-chat', [App\Http\Controllers\Delegate\DoctorChatController::class, 'index'])->name('doctor-chat.index');
@@ -551,8 +681,8 @@ Route::prefix('administrative')
     ->middleware(['auth', 'administrative', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Administrative\DashboardController::class, 'index'])->name('dashboard');
-        Route::get('settings', [App\Http\Controllers\Administrative\DashboardController::class, 'settings'])->name('settings');
-        Route::put('settings', [App\Http\Controllers\Administrative\DashboardController::class, 'updateSettings'])->name('settings.update');
+        Route::get('settings', [App\Http\Controllers\Administrative\CollegeSettingsController::class, 'edit'])->name('settings');
+        Route::put('settings', [App\Http\Controllers\Administrative\CollegeSettingsController::class, 'update'])->name('settings.update');
 
         // Profile & Password
         Route::get('profile/password', [App\Http\Controllers\Auth\PasswordController::class, 'edit'])->name('profile.password');
@@ -583,6 +713,11 @@ Route::prefix('administrative')
         Route::get('notifications/{batchId}', [App\Http\Controllers\Administrative\NotificationController::class, 'show'])->name('notifications.show');
         Route::delete('notifications/{batchId}', [App\Http\Controllers\Administrative\NotificationController::class, 'destroy'])->name('notifications.destroy');
 
+        // Excuses
+        Route::get('excuses', [App\Http\Controllers\Administrative\ExcuseController::class, 'index'])->name('excuses.index');
+        Route::patch('excuses/{excuse}', [App\Http\Controllers\Administrative\ExcuseController::class, 'update'])->name('excuses.update');
+        Route::patch('attendance/{attendance}', [App\Http\Controllers\Administrative\AttendanceController::class, 'update'])->name('attendance.update');
+
         // Reports System
         Route::get('reports', [App\Http\Controllers\Administrative\ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/attendance', [App\Http\Controllers\Administrative\ReportController::class, 'attendance'])->name('reports.attendance');
@@ -595,10 +730,10 @@ Route::prefix('administrative')
 
 
         // Management Resources
-        Route::resource('students', App\Http\Controllers\Administrative\StudentController::class);
-        Route::resource('doctors', App\Http\Controllers\Administrative\DoctorController::class);
-        Route::resource('majors', App\Http\Controllers\Administrative\MajorController::class);
-        Route::resource('subjects', App\Http\Controllers\Administrative\SubjectController::class);
+        Route::resource('students', App\Http\Controllers\Administrative\StudentController::class)->except(['create', 'show', 'edit']);
+        Route::resource('doctors', App\Http\Controllers\Administrative\DoctorController::class)->except(['create', 'show', 'edit']);
+        Route::resource('majors', App\Http\Controllers\Administrative\MajorController::class)->except(['create', 'show', 'edit']);
+        Route::resource('subjects', App\Http\Controllers\Administrative\SubjectController::class)->except(['create', 'show', 'edit']);
 
         // Exam Schedules
         Route::get('exams/helper/levels/{major}', [App\Http\Controllers\Administrative\ExamScheduleController::class, 'getLevels'])->name('exams.helper.levels');

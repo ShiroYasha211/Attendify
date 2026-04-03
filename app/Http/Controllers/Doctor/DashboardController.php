@@ -15,6 +15,7 @@ use App\Models\StudentNotification;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class DashboardController extends Controller
 {
@@ -161,10 +162,18 @@ class DashboardController extends Controller
             ->count('student_id');
 
         // Administrative Announcements
-        $adminAnnouncements = StudentNotification::where('user_id', $doctor->id)
+        $adminAnnouncements = StudentNotification::with('sender:id,name,role')
+            ->where('user_id', $doctor->id)
+            ->whereNotNull('batch_id')
+            ->whereIn('type', ['announcement', 'exam', 'assignment', 'attendance', 'poll'])
             ->latest()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(function (Collection $group) {
+                return $group->first();
+            })
             ->take(5)
-            ->get();
+            ->values();
 
         return view('doctor.dashboard', compact(
             'doctor',

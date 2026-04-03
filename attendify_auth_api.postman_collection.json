@@ -10,6 +10,78 @@
             "name": "1. Public Access",
             "item": [
                 {
+                    "name": "1.1 Public Data for Registration",
+                    "item": [
+                        {
+                            "name": "Get Universities",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    { "key": "Accept", "value": "application/json" }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/public/universities",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["api", "public", "universities"]
+                                },
+                                "description": "Get all universities in the system."
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Get Colleges",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    { "key": "Accept", "value": "application/json" }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/public/colleges/:university_id",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["api", "public", "colleges", ":university_id"],
+                                    "variable": [{ "key": "university_id", "value": "1" }]
+                                },
+                                "description": "Get colleges for a specific university."
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Get Majors",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    { "key": "Accept", "value": "application/json" }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/public/majors/:college_id",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["api", "public", "majors", ":college_id"],
+                                    "variable": [{ "key": "college_id", "value": "1" }]
+                                },
+                                "description": "Get majors for a specific college."
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Get Levels",
+                            "request": {
+                                "method": "GET",
+                                "header": [
+                                    { "key": "Accept", "value": "application/json" }
+                                ],
+                                "url": {
+                                    "raw": "{{base_url}}/api/public/levels/:major_id",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["api", "public", "levels", ":major_id"],
+                                    "variable": [{ "key": "major_id", "value": "1" }]
+                                },
+                                "description": "Get levels for a specific major."
+                            },
+                            "response": []
+                        }
+                    ]
+                },
+                {
                     "name": "Register New Account",
                     "request": {
                         "method": "POST",
@@ -21,7 +93,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Full Name\",\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"student\",\n    \"student_number\": \"ST123456\",\n    \"university_id\": 1,\n    \"college_id\": 1,\n    \"major_id\": 1,\n    \"level_id\": 1\n}",
+                        "raw": "{\n    \"name\": \"Full Name\",\n    \"email\": \"delegate@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"delegate\",\n    \"gender\": \"female\",\n    \"university_id\": 1,\n    \"college_id\": 1,\n    \"major_id\": 1,\n    \"level_id\": 1,\n    \"student_number\": \"20260001\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -38,17 +110,17 @@
                                 "register"
                             ]
                         },
-                        "description": "Register a new student, doctor, or delegate. Status will be 'pending' initially."
+                        "description": "Register a new account (student, doctor, or delegate). Delegate registration remains available, but it must include the full student-compatible profile including gender, student_number, major_id, and level_id. Administrative accounts are no longer registered directly; use a doctor account and grant administrative_access later from admin."
                     },
                     "response": []
                 }
             ]
         },
         {
-            "name": "2. Admin Auth",
+            "name": "2. Admin & Administrative Auth",
             "item": [
                 {
-                    "name": "Admin Login",
+                    "name": "Login (General or College Admin)",
                     "event": [
                         {
                             "listen": "test",
@@ -90,12 +162,13 @@
                                 "admin",
                                 "login"
                             ]
-                        }
+                        },
+                        "description": "Login for both Super Admins and Administrative (College) Admins."
                     },
                     "response": []
                 },
                 {
-                    "name": "Admin Profile (Me)",
+                    "name": "Profile (Me)",
                     "request": {
                         "auth": {
                             "type": "bearer",
@@ -129,7 +202,7 @@
                     "response": []
                 },
                 {
-                    "name": "Admin Logout",
+                    "name": "Logout",
                     "request": {
                         "auth": {
                             "type": "bearer",

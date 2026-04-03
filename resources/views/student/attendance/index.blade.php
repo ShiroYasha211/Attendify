@@ -599,9 +599,10 @@
     lectureDate: '',
     excuseDetails: {
         reason: '',
-        attachment: '',
+        attachments: [],
         status: '',
-        doctorComment: ''
+        doctorComment: '',
+        resolutionLabel: ''
     },
     toggleSubject(id) {
         this.openSubject = this.openSubject === id ? null : id;
@@ -611,12 +612,13 @@
         this.lectureDate = date;
         this.showExcuseModal = true;
     },
-    openDetails(reason, attachment, status, comment) {
+    openDetails(reason, attachments, status, comment, resolutionLabel) {
         this.excuseDetails = {
             reason: reason,
-            attachment: attachment,
+            attachments: attachments,
             status: status,
-            doctorComment: comment
+            doctorComment: comment,
+            resolutionLabel: resolutionLabel
         };
         this.showDetailsModal = true;
     }
@@ -762,7 +764,7 @@
 
                                 @php
                                 $canExcuse = false;
-                                $excuseDeadlineDays = (int) \App\Models\Setting::get('excuse_deadline_days', 7);
+                                $excuseDeadlineDays = (int) (auth()->user()->major?->college?->excuses_deadline_days ?? \App\Models\Setting::get('excuse_deadline_days', 7));
                                 $deadline = \Carbon\Carbon::parse($record->date)->addDays($excuseDeadlineDays);
                                 if(now()->lte($deadline) && !$record->excuse) {
                                 $canExcuse = true;
@@ -780,7 +782,7 @@
                                     @endif
 
                                     <button type="button" 
-                                            @click="openDetails('{{ addslashes($record->excuse->reason) }}', '{{ $record->excuse->attachment ? asset('storage/' . $record->excuse->attachment) : '' }}', '{{ $record->excuse->status }}', '{{ addslashes($record->excuse->doctor_comment ?? '') }}')"
+                                            @click='openDetails(@js($record->excuse->reason), @js($record->excuse->allAttachments()->map(fn ($file) => ["name" => $file->file_name, "url" => $file->file_url])->values()), @js($record->excuse->status), @js($record->excuse->doctor_comment ?? ""), @js(\App\Support\ExcuseWorkflow::resolutionLabel($record->excuse->resolution) ?? ""))'
                                             style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                                         عرض التفاصيل
                                     </button>
@@ -813,7 +815,7 @@
 
                                 @elseif($record->status == 'late')
                                 <span class="status-badge late">تأخر</span>
-                                @elseif($record->status == 'excused')
+                                @elseif(in_array($record->status, ['excused', 'permitted', 'exempted']))
                                 <span class="status-badge excused">معذور</span>
                                 @endif
                             </td>
@@ -865,7 +867,7 @@
 
                 <div class="form-group">
                     <label class="form-label">مرفق (اختياري)</label>
-                    <input type="file" name="attachment" accept=".pdf,.jpg,.png,.jpeg" class="form-control">
+                    <input type="file" name="attachments[]" accept=".pdf,.jpg,.png,.jpeg" class="form-control" multiple>
                     <div class="form-hint">صورة أو ملف PDF يثبت العذر (الحد الأقصى 2 ميجابايت)</div>
                 </div>
 
@@ -891,12 +893,14 @@
                 <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.5rem 0; font-weight: 600;">سبب الغياب المرسل:</h4>
                 <p style="margin: 0; color: var(--text-primary); line-height: 1.5;" x-text="excuseDetails.reason"></p>
                 
-                <template x-if="excuseDetails.attachment">
+                <template x-if="excuseDetails.attachments.length">
                     <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cbd5e1;">
-                        <a :href="excuseDetails.attachment" target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+                        <template x-for="file in excuseDetails.attachments" :key="file.url">
+                        <a :href="file.url" target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; color: #4f46e5; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                             عرض المرفق المرسل
                         </a>
+                        </template>
                     </div>
                 </template>
             </div>
@@ -908,6 +912,13 @@
                         ملاحظة الدكتور:
                     </h4>
                     <p style="margin: 0; color: #b45309; line-height: 1.5;" x-text="excuseDetails.doctorComment"></p>
+                </div>
+            </template>
+
+            <template x-if="excuseDetails.resolutionLabel">
+                <div style="background: #eff6ff; padding: 1rem; border-radius: 12px; border: 1px solid #bfdbfe; margin-bottom: 1rem;">
+                    <h4 style="font-size: 0.9rem; color: #1d4ed8; margin: 0 0 0.5rem 0; font-weight: 600;">الإجراء النهائي</h4>
+                    <p style="margin: 0; color: #1e40af; line-height: 1.5;" x-text="excuseDetails.resolutionLabel"></p>
                 </div>
             </template>
 

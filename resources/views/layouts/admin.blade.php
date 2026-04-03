@@ -9,6 +9,9 @@
         <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $favicon) }}">
     @endif
 
+    <!-- Bootstrap 5 RTL (Local) -->
+    <link rel="stylesheet" href="{{ asset('css/bootstrap.rtl.min.css') }}">
+
     <!-- Dashboard CSS -->
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
 
@@ -208,6 +211,30 @@
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
                     <span>المكتبة المشتركة</span>
+                </a>
+                <a href="{{ route('admin.flashcards.index') }}" class="nav-link {{ request()->routeIs('admin.flashcards.*') ? 'active' : '' }}" title="Oneline Shot">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                    <span>Oneline Shot</span>
+                </a>
+
+                <div class="nav-group-label" title="الأنشطة المتقدمة">الأنشطة المتقدمة</div>
+                <a href="{{ route('admin.quizzes.index') }}" class="nav-link {{ request()->routeIs('admin.quizzes.*') ? 'active' : '' }}" title="إدارة الكويزات">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>إدارة الكويزات</span>
+                </a>
+                <a href="{{ route('admin.stars.index') }}" class="nav-link {{ request()->routeIs('admin.stars.*') ? 'active' : '' }}" title="منح النجوم للطلاب">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    <span>منح النجوم للطلاب</span>
                 </a>
 
                 <div class="nav-group-label" title="إدارة المستخدمين">إدارة المستخدمين</div>
@@ -517,6 +544,8 @@
     </script>
 
     @stack('scripts')
+    <!-- Bootstrap 5 JS (Local) -->
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 
 </body>
 

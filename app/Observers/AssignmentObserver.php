@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Academic\Assignment;
 use App\Models\Student\StudentScheduleItem;
+use App\Models\StudentNotification;
 use App\Models\User;
 
 class AssignmentObserver

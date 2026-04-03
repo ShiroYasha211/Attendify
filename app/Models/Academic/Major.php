@@ -32,6 +32,14 @@ class Major extends Model
     }
 
     /**
+     * Major has many Students.
+     */
+    public function students(): HasMany
+    {
+        return $this->hasMany(\App\Models\User::class);
+    }
+
+    /**
      * Major has one clinical delegate.
      */
     public function clinicalDelegate(): HasOne

@@ -78,6 +78,7 @@ class QrAttendanceController extends DelegateApiController
                     'session_id' => $existing->id,
                     'token'      => $existing->current_token,
                     'expires_at' => $existing->token_expires_at->toIso8601String(),
+                    'rotation_seconds' => $existing->rotationSeconds(),
                 ]);
             }
 
@@ -92,7 +93,7 @@ class QrAttendanceController extends DelegateApiController
                     'title'            => $validated['title'],
                     'lecture_number'   => $validated['lecture_number'] ?? null,
                     'current_token'    => $firstToken,
-                    'token_expires_at' => Carbon::now()->addSeconds(30),
+                    'token_expires_at' => Carbon::now()->addSeconds(max(5, (int) ($subject->major?->college?->qr_rotation_seconds ?? 30))),
                     'status'           => 'active',
                 ]);
             } catch (\Illuminate\Database\QueryException $e) {
@@ -107,7 +108,7 @@ class QrAttendanceController extends DelegateApiController
                         'title'            => $validated['title'],
                         'lecture_number'   => $validated['lecture_number'] ?? null,
                         'current_token'    => $firstToken,
-                        'token_expires_at' => Carbon::now()->addSeconds(30),
+                        'token_expires_at' => Carbon::now()->addSeconds(max(5, (int) ($subject->major?->college?->qr_rotation_seconds ?? 30))),
                         'status'           => 'active',
                     ]);
                 } else {
@@ -120,6 +121,7 @@ class QrAttendanceController extends DelegateApiController
                 'session_id' => $session->id,
                 'token'      => $session->current_token,
                 'expires_at' => $session->token_expires_at->toIso8601String(),
+                'rotation_seconds' => $session->rotationSeconds(),
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -156,6 +158,7 @@ class QrAttendanceController extends DelegateApiController
         return response()->json([
             'token'      => $newToken,
             'expires_at' => $session->token_expires_at->toIso8601String(),
+            'rotation_seconds' => $session->rotationSeconds(),
         ]);
     }
 

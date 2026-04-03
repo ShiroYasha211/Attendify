@@ -7,6 +7,7 @@ use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\User;
 use App\Enums\UserRole;
+use App\Support\ExcuseWorkflow;
 use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
@@ -35,7 +36,9 @@ class ReportController extends Controller
                 \Illuminate\Support\Facades\DB::raw('count(*) as total'),
                 \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count"),
                 \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_count"),
-                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'excused' THEN 1 ELSE 0 END) as excused_count"),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status IN ('excused','permitted','exempted') THEN 1 ELSE 0 END) as excused_count"),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'permitted' THEN 1 ELSE 0 END) as permitted_count"),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'exempted' THEN 1 ELSE 0 END) as exempted_count"),
                 \Illuminate\Support\Facades\DB::raw('COUNT(DISTINCT date) as lectures_count')
             )
             ->groupBy('subject_id')
@@ -55,6 +58,8 @@ class ReportController extends Controller
             $subject->present_count = $stats ? $stats->present_count : 0;
             $subject->absent_count = $stats ? $stats->absent_count : 0;
             $subject->excused_count = $stats ? $stats->excused_count : 0;
+            $subject->permitted_count = $stats ? $stats->permitted_count : 0;
+            $subject->exempted_count = $stats ? $stats->exempted_count : 0;
             $subject->lectures_count = $stats ? $stats->lectures_count : 0;
 
             $subject->attendance_rate = $subject->total_attendances > 0

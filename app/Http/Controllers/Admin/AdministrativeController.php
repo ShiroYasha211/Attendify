@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Academic\College;
 use App\Enums\UserRole;
+use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Academic\College;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -27,50 +27,27 @@ class AdministrativeController extends Controller
     }
 
     /**
-     * Show the form for creating a new administrative user.
+     * Administrative accounts are no longer created directly.
      */
     public function create()
     {
-        $colleges = College::orderBy('name')->get();
-        return view('admin.administratives.create', compact('colleges'));
+        return redirect()
+            ->route('admin.administratives.index')
+            ->with('info', 'Administrative access is granted from the Doctors page. Create or edit a doctor account and enable administrative access there.');
     }
 
     /**
-     * Store a newly created administrative user in storage.
+     * Administrative accounts are no longer created directly.
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Password::defaults()],
-            'college_id' => 'required|exists:colleges,id',
-            'status' => 'required|in:active,inactive',
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => UserRole::ADMINISTRATIVE,
-            'college_id' => $request->college_id,
-            'status' => $request->status,
-        ]);
-
-        ActivityLog::log(
-            'create',
-            'User',
-            $user->id,
-            $user->name,
-            "إضافة إداري جديد للكلية: {$user->college->name}"
-        );
-
-        return redirect()->route('admin.administratives.index')
-            ->with('success', 'تم إضافة المسؤول الإداري بنجاح.');
+        return redirect()
+            ->route('admin.administratives.index')
+            ->with('error', 'Direct administrative account creation is disabled. Promote a doctor from the Doctors page instead.');
     }
 
     /**
-     * Show the form for editing the specified administrative user.
+     * Show the form for editing the specified legacy administrative user.
      */
     public function edit(User $administrative)
     {
@@ -79,14 +56,15 @@ class AdministrativeController extends Controller
         }
 
         $colleges = College::orderBy('name')->get();
+
         return view('admin.administratives.edit', [
             'administrative' => $administrative,
-            'colleges' => $colleges
+            'colleges' => $colleges,
         ]);
     }
 
     /**
-     * Update the specified administrative user in storage.
+     * Update the specified legacy administrative user in storage.
      */
     public function update(Request $request, User $administrative)
     {
@@ -120,15 +98,16 @@ class AdministrativeController extends Controller
             'User',
             $administrative->id,
             $administrative->name,
-            "تحديث بيانات المسؤول الإداري: {$administrative->name}"
+            "Updated legacy administrative account: {$administrative->name}"
         );
 
-        return redirect()->route('admin.administratives.index')
-            ->with('success', 'تم تحديث بيانات المسؤول الإداري بنجاح.');
+        return redirect()
+            ->route('admin.administratives.index')
+            ->with('success', 'Legacy administrative account updated successfully.');
     }
 
     /**
-     * Remove the specified administrative user from storage.
+     * Remove the specified legacy administrative user from storage.
      */
     public function destroy(User $administrative)
     {
@@ -144,10 +123,11 @@ class AdministrativeController extends Controller
             'User',
             null,
             $name,
-            "حذف المسؤول الإداري: {$name}"
+            "Deleted legacy administrative account: {$name}"
         );
 
-        return redirect()->route('admin.administratives.index')
-            ->with('success', 'تم حذف المسؤول الإداري بنجاح.');
+        return redirect()
+            ->route('admin.administratives.index')
+            ->with('success', 'Legacy administrative account deleted successfully.');
     }
 }

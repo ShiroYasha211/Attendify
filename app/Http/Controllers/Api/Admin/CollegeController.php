@@ -43,8 +43,8 @@ class CollegeController extends AdminApiController
 
     public function destroy(College $college)
     {
-        if ($college->majors()->exists()) {
-            return $this->error('لا يمكن حذف الكلية لأنها تحتوي على تخصصات.', 422);
+        if ($college->majors()->exists() || $college->users()->exists()) {
+            return $this->error('لا يمكن حذف الكلية لوجود تخصصات أو مستخدمين (طلاب/دكاترة) مرتبطين بها.', 422);
         }
         $college->delete();
         return $this->success(null, 'تم حذف الكلية بنجاح');

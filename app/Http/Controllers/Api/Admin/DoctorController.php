@@ -34,8 +34,9 @@ class DoctorController extends AdminApiController
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:8',
-            'university_id' => 'nullable|exists:universities,id',
-            'college_id' => 'nullable|exists:colleges,id',
+            'university_id' => 'required|exists:universities,id',
+            'college_id' => 'required|exists:colleges,id',
+            'administrative_access' => 'nullable|boolean',
         ]);
 
         $doctor = User::create([
@@ -45,6 +46,7 @@ class DoctorController extends AdminApiController
             'role' => UserRole::DOCTOR,
             'university_id' => $request->university_id,
             'college_id' => $request->college_id,
+            'administrative_access' => $request->boolean('administrative_access'),
         ]);
 
         $this->logCreate('Doctor', $doctor, "تم إضافة الدكتور: {$doctor->name}");
@@ -56,9 +58,13 @@ class DoctorController extends AdminApiController
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $doctor->id,
+            'university_id' => 'required|exists:universities,id',
+            'college_id' => 'required|exists:colleges,id',
+            'administrative_access' => 'nullable|boolean',
         ]);
 
         $data = $request->only('name', 'email', 'university_id', 'college_id');
+        $data['administrative_access'] = $request->boolean('administrative_access');
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
@@ -68,10 +74,21 @@ class DoctorController extends AdminApiController
         return $this->success($doctor->fresh(), 'تم تحديث بيانات الدكتور بنجاح');
     }
 
+    public function show(User $doctor)
+    {
+        if ($doctor->role !== UserRole::DOCTOR) {
+            return $this->error('المستخدم ليس دكتوراً.', 404);
+        }
+        return $this->success($doctor->load(['university', 'college', 'subjects.term.level.major']));
+    }
+
     public function destroy(User $doctor)
     {
-        $this->logDelete('Doctor', $doctor, "تم حذف الدكتور: {$doctor->name}");
+        if ($doctor->role !== UserRole::DOCTOR) {
+            return $this->error('المستخدم ليس دكتوراً.', 404);
+        }
+        $this->logDelete('Doctor', $doctor, "تم حذف الدكتور نهائياً: {$doctor->name}");
         $doctor->forceDelete();
-        return $this->success(null, 'تم حذف الدكتور بنجاح');
+        return $this->success(null, 'تم حذف الدكتور بنجاح واستئصال بياناته');
     }
 }

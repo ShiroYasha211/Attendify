@@ -288,7 +288,12 @@
                 {{ $chk->title }}
                 @if(is_null($chk->doctor_id) && is_null($chk->creator_id))
                     <span style="background: #e0e7ff; color: #4338ca; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; margin-right: 0.5rem; font-weight: 700;">أساسي</span>
+                @elseif($chk->doctor_id && $chk->creator_id !== Auth::id())
+                    <span style="background: #fce7f3; color: #be185d; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; margin-right: 0.5rem; font-weight: 700;">من الدكتور</span>
                 @endif
+            </div>
+            <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.65rem;">
+                المنشئ: {{ $chk->creator?->name ?? $chk->doctor?->name ?? 'غير محدد' }}
             </div>
             <div class="opt-desc">{{ $chk->description ?? 'نموذج تقييم سريري شامل لتدريب المهارات الأساسية والمتقدمة.' }}</div>
         </div>

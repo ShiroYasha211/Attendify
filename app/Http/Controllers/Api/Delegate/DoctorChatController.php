@@ -107,4 +107,26 @@ class DoctorChatController extends DelegateApiController
 
         return $this->success($message->load('sender:id,name,avatar,role'), 'تم إرسال الرسالة بنجاح', 201);
     }
+
+    /**
+     * Get a list of doctors teaching the delegate's batch to start a conversation.
+     */
+    public function eligibleDoctors(Request $request)
+    {
+        $delegate = $request->user();
+
+        // 1. Get subjects for this delegate's scope
+        $subjects = \App\Models\Academic\Subject::where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->with('doctor:id,name,avatar,role')
+            ->get();
+
+        // 2. Extract unique doctors
+        $doctors = $subjects->pluck('doctor')
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        return $this->success($doctors, 'تم جلب قائمة الدكاترة بنجاح');
+    }
 }

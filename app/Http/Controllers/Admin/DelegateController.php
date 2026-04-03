@@ -16,7 +16,7 @@ class DelegateController extends Controller
     use LogsActivity;
 
     /**
-     * عرض قائمة المندوبين.
+     * Display a listing of delegates.
      */
     public function index()
     {
@@ -31,7 +31,7 @@ class DelegateController extends Controller
     }
 
     /**
-     * تخزين مندوب جديد.
+     * Store a newly created delegate.
      */
     public function store(Request $request)
     {
@@ -39,6 +39,7 @@ class DelegateController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'student_number' => 'required|string|max:50|unique:users',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'password' => 'required|string|min:8',
             'level_id' => 'required|exists:levels,id',
         ], [
@@ -53,6 +54,7 @@ class DelegateController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'student_number' => $request->student_number,
+            'gender' => $request->gender,
             'password' => Hash::make($request->password),
             'role' => UserRole::DELEGATE,
             'level_id' => $level->id,
@@ -69,7 +71,7 @@ class DelegateController extends Controller
     }
 
     /**
-     * تحديث بيانات المندوب.
+     * Update delegate data.
      */
     public function update(Request $request, User $delegate)
     {
@@ -77,6 +79,7 @@ class DelegateController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $delegate->id,
             'student_number' => 'required|string|max:50|unique:users,student_number,' . $delegate->id,
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'level_id' => 'required|exists:levels,id',
         ], [
             'level_id.required' => 'يرجى تحديد المستوى الذي يديره المندوب.',
@@ -90,6 +93,7 @@ class DelegateController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'student_number' => $request->student_number,
+            'gender' => $request->gender,
             'level_id' => $level->id,
             'major_id' => $level->major_id,
             'college_id' => $level->major->college_id,
@@ -110,7 +114,7 @@ class DelegateController extends Controller
     }
 
     /**
-     * حذف مندوب.
+     * Delete delegate.
      */
     public function destroy(User $delegate)
     {
@@ -120,7 +124,7 @@ class DelegateController extends Controller
 
         $this->logDelete('Delegate', $delegate, "تم حذف المندوب: {$delegate->name}");
 
-        $delegate->delete();
+        $delegate->forceDelete();
         return redirect()->route('admin.delegates.index')
             ->with('success', 'تم حذف المندوب بنجاح.');
     }

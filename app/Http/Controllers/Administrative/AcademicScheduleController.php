@@ -70,7 +70,7 @@ class AcademicScheduleController extends Controller
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required',
             'end_time' => 'required|after:start_time',
-            'hall_name' => 'required|string|max:255',
+            'hall_name' => 'nullable|string|max:255',
         ]);
 
         $subject = Subject::findOrFail($request->subject_id);
@@ -85,7 +85,7 @@ class AcademicScheduleController extends Controller
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
-            'hall_name' => $request->hall_name,
+            'hall_name' => $request->hall_name ?: null,
             'created_by' => Auth::id(),
         ]);
 
@@ -125,7 +125,7 @@ class AcademicScheduleController extends Controller
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required',
             'end_time' => 'required|after:start_time',
-            'hall_name' => 'required|string|max:255',
+            'hall_name' => 'nullable|string|max:255',
         ]);
 
         $subject = Subject::findOrFail($request->subject_id);
@@ -140,7 +140,7 @@ class AcademicScheduleController extends Controller
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
-            'hall_name' => $request->hall_name,
+            'hall_name' => $request->hall_name ?: null,
             // We usually don't update created_by on update
         ]);
 

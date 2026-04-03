@@ -51,6 +51,7 @@ class StudentController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => 'required|string|email|max:255|unique:users',
             'student_number' => 'required|string|unique:users,student_number|max:50',
             'password' => 'required|string|min:8',
@@ -65,6 +66,7 @@ class StudentController extends Controller
 
         $student = User::create([
             'name' => $request->name,
+            'gender' => $request->gender,
             'email' => $request->email,
             'student_number' => $request->student_number,
             'password' => Hash::make($request->password),
@@ -88,6 +90,7 @@ class StudentController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'email' => 'required|string|email|max:255|unique:users,email,' . $student->id,
             'student_number' => 'required|string|max:50|unique:users,student_number,' . $student->id,
             'level_id' => 'required|exists:levels,id',
@@ -97,6 +100,7 @@ class StudentController extends Controller
 
         $updateData = [
             'name' => $request->name,
+            'gender' => $request->gender,
             'email' => $request->email,
             'student_number' => $request->student_number,
             'level_id' => $level->id,
@@ -129,7 +133,7 @@ class StudentController extends Controller
 
         $this->logDelete('Student', $student, "تم حذف الطالب: {$student->name}");
 
-        $student->delete();
+        $student->forceDelete();
         return redirect()->route('admin.students.index')
             ->with('success', 'تم حذف الطالب بنجاح.');
     }

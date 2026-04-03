@@ -11,6 +11,7 @@ use App\Models\Academic\Level;
 use App\Models\QrAttendanceSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Support\ExcuseWorkflow;
 
 class ReportController extends Controller
 {
@@ -53,10 +54,13 @@ class ReportController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
-        $presentCount = $statusCounts->get('present', 0);
-        $absentCountAll = $statusCounts->get('absent', 0);
-        $lateCount = $statusCounts->get('late', 0);
-        $excusedCount = $statusCounts->get('excused', 0);
+        $distribution = ExcuseWorkflow::statusDistribution($statusCounts);
+        $presentCount = $distribution['present'];
+        $absentCountAll = $distribution['absent'];
+        $lateCount = $distribution['late'];
+        $excusedCount = $distribution['excused_total'];
+        $permittedCount = $distribution['permitted'];
+        $exemptedCount = $distribution['exempted'];
 
         // حساب المحرومين (مقصور على الكلية)
         $subjectsMaxAbsences = \App\Models\Academic\Subject::whereHas('major', function($q) use ($college) {
@@ -90,6 +94,8 @@ class ReportController extends Controller
             'absentCountAll',
             'lateCount',
             'excusedCount',
+            'permittedCount',
+            'exemptedCount',
             'deprivedCount',
             'majors'
         ));
@@ -133,7 +139,9 @@ class ReportController extends Controller
 
             $present = $records->where('status', 'present')->count();
             $late = $records->where('status', 'late')->count();
-            $excused = $records->where('status', 'excused')->count();
+            $excused = $records->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
+            $permitted = $records->where('status', ExcuseWorkflow::STATUS_PERMITTED)->count();
+            $exempted = $records->where('status', ExcuseWorkflow::STATUS_EXEMPTED)->count();
             $absent = $records->where('status', 'absent')->count();
 
             $absencePercentage = 0;
@@ -146,6 +154,8 @@ class ReportController extends Controller
                 'present' => $present,
                 'late' => $late,
                 'excused' => $excused,
+                'permitted' => $permitted,
+                'exempted' => $exempted,
                 'absent' => $absent,
                 'total_sessions' => $totalSessions,
                 'absence_percentage' => $absencePercentage,
@@ -366,7 +376,9 @@ class ReportController extends Controller
         $statsToday = [
             'present' => Attendance::where('date', $today)->where('status', 'present')->whereHas('student', fn($q) => $q->where('college_id', $college->id))->count(),
             'absent' => Attendance::where('date', $today)->where('status', 'absent')->whereHas('student', fn($q) => $q->where('college_id', $college->id))->count(),
-            'excused' => Attendance::where('date', $today)->where('status', 'excused')->whereHas('student', fn($q) => $q->where('college_id', $college->id))->count(),
+            'excused' => Attendance::where('date', $today)->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->whereHas('student', fn($q) => $q->where('college_id', $college->id))->count(),
+            'permitted' => Attendance::where('date', $today)->where('status', ExcuseWorkflow::STATUS_PERMITTED)->whereHas('student', fn($q) => $q->where('college_id', $college->id))->count(),
+            'exempted' => Attendance::where('date', $today)->where('status', ExcuseWorkflow::STATUS_EXEMPTED)->whereHas('student', fn($q) => $q->where('college_id', $college->id))->count(),
             'active_sessions' => QrAttendanceSession::where('status', 'active')->whereHas('delegate', fn($q) => $q->where('college_id', $college->id))->count(),
         ];
 
@@ -440,14 +452,14 @@ class ReportController extends Controller
 
         // --- 8. Raw Audit Logs (Current view logic) ---
         $auditLogs = Attendance::tap($applyFilters)
-            ->with(['student.major', 'student.level', 'subject.doctor'])
+            ->with(['student.major', 'student.level', 'subject.doctor', 'excuse'])
             ->latest()
             ->paginate(20)
             ->withQueryString();
 
         $majors = Major::where('college_id', $college->id)->get();
 
-        return view('administrative.reports.attendance', [
+        return view('administrative.reports.attendance-clean', [
             'auditLogs' => $auditLogs,
             'stats' => $statsToday,
             'trends' => $trends,

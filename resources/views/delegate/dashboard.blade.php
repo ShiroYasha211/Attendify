@@ -743,11 +743,11 @@
                     @forelse($latestAttendance as $attendance)
                     <div class="attendance-item">
                         <div class="attendance-avatar" style="background: {{ $attendance->status == 'present' ? '#d1fae5' : ($attendance->status == 'absent' ? '#fee2e2' : '#fef3c7') }}; color: {{ $attendance->status == 'present' ? '#065f46' : ($attendance->status == 'absent' ? '#9f1239' : '#92400e') }};">
-                            {{ mb_substr($attendance->student->name, 0, 1) }}
+                            {{ mb_substr($attendance->student?->name ?? '-', 0, 1) }}
                         </div>
                         <div class="attendance-info">
-                            <div class="name">{{ $attendance->student->name }}</div>
-                            <div class="subject">{{ $attendance->subject->name }}</div>
+                            <div class="name">{{ $attendance->student?->name ?? 'طالب غير محدد' }}</div>
+                            <div class="subject">{{ $attendance->subject?->name ?? 'محاضرة غير رسمية' }}</div>
                         </div>
                         <span class="attendance-time">{{ $attendance->created_at->format('H:i') }}</span>
                     </div>

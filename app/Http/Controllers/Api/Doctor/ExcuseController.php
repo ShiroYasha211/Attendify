@@ -2,43 +2,79 @@
 
 namespace App\Http\Controllers\Api\Doctor;
 
+use App\Models\Academic\Subject;
+use App\Models\Excuse;
+use App\Models\StudentNotification;
+use App\Support\ExcuseWorkflow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Excuse;
-use App\Models\Academic\Subject;
-use App\Models\StudentNotification;
 
 class ExcuseController extends DoctorApiController
 {
-    /** GET /api/doctor/excuses */
     public function index(Request $request)
     {
         $subjectIds = Subject::where('doctor_id', Auth::id())->pluck('id');
 
-        $query = Excuse::whereHas('attendance', fn($q) => $q->whereIn('subject_id', $subjectIds))
-            ->with(['student:id,name,student_number', 'attendance.subject:id,name']);
+        $query = Excuse::where(function ($query) {
+                $query->where('receiver_type', ExcuseWorkflow::RECEIVER_DOCTOR)
+                    ->orWhereNull('receiver_type');
+            })
+            ->where(function ($query) {
+                $query->whereNull('receiver_id')
+                    ->orWhere('receiver_id', Auth::id());
+            })
+            ->whereHas('attendance', fn ($query) => $query->whereIn('subject_id', $subjectIds))
+            ->with(['student:id,name,student_number', 'attendance.subject:id,name', 'reviewer:id,name', 'attachments']);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
+
         if ($request->filled('subject_id')) {
-            $query->whereHas('attendance', fn($q) => $q->where('subject_id', $request->subject_id));
+            $query->whereHas('attendance', fn ($query) => $query->where('subject_id', $request->subject_id));
         }
+
         if ($request->filled('search')) {
-            $query->whereHas('student', fn($q) => $q->where('name', 'like', "%{$request->search}%")
+            $query->whereHas('student', fn ($query) => $query->where('name', 'like', "%{$request->search}%")
                 ->orWhere('student_number', 'like', "%{$request->search}%"));
         }
 
         $excuses = $query->latest()->paginate(15);
 
-        // Stats (single query)
-        $statsRaw = Excuse::whereHas('attendance', fn($q) => $q->whereIn('subject_id', $subjectIds))
+        $statsRaw = Excuse::where(function ($query) {
+                $query->where('receiver_type', ExcuseWorkflow::RECEIVER_DOCTOR)
+                    ->orWhereNull('receiver_type');
+            })
+            ->where(function ($query) {
+                $query->whereNull('receiver_id')
+                    ->orWhere('receiver_id', Auth::id());
+            })
+            ->whereHas('attendance', fn ($query) => $query->whereIn('subject_id', $subjectIds))
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
                 SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
                 SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
-            ")->first();
+            ")
+            ->first();
+
+        $items = collect($excuses->items())->map(function ($excuse) {
+            return [
+                'id' => $excuse->id,
+                'status' => $excuse->status,
+                'resolution' => $excuse->resolution,
+                'reason' => $excuse->reason,
+                'doctor_comment' => $excuse->doctor_comment,
+                'student' => $excuse->student,
+                'attendance' => $excuse->attendance,
+                'reviewer' => $excuse->reviewer,
+                'attachments' => $excuse->allAttachments()->map(fn ($file) => [
+                    'file_name' => $file->file_name,
+                    'file_path' => $file->file_path,
+                    'file_url' => $file->file_url,
+                ])->values(),
+            ];
+        })->values();
 
         return $this->success([
             'stats' => [
@@ -47,7 +83,13 @@ class ExcuseController extends DoctorApiController
                 'accepted' => $statsRaw->accepted ?? 0,
                 'rejected' => $statsRaw->rejected ?? 0,
             ],
-            'excuses' => $excuses->items(),
+            'workflow' => [
+                'accept_requires_resolution' => true,
+                'resolution_options' => collect(ExcuseWorkflow::resolutionOptions())
+                    ->map(fn ($value) => ['value' => $value, 'label' => ExcuseWorkflow::resolutionLabel($value)])
+                    ->values(),
+            ],
+            'excuses' => $items,
             'pagination' => [
                 'current_page' => $excuses->currentPage(),
                 'last_page' => $excuses->lastPage(),
@@ -57,52 +99,70 @@ class ExcuseController extends DoctorApiController
         ]);
     }
 
-    /** PUT /api/doctor/excuses/{excuse} */
     public function update(Request $request, Excuse $excuse)
     {
-        $request->validate([
+        $validated = $request->validate([
             'status' => 'required|in:accepted,rejected',
+            'resolution' => 'nullable|in:' . implode(',', ExcuseWorkflow::resolutionOptions()),
             'comment' => 'nullable|string|max:255',
         ]);
 
         if ($excuse->attendance->subject->doctor_id !== Auth::id()) {
-            return $this->error('غير مصرح لك.', 403);
+            return $this->error('Unauthorized.', 403);
+        }
+
+        if (($excuse->receiver_type ?? ExcuseWorkflow::RECEIVER_DOCTOR) !== ExcuseWorkflow::RECEIVER_DOCTOR) {
+            return $this->error('This excuse is routed to the administrative queue.', 403);
+        }
+
+        if ($validated['status'] === 'accepted' && empty($validated['resolution'])) {
+            return $this->error('Resolution is required when accepting an excuse.', 422);
         }
 
         $excuse->update([
-            'status' => $request->status,
-            'doctor_comment' => $request->comment,
+            'status' => $validated['status'],
+            'resolution' => $validated['status'] === 'accepted' ? $validated['resolution'] : null,
+            'reviewed_by' => Auth::id(),
+            'doctor_comment' => $validated['comment'] ?? null,
         ]);
 
-        if ($request->status === 'accepted') {
-            $excuse->attendance->update(['status' => 'excused']);
+        if ($validated['status'] === 'accepted') {
+            $excuse->attendance->update([
+                'status' => ExcuseWorkflow::finalAttendanceStatus($validated['resolution']),
+                'recorded_by' => Auth::id(),
+            ]);
         }
 
-        $subjectName = $excuse->attendance->subject->name ?? 'غير محدد';
-        $statusIcon = $request->status === 'accepted' ? '✅' : '❌';
-        $statusLabel = $request->status === 'accepted' ? 'قبول' : 'رفض';
+        $subjectName = $excuse->attendance->subject->name ?? 'Unknown subject';
+        $statusLabel = $validated['status'] === 'accepted' ? 'accepted' : 'rejected';
+        $resolutionLabel = $validated['status'] === 'accepted'
+            ? (' Final action: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
+            : '';
 
-        $message = "تم {$statusLabel} عذرك في مادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')}.";
-        if ($request->comment) {
-            $message .= "\nملاحظة الدكتور: " . $request->comment;
+        $message = "Your excuse for {$subjectName} on {$excuse->attendance->date->format('Y-m-d')} was {$statusLabel}.{$resolutionLabel}";
+        if (!empty($validated['comment'])) {
+            $message .= "\nDoctor note: {$validated['comment']}";
         }
 
         StudentNotification::create([
             'user_id' => $excuse->student_id,
             'type' => 'excuse',
-            'title' => "{$statusIcon} تم {$statusLabel} العذر",
+            'title' => 'Excuse decision',
             'message' => $message,
             'data' => [
                 'excuse_id' => $excuse->id,
-                'status' => $request->status,
+                'status' => $validated['status'],
+                'resolution' => $excuse->resolution,
                 'action_url' => route('student.subjects.show', $excuse->attendance->subject_id),
             ],
         ]);
 
         return $this->success([
             'excuse_id' => $excuse->id,
-            'status' => $request->status,
-            'doctor_comment' => $request->doctor_comment,
-        ], 'تم تحديث حالة العذر بنجاح.');
+            'status' => $validated['status'],
+            'resolution' => $excuse->resolution,
+            'attendance_status' => $excuse->attendance->status,
+            'comment' => $excuse->doctor_comment,
+        ], 'Excuse decision updated successfully.');
     }
 }

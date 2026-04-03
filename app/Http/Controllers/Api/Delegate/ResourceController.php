@@ -70,9 +70,15 @@ class ResourceController extends DelegateApiController
         $validator = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
-            'category' => 'required|in:lectures,references,summaries,exams,other',
+            'category' => 'required|in:lectures,references,summaries,exams,other,quizzes',
+            'sub_category' => 'nullable|string|in:theoretical,practical,seminar,other',
+            'custom_category_type' => 'nullable|string|max:255',
             'file' => 'required|file|max:20480', // 20MB max
             'description' => 'nullable|string',
+            'unit_coordinator' => 'nullable|string|max:255',
+            'lecturer_name' => 'nullable|string|max:255',
+            'clinical_unit' => 'nullable|string|max:255',
+            'semester_info' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -96,9 +102,16 @@ class ResourceController extends DelegateApiController
             'subject_id' => $request->subject_id,
             'title' => $request->title,
             'category' => $request->category,
+            'sub_category' => $request->sub_category,
+            'custom_category_type' => $request->custom_category_type,
             'file_path' => $path,
             'file_type' => $extension,
             'description' => $request->description,
+            'unit_coordinator' => $request->unit_coordinator,
+            'lecturer_name' => $request->lecturer_name,
+            'clinical_unit' => $request->clinical_unit,
+            'semester_info' => $request->semester_info,
+            'visibility' => 'batch',
             'created_by' => $delegate->id,
         ]);
 
@@ -121,8 +134,14 @@ class ResourceController extends DelegateApiController
         $validator = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
-            'category' => 'required|in:lectures,references,summaries,exams,other',
+            'category' => 'required|in:lectures,references,summaries,exams,other,quizzes',
+            'sub_category' => 'nullable|string|in:theoretical,practical,seminar,other',
+            'custom_category_type' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'unit_coordinator' => 'nullable|string|max:255',
+            'lecturer_name' => 'nullable|string|max:255',
+            'clinical_unit' => 'nullable|string|max:255',
+            'semester_info' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -133,7 +152,13 @@ class ResourceController extends DelegateApiController
             'subject_id' => $request->subject_id,
             'title' => $request->title,
             'category' => $request->category,
+            'sub_category' => $request->sub_category,
+            'custom_category_type' => $request->custom_category_type,
             'description' => $request->description,
+            'unit_coordinator' => $request->unit_coordinator,
+            'lecturer_name' => $request->lecturer_name,
+            'clinical_unit' => $request->clinical_unit,
+            'semester_info' => $request->semester_info,
         ]);
 
         return $this->success($resource->load('subject'), 'تم تحديث بيانات الملف بنجاح');
@@ -215,7 +240,7 @@ class ResourceController extends DelegateApiController
             ->exists();
 
         if ($exists) {
-            return $this->error('هذا الملف موجود بالفعل في هذا المقرر الدراسيك.', 422);
+            return $this->error('هذا الملف موجود بالفعل في هذا المقرر الدراسي.', 422);
         }
 
         $resource = CourseResource::create([
@@ -223,9 +248,16 @@ class ResourceController extends DelegateApiController
             'created_by' => $delegate->id,
             'title' => $original->title,
             'category' => $original->category,
+            'sub_category' => $original->sub_category,
+            'custom_category_type' => $original->custom_category_type,
             'file_path' => $original->file_path,
             'file_type' => $original->file_type,
             'description' => $original->description . " (تم استيراده من المكتبة)",
+            'unit_coordinator' => $original->unit_coordinator,
+            'lecturer_name' => $original->lecturer_name,
+            'clinical_unit' => $original->clinical_unit,
+            'semester_info' => $original->semester_info,
+            'visibility' => 'batch',
         ]);
 
         return $this->success($resource, 'تم استيراد الملف بنجاح', 201);
