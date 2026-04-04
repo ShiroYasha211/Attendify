@@ -2513,7 +2513,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/quizzes",
+                                                                  "raw":  "{{base_url}}/quizzes",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2547,7 +2547,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/quizzes/1",
+                                                                  "raw":  "{{base_url}}/quizzes/1",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2591,7 +2591,7 @@
                                                                    "raw":  "{\r\n    \"subject_id\":  null,\r\n    \"title\":  \"General Knowledge Quiz\",\r\n    \"description\":  \"A test quiz for all universities\",\r\n    \"time_limit_minutes\":  30,\r\n    \"shuffle_questions\":  true,\r\n    \"shuffle_options\":  true,\r\n    \"results_visibility\":  \"public\",\r\n    \"models\":  {\r\n                   \"name\":  \"Form A\",\r\n                   \"questions\":  {\r\n                                     \"question_text\":  \"What is 2+2?\",\r\n                                     \"question_type\":  \"multiple_choice\",\r\n                                     \"score\":  2,\r\n                                     \"options\":  [\r\n                                                     {\r\n                                                         \"option_text\":  \"3\",\r\n                                                         \"is_correct\":  false\r\n                                                     },\r\n                                                     {\r\n                                                         \"option_text\":  \"4\",\r\n                                                         \"is_correct\":  true\r\n                                                     }\r\n                                                 ]\r\n                                 }\r\n               },\r\n    \"targets\":  {\r\n                    \"university_id\":  null,\r\n                    \"college_id\":  null,\r\n                    \"major_id\":  null,\r\n                    \"level_id\":  null\r\n                }\r\n}"
                                                                },
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/quizzes",
+                                                                  "raw":  "{{base_url}}/quizzes",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2625,7 +2625,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/quizzes/1",
+                                                                  "raw":  "{{base_url}}/quizzes/1",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2660,7 +2660,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/quizzes/1/publish",
+                                                                  "raw":  "{{base_url}}/quizzes/1/publish",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2696,7 +2696,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/quizzes/1/close",
+                                                                  "raw":  "{{base_url}}/quizzes/1/close",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2732,7 +2732,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/quizzes/1/results",
+                                                                  "raw":  "{{base_url}}/quizzes/1/results",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2774,7 +2774,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/stars/students?university_id=1\u0026search=\u0026per_page=20",
+                                                                  "raw":  "{{base_url}}/stars/students?university_id=1\u0026search=\u0026per_page=20",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2849,7 +2849,7 @@
                                                                    "raw":  "{\r\n    \"student_ids\":  [\r\n                        1,\r\n                        2,\r\n                        3\r\n                    ],\r\n    \"amount\":  10,\r\n    \"description\":  \"Active participation in the main event\"\r\n}"
                                                                },
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/stars/grant",
+                                                                  "raw":  "{{base_url}}/stars/grant",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2891,7 +2891,7 @@
                                                                      }
                                                                  ],
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/registration-requests?search=\u0026per_page=15",
+                                                                  "raw":  "{{base_url}}/registration-requests?search=\u0026per_page=15",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2945,7 +2945,7 @@
                                                                    "raw":  "{\r\n    \"user_ids\":  [\r\n                     1,\r\n                     2,\r\n                     3\r\n                 ]\r\n}"
                                                                },
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/registration-requests/approve",
+                                                                  "raw":  "{{base_url}}/registration-requests/approve",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
@@ -2989,7 +2989,7 @@
                                                                    "raw":  "{\r\n    \"user_ids\":  [\r\n                     4,\r\n                     5\r\n                 ]\r\n}"
                                                                },
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/api/admin/registration-requests/reject",
+                                                                  "raw":  "{{base_url}}/registration-requests/reject",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],

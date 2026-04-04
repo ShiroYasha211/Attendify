@@ -244,7 +244,19 @@ class EvaluationController extends DoctorApiController
     public function startData()
     {
         $doctorId = Auth::id();
-        $checklists = EvaluationChecklist::where('doctor_id', $doctorId)->with('items')->get();
+        $hiddenIds = Auth::user()->hiddenChecklists()->pluck('evaluation_checklists.id')->toArray();
+
+        $checklists = EvaluationChecklist::with('items')
+            ->where('is_active', true)
+            ->where(function ($query) use ($doctorId, $hiddenIds) {
+                $query->whereNull('doctor_id')
+                    ->when(!empty($hiddenIds), function ($hiddenQuery) use ($hiddenIds) {
+                        $hiddenQuery->whereNotIn('id', $hiddenIds);
+                    })
+                    ->orWhere('doctor_id', $doctorId);
+            })
+            ->latest()
+            ->get();
 
         $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', $doctorId)
             ->select('major_id', 'level_id')->distinct()->get();

@@ -104,6 +104,7 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
 
     // Academic — Colleges
     Route::apiResource('colleges', AdminCollegeController::class)->names('api.admin.colleges');
+    Route::apiResource('majors', AdminMajorController::class)->names('api.admin.majors');
 
     // Academic — Majors
         Route::get('users/{user}/permissions', [AdminUserController::class, 'getPermissions']);

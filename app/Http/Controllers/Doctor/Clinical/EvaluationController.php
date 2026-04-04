@@ -273,7 +273,20 @@ class EvaluationController extends Controller
 
     public function startEvaluation()
     {
-        $checklists = EvaluationChecklist::where('doctor_id', Auth::id())->where('is_active', true)->get();
+        $user = Auth::user();
+        $hiddenIds = $user->hiddenChecklists()->pluck('evaluation_checklists.id')->toArray();
+
+        $checklists = EvaluationChecklist::with('creator')
+            ->where('is_active', true)
+            ->where(function ($query) use ($user, $hiddenIds) {
+                $query->whereNull('doctor_id')
+                    ->when(!empty($hiddenIds), function ($hiddenQuery) use ($hiddenIds) {
+                        $hiddenQuery->whereNotIn('id', $hiddenIds);
+                    })
+                    ->orWhere('doctor_id', $user->id);
+            })
+            ->latest()
+            ->get();
 
         $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
             ->select('major_id', 'level_id')
