@@ -2,50 +2,46 @@
 
 namespace App\Http\Controllers\Api\Student;
 
-use Illuminate\Http\Request;
-use App\Models\Student\StudentScheduleItem;
+use App\Models\Academic\Assignment;
 use App\Models\Academic\Lecture;
 use App\Models\CourseResource;
+use App\Models\Student\StudentScheduleItem;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Http\Request;
 
 class StudentScheduleController extends StudentApiController
 {
-    /**
-     * Display the Smart Study Hub items.
-     */
     public function index(Request $request)
     {
         $student = $request->user();
+        $tab = $this->normalizeTab($request->get('tab', 'study'));
 
-        $tab = $request->get('tab', 'study'); // study | reminders | resources | assignments
-
-        // ─── Dashboard Stats ───
         $stats = [
-            'today' => StudentScheduleItem::where('user_id', $student->id)
-                ->pending()->today()->count(),
-            'overdue' => StudentScheduleItem::where('user_id', $student->id)
-                ->overdue()->count(),
+            'today' => StudentScheduleItem::where('user_id', $student->id)->pending()->today()->count(),
+            'overdue' => StudentScheduleItem::where('user_id', $student->id)->overdue()->count(),
             'completed' => StudentScheduleItem::where('user_id', $student->id)
                 ->completed()
                 ->where('completed_at', '>=', now()->startOfWeek())
                 ->count(),
-            'high_priority' => StudentScheduleItem::where('user_id', $student->id)
-                ->pending()->highPriority()->count(),
-            'total_pending' => StudentScheduleItem::where('user_id', $student->id)
-                ->pending()->count(),
-            'study_count' => StudentScheduleItem::where('user_id', $student->id)
-                ->studyItems()->pending()->count(),
-            'reminders_count' => StudentScheduleItem::where('user_id', $student->id)
-                ->reminders()->pending()->count(),
-            'assignments_count' => StudentScheduleItem::where('user_id', $student->id)
-                ->where('item_type', 'assignment')->pending()->count(),
-            'resources_count' => StudentScheduleItem::where('user_id', $student->id)
-                ->myResources()->count(),
+            'high_priority' => StudentScheduleItem::where('user_id', $student->id)->pending()->highPriority()->count(),
+            'total_pending' => StudentScheduleItem::where('user_id', $student->id)->pending()->count(),
+            'study_count' => StudentScheduleItem::where('user_id', $student->id)->studyItems()->pending()->count(),
+            'reminders_count' => StudentScheduleItem::where('user_id', $student->id)->reminders()->pending()->count(),
+            'assignments_count' => StudentScheduleItem::where('user_id', $student->id)->where('item_type', 'assignment')->pending()->count(),
+            'resources_count' => StudentScheduleItem::where('user_id', $student->id)->myResources()->count(),
         ];
 
-        // ─── Fetch items based on active tab ───
         $query = StudentScheduleItem::where('user_id', $student->id)
-            ->with('referenceable');
+            ->with([
+                'referenceable' => function (MorphTo $morphTo) {
+                    $morphTo->morphWith([
+                        Lecture::class => ['subject:id,name,doctor_id', 'subject.doctor:id,name'],
+                        CourseResource::class => ['subject:id,name', 'uploader:id,name'],
+                        Assignment::class => ['subject:id,name', 'creator:id,name'],
+                    ]);
+                },
+            ]);
 
         switch ($tab) {
             case 'reminders':
@@ -58,7 +54,7 @@ class StudentScheduleController extends StudentApiController
 
             case 'assignments':
                 $query->where('item_type', 'assignment')
-                    ->orderByRaw("is_completed ASC")
+                    ->orderByRaw('is_completed ASC')
                     ->orderByRaw("scheduled_date < CURDATE() DESC")
                     ->orderBy('scheduled_date', 'asc');
                 break;
@@ -69,9 +65,9 @@ class StudentScheduleController extends StudentApiController
                     ->orderBy('created_at', 'desc');
                 break;
 
-            default: // 'study'
+            default:
                 $query->studyItems()
-                    ->orderByRaw("CASE WHEN is_completed = 1 THEN 1 ELSE 0 END ASC")
+                    ->orderByRaw('CASE WHEN is_completed = 1 THEN 1 ELSE 0 END ASC')
                     ->orderByRaw('scheduled_date IS NULL ASC')
                     ->orderBy('scheduled_date', 'asc')
                     ->orderBy('sort_order', 'asc')
@@ -105,15 +101,27 @@ class StudentScheduleController extends StudentApiController
         }
 
         return $this->success([
+            'feature' => [
+                'key' => 'study_center',
+                'label' => 'Study Center',
+                'description' => 'Personal study hub for tasks, reminders, saved resources, and tracked assignments.',
+                'notes' => [
+                    'Use /api/student/schedules for the official weekly timetable.',
+                    'Use /api/student/study-center for the personal study center.',
+                ],
+            ],
             'stats' => $stats,
             'tab' => $tab,
-            'items' => $items,
-        ]);
+            'tabs' => [
+                ['key' => 'study', 'label' => 'Study Tasks'],
+                ['key' => 'reminders', 'label' => 'Reminders'],
+                ['key' => 'resources', 'label' => 'Saved Resources'],
+                ['key' => 'assignments', 'label' => 'Tracked Assignments'],
+            ],
+            'items' => $items->map(fn (StudentScheduleItem $item) => $this->transformItem($item))->values(),
+        ], 'Study center retrieved successfully.');
     }
 
-    /**
-     * Store a schedule item (from lectures/resources pages).
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -130,21 +138,23 @@ class StudentScheduleController extends StudentApiController
         ]);
 
         $student = $request->user();
-
         $modelClass = null;
+
         if ($request->referenceable_type) {
             $typeMap = [
                 'lecture' => Lecture::class,
                 'resource' => CourseResource::class,
+                'assignment' => Assignment::class,
             ];
+
             $modelClass = $typeMap[$request->referenceable_type] ?? $request->referenceable_type;
 
             if (!class_exists($modelClass)) {
-                return $this->error('نوع المحتوى غير صالح.', 400);
+                return $this->error('Invalid referenceable type.', 400);
             }
 
             if ($request->referenceable_id && !$modelClass::find($request->referenceable_id)) {
-                return $this->error('المحتوى غير موجود.', 404);
+                return $this->error('Referenced content was not found.', 404);
             }
 
             $exists = StudentScheduleItem::where('user_id', $student->id)
@@ -153,14 +163,18 @@ class StudentScheduleController extends StudentApiController
                 ->exists();
 
             if ($exists) {
-                return $this->error('هذا المصدر مضاف بالفعل إلى قائمتك.', 400);
+                return $this->error('This source is already saved in the study center.', 400);
             }
         }
 
         $itemType = $request->item_type ?? 'study';
 
         if (!$request->item_type && $modelClass) {
-            $itemType = ($modelClass === CourseResource::class) ? 'resource' : 'study';
+            $itemType = match ($modelClass) {
+                CourseResource::class => 'resource',
+                Assignment::class => 'assignment',
+                default => 'study',
+            };
         }
 
         $item = StudentScheduleItem::create([
@@ -178,12 +192,11 @@ class StudentScheduleController extends StudentApiController
             'sort_order' => StudentScheduleItem::where('user_id', $student->id)->max('sort_order') + 1,
         ]);
 
-        return $this->success(['item' => $item], 'تمت الإضافة إلى مركز الدراسة بنجاح', 201);
+        return $this->success([
+            'item' => $this->transformItem($item->fresh('referenceable')),
+        ], 'Item added to the study center successfully.', 201);
     }
 
-    /**
-     * Store a custom task.
-     */
     public function storeCustomTask(Request $request)
     {
         $request->validate([
@@ -214,17 +227,16 @@ class StudentScheduleController extends StudentApiController
             'sort_order' => StudentScheduleItem::where('user_id', $student->id)->max('sort_order') + 1,
         ]);
 
-        return $this->success(['item' => $item], 'تمت إضافة المهمة بنجاح', 201);
+        return $this->success([
+            'item' => $this->transformItem($item),
+        ], 'Custom study center item added successfully.', 201);
     }
 
-    /**
-     * Update the specified item.
-     */
     public function update(Request $request, $id)
     {
         $student = $request->user();
         $item = StudentScheduleItem::where('user_id', $student->id)->findOrFail($id);
-        $message = 'تم التحديث بنجاح';
+        $message = 'Study center item updated successfully.';
 
         $request->validate([
             'is_completed' => 'sometimes|boolean',
@@ -237,10 +249,9 @@ class StudentScheduleController extends StudentApiController
             'reminder_at' => 'nullable|date',
         ]);
 
-        if ($request->has('is_completed') && $request->is_completed && $item->repeat_type !== 'none') {
+        if ($request->has('is_completed') && $request->boolean('is_completed') && $item->repeat_type !== 'none') {
             $currentDate = $item->scheduled_date ? Carbon::parse($item->scheduled_date) : Carbon::today();
             $originalReminderTime = $item->reminder_at ? Carbon::parse($item->reminder_at)->format('H:i:s') : null;
-
             $nextDate = $currentDate->copy();
 
             if ($item->repeat_type === 'daily') {
@@ -261,43 +272,53 @@ class StudentScheduleController extends StudentApiController
             }
 
             $newItem->save();
-            $message = '✅ تم الإنجاز! تم جدولة الجلسة القادمة ليوم ' . $nextDate->isoFormat('dddd Y-MM-DD');
+            $message = 'Recurring item completed and next occurrence scheduled successfully.';
         }
 
         if ($request->has('is_completed')) {
-            $item->is_completed = $request->is_completed;
-            $item->completed_at = $request->is_completed ? now() : null;
-            $item->status = $request->is_completed ? 'completed' : 'pending';
+            $item->is_completed = $request->boolean('is_completed');
+            $item->completed_at = $request->boolean('is_completed') ? now() : null;
+            $item->status = $request->boolean('is_completed') ? 'completed' : 'pending';
         }
 
-        if ($request->has('scheduled_date')) $item->scheduled_date = $request->scheduled_date;
-        if ($request->has('note')) $item->note = $request->note;
-        if ($request->has('title')) $item->title = $request->title;
-        if ($request->has('priority')) $item->priority = $request->priority;
-        if ($request->has('status')) $item->status = $request->status;
-        if ($request->has('category_tag')) $item->category_tag = $request->category_tag;
-        if ($request->has('reminder_at')) $item->reminder_at = $request->reminder_at;
+        if ($request->has('scheduled_date')) {
+            $item->scheduled_date = $request->scheduled_date;
+        }
+        if ($request->has('note')) {
+            $item->note = $request->note;
+        }
+        if ($request->has('title')) {
+            $item->title = $request->title;
+        }
+        if ($request->has('priority')) {
+            $item->priority = $request->priority;
+        }
+        if ($request->has('status')) {
+            $item->status = $request->status;
+        }
+        if ($request->has('category_tag')) {
+            $item->category_tag = $request->category_tag;
+        }
+        if ($request->has('reminder_at')) {
+            $item->reminder_at = $request->reminder_at;
+        }
 
         $item->save();
 
-        return $this->success(['item' => $item], $message);
+        return $this->success([
+            'item' => $this->transformItem($item->fresh('referenceable')),
+        ], $message);
     }
 
-    /**
-     * Remove from storage.
-     */
     public function destroy(Request $request, $id)
     {
         $student = $request->user();
         $item = StudentScheduleItem::where('user_id', $student->id)->findOrFail($id);
         $item->delete();
 
-        return $this->success([], 'تم الحذف من الجدول');
+        return $this->success([], 'Study center item deleted successfully.');
     }
 
-    /**
-     * Reorder items.
-     */
     public function reorder(Request $request)
     {
         $request->validate([
@@ -314,12 +335,9 @@ class StudentScheduleController extends StudentApiController
                 ->update(['sort_order' => $itemData['order']]);
         }
 
-        return $this->success([], 'تم إعادة الترتيب بنجاح.');
+        return $this->success([], 'Study center items reordered successfully.');
     }
 
-    /**
-     * Check for due reminders.
-     */
     public function checkReminders(Request $request)
     {
         $student = $request->user();
@@ -332,6 +350,7 @@ class StudentScheduleController extends StudentApiController
             ->get();
 
         $results = [];
+
         foreach ($dueReminders as $reminder) {
             $reminder->update(['reminder_sent' => true]);
             $results[] = [
@@ -339,12 +358,134 @@ class StudentScheduleController extends StudentApiController
                 'title' => $reminder->display_title,
                 'scheduled_date' => $reminder->scheduled_date?->format('Y-m-d'),
                 'priority' => $reminder->priority,
+                'priority_label' => $reminder->priority_label,
             ];
         }
 
         return $this->success([
             'reminders' => $results,
             'count' => count($results),
-        ]);
+        ], 'Due reminders checked successfully.');
+    }
+
+    private function normalizeTab(?string $tab): string
+    {
+        return in_array($tab, ['study', 'reminders', 'resources', 'assignments'], true)
+            ? $tab
+            : 'study';
+    }
+
+    private function transformItem(StudentScheduleItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'title' => $item->display_title,
+            'custom_title' => $item->title,
+            'item_type' => $item->item_type,
+            'item_type_label' => $item->item_type_label,
+            'priority' => $item->priority,
+            'priority_label' => $item->priority_label,
+            'priority_color' => $item->priority_color,
+            'status' => $item->status,
+            'status_label' => $item->status_label,
+            'status_color' => $item->status_color,
+            'is_completed' => $item->is_completed,
+            'is_overdue' => $item->is_overdue,
+            'scheduled_date' => $item->scheduled_date?->format('Y-m-d'),
+            'completed_at' => $item->completed_at?->toIso8601String(),
+            'reminder_at' => $item->reminder_at?->toIso8601String(),
+            'repeat_type' => $item->repeat_type,
+            'category_tag' => $item->category_tag,
+            'note' => $item->note,
+            'reference' => $this->transformReference($item->referenceable),
+        ];
+    }
+
+    private function transformReference($reference): ?array
+    {
+        if (!$reference) {
+            return null;
+        }
+
+        if ($reference instanceof Lecture) {
+            $reference->loadMissing(['subject:id,name,doctor_id', 'subject.doctor:id,name']);
+
+            return [
+                'type' => 'lecture',
+                'type_label' => 'Lecture',
+                'id' => $reference->id,
+                'subject' => $reference->subject ? [
+                    'id' => $reference->subject->id,
+                    'name' => $reference->subject->name,
+                ] : null,
+                'owner' => $reference->subject?->doctor ? [
+                    'id' => $reference->subject->doctor->id,
+                    'name' => $reference->subject->doctor->name,
+                ] : null,
+                'meta' => [
+                    'lecture_number' => $reference->lecture_number,
+                    'lecture_type' => $reference->lecture_type,
+                    'date' => $reference->date?->format('Y-m-d'),
+                    'start_time' => $reference->start_time,
+                    'end_time' => $reference->end_time,
+                ],
+            ];
+        }
+
+        if ($reference instanceof CourseResource) {
+            $reference->loadMissing(['subject:id,name', 'uploader:id,name']);
+
+            return [
+                'type' => 'resource',
+                'type_label' => 'Resource',
+                'id' => $reference->id,
+                'subject' => $reference->subject ? [
+                    'id' => $reference->subject->id,
+                    'name' => $reference->subject->name,
+                ] : null,
+                'owner' => $reference->uploader ? [
+                    'id' => $reference->uploader->id,
+                    'name' => $reference->uploader->name,
+                ] : null,
+                'meta' => [
+                    'category' => $reference->category,
+                    'sub_category' => $reference->sub_category,
+                    'file_type' => $reference->file_type,
+                    'semester_info' => $reference->semester_info,
+                    'visibility' => $reference->visibility,
+                ],
+            ];
+        }
+
+        if ($reference instanceof Assignment) {
+            $reference->loadMissing(['subject:id,name', 'creator:id,name']);
+
+            return [
+                'type' => 'assignment',
+                'type_label' => 'Assignment',
+                'id' => $reference->id,
+                'subject' => $reference->subject ? [
+                    'id' => $reference->subject->id,
+                    'name' => $reference->subject->name,
+                ] : null,
+                'owner' => $reference->creator ? [
+                    'id' => $reference->creator->id,
+                    'name' => $reference->creator->name,
+                ] : null,
+                'meta' => [
+                    'due_date' => $reference->due_date?->format('Y-m-d'),
+                    'requires_submission' => $reference->requires_submission,
+                ],
+            ];
+        }
+
+        return [
+            'type' => class_basename($reference),
+            'type_label' => class_basename($reference),
+            'id' => $reference->id ?? null,
+            'subject' => null,
+            'owner' => null,
+            'meta' => [],
+        ];
     }
 }

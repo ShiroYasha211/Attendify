@@ -2,8 +2,9 @@
 
 namespace App\Models\Student;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class StudentScheduleItem extends Model
 {
@@ -34,11 +35,9 @@ class StudentScheduleItem extends Model
         'reminder_sent' => 'boolean',
     ];
 
-    // ─── Relationships ───
-
     public function user()
     {
-        return $this->belongsTo(\App\Models\User::class);
+        return $this->belongsTo(User::class);
     }
 
     public function referenceable()
@@ -46,33 +45,26 @@ class StudentScheduleItem extends Model
         return $this->morphTo();
     }
 
-    // ─── Scopes ───
-
-    /** Study schedule items only */
     public function scopeStudyItems($query)
     {
         return $query->where('item_type', 'study');
     }
 
-    /** Reminder items only */
     public function scopeReminders($query)
     {
         return $query->where('item_type', 'reminder');
     }
 
-    /** Bookmarked resource items only */
     public function scopeMyResources($query)
     {
         return $query->where('item_type', 'resource');
     }
 
-    /** Items due today */
     public function scopeToday($query)
     {
         return $query->whereDate('scheduled_date', Carbon::today());
     }
 
-    /** Overdue items (past date, not completed) */
     public function scopeOverdue($query)
     {
         return $query->where('is_completed', false)
@@ -80,27 +72,21 @@ class StudentScheduleItem extends Model
             ->whereDate('scheduled_date', '<', Carbon::today());
     }
 
-    /** High-priority items */
     public function scopeHighPriority($query)
     {
         return $query->where('priority', 'high');
     }
 
-    /** Pending items (not completed) */
     public function scopePending($query)
     {
         return $query->where('is_completed', false);
     }
 
-    /** Completed items */
     public function scopeCompleted($query)
     {
         return $query->where('is_completed', true);
     }
 
-    // ─── Accessors ───
-
-    /** Check if this item is overdue */
     public function getIsOverdueAttribute(): bool
     {
         return !$this->is_completed
@@ -108,18 +94,16 @@ class StudentScheduleItem extends Model
             && $this->scheduled_date->lt(Carbon::today());
     }
 
-    /** Arabic priority label */
     public function getPriorityLabelAttribute(): string
     {
         return match ($this->priority) {
-            'high' => 'عاجل',
-            'medium' => 'مهم',
-            'low' => 'عادي',
-            default => 'عادي',
+            'high' => 'Urgent',
+            'medium' => 'Important',
+            'low' => 'Normal',
+            default => 'Normal',
         };
     }
 
-    /** Priority color */
     public function getPriorityColorAttribute(): string
     {
         return match ($this->priority) {
@@ -130,46 +114,55 @@ class StudentScheduleItem extends Model
         };
     }
 
-    /** Status color */
     public function getStatusColorAttribute(): string
     {
-        if ($this->is_overdue) return '#ef4444'; // Red for overdue
+        if ($this->is_overdue) {
+            return '#ef4444';
+        }
+
         return match ($this->status) {
             'in_progress' => '#3b82f6',
             'completed' => '#10b981',
             'overdue' => '#ef4444',
-            default => '#64748b', // pending
+            default => '#64748b',
         };
     }
 
-    /** Arabic status label */
     public function getStatusLabelAttribute(): string
     {
-        if ($this->is_overdue) return 'متأخر';
+        if ($this->is_overdue) {
+            return 'Overdue';
+        }
+
         return match ($this->status) {
-            'in_progress' => 'قيد التنفيذ',
-            'completed' => 'مكتمل',
-            'overdue' => 'متأخر',
-            default => 'قيد الانتظار',
+            'in_progress' => 'In Progress',
+            'completed' => 'Completed',
+            'overdue' => 'Overdue',
+            default => 'Pending',
         };
     }
 
-    /** Arabic item type label */
     public function getItemTypeLabelAttribute(): string
     {
         return match ($this->item_type) {
-            'study' => 'مذاكرة',
-            'reminder' => 'تنبيه',
-            'resource' => 'مصدر',
-            default => 'مذاكرة',
+            'study' => 'Study Task',
+            'reminder' => 'Reminder',
+            'resource' => 'Saved Resource',
+            'assignment' => 'Assignment',
+            default => 'Study Task',
         };
     }
 
-    /** Display title: custom title or original content title */
     public function getDisplayTitleAttribute(): string
     {
-        if ($this->title) return $this->title;
-        if ($this->referenceable) return $this->referenceable->title ?? 'عنصر بدون عنوان';
-        return 'عنصر محذوف';
+        if ($this->title) {
+            return $this->title;
+        }
+
+        if ($this->referenceable) {
+            return $this->referenceable->title ?? 'Untitled Item';
+        }
+
+        return 'Deleted Item';
     }
 }

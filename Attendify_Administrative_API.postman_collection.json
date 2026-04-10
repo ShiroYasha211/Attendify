@@ -29,6 +29,10 @@
                          "value":  "1"
                      },
                      {
+                         "key":  "term_id",
+                         "value":  "1"
+                     },
+                     {
                          "key":  "batch_id",
                          "value":  ""
                      },
@@ -42,6 +46,10 @@
                      },
                      {
                          "key":  "schedule_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "attendance_id",
                          "value":  "1"
                      },
                      {
@@ -1072,7 +1080,7 @@
                                       "name":  "Create Subject",
                                       "request":  {
                                                       "body":  {
-                                                                   "raw":  "{\n  \"name\": \"???? ?????\",\n  \"code\": \"SUB101\",\n  \"term_id\": 1,\n  \"doctor_id\": {{doctor_id}}\n}",
+                                                                   "raw":  "{\n  \"name\": \"Clinical Pharmacology\",\n  \"code\": \"SUB101\",\n  \"term_id\": {{term_id}},\n  \"doctor_id\": {{doctor_id}}\n}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"
@@ -1140,7 +1148,7 @@
                                       "name":  "Update Subject",
                                       "request":  {
                                                       "body":  {
-                                                                   "raw":  "{\n  \"name\": \"???? ?????\",\n  \"code\": \"SUB101\",\n  \"term_id\": 1,\n  \"doctor_id\": {{doctor_id}}\n}",
+                                                                   "raw":  "{\n  \"name\": \"Clinical Pharmacology - Updated\",\n  \"code\": \"SUB101\",\n  \"term_id\": {{term_id}},\n  \"doctor_id\": {{doctor_id}}\n}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"
@@ -1653,7 +1661,8 @@
                                                                          "key":  "Authorization",
                                                                          "value":  "Bearer {{token}}"
                                                                      }
-                                                                 ]
+                                                                 ],
+                                                      "description":  "term_id must belong to the same college and selected level. Use the majors endpoint to inspect levels and the subject/exam helper endpoints to resolve valid academic ids before creating records."
                                                   }
                                   },
                                   {
@@ -1765,7 +1774,8 @@
                                                                          "key":  "Authorization",
                                                                          "value":  "Bearer {{token}}"
                                                                      }
-                                                                 ]
+                                                                 ],
+                                                      "description":  "Use a real attendance record id from the attendance report endpoints. The status must be one of the editable attendance states configured by the backend, such as present, absent, late, permitted, or exempted."
                                                   }
                                   }
                               ]
@@ -1892,7 +1902,7 @@
                                       "name":  "Create Exam Schedule",
                                       "request":  {
                                                       "body":  {
-                                                                   "raw":  "{\n  \"major_id\": {{major_id}},\n  \"level_id\": {{level_id}},\n  \"term_id\": 1,\n  \"title\": \"???? ????????\",\n  \"description\": \"??? ?????\",\n  \"is_published\": true,\n  \"items\": [\n    {\n      \"subject_id\": {{subject_id}},\n      \"exam_date\": \"2026-05-01\",\n      \"start_time\": \"09:00\",\n      \"end_time\": \"11:00\",\n      \"location\": \"Hall A\"\n    }\n  ]\n}",
+                                                                   "raw":  "{\n  \"major_id\": {{major_id}},\n  \"level_id\": {{level_id}},\n  \"term_id\": {{term_id}},\n  \"title\": \"Midterm Schedule\",\n  \"description\": \"Spring exam schedule\",\n  \"is_published\": true,\n  \"items\": [\n    {\n      \"subject_id\": {{subject_id}},\n      \"exam_date\": \"2026-05-01\",\n      \"start_time\": \"09:00\",\n      \"end_time\": \"11:00\",\n      \"location\": \"Hall A\"\n    }\n  ]\n}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"
@@ -1925,7 +1935,8 @@
                                                                          "key":  "Content-Type",
                                                                          "value":  "application/json"
                                                                      }
-                                                                 ]
+                                                                 ],
+                                                      "description":  "Use create-data and helper endpoints first to resolve a valid major_id, level_id, term_id, and subject_id combination. A hard-coded term outside the selected level will correctly fail validation."
                                                   }
                                   },
                                   {
@@ -1960,7 +1971,7 @@
                                       "name":  "Update Exam Schedule",
                                       "request":  {
                                                       "body":  {
-                                                                   "raw":  "{\n  \"major_id\": {{major_id}},\n  \"level_id\": {{level_id}},\n  \"term_id\": 1,\n  \"title\": \"???? ???????? ????\",\n  \"description\": \"??? ????\",\n  \"is_published\": true,\n  \"items\": [\n    {\n      \"subject_id\": {{subject_id}},\n      \"exam_date\": \"2026-05-03\",\n      \"start_time\": \"10:00\",\n      \"end_time\": \"12:00\",\n      \"location\": \"Hall B\"\n    }\n  ]\n}",
+                                                                   "raw":  "{\n  \"major_id\": {{major_id}},\n  \"level_id\": {{level_id}},\n  \"term_id\": {{term_id}},\n  \"title\": \"Midterm Schedule Updated\",\n  \"description\": \"Updated spring exam schedule\",\n  \"is_published\": true,\n  \"items\": [\n    {\n      \"subject_id\": {{subject_id}},\n      \"exam_date\": \"2026-05-03\",\n      \"start_time\": \"10:00\",\n      \"end_time\": \"12:00\",\n      \"location\": \"Hall B\"\n    }\n  ]\n}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"

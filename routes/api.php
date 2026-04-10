@@ -496,7 +496,14 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('schedules', [StudentBatchScheduleController::class, 'index']); // (Read-only mirror of Delegate's)
     Route::get('exams', [\App\Http\Controllers\Api\Student\ExamScheduleController::class, 'index']);
 
-    // Student Schedule (Smart Study Hub)
+    // Student Schedule (Smart Study Hub) - legacy /schedule alias + canonical /study-center
+    Route::get('study-center', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'index']);
+    Route::post('study-center', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'store']);
+    Route::post('study-center/custom-task', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'storeCustomTask']);
+    Route::get('study-center/check-reminders', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'checkReminders']);
+    Route::put('study-center/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'update']);
+    Route::delete('study-center/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'destroy']);
+    Route::post('study-center/reorder', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'reorder']);
     Route::get('schedule', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'index']);
     Route::post('schedule', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'store']);
     Route::post('schedule/custom-task', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'storeCustomTask']);

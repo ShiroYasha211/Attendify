@@ -305,7 +305,7 @@
                      "description":  "Unified student communication area.\n\n- `news-hub`: the recommended endpoint. It combines official news center items, administrative announcements, doctor announcements, and delegate announcements in one feed with a `source` filter.\n- `announcements`: major/level announcements only. In practice this endpoint can contain administrative or delegate posts depending on the creator role.\n- `doctor-announcements`: doctor-only subject announcements.\n- `notifications`: personal inbox-style notifications for the logged-in student, including polls and unread state."
                  },
                  {
-                     "name":  "04 Section",
+                     "name":  "04 Academic Timetable",
                      "item":  [
                                   {
                                       "name":  "Weekly Schedule",
@@ -340,7 +340,7 @@
                               ]
                  },
                  {
-                     "name":  "05 Section",
+                     "name":  "05 Subjects And Library",
                      "item":  [
                                   {
                                       "name":  "List Subjects",
@@ -473,7 +473,7 @@
                               ]
                  },
                  {
-                     "name":  "06 Section",
+                     "name":  "06 Flashcards",
                      "item":  [
                                   {
                                       "name":  "My Packs",
@@ -598,38 +598,38 @@
                               ]
                  },
                  {
-                     "name":  "07 Section",
+                     "name":  "07 Study Center",
                      "item":  [
                                   {
-                                      "name":  "My Custom Schedule",
+                                      "name":  "Study Center Dashboard",
                                       "request":  {
                                                       "method":  "GET",
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/schedule",
+                                                                  "raw":  "{{base_url}}/study-center",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
                                                                   "path":  [
-                                                                               "schedule"
+                                                                               "study-center"
                                                                            ]
                                                               }
                                                   }
                                   },
                                   {
-                                      "name":  "Store Task/Event",
+                                      "name":  "Add Study Center Item",
                                       "request":  {
                                                       "method":  "POST",
                                                       "body":  {
                                                                    "mode":  "raw",
-                                                                   "raw":  "{\r\n    \"title\":  \"Sample Title\",\r\n    \"event_date\":  \"2026-04-05\",\r\n    \"type\":  \"event\"\r\n}"
+                                                                   "raw":  "{\r\n    \"title\":  \"Read cardiology notes\",\r\n    \"scheduled_date\":  \"2026-04-12\",\r\n    \"item_type\":  \"study\",\r\n    \"priority\":  \"high\"\r\n}"
                                                                },
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/schedule",
+                                                                  "raw":  "{{base_url}}/study-center",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
                                                                   "path":  [
-                                                                               "schedule"
+                                                                               "study-center"
                                                                            ]
                                                               }
                                                   }
@@ -640,21 +640,22 @@
                                                       "method":  "POST",
                                                       "body":  {
                                                                    "mode":  "raw",
-                                                                   "raw":  "{\r\n    \"title\":  \"Sample Title\"\r\n}"
+                                                                   "raw":  "{\r\n    \"title\":  \"Prepare tomorrow reminder\",\r\n    \"scheduled_date\":  \"2026-04-13\",\r\n    \"item_type\":  \"reminder\",\r\n    \"priority\":  \"medium\"\r\n}"
                                                                },
                                                       "url":  {
-                                                                  "raw":  "{{base_url}}/schedule/custom-task",
+                                                                  "raw":  "{{base_url}}/study-center/custom-task",
                                                                   "host":  [
                                                                                "{{base_url}}"
                                                                            ],
                                                                   "path":  [
-                                                                               "schedule",
+                                                                               "study-center",
                                                                                "custom-task"
                                                                            ]
                                                               }
                                                   }
                                   }
-                              ]
+                              ],
+                     "description":  "Canonical Study Center endpoints.\n\n- `GET /study-center` returns the personal study hub with normalized items, stats, tabs, and non-duplicated reference summaries.\n- `GET /schedules` is different: it returns the official weekly timetable only.\n- Legacy `/schedule` endpoints still work, but new clients should use `/study-center`."
                  },
                  {
                      "name":  "08 Section",
