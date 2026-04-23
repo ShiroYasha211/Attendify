@@ -53,16 +53,24 @@
         showMessage('جاري تسجيل الحضور...', 'info');
 
         try {
-            const response = await fetch('/api/student/qr-attendance/scan', {
+            const response = await fetch('/api/qr-attendance/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({
                     token: decodedText
                 })
             });
+
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error(`Unexpected response type: ${contentType || 'unknown'}`);
+            }
 
             const data = await response.json();
 

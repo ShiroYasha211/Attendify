@@ -393,7 +393,8 @@ Route::middleware(['web', 'auth'])->prefix('qr-attendance')->group(function () {
     Route::post('{session}/finalize', [QrAttendanceController::class, 'finalize']);
 
     // ── Student Endpoint ──
-    // Moved to Student API (Sanctum)
+    // Student web scanner should use the authenticated session directly.
+    Route::post('scan', [QrAttendanceController::class, 'scan']);
 });
 
 Route::prefix('desktop')->group(function () {
