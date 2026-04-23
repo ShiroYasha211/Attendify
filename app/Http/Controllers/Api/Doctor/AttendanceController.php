@@ -329,9 +329,9 @@ class AttendanceController extends DoctorApiController
                         'student_id' => $student['id'],
                         'subject_id' => $subject->id,
                         'date' => $request->date,
-                        'lecture_id' => $lecture->id,
                     ],
                     [
+                        'lecture_id' => $lecture->id,
                         'status' => $student['status'],
                         'recorded_by' => $request->user()->id,
                         'attendance_method' => $attendanceMethod,

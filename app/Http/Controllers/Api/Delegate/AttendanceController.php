@@ -143,9 +143,9 @@ class AttendanceController extends DelegateApiController
                         'student_id' => $student['id'],
                         'subject_id' => $subject->id,
                         'date' => $request->date,
-                        'lecture_id' => $lecture->id,
                     ],
                     [
+                        'lecture_id' => $lecture->id,
                         'status' => $student['status'],
                         'recorded_by' => $delegate->id,
                         'attendance_method' => $attendanceMethod,

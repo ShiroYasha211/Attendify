@@ -306,9 +306,9 @@ class AttendanceController extends Controller
                     'student_id' => $studentId,
                     'subject_id' => $subject->id,
                     'date' => $validated['date'],
-                    'lecture_id' => $lecture->id,
                 ],
                 [
+                    'lecture_id' => $lecture->id,
                     'status' => $status,
                     'recorded_by' => $delegate->id,
                     'attendance_method' => $attendanceMethod,
