@@ -31,7 +31,7 @@ class AuthController extends DoctorApiController
             return $this->error('حسابك غير مفعل. يرجى التواصل مع الإدارة.', 403);
         }
 
-        $user->tokens()->delete();
+        $user->tokens()->where('name', 'doctor-api')->delete();
         $token = $user->createToken('doctor-api')->plainTextToken;
 
         return $this->success([

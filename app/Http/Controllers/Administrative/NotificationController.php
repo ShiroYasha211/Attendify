@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Administrative;
 
+use App\Jobs\SendBatchPushNotificationsJob;
 use App\Http\Controllers\Controller;
 use App\Models\StudentNotification;
 use App\Models\User;
@@ -154,6 +155,8 @@ class NotificationController extends Controller
             }
         });
 
+        SendBatchPushNotificationsJob::dispatch($batchId);
+
         return redirect()->route('administrative.notifications.index')
             ->with('success', "تم إرسال " . ($request->type === 'poll' ? "الاستفتاء" : "التنبيه") . " إلى " . count($users) . " مستخدم بنجاح.");
     }
@@ -227,7 +230,10 @@ class NotificationController extends Controller
                 ->delete();
         });
 
+
         return redirect()->route('administrative.notifications.index')
             ->with('success', "تم حذف الإعلان وجميع البيانات المرتبطة به بنجاح.");
     }
 }
+
+

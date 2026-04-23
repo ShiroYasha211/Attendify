@@ -3,45 +3,83 @@
 @section('title', 'استفسارات الطلاب')
 
 @section('content')
-
 <style>
-    .page-header {
+    .hero-shell {
+        background:
+            radial-gradient(circle at top right, rgba(52, 211, 153, 0.16), transparent 30%),
+            linear-gradient(135deg, #0f172a 0%, #1f2937 48%, #0f766e 100%);
+        border-radius: 28px;
+        padding: 2rem;
+        color: #fff;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 28px 60px -36px rgba(15, 23, 42, 0.6);
+    }
+
+    .hero-top {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
+        align-items: flex-start;
         gap: 1rem;
         flex-wrap: wrap;
     }
 
-    .page-title {
-        font-size: 1.75rem;
-        font-weight: 800;
-        color: var(--text-primary);
+    .hero-title {
+        font-size: 2rem;
+        font-weight: 900;
+        margin: 0 0 0.6rem;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 0.85rem;
+    }
+
+    .hero-copy {
+        color: rgba(255,255,255,0.82);
+        line-height: 1.9;
+        margin: 0;
+        max-width: 820px;
+    }
+
+    .hero-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.95rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.12);
+        font-weight: 800;
+        backdrop-filter: blur(12px);
     }
 
     .section-card {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 20px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
+        background: rgba(255,255,255,0.97);
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 24px;
+        padding: 1.45rem;
+        margin-bottom: 1.4rem;
+        box-shadow: 0 22px 48px -36px rgba(15,23,42,0.45);
     }
 
-    .section-card h2 {
-        font-size: 1.1rem;
-        font-weight: 800;
-        margin-bottom: 0.25rem;
-        color: var(--text-primary);
-    }
-
-    .section-subtitle {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
+    .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
         margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .section-title {
+        font-size: 1.15rem;
+        font-weight: 900;
+        color: #0f172a;
+        margin-bottom: 0.35rem;
+    }
+
+    .section-copy {
+        color: #64748b;
+        line-height: 1.8;
+        margin: 0;
+        max-width: 800px;
     }
 
     .subject-grid {
@@ -51,263 +89,368 @@
     }
 
     .subject-card {
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 1rem;
-        background: #f8fafc;
-        display: flex;
-        flex-direction: column;
-        gap: 0.9rem;
+        border-radius: 20px;
+        padding: 1.1rem;
+        border: 1px solid rgba(148,163,184,0.16);
+        background: linear-gradient(180deg, #f8fafc, #fff);
     }
 
     .subject-top {
         display: flex;
         justify-content: space-between;
-        gap: 0.75rem;
         align-items: flex-start;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
     }
 
     .subject-name {
-        font-weight: 800;
-        color: var(--text-primary);
+        font-size: 1rem;
+        font-weight: 900;
+        color: #0f172a;
         margin-bottom: 0.25rem;
     }
 
     .subject-meta {
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        line-height: 1.5;
+        font-size: 0.86rem;
+        color: #64748b;
+        line-height: 1.7;
     }
 
-    .toggle-pill {
+    .subject-pill {
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
-        padding: 0.35rem 0.75rem;
+        gap: 0.35rem;
+        padding: 0.42rem 0.75rem;
         border-radius: 999px;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 800;
-        white-space: nowrap;
     }
 
-    .toggle-pill.open {
+    .subject-pill.open {
         background: #dcfce7;
         color: #166534;
     }
 
-    .toggle-pill.closed {
+    .subject-pill.closed {
         background: #fee2e2;
         color: #991b1b;
     }
 
     .reason-box {
-        padding: 0.75rem 0.9rem;
-        border-radius: 12px;
         background: #fff7ed;
         color: #9a3412;
+        border: 1px solid rgba(251, 146, 60, 0.16);
+        border-radius: 16px;
+        padding: 0.85rem 0.95rem;
+        line-height: 1.8;
         font-size: 0.88rem;
-        line-height: 1.6;
+        margin-bottom: 0.85rem;
     }
 
     .settings-form textarea {
         width: 100%;
-        min-height: 88px;
+        min-height: 84px;
         resize: vertical;
-        border-radius: 12px;
-        border: 1px solid #dbe3ee;
-        background: white;
-        padding: 0.75rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148,163,184,0.18);
+        background: #fff;
+        padding: 0.9rem;
         font-family: inherit;
-        font-size: 0.95rem;
+        font-size: 0.94rem;
     }
 
     .settings-form textarea:focus {
         outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        border-color: #0f766e;
+        box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
     }
 
-    .settings-actions {
+    .settings-foot {
         display: flex;
+        justify-content: space-between;
         align-items: center;
         gap: 0.75rem;
+        margin-top: 0.85rem;
         flex-wrap: wrap;
     }
 
     .btn-toggle {
         border: none;
-        border-radius: 12px;
-        padding: 0.75rem 1rem;
+        border-radius: 14px;
+        padding: 0.8rem 1rem;
         font-weight: 800;
-        color: white;
-        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: #fff;
         cursor: pointer;
-        transition: all 0.2s;
+        background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        box-shadow: 0 18px 34px -26px rgba(15,118,110,0.85);
     }
 
-    .btn-toggle:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.35);
-    }
-
-    .stats-row {
-        display: flex;
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 1rem;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
+        margin-bottom: 1.4rem;
     }
 
-    .stat-badge {
-        padding: 0.6rem 1.25rem;
-        border-radius: 12px;
-        font-weight: 600;
+    .stat-card {
+        background: rgba(255,255,255,0.97);
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 22px;
+        padding: 1.2rem 1.3rem;
+        box-shadow: 0 22px 48px -36px rgba(15,23,42,0.45);
+    }
+
+    .stat-label {
+        font-size: 0.84rem;
+        color: #64748b;
+        font-weight: 800;
+        margin-bottom: 0.55rem;
+    }
+
+    .stat-value {
+        font-size: 1.85rem;
+        font-weight: 900;
+        color: #0f172a;
+    }
+
+    .filters-bar {
         display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.4rem;
+    }
+
+    .filter-pill {
+        display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-    }
-
-    .filter-row {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .filter-btn {
-        padding: 0.5rem 1rem;
-        border-radius: 10px;
-        font-weight: 600;
+        gap: 0.45rem;
+        padding: 0.75rem 1rem;
+        border-radius: 999px;
         text-decoration: none;
-        color: var(--text-secondary);
-        background: white;
-        border: 1px solid #e2e8f0;
-        transition: all 0.2s;
+        font-weight: 800;
+        color: #475569;
+        background: rgba(255,255,255,0.88);
+        border: 1px solid rgba(148,163,184,0.2);
     }
 
-    .filter-btn.active,
-    .filter-btn:hover {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
+    .filter-pill.active {
+        color: #fff;
+        background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        border-color: transparent;
     }
 
-    .filter-btn.active {
-        background: var(--primary-color);
-        color: white;
+    .inquiries-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 1.1rem;
     }
 
     .inquiry-card {
-        background: white;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        transition: all 0.2s;
+        background: rgba(255,255,255,0.97);
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 22px 48px -36px rgba(15,23,42,0.45);
     }
 
-    .inquiry-card:hover {
-        border-color: var(--primary-color);
-        box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.15);
+    .inquiry-topline {
+        height: 5px;
+        background: linear-gradient(90deg, #0f766e, #2dd4bf);
     }
 
-    .inquiry-header {
+    .status-forwarded .inquiry-topline { background: linear-gradient(90deg, #0f766e, #2dd4bf); }
+    .status-answered .inquiry-topline { background: linear-gradient(90deg, #059669, #34d399); }
+    .status-closed .inquiry-topline { background: linear-gradient(90deg, #64748b, #94a3b8); }
+
+    .inquiry-body {
+        padding: 1.35rem 1.45rem 1.1rem;
+    }
+
+    .inquiry-meta {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: 1rem;
         margin-bottom: 1rem;
-    }
-
-    .inquiry-subject {
-        font-size: 0.8rem;
-        padding: 0.35rem 0.75rem;
-        background: #eff6ff;
-        color: var(--primary-color);
-        border-radius: 8px;
-        font-weight: 600;
-    }
-
-    .inquiry-status {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.6rem;
-        border-radius: 6px;
-        font-weight: 700;
-    }
-
-    .inquiry-status.forwarded {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .inquiry-status.answered {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .inquiry-status.closed {
-        background: #e2e8f0;
-        color: #64748b;
-    }
-
-    .inquiry-question {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 0.75rem;
-        line-height: 1.5;
-    }
-
-    .inquiry-meta {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        font-size: 0.85rem;
-        color: var(--text-secondary);
         flex-wrap: wrap;
     }
 
-    .inquiry-meta span {
+    .student-box {
         display: flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: 0.9rem;
     }
 
-    .view-btn {
-        padding: 0.5rem 1rem;
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        text-decoration: none;
+    .student-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        color: #0f766e;
+        background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+    }
+
+    .student-name {
+        font-weight: 900;
+        color: #0f172a;
+        margin-bottom: 0.2rem;
+    }
+
+    .student-submeta {
+        color: #64748b;
+        font-size: 0.88rem;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+    }
+
+    .chip-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .chip {
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        font-size: 0.85rem;
+        padding: 0.42rem 0.78rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .chip.subject { background: #ecfeff; color: #0f766e; }
+    .chip.status { background: #f8fafc; color: #334155; border: 1px solid rgba(148,163,184,0.14); }
+    .chip.actor { background: #dcfce7; color: #166534; }
+
+    .inquiry-title {
+        font-size: 1.08rem;
+        font-weight: 900;
+        color: #0f172a;
+        margin: 0 0 0.55rem;
+        line-height: 1.8;
+    }
+
+    .inquiry-question {
+        color: #475569;
+        line-height: 1.9;
+        margin: 0 0 1rem;
+    }
+
+    .info-band {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.82rem 0.95rem;
+        border-radius: 16px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .info-band.answered {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .inquiry-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(226,232,240,0.85);
+    }
+
+    .time-meta {
+        color: #94a3b8;
+        font-size: 0.84rem;
+        font-weight: 700;
+    }
+
+    .view-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        text-decoration: none;
+        color: #fff;
+        font-weight: 800;
+        border-radius: 14px;
+        padding: 0.8rem 1.1rem;
+        background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        box-shadow: 0 18px 34px -26px rgba(15,118,110,0.85);
     }
 
     .empty-state {
+        background: rgba(255,255,255,0.97);
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 28px;
+        padding: 3.5rem 2rem;
         text-align: center;
-        padding: 4rem 2rem;
-        background: white;
-        border-radius: 20px;
-        border: 1px solid #e2e8f0;
+        box-shadow: 0 22px 48px -36px rgba(15,23,42,0.45);
+    }
+
+    .empty-state h3 {
+        margin: 1rem 0 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 900;
+        color: #0f172a;
+    }
+
+    .empty-state p {
+        margin: 0;
+        color: #64748b;
+        line-height: 1.9;
     }
 </style>
 
-<div class="page-header">
-    <h1 class="page-title">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-color);">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-        </svg>
-        استفسارات الطلاب
-    </h1>
+<div class="hero-shell">
+    <div class="hero-top">
+        <div>
+            <h1 class="hero-title">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                استفسارات الطلاب
+            </h1>
+            <p class="hero-copy">
+                هذه الصفحة تعرض فقط الاستفسارات التي وصلت إليك فعليًا بعد تحويلها من المندوب، أو الاستفسارات التي قمت أنت بالرد عليها سابقًا. الاستفسارات التي حُلّت عند المندوب لا تظهر هنا.
+            </p>
+        </div>
+
+        <div class="hero-chip">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 8v4l3 3"></path>
+                <circle cx="12" cy="12" r="10"></circle>
+            </svg>
+            {{ $stats['forwarded'] }} بانتظار ردك
+        </div>
+    </div>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success mb-4">{{ session('success') }}</div>
+@endif
+
 <div class="section-card">
-    <h2>التحكم في فتح وإغلاق الاستفسارات</h2>
-    <div class="section-subtitle">افتح أو أغلق الاستفسارات لكل مادة تدرسها بشكل مستقل. إغلاق المادة يمنع الطالب من إرسال استفسارات جديدة عليها فقط.</div>
+    <div class="section-head">
+        <div>
+            <div class="section-title">إدارة فتح وإغلاق الاستفسارات</div>
+            <p class="section-copy">
+                تحكم في استقبال الاستفسارات لكل مادة على حدة. إغلاق الاستفسارات يمنع الطلاب من إرسال طلبات جديدة على المادة، بينما تبقى السجلات السابقة محفوظة وقابلة للعرض.
+            </p>
+        </div>
+    </div>
 
     @if($subjects->count())
         <div class="subject-grid">
@@ -321,13 +464,14 @@
                         <div>
                             <div class="subject-name">{{ $subject->name }}</div>
                             <div class="subject-meta">
-                                {{ $subject->code ?: 'لا يوجد كود مادة' }}
+                                {{ $subject->code ?: 'لا يوجد كود للمادة' }}
                                 @if($subject->level?->name)
                                     <br>{{ $subject->level->name }}
                                 @endif
                             </div>
                         </div>
-                        <span class="toggle-pill {{ $enabled ? 'open' : 'closed' }}">
+
+                        <span class="subject-pill {{ $enabled ? 'open' : 'closed' }}">
                             {{ $enabled ? 'مفتوحة' : 'مغلقة' }}
                         </span>
                     </div>
@@ -342,112 +486,136 @@
                         @csrf
                         @method('PATCH')
                         <input type="hidden" name="inquiries_enabled" value="{{ $enabled ? 0 : 1 }}">
-                        <textarea name="inquiries_closed_reason" placeholder="سبب الإغلاق اختياري، ويمكن تركه فارغاً.">{{ old('inquiries_closed_reason', $reason) }}</textarea>
-                        <div style="font-size: 0.82rem; color: #64748b; margin-top: 0.35rem;">
-                            إذا تم الإغلاق بدون سبب سيبقى السبب السابق إن وجد.
-                        </div>
-                        <div class="settings-actions" style="margin-top: 0.85rem;">
+
+                        <textarea
+                            name="inquiries_closed_reason"
+                            placeholder="سبب الإغلاق اختياري، ويظهر للطالب عند إغلاق الاستفسارات.">{{ old('inquiries_closed_reason', $reason) }}</textarea>
+
+                        <div class="settings-foot">
                             <button type="submit" class="btn-toggle">
                                 {{ $enabled ? 'إغلاق الاستفسارات' : 'فتح الاستفسارات' }}
                             </button>
-                            <span style="font-size: 0.85rem; color: #64748b;">
-                                {{ $enabled ? 'الطلاب لن يتمكنوا من إرسال استفسارات جديدة.' : 'الطلاب يمكنهم الإرسال الآن.' }}
-                            </span>
+
+                            <div style="font-size:0.82rem; color:#64748b;">
+                                {{ $enabled ? 'سيتم إيقاف استقبال استفسارات جديدة لهذه المادة.' : 'سيتم السماح بإرسال استفسارات جديدة لهذه المادة.' }}
+                            </div>
                         </div>
                     </form>
                 </div>
             @endforeach
         </div>
     @else
-        <div class="empty-state" style="padding: 2rem; margin-top: 0.5rem;">
-            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">لا توجد مواد مرتبطة بك</h3>
-            <p style="color: var(--text-secondary);">لا يمكن إدارة الاستفسارات قبل ربطك بمواد دراسية.</p>
+        <div class="empty-state" style="padding:2rem;">
+            <h3>لا توجد مواد مرتبطة بهذا الحساب</h3>
+            <p>لن تظهر أدوات إدارة الاستفسارات قبل ربط هذا الدكتور بمواد دراسية.</p>
         </div>
     @endif
 </div>
 
-<div class="stats-row">
-    <a href="{{ route('doctor.inquiries.index') }}" class="stat-badge all {{ !$status ? 'active' : '' }}" style="background: #f1f5f9; color: var(--text-primary);">
-        <span>الكل</span>
-        <strong>{{ $stats['total'] }}</strong>
-    </a>
-    <a href="{{ route('doctor.inquiries.index', ['status' => 'forwarded']) }}" class="stat-badge forwarded {{ $status == 'forwarded' ? 'active' : '' }}" style="background: #fef3c7; color: #92400e;">
-        <span>بانتظار الرد</span>
-        <strong>{{ $stats['forwarded'] }}</strong>
-    </a>
-    <a href="{{ route('doctor.inquiries.index', ['status' => 'answered']) }}" class="stat-badge answered {{ $status == 'answered' ? 'active' : '' }}" style="background: #d1fae5; color: #065f46;">
-        <span>تم الرد</span>
-        <strong>{{ $stats['answered'] }}</strong>
-    </a>
-    <a href="{{ route('doctor.inquiries.index', ['status' => 'closed']) }}" class="stat-badge closed {{ $status == 'closed' ? 'active' : '' }}" style="background: #e2e8f0; color: #64748b;">
-        <span>مغلق</span>
-        <strong>{{ $stats['closed'] }}</strong>
-    </a>
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">إجمالي ما يظهر للطبيب</div>
+        <div class="stat-value">{{ $stats['total'] }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">بانتظار الرد</div>
+        <div class="stat-value" style="color:#0f766e;">{{ $stats['forwarded'] }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">تم الرد عليه</div>
+        <div class="stat-value" style="color:#059669;">{{ $stats['answered'] }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">مغلق</div>
+        <div class="stat-value" style="color:#64748b;">{{ $stats['closed'] }}</div>
+    </div>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success mb-4">{{ session('success') }}</div>
-@endif
+<div class="filters-bar">
+    <a href="{{ route('doctor.inquiries.index') }}" class="filter-pill {{ $status === '' ? 'active' : '' }}">الكل</a>
+    <a href="{{ route('doctor.inquiries.index', ['status' => 'forwarded']) }}" class="filter-pill {{ $status === 'forwarded' ? 'active' : '' }}">بانتظار الرد</a>
+    <a href="{{ route('doctor.inquiries.index', ['status' => 'answered']) }}" class="filter-pill {{ $status === 'answered' ? 'active' : '' }}">تم الرد</a>
+    <a href="{{ route('doctor.inquiries.index', ['status' => 'closed']) }}" class="filter-pill {{ $status === 'closed' ? 'active' : '' }}">مغلق</a>
+</div>
 
-@forelse($inquiries as $inquiry)
-    <div class="inquiry-card">
-        <div class="inquiry-header">
-            <span class="inquiry-subject">{{ $inquiry->subject->name ?? 'غير محدد' }}</span>
-            <span class="inquiry-status {{ $inquiry->status }}">
-                @switch($inquiry->status)
-                    @case('forwarded') بانتظار الرد @break
-                    @case('answered') تم الرد @break
-                    @case('closed') مغلق @break
-                    @default غير محدد
-                @endswitch
-            </span>
-        </div>
+@if($inquiries->count())
+    <div class="inquiries-stack">
+        @foreach($inquiries as $inquiry)
+            <article class="inquiry-card status-{{ $inquiry->status }}">
+                <div class="inquiry-topline"></div>
+                <div class="inquiry-body">
+                    <div class="inquiry-meta">
+                        <div class="student-box">
+                            <div class="student-avatar">{{ mb_substr($inquiry->student->name ?? '?', 0, 1) }}</div>
+                            <div>
+                                <div class="student-name">{{ $inquiry->student->name ?? 'طالب' }}</div>
+                                <div class="student-submeta">
+                                    <span>{{ $inquiry->student->student_number ?: 'بدون رقم قيد' }}</span>
+                                    <span>•</span>
+                                    <span>{{ $inquiry->created_at->diffForHumans() }}</span>
+                                </div>
+                            </div>
+                        </div>
 
-        <h3 class="inquiry-question">{{ Str::limit($inquiry->question, 120) }}</h3>
+                        <div class="chip-row">
+                            <span class="chip subject">{{ $inquiry->subject->name ?? 'مادة غير محددة' }}</span>
+                            <span class="chip status">{{ $inquiry->status_label }}</span>
+                            @if($inquiry->answered_by_actor_label)
+                                <span class="chip actor">الرد بواسطة {{ $inquiry->answered_by_actor_label }}</span>
+                            @endif
+                        </div>
+                    </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
-            <div class="inquiry-meta">
-                <span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    {{ $inquiry->student->name ?? 'طالب' }}
-                </span>
-                <span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    {{ $inquiry->created_at->diffForHumans() }}
-                </span>
-            </div>
+                    <h3 class="inquiry-title">{{ $inquiry->title }}</h3>
+                    <p class="inquiry-question">{{ Str::limit($inquiry->question, 180) }}</p>
 
-            <a href="{{ route('doctor.inquiries.show', $inquiry->id) }}" class="view-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                عرض
-            </a>
-        </div>
+                    @if($inquiry->status === 'forwarded')
+                        <div class="info-band">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            هذا الاستفسار وصل إليك من المندوب وينتظر رد الدكتور.
+                        </div>
+                    @elseif($inquiry->answer)
+                        <div class="info-band answered">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            {{ Str::limit($inquiry->answer, 150) }}
+                        </div>
+                    @endif
+
+                    <div class="inquiry-footer">
+                        <div class="time-meta">
+                            آخر تحديث: {{ $inquiry->updated_at->diffForHumans() }}
+                        </div>
+
+                        <a href="{{ route('doctor.inquiries.show', $inquiry->id) }}" class="view-btn">
+                            عرض التفاصيل
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </article>
+        @endforeach
     </div>
-@empty
+
+    @if($inquiries->hasPages())
+        <div style="margin-top: 1.75rem;">
+            {{ $inquiries->appends(['status' => $status])->links() }}
+        </div>
+    @endif
+@else
     <div class="empty-state">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #cbd5e1; margin-bottom: 1rem;">
+        <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
         </svg>
-        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">لا توجد استفسارات</h3>
-        <p style="color: var(--text-secondary);">ستظهر هنا استفسارات الطلاب المحوّلة إليك من المنسق أو من النظام.</p>
-    </div>
-@endforelse
-
-@if($inquiries->hasPages())
-    <div style="margin-top: 2rem;">
-        {{ $inquiries->links() }}
+        <h3>لا توجد استفسارات معروضة للطبيب</h3>
+        <p>لن تظهر هنا إلا الاستفسارات التي حُوّلت إليك من المندوب أو الاستفسارات التي قمت بالرد عليها أنت شخصيًا.</p>
     </div>
 @endif
-
 @endsection

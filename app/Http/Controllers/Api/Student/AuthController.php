@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Student;
 
-use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,37 +9,35 @@ use Illuminate\Support\Facades\Hash;
 class AuthController extends StudentApiController
 {
     /**
-     * Student Login
+     * Student login.
      */
     public function login(Request $request)
     {
         $request->validate([
-            'login' => 'required', // Can be email or student_number
+            'login' => 'required',
             'password' => 'required',
         ]);
 
         $login = $request->login;
-        $user = User::where(function ($q) use ($login) {
-            $q->where('email', $login)
+
+        $user = User::where(function ($query) use ($login) {
+            $query->where('email', $login)
                 ->orWhere('student_number', $login);
         })->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return $this->error('ظ¨ظٹط§ظ†ط§طھ ط§ظ„ط¯ط®ظˆظ„ ط؛ظٹط± طµط­ظٹط­ط©.', 401);
+        if (! $user || ! Hash::check($request->password, $user->password)) {
+            return $this->error('بيانات الدخول غير صحيحة.', 401);
         }
 
-        // Allow students, delegates, and practical delegates to use the student app
-        if (!in_array($user->role->value, [UserRole::STUDENT->value, UserRole::DELEGATE->value, UserRole::PRACTICAL_DELEGATE->value])) {
-            return $this->error('ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ط¯ط®ظˆظ„ ط¥ظ„ظ‰ طھط·ط¨ظٹظ‚ ط§ظ„ط·ط§ظ„ط¨.', 403);
+        if (! $user->canAccessStudentWorkspace()) {
+            return $this->error('غير مصرح لك بالدخول إلى تطبيق الطالب.', 403);
         }
 
         if ($user->status !== 'active') {
-            return $this->error('ط­ط³ط§ط¨ظƒ ظ…ظˆظ‚ظˆظپ ط­ط§ظ„ظٹط§ظ‹. ظٹط±ط¬ظ‰ ظ…ط±ط§ط¬ط¹ط© ط§ظ„ط¥ط¯ط§ط±ط©.', 403);
+            return $this->error('حسابك غير مفعل حاليًا. يرجى مراجعة الإدارة.', 403);
         }
 
-        // Load relationships for profile data
-        $user->load(['major', 'level']);
-
+        $user->load(['major', 'level', 'clinicalDelegateAssignment']);
         $token = $user->createToken('student_api_token')->plainTextToken;
 
         return $this->success([
@@ -50,7 +47,7 @@ class AuthController extends StudentApiController
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'is_practical_delegate' => ($user->role === UserRole::PRACTICAL_DELEGATE),
+                'is_practical_delegate' => $user->isPracticalDelegate(),
                 'avatar' => $user->avatar ? asset('storage/' . $user->avatar) : null,
                 'major' => $user->major ? [
                     'id' => $user->major->id,
@@ -63,15 +60,15 @@ class AuthController extends StudentApiController
                 ] : null,
                 'academic_year' => $user->academic_year,
             ],
-        ], 'طھظ… طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ط¨ظ†ط¬ط§ط­');
+        ], 'تم تسجيل الدخول بنجاح');
     }
 
     /**
-     * Get Current Student Profile
+     * Get current student profile.
      */
     public function me(Request $request)
     {
-        $user = $request->user()->load(['major', 'university', 'college', 'level']);
+        $user = $request->user()->load(['major', 'university', 'college', 'level', 'clinicalDelegateAssignment']);
 
         return $this->success([
             'id' => $user->id,
@@ -81,7 +78,7 @@ class AuthController extends StudentApiController
             'gender' => $user->gender,
             'avatar' => $user->avatar ? asset('storage/' . $user->avatar) : null,
             'role' => $user->role,
-            'is_practical_delegate' => ($user->role === UserRole::PRACTICAL_DELEGATE),
+            'is_practical_delegate' => $user->isPracticalDelegate(),
             'academic_year' => $user->academic_year,
             'university' => $user->university->name ?? null,
             'college' => $user->college->name ?? null,
@@ -98,17 +95,17 @@ class AuthController extends StudentApiController
     }
 
     /**
-     * Student Logout
+     * Student logout.
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()->currentAccessToken()?->delete();
 
-        return $this->success(null, 'طھظ… طھط³ط¬ظٹظ„ ط§ظ„ط®ط±ظˆط¬ ط¨ظ†ط¬ط§ط­.');
+        return $this->success(null, 'تم تسجيل الخروج بنجاح.');
     }
 
     /**
-     * Change Student Password
+     * Change student password.
      */
     public function changePassword(Request $request)
     {
@@ -121,14 +118,14 @@ class AuthController extends StudentApiController
         $user = $request->user();
         $currentPassword = $request->input('current_password', $request->input('old_password'));
 
-        if (!Hash::check($currentPassword, $user->password)) {
-            return $this->error('ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط§ظ„ظ‚ط¯ظٹظ…ط© ط؛ظٹط± طµط­ظٹط­ط©.', 422);
+        if (! Hash::check($currentPassword, $user->password)) {
+            return $this->error('كلمة المرور القديمة غير صحيحة.', 422);
         }
 
         $user->update([
-            'password' => Hash::make($request->new_password)
+            'password' => Hash::make($request->new_password),
         ]);
 
-        return $this->success(null, 'طھظ… طھط؛ظٹظٹط± ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¨ظ†ط¬ط§ط­.');
+        return $this->success(null, 'تم تغيير كلمة المرور بنجاح.');
     }
 }

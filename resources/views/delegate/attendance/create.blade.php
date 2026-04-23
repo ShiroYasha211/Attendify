@@ -36,6 +36,73 @@
         <input type="hidden" name="qr_session_id" value="{{ request('qr_session_id') }}">
         @endif
 
+        @php
+            $missingScanStudents = collect($qrVerification['missing_scan_students'] ?? []);
+            $sampleCheckStudents = collect($qrVerification['sample_check_students'] ?? []);
+            $verificationMap = $missingScanStudents
+                ->mapWithKeys(fn ($student) => [$student['student_id'] => 'missing_scan'])
+                ->merge($sampleCheckStudents->mapWithKeys(fn ($student) => [$student['student_id'] => 'sample_check']));
+        @endphp
+
+        @if(!($isUnofficial ?? false) && !empty($prefill['from_qr']) && ($missingScanStudents->isNotEmpty() || $sampleCheckStudents->isNotEmpty()))
+        <div class="card" style="margin-bottom: 1.5rem; border: 1px solid #dbeafe; background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);">
+            <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; flex-wrap:wrap; margin-bottom:1.25rem;">
+                <div>
+                    <h3 style="margin:0 0 0.45rem; font-size:1.08rem; font-weight:800; color:#0f172a;">مراجعة جلسة QR قبل الحفظ النهائي</h3>
+                    <p style="margin:0; color:#64748b; line-height:1.8;">
+                        راجع الطلاب الذين لم يمسحوا الباركود أولًا، ثم عينة التحقق 2% من الماسحين، وبعدها عدّل الحالات داخل الجدول قبل الحفظ.
+                    </p>
+                </div>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                    <div style="min-width:140px; padding:0.9rem 1rem; border-radius:16px; background:#eff6ff;">
+                        <div style="font-size:0.78rem; color:#64748b; font-weight:700;">غير الماسحين</div>
+                        <div style="font-size:1.5rem; font-weight:900; color:#1d4ed8;">{{ $missingScanStudents->count() }}</div>
+                    </div>
+                    <div style="min-width:140px; padding:0.9rem 1rem; border-radius:16px; background:#ecfdf5;">
+                        <div style="font-size:0.78rem; color:#64748b; font-weight:700;">عينة التحقق</div>
+                        <div style="font-size:1.5rem; font-weight:900; color:#047857;">{{ $sampleCheckStudents->count() }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem;">
+                <div style="border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;">
+                    <div style="padding:0.9rem 1rem; background:#f8fafc; font-weight:800; color:#0f172a;">طلاب لم يمسحوا QR</div>
+                    <div style="max-height:220px; overflow:auto;">
+                        @forelse($missingScanStudents as $student)
+                            <div style="display:flex; justify-content:space-between; gap:0.75rem; align-items:center; padding:0.85rem 1rem; border-top:1px solid #f1f5f9;">
+                                <div>
+                                    <div style="font-weight:700; color:#0f172a;">{{ $student['name'] }}</div>
+                                    <div style="font-family:monospace; font-size:0.8rem; color:#64748b;">{{ $student['student_number'] ?: 'بدون رقم قيد' }}</div>
+                                </div>
+                                <span style="padding:0.35rem 0.65rem; border-radius:999px; background:#fee2e2; color:#b91c1c; font-size:0.75rem; font-weight:800;">تأكيد غياب / تعديل</span>
+                            </div>
+                        @empty
+                            <div style="padding:1rem; color:#64748b;">لا توجد حالات في هذه القائمة.</div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div style="border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;">
+                    <div style="padding:0.9rem 1rem; background:#f8fafc; font-weight:800; color:#0f172a;">عينة تحقق من الماسحين</div>
+                    <div style="max-height:220px; overflow:auto;">
+                        @forelse($sampleCheckStudents as $student)
+                            <div style="display:flex; justify-content:space-between; gap:0.75rem; align-items:center; padding:0.85rem 1rem; border-top:1px solid #f1f5f9;">
+                                <div>
+                                    <div style="font-weight:700; color:#0f172a;">{{ $student['name'] }}</div>
+                                    <div style="font-family:monospace; font-size:0.8rem; color:#64748b;">{{ $student['student_number'] ?: 'بدون رقم قيد' }}</div>
+                                </div>
+                                <span style="padding:0.35rem 0.65rem; border-radius:999px; background:#dcfce7; color:#166534; font-size:0.75rem; font-weight:800;">تأكيد حضور</span>
+                            </div>
+                        @empty
+                            <div style="padding:1rem; color:#64748b;">لا توجد حالات في هذه القائمة.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Date Selection Card -->
         <div class="card" style="margin-bottom: 1.5rem;">
             <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end;">
@@ -121,6 +188,14 @@
                             </svg>
                             تحضير بـ QR
                         </button>
+                        <button type="button" @click="openDesktopPairingModal()" class="btn btn-sm" style="background: #0f172a; color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2.5" y="4" width="19" height="12" rx="2"></rect>
+                                <path d="M8 20h8"></path>
+                                <path d="M12 16v4"></path>
+                            </svg>
+                            ربط تطبيق العرض
+                        </button>
                     @endunless
                     <button type="button" onclick="selectAll('present')" class="btn btn-sm" style="background: var(--success-color); color: white; display: flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -172,14 +247,20 @@
                         // If new mode: Default -> present (as before)
                         $defaultStatus = $attendanceRecords ? 'absent' : 'present';
                         $status = $record ? $record->status : $defaultStatus;
+                        $verificationType = $verificationMap[$student->id] ?? null;
                         @endphp
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <tr style="border-bottom: 1px solid #f1f5f9; background: {{ $verificationType === 'missing_scan' ? '#fff7ed' : ($verificationType === 'sample_check' ? '#ecfdf5' : 'transparent') }};">
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9; color: var(--text-secondary);">{{ $index + 1 }}</td>
                             <td style="padding: 1rem; border-bottom: 1px solid #f1f5f9;">
                                 <div style="font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                                     {{ $student->name }}
                                     @if($record && $record->status == 'present')
                                     <span style="font-size: 0.7rem; background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">QR</span>
+                                    @endif
+                                    @if($verificationType === 'missing_scan')
+                                    <span style="font-size: 0.7rem; background-color: #ffedd5; color: #c2410c; padding: 2px 6px; border-radius: 4px; border: 1px solid #fdba74;">تحقق غياب</span>
+                                    @elseif($verificationType === 'sample_check')
+                                    <span style="font-size: 0.7rem; background-color: #d1fae5; color: #047857; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac;">عينة 2%</span>
                                     @endif
                                 </div>
                                 <div style="font-family: monospace; font-size: 0.8rem; color: var(--text-secondary);">{{ $student->student_number }}</div>
@@ -312,6 +393,44 @@
     </div>
     @endunless
 
+    @unless($isUnofficial ?? false)
+    <div x-show="showDesktopPairingModal" style="display: none;" class="qr-modal-overlay" x-transition.opacity>
+        <div @click.away="closeDesktopPairingModal()" style="background: white; border-radius: 18px; width: 100%; max-width: 520px; padding: 2rem; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28);">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.25rem;">
+                <div>
+                    <h3 style="margin:0 0 0.35rem; font-size:1.12rem; font-weight:800; color:#0f172a;">ربط تطبيق العرض</h3>
+                    <p style="margin:0; color:#64748b; line-height:1.8;">أدخل هذا الرمز في تطبيق Windows لبدء إنشاء وعرض QR من الشاشة الكبيرة.</p>
+                </div>
+                <button type="button" @click="closeDesktopPairingModal()" style="background:none; border:none; cursor:pointer; color:#64748b; font-size:1.4rem; line-height:1;">×</button>
+            </div>
+
+            <div x-show="desktopPairingLoading" style="display:none; padding:2rem 1rem; text-align:center; color:#64748b;">جارٍ إنشاء رمز الربط...</div>
+
+            <div x-show="desktopPairingError" style="display:none; margin-bottom:1rem; padding:0.85rem 1rem; border-radius:14px; background:#fff1f2; color:#be123c; border:1px solid #fecdd3;" x-text="desktopPairingError"></div>
+
+            <div x-show="!desktopPairingLoading && desktopPairingCode" style="display:none;">
+                <div style="padding:1.25rem; border-radius:18px; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:white; text-align:center; margin-bottom:1rem;">
+                    <div style="font-size:0.82rem; opacity:0.8; margin-bottom:0.45rem;">رمز الربط</div>
+                    <div style="font-size:2rem; font-weight:900; letter-spacing:0.18em;" x-text="desktopPairingCode"></div>
+                    <div style="margin-top:0.65rem; font-size:0.82rem; opacity:0.78;">ينتهي عند <span x-text="desktopPairingExpiresAt"></span></div>
+                </div>
+
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem;">
+                    <button type="button" @click="copyDesktopPairingCode()" class="btn btn-sm" style="background:#2563eb; color:white; flex:1; min-width:160px;">نسخ الرمز</button>
+                    <button type="button" @click="openDesktopPairingModal()" class="btn btn-sm" style="background:#e2e8f0; color:#0f172a; flex:1; min-width:160px;">تحديث الرمز</button>
+                </div>
+
+                <div style="padding:1rem 1.1rem; border-radius:16px; background:#f8fafc; border:1px solid #e2e8f0; color:#475569; line-height:1.85;">
+                    <div style="font-weight:800; color:#0f172a; margin-bottom:0.5rem;">خطوات سريعة</div>
+                    <div>1. افتح تطبيق العرض على الكمبيوتر.</div>
+                    <div>2. أدخل الرمز كما هو.</div>
+                    <div>3. اختر المادة ثم ابدأ الجلسة لعرض QR على البروجكتر.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endunless
+
 </div>
 
 <!-- Overwrite Confirmation Modal -->
@@ -430,6 +549,12 @@
             qrActive: false,
             qrFinalizing: false,
             qrError: '',
+            showDesktopPairingModal: false,
+            desktopPairingLoading: false,
+            desktopPairingError: '',
+            desktopPairingCode: '',
+            desktopPairingRawCode: '',
+            desktopPairingExpiresAt: '',
             sessionId: null,
             qrObject: null,
             timerWidth: 100,
@@ -464,6 +589,63 @@
                 }
                 this.showQrModal = false;
                 this.qrActive = false;
+            },
+
+            async openDesktopPairingModal() {
+                this.showDesktopPairingModal = true;
+                this.desktopPairingLoading = true;
+                this.desktopPairingError = '';
+                this.desktopPairingCode = '';
+                this.desktopPairingRawCode = '';
+                this.desktopPairingExpiresAt = '';
+
+                try {
+                    const response = await fetch('{{ route('delegate.desktop.pairing-code') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            device_name: 'Classroom Display',
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        this.desktopPairingError = data.message || 'تعذر إنشاء رمز الربط.';
+                        return;
+                    }
+
+                    this.desktopPairingCode = data.data.display_code || data.data.code || '';
+                    this.desktopPairingRawCode = data.data.code || '';
+                    this.desktopPairingExpiresAt = data.data.expires_at
+                        ? new Date(data.data.expires_at).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })
+                        : '';
+                } catch (error) {
+                    console.error(error);
+                    this.desktopPairingError = 'تعذر الاتصال بالخادم أثناء إنشاء رمز الربط.';
+                } finally {
+                    this.desktopPairingLoading = false;
+                }
+            },
+
+            closeDesktopPairingModal() {
+                this.showDesktopPairingModal = false;
+            },
+
+            async copyDesktopPairingCode() {
+                const value = this.desktopPairingRawCode || this.desktopPairingCode;
+                if (!value) return;
+
+                try {
+                    await navigator.clipboard.writeText(value);
+                    showToast('تم نسخ رمز الربط.');
+                } catch (error) {
+                    console.error(error);
+                    showToast('تعذر نسخ الرمز تلقائيًا.');
+                }
             },
 
             async startQrSession() {
@@ -577,7 +759,7 @@
             },
 
             async finalizeQrSession() {
-                if (!confirm('هل أنت متأكد من إنهاء جلسة QR؟ سيتم تعيين الطلاب الذين لم يمسحوا الكود كـ "غائبين" تلقائياً.')) return;
+                if (!confirm('هل أنت متأكد من إنهاء جلسة QR؟ سيتم تجهيز قائمة غير الماسحين وعينة التحقق لمراجعتها قبل الحفظ النهائي.')) return;
 
                 this.qrFinalizing = true;
                 this.stopIntervals();
@@ -618,7 +800,8 @@
                             }
                         });
 
-                        showToast(`✅ تم تحديث القائمة: ${statusData.scanned_count} حاضر — ${statusData.total_students - statusData.scanned_count} غائب. يمكنك التعديل قبل الحفظ.`);
+                        const verification = statusData.verification || { summary: { missing_scan_count: 0, sample_check_count: 0 } };
+                        showToast(`✅ تم تجهيز المراجعة: ${verification.summary.missing_scan_count} غير ماسح، و${verification.summary.sample_check_count} ضمن عينة التحقق.`);
                     }
 
                     // Add hidden field for QR session tracking

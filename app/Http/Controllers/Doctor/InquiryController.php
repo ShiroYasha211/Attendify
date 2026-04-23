@@ -3,49 +3,40 @@
 namespace App\Http\Controllers\Doctor;
 
 use App\Http\Controllers\Controller;
-use App\Models\Inquiry;
 use App\Models\Academic\Subject;
+use App\Models\Inquiry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class InquiryController extends Controller
 {
-    /**
-     * Display inquiries forwarded to doctor.
-     */
     public function index(Request $request)
     {
         $user = Auth::user();
-        $status = $request->get('status');
+        $status = $request->string('status')->toString();
         $subjects = Subject::with('level:id,name')
             ->where('doctor_id', $user->id)
             ->orderBy('name')
             ->get();
 
-        // Get subjects assigned to this doctor
-        $subjectIds = $subjects->pluck('id');
-
-        // Get inquiries for these subjects that have been forwarded
-        $query = Inquiry::whereIn('subject_id', $subjectIds)
-            ->where('status', '!=', 'pending')
+        $query = Inquiry::visibleToDoctor($user->id)
             ->with(['student', 'subject', 'answeredBy'])
             ->latest();
 
-        if ($status) {
+        if ($status !== '') {
             $query->where('status', $status);
         }
 
         $inquiries = $query->paginate(15);
 
-        // Stats — single optimized query (was 4 queries)
-        $statsRaw = Inquiry::whereIn('subject_id', $subjectIds)
-            ->where('status', '!=', 'pending')
+        $statsRaw = Inquiry::visibleToDoctor($user->id)
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'forwarded' THEN 1 ELSE 0 END) as forwarded,
                 SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END) as answered,
                 SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed
-            ")->first();
+            ")
+            ->first();
 
         $stats = [
             'total' => $statsRaw->total ?? 0,
@@ -57,54 +48,40 @@ class InquiryController extends Controller
         return view('doctor.inquiries.index', compact('inquiries', 'stats', 'status', 'subjects'));
     }
 
-    /**
-     * Show a specific inquiry.
-     */
     public function show($id)
     {
-        $user = Auth::user();
-        $subjectIds = Subject::where('doctor_id', $user->id)->pluck('id');
-
-        $inquiry = Inquiry::whereIn('subject_id', $subjectIds)
+        $inquiry = Inquiry::visibleToDoctor(Auth::id())
             ->with(['student', 'subject', 'answeredBy'])
             ->findOrFail($id);
 
         return view('doctor.inquiries.show', compact('inquiry'));
     }
 
-    /**
-     * Answer an inquiry.
-     */
     public function answer(Request $request, $id)
     {
         $request->validate([
             'answer' => 'required|string',
         ]);
 
-        $user = Auth::user();
-        $subjectIds = Subject::where('doctor_id', $user->id)->pluck('id');
-
-        $inquiry = Inquiry::whereIn('subject_id', $subjectIds)->findOrFail($id);
+        $inquiry = Inquiry::visibleToDoctor(Auth::id())
+            ->where('status', 'forwarded')
+            ->findOrFail($id);
 
         $inquiry->update([
             'answer' => $request->answer,
-            'answered_by' => $user->id,
+            'answered_by' => Auth::id(),
             'answered_at' => now(),
             'status' => 'answered',
         ]);
 
-        return redirect()->route('doctor.inquiries.index')
-            ->with('success', 'تم الرد على الاستفسار بنجاح');
+        return redirect()
+            ->route('doctor.inquiries.index')
+            ->with('success', 'تم الرد على الاستفسار بنجاح.');
     }
 
-    /**
-     * Update inquiry settings for one subject.
-     */
     public function updateSettings(Request $request, Subject $subject)
     {
-        $user = Auth::user();
-
-        abort_unless($subject->doctor_id === $user->id, 403);
+        abort_unless($subject->doctor_id === Auth::id(), 403);
 
         $validated = $request->validate([
             'inquiries_enabled' => ['required', 'boolean'],
@@ -116,11 +93,16 @@ class InquiryController extends Controller
 
         $subject->update([
             'inquiries_enabled' => $enabled,
-            'inquiries_closed_reason' => $enabled ? null : ($reason !== '' ? $reason : $subject->inquiries_closed_reason),
+            'inquiries_closed_reason' => $enabled
+                ? null
+                : ($reason !== '' ? $reason : $subject->inquiries_closed_reason),
         ]);
 
-        return back()->with('success', $enabled
-            ? 'تم فتح الاستفسارات لهذه المادة.'
-            : 'تم إغلاق الاستفسارات لهذه المادة.');
+        return back()->with(
+            'success',
+            $enabled
+                ? 'تم فتح الاستفسارات لهذه المادة.'
+                : 'تم إغلاق الاستفسارات لهذه المادة.'
+        );
     }
 }

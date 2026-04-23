@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\Administrative;
 use App\Enums\UserRole;
 use App\Models\Academic\Level;
 use App\Models\Academic\Major;
+use App\Models\ClinicalDelegate;
 use App\Models\DelegatePermission;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DelegateController extends AdministrativeApiController
 {
@@ -77,19 +79,40 @@ class DelegateController extends AdministrativeApiController
             'role' => 'required|in:student,delegate,practical_delegate',
         ]);
 
-        if ($validated['role'] === 'practical_delegate' && !optional($user->major)->has_clinical) {
+        if ($validated['role'] === 'practical_delegate' && ! optional($user->major)->has_clinical) {
             return $this->error('لا يمكن تعيين مندوب عملي لطالب لا ينتمي إلى تخصص سريري.', 422);
         }
 
-        $user->update(['role' => $validated['role']]);
+        if ($validated['role'] === 'practical_delegate') {
+            $existingDelegate = ClinicalDelegate::where('major_id', $user->major_id)->first();
 
-        if (in_array($validated['role'], ['delegate', 'practical_delegate'], true)) {
-            $user->grantAllDelegatePermissions($this->administrative()->id);
+            if ($existingDelegate && $existingDelegate->student_id !== $user->id) {
+                return $this->error('يوجد بالفعل مندوب عملي رئيسي لهذا التخصص. استخدم شاشة المندوب العملي لتبديله.', 422);
+            }
         }
 
-        if ($validated['role'] === 'student') {
-            $user->revokeDelegatePermissions();
-        }
+        $wasClinicalDelegate = $user->isClinicalDelegate();
+
+        DB::transaction(function () use ($user, $validated, $wasClinicalDelegate) {
+            $user->update(['role' => $validated['role']]);
+
+            if (in_array($validated['role'], ['delegate', 'practical_delegate'], true)) {
+                $user->grantAllDelegatePermissions($this->administrative()->id);
+            }
+
+            if ($validated['role'] === 'practical_delegate') {
+                ClinicalDelegate::updateOrCreate(
+                    ['major_id' => $user->major_id],
+                    ['student_id' => $user->id]
+                );
+            } elseif ($wasClinicalDelegate) {
+                ClinicalDelegate::where('student_id', $user->id)->delete();
+            }
+
+            if ($validated['role'] === 'student') {
+                $user->revokeDelegatePermissions();
+            }
+        });
 
         return $this->success($user->fresh()->load('delegatePermissions'), 'تم تحديث دور المستخدم بنجاح');
     }
@@ -113,7 +136,7 @@ class DelegateController extends AdministrativeApiController
 
             [$resource, $action] = $parts;
 
-            if (!array_key_exists($resource, DelegatePermission::RESOURCES) || !array_key_exists($action, DelegatePermission::ACTIONS)) {
+            if (! array_key_exists($resource, DelegatePermission::RESOURCES) || ! array_key_exists($action, DelegatePermission::ACTIONS)) {
                 continue;
             }
 

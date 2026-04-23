@@ -9,55 +9,53 @@ use Illuminate\Support\Facades\Auth;
 
 class InquiryController extends Controller
 {
-    /**
-     * Display all inquiries from students.
-     */
     public function index(Request $request)
     {
         $user = Auth::user();
-        $status = $request->get('status');
+        $status = $request->string('status')->toString();
 
-        // Get inquiries from students in delegate's major/level
-        $query = Inquiry::whereHas('student', function ($q) use ($user) {
-            $q->where('major_id', $user->major_id)
+        $query = Inquiry::whereHas('student', function ($studentQuery) use ($user) {
+            $studentQuery
+                ->where('major_id', $user->major_id)
                 ->where('level_id', $user->level_id);
         })
             ->with(['student', 'subject', 'answeredBy', 'delegate'])
             ->latest();
 
-        if ($status) {
+        if ($status !== '') {
             $query->where('status', $status);
         }
 
         $inquiries = $query->paginate(15);
 
+        $statsRaw = Inquiry::whereHas('student', function ($studentQuery) use ($user) {
+            $studentQuery
+                ->where('major_id', $user->major_id)
+                ->where('level_id', $user->level_id);
+        })->selectRaw("
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status = 'forwarded' THEN 1 ELSE 0 END) as forwarded,
+            SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END) as answered
+        ")->first();
+
         $stats = [
-            'total' => Inquiry::whereHas('student', function ($q) use ($user) {
-                $q->where('major_id', $user->major_id)->where('level_id', $user->level_id);
-            })->count(),
-            'pending' => Inquiry::whereHas('student', function ($q) use ($user) {
-                $q->where('major_id', $user->major_id)->where('level_id', $user->level_id);
-            })->where('status', 'pending')->count(),
-            'forwarded' => Inquiry::whereHas('student', function ($q) use ($user) {
-                $q->where('major_id', $user->major_id)->where('level_id', $user->level_id);
-            })->where('status', 'forwarded')->count(),
-            'answered' => Inquiry::whereHas('student', function ($q) use ($user) {
-                $q->where('major_id', $user->major_id)->where('level_id', $user->level_id);
-            })->where('status', 'answered')->count(),
+            'total' => $statsRaw->total ?? 0,
+            'pending' => $statsRaw->pending ?? 0,
+            'forwarded' => $statsRaw->forwarded ?? 0,
+            'answered' => $statsRaw->answered ?? 0,
         ];
 
         return view('delegate.inquiries.index', compact('inquiries', 'stats', 'status'));
     }
 
-    /**
-     * Show a specific inquiry.
-     */
     public function show($id)
     {
         $user = Auth::user();
 
-        $inquiry = Inquiry::whereHas('student', function ($q) use ($user) {
-            $q->where('major_id', $user->major_id)
+        $inquiry = Inquiry::whereHas('student', function ($studentQuery) use ($user) {
+            $studentQuery
+                ->where('major_id', $user->major_id)
                 ->where('level_id', $user->level_id);
         })
             ->with(['student', 'subject', 'answeredBy', 'delegate'])
@@ -66,29 +64,26 @@ class InquiryController extends Controller
         return view('delegate.inquiries.show', compact('inquiry'));
     }
 
-    /**
-     * Forward inquiry to doctor (change status).
-     */
     public function forward($id)
     {
         $user = Auth::user();
 
-        $inquiry = Inquiry::whereHas('student', function ($q) use ($user) {
-            $q->where('major_id', $user->major_id)
+        $inquiry = Inquiry::whereHas('student', function ($studentQuery) use ($user) {
+            $studentQuery
+                ->where('major_id', $user->major_id)
                 ->where('level_id', $user->level_id);
-        })->findOrFail($id);
+        })
+            ->where('status', 'pending')
+            ->findOrFail($id);
 
         $inquiry->update([
             'status' => 'forwarded',
             'delegate_id' => $user->id,
         ]);
 
-        return back()->with('success', 'تم تحويل الاستفسار للدكتور');
+        return back()->with('success', 'تم تحويل الاستفسار إلى الدكتور.');
     }
 
-    /**
-     * Answer an inquiry.
-     */
     public function answer(Request $request, $id)
     {
         $request->validate([
@@ -97,10 +92,13 @@ class InquiryController extends Controller
 
         $user = Auth::user();
 
-        $inquiry = Inquiry::whereHas('student', function ($q) use ($user) {
-            $q->where('major_id', $user->major_id)
+        $inquiry = Inquiry::whereHas('student', function ($studentQuery) use ($user) {
+            $studentQuery
+                ->where('major_id', $user->major_id)
                 ->where('level_id', $user->level_id);
-        })->findOrFail($id);
+        })
+            ->where('status', 'pending')
+            ->findOrFail($id);
 
         $inquiry->update([
             'answer' => $request->answer,
@@ -110,24 +108,31 @@ class InquiryController extends Controller
             'answered_at' => now(),
         ]);
 
-        return redirect()->route('delegate.inquiries.show', $id)
-            ->with('success', 'تم إرسال الرد بنجاح');
+        return redirect()
+            ->route('delegate.inquiries.show', $id)
+            ->with('success', 'تم إرسال الرد بنجاح.');
     }
 
-    /**
-     * Close an inquiry.
-     */
     public function close($id)
     {
         $user = Auth::user();
 
-        $inquiry = Inquiry::whereHas('student', function ($q) use ($user) {
-            $q->where('major_id', $user->major_id)
+        $inquiry = Inquiry::whereHas('student', function ($studentQuery) use ($user) {
+            $studentQuery
+                ->where('major_id', $user->major_id)
                 ->where('level_id', $user->level_id);
-        })->findOrFail($id);
+        })
+            ->where(function ($statusQuery) use ($user) {
+                $statusQuery->where('status', 'pending')
+                    ->orWhere(function ($answeredQuery) use ($user) {
+                        $answeredQuery->where('status', 'answered')
+                            ->where('answered_by', $user->id);
+                    });
+            })
+            ->findOrFail($id);
 
         $inquiry->update(['status' => 'closed']);
 
-        return back()->with('success', 'تم إغلاق الاستفسار');
+        return back()->with('success', 'تم إغلاق الاستفسار.');
     }
 }

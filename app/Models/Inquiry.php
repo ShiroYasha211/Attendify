@@ -2,13 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Academic\Subject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Academic\Subject;
 
 class Inquiry extends Model
 {
     use HasFactory;
+
+    protected $appends = [
+        'status_label',
+        'status_color',
+        'answered_by_actor_type',
+        'answered_by_actor_label',
+        'answered_by_actor_name',
+    ];
 
     protected $fillable = [
         'student_id',
@@ -26,72 +34,73 @@ class Inquiry extends Model
         'answered_at' => 'datetime',
     ];
 
-    /**
-     * Get the student.
-     */
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
     }
 
-    /**
-     * Get the subject.
-     */
     public function subject()
     {
         return $this->belongsTo(Subject::class);
     }
 
-    /**
-     * Get the delegate.
-     */
     public function delegate()
     {
         return $this->belongsTo(User::class, 'delegate_id');
     }
 
-    /**
-     * Get the user who answered the inquiry.
-     */
     public function answeredBy()
     {
         return $this->belongsTo(User::class, 'answered_by');
     }
 
-    /**
-     * Scope for pending inquiries.
-     */
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
     }
 
-    /**
-     * Scope for answered inquiries.
-     */
     public function scopeAnswered($query)
     {
         return $query->where('status', 'answered');
     }
 
-    /**
-     * Get status label.
-     */
-    public function getStatusLabelAttribute()
+    public function scopeVisibleToDoctor($query, int $doctorId)
+    {
+        return $query
+            ->whereHas('subject', function ($subjectQuery) use ($doctorId) {
+                $subjectQuery->where('doctor_id', $doctorId);
+            })
+            ->where(function ($statusQuery) use ($doctorId) {
+                $statusQuery->where('status', 'forwarded')
+                    ->orWhere(function ($resolvedQuery) use ($doctorId) {
+                        $resolvedQuery->whereIn('status', ['answered', 'closed'])
+                            ->where('answered_by', $doctorId);
+                    });
+            });
+    }
+
+    public function canBeAnsweredByDelegate(): bool
+    {
+        return $this->status === 'pending' && blank($this->answer);
+    }
+
+    public function wasForwardedToDoctor(): bool
+    {
+        return $this->status === 'forwarded';
+    }
+
+    public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
             'pending' => 'قيد الانتظار',
             'forwarded' => 'تم التحويل للدكتور',
             'answered' => 'تم الرد',
             'closed' => 'مغلق',
-            default => $this->status,
+            default => (string) $this->status,
         };
     }
 
-    /**
-     * Get status color.
-     */
-    public function getStatusColorAttribute()
+    public function getStatusColorAttribute(): string
     {
         return match ($this->status) {
             'pending' => '#f59e0b',
@@ -100,5 +109,31 @@ class Inquiry extends Model
             'closed' => '#6b7280',
             default => '#64748b',
         };
+    }
+
+    public function getAnsweredByActorTypeAttribute(): ?string
+    {
+        $role = $this->answeredBy?->role;
+        $roleValue = is_object($role) && isset($role->value) ? $role->value : $role;
+
+        return match ($roleValue) {
+            'delegate', 'practical_delegate' => 'delegate',
+            'doctor' => 'doctor',
+            default => null,
+        };
+    }
+
+    public function getAnsweredByActorLabelAttribute(): ?string
+    {
+        return match ($this->answered_by_actor_type) {
+            'delegate' => 'المندوب',
+            'doctor' => 'الدكتور',
+            default => null,
+        };
+    }
+
+    public function getAnsweredByActorNameAttribute(): ?string
+    {
+        return $this->answeredBy?->name;
     }
 }

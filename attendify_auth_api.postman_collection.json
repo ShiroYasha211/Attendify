@@ -2,7 +2,7 @@
     "info": {
         "_postman_id": "attendify-auth-api-collection",
         "name": "Attendify - Authentication & Registration",
-        "description": "Professional API collection for Attendify Authentication and Registration flows. This includes account creation and role-based login/logout for Admin, Student, Delegate, and Doctor.",
+        "description": "Authentication and registration collection for Attendify.\n\nFrontend login flow:\n1. Call the correct workspace login endpoint.\n2. Read the raw API payload from `data.token` and `data.user`. In Flutter/Dio this is typically `response.data.data.token` and `response.data.data.user`.\n3. Save the token in secure storage, not memory only.\n4. Send `Authorization: Bearer <token>` on every protected request.\n5. Call the matching `/me` endpoint immediately after login to refresh the profile and workspace flags.\n6. If push notifications are enabled, call the workspace `POST /devices/token` endpoint after login.\n7. On app start, validate the saved token with `/me`.\n8. On logout, call `DELETE /devices/token` first if an FCM token was registered, then call `/logout`, then clear local storage.\n\nRegistration helper endpoints return wrapped payloads, so frontend clients should read list data from `response.data.data`.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -17,14 +17,23 @@
                             "request": {
                                 "method": "GET",
                                 "header": [
-                                    { "key": "Accept", "value": "application/json" }
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
                                 ],
                                 "url": {
                                     "raw": "{{base_url}}/api/public/universities",
-                                    "host": ["{{base_url}}"],
-                                    "path": ["api", "public", "universities"]
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "public",
+                                        "universities"
+                                    ]
                                 },
-                                "description": "Get all universities in the system."
+                                "description": "Get all universities. Response payload is wrapped as response.data."
                             },
                             "response": []
                         },
@@ -33,15 +42,30 @@
                             "request": {
                                 "method": "GET",
                                 "header": [
-                                    { "key": "Accept", "value": "application/json" }
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
                                 ],
                                 "url": {
                                     "raw": "{{base_url}}/api/public/colleges/:university_id",
-                                    "host": ["{{base_url}}"],
-                                    "path": ["api", "public", "colleges", ":university_id"],
-                                    "variable": [{ "key": "university_id", "value": "1" }]
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "public",
+                                        "colleges",
+                                        ":university_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "university_id",
+                                            "value": "1"
+                                        }
+                                    ]
                                 },
-                                "description": "Get colleges for a specific university."
+                                "description": "Get colleges for a university. Supported forms: /api/public/colleges/{university_id} or /api/public/colleges?university_id=1. Response payload is wrapped as response.data."
                             },
                             "response": []
                         },
@@ -50,15 +74,30 @@
                             "request": {
                                 "method": "GET",
                                 "header": [
-                                    { "key": "Accept", "value": "application/json" }
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
                                 ],
                                 "url": {
                                     "raw": "{{base_url}}/api/public/majors/:college_id",
-                                    "host": ["{{base_url}}"],
-                                    "path": ["api", "public", "majors", ":college_id"],
-                                    "variable": [{ "key": "college_id", "value": "1" }]
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "public",
+                                        "majors",
+                                        ":college_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "college_id",
+                                            "value": "1"
+                                        }
+                                    ]
                                 },
-                                "description": "Get majors for a specific college."
+                                "description": "Get majors for a college. Supported forms: /api/public/majors/{college_id} or /api/public/majors?college_id=1. Response payload is wrapped as response.data."
                             },
                             "response": []
                         },
@@ -67,15 +106,30 @@
                             "request": {
                                 "method": "GET",
                                 "header": [
-                                    { "key": "Accept", "value": "application/json" }
+                                    {
+                                        "key": "Accept",
+                                        "value": "application/json"
+                                    }
                                 ],
                                 "url": {
                                     "raw": "{{base_url}}/api/public/levels/:major_id",
-                                    "host": ["{{base_url}}"],
-                                    "path": ["api", "public", "levels", ":major_id"],
-                                    "variable": [{ "key": "major_id", "value": "1" }]
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "public",
+                                        "levels",
+                                        ":major_id"
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "major_id",
+                                            "value": "1"
+                                        }
+                                    ]
                                 },
-                                "description": "Get levels for a specific major."
+                                "description": "Get levels for a major. Supported forms: /api/public/levels/{major_id} or /api/public/levels?major_id=1. Response payload is wrapped as response.data."
                             },
                             "response": []
                         }
@@ -93,7 +147,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                        "raw": "{\n    \"name\": \"Full Name\",\n    \"email\": \"delegate@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"delegate\",\n    \"gender\": \"female\",\n    \"university_id\": 1,\n    \"college_id\": 1,\n    \"major_id\": 1,\n    \"level_id\": 1,\n    \"student_number\": \"20260001\"\n}",
+                            "raw": "{\n    \"name\": \"Full Name\",\n    \"email\": \"delegate@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"role\": \"delegate\",\n    \"gender\": \"female\",\n    \"university_id\": 1,\n    \"college_id\": 1,\n    \"major_id\": 1,\n    \"level_id\": 1,\n    \"student_number\": \"20260001\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -110,7 +164,7 @@
                                 "register"
                             ]
                         },
-                        "description": "Register a new account (student, doctor, or delegate). Delegate registration remains available, but it must include the full student-compatible profile including gender, student_number, major_id, and level_id. Administrative accounts are no longer registered directly; use a doctor account and grant administrative_access later from admin."
+                        "description": "Register a new account. student and delegate require university_id, college_id, major_id, level_id, student_number, and gender. doctor requires university_id and college_id only. administrative accounts are not registered directly."
                     },
                     "response": []
                 }
@@ -163,7 +217,7 @@
                                 "login"
                             ]
                         },
-                        "description": "Login for both Super Admins and Administrative (College) Admins."
+                        "description": "Authenticate a super admin account through `/api/admin/login`.\n\nRequest body:\n- `email`\n- `password`\n\nFrontend flow:\n1. Read `response.data.data.token` and `response.data.data.user`.\n2. Save the token in secure storage.\n3. Call the admin `/me` endpoint.\n4. Register the Firebase token through the admin `POST /devices/token` endpoint in the Admin collection."
                     },
                     "response": []
                 },
@@ -197,7 +251,8 @@
                                 "admin",
                                 "me"
                             ]
-                        }
+                        },
+                        "description": "Use this request on app start and immediately after login to verify the saved admin token and refresh the current profile."
                     },
                     "response": []
                 },
@@ -231,11 +286,13 @@
                                 "admin",
                                 "logout"
                             ]
-                        }
+                        },
+                        "description": "If push is enabled, remove the device token first through the admin `DELETE /devices/token` endpoint, then call logout and clear local storage."
                     },
                     "response": []
                 }
-            ]
+            ],
+            "description": "This section documents super admin authentication. For college administrative workspace authentication, use the dedicated Administrative collection and `/api/administrative/login`."
         },
         {
             "name": "3. Student Auth",
@@ -283,7 +340,8 @@
                                 "student",
                                 "login"
                             ]
-                        }
+                        },
+                        "description": "Authenticate a student account.\n\nRequest body:\n- `login`: email or student_number\n- `password`\n\nFrontend flow:\n1. Read `response.data.data.token` and `response.data.data.user`.\n2. Save the token in secure storage.\n3. Call `GET /api/student/me`.\n4. Register the Firebase token through `POST /api/student/devices/token` if push is enabled."
                     },
                     "response": []
                 },
@@ -317,7 +375,8 @@
                                 "student",
                                 "me"
                             ]
-                        }
+                        },
+                        "description": "Use this request immediately after login and on app start to verify the saved student token and hydrate the current profile."
                     },
                     "response": []
                 },
@@ -351,11 +410,13 @@
                                 "student",
                                 "logout"
                             ]
-                        }
+                        },
+                        "description": "If push is enabled, remove the device token through `DELETE /api/student/devices/token` before logout, then clear local storage."
                     },
                     "response": []
                 }
-            ]
+            ],
+            "description": "Student login uses `login` plus `password`. `login` accepts either the email or the student number."
         },
         {
             "name": "4. Delegate Auth",
@@ -403,7 +464,8 @@
                                 "delegate",
                                 "login"
                             ]
-                        }
+                        },
+                        "description": "Authenticate a delegate account.\n\nRequest body:\n- `email`\n- `password`\n\nFrontend flow:\n1. Read `response.data.data.token` and `response.data.data.user`.\n2. Save the token in secure storage.\n3. Call `GET /api/delegate/profile`.\n4. Register the Firebase token through `POST /api/delegate/devices/token` if push is enabled."
                     },
                     "response": []
                 },
@@ -437,7 +499,8 @@
                                 "delegate",
                                 "me"
                             ]
-                        }
+                        },
+                        "description": "Use this request immediately after login and on app start to verify the saved delegate token and hydrate the current profile."
                     },
                     "response": []
                 },
@@ -471,11 +534,13 @@
                                 "delegate",
                                 "logout"
                             ]
-                        }
+                        },
+                        "description": "If push is enabled, remove the device token through `DELETE /api/delegate/devices/token` before logout, then clear local storage."
                     },
                     "response": []
                 }
-            ]
+            ],
+            "description": "Delegate login uses `email` plus `password`. Delegates later use both delegate endpoints and selected student endpoints."
         },
         {
             "name": "5. Doctor Auth",
@@ -523,7 +588,8 @@
                                 "doctor",
                                 "login"
                             ]
-                        }
+                        },
+                        "description": "Authenticate a doctor account.\n\nRequest body:\n- `email`\n- `password`\n\nFrontend flow:\n1. Read `response.data.data.token` and `response.data.data.user`.\n2. Save the token in secure storage.\n3. Call `GET /api/doctor/me`.\n4. If `available_workspaces` contains both doctor and administrative, keep the same token and switch only the workspace path.\n5. Register the Firebase token through `POST /api/doctor/devices/token` if push is enabled."
                     },
                     "response": []
                 },
@@ -557,7 +623,8 @@
                                 "doctor",
                                 "me"
                             ]
-                        }
+                        },
+                        "description": "Use this request immediately after login and on app start to verify the saved doctor token and inspect `administrative_access` plus `available_workspaces`."
                     },
                     "response": []
                 },
@@ -591,11 +658,13 @@
                                 "doctor",
                                 "logout"
                             ]
-                        }
+                        },
+                        "description": "If push is enabled, remove the device token through `DELETE /api/doctor/devices/token` before logout, then clear local storage."
                     },
                     "response": []
                 }
-            ]
+            ],
+            "description": "Doctor login uses `email` plus `password`. Some doctor accounts also expose `administrative_access=true` and multiple available workspaces."
         }
     ],
     "variable": [

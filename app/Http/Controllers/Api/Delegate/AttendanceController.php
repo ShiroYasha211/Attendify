@@ -2,30 +2,25 @@
 
 namespace App\Http\Controllers\Api\Delegate;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Api\Delegate\DelegateApiController;
-use App\Models\Attendance;
-use App\Models\Academic\Subject;
-use App\Models\Academic\Lecture;
-use App\Models\User;
 use App\Enums\UserRole;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
+use App\Models\Academic\Lecture;
+use App\Models\Academic\Subject;
+use App\Models\Attendance;
+use App\Models\QrAttendanceSession;
 use App\Models\Student\StudentScheduleItem;
+use App\Models\User;
 use App\Support\ExcuseWorkflow;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class AttendanceController extends DelegateApiController
 {
-    /**
-     * Display a listing of attendance sessions for the delegate's batch.
-     * Groups by lecture_id to support multiple lectures per day.
-     */
     public function index(Request $request)
     {
         $delegate = $request->user();
 
-        // 1. Get Subjects in Batch (to know which subjects are open for attendance)
         $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->with('doctor:id,name')
@@ -34,24 +29,19 @@ class AttendanceController extends DelegateApiController
 
         $subjectIds = $subjects->pluck('id');
 
-        // 2. Get Grouped Attendance Sessions (History)
         $sessions = Attendance::selectRaw('subject_id, date, lecture_id, recorded_by, attendance_method, count(*) as total_records')
             ->whereIn('subject_id', $subjectIds)
             ->with(['subject:id,name,code', 'recorder:id,name,role', 'lecture:id,title,lecture_number,start_time,end_time,lecture_type'])
             ->groupBy('subject_id', 'date', 'lecture_id', 'recorded_by', 'attendance_method')
-            ->orderBy('date', 'desc')
+            ->orderByDesc('date')
             ->get();
 
         return $this->success([
             'subjects' => $subjects,
-            'sessions' => $sessions
-        ], 'طھظ… ط¬ظ„ط¨ ط¨ظٹط§ظ†ط§طھ ط§ظ„ط­ط¶ظˆط± ط¨ظ†ط¬ط§ط­');
+            'sessions' => $sessions,
+        ], 'تم جلب بيانات الحضور بنجاح.');
     }
 
-    /**
-     * Store new attendance records.
-     * Creates/updates a Lecture record and links attendance to it.
-     */
     public function store(Request $request)
     {
         $delegate = $request->user();
@@ -74,10 +64,11 @@ class AttendanceController extends DelegateApiController
             'students.*.status' => 'required_with:students|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
             'attendance' => 'nullable|array|min:1',
             'attendance.*' => 'required_with:attendance|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
+            'qr_session_id' => 'nullable|integer|exists:qr_attendance_sessions,id',
         ]);
 
         if ($validator->fails()) {
-            return $this->error('ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©', 422, $validator->errors());
+            return $this->error('بيانات غير صالحة.', 422, $validator->errors());
         }
 
         $subject = Subject::where('id', $request->subject_id)
@@ -86,11 +77,11 @@ class AttendanceController extends DelegateApiController
             ->first();
 
         if (!$subject) {
-            return $this->error('ط§ظ„ظ…ط§ط¯ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط© ط£ظˆ ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ', 403);
+            return $this->error('المادة غير موجودة أو ليست ضمن نطاق المندوب.', 403);
         }
 
         if (!$subject->allow_delegate_attendance) {
-            return $this->error('ط§ظ„طھط­ط¶ظٹط± ظ…ط؛ظ„ظ‚ ظ…ظ† ظ‚ط¨ظ„ ط§ظ„ط¯ظƒطھظˆط± ط§ظ„ظ…ط´ط±ظپ ط¹ظ„ظ‰ ط§ظ„ظ…ط§ط¯ط©.', 403);
+            return $this->error('التحضير مغلق من قبل الدكتور المشرف على المادة.', 403);
         }
 
         $students = collect($request->input('students', []));
@@ -108,7 +99,7 @@ class AttendanceController extends DelegateApiController
             ? $request->input('gender_filter')
             : 'all';
 
-        $allowedStudentIds = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $allowedStudentIds = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
@@ -124,6 +115,7 @@ class AttendanceController extends DelegateApiController
             'title' => $request->title,
             'lecture_type' => $request->input('lecture_type', 'official'),
         ];
+
         if (!empty($request->lecture_number)) {
             $lectureKey['lecture_number'] = $request->lecture_number;
         }
@@ -143,7 +135,7 @@ class AttendanceController extends DelegateApiController
                 ]
             );
 
-            $attendanceMethod = $request->has('qr_session_id') ? 'qr' : 'manual';
+            $attendanceMethod = $request->filled('qr_session_id') ? 'qr' : 'manual';
 
             foreach ($students as $student) {
                 Attendance::updateOrCreate(
@@ -176,18 +168,22 @@ class AttendanceController extends DelegateApiController
                 );
             }
 
+            if ($request->filled('qr_session_id')) {
+                $this->syncQrVerificationResults((int) $request->input('qr_session_id'), $students, $delegate->id);
+            }
+
             if ($subject->doctor_id) {
-                $presentCount = $students->where('status', 'present')->count();
-                $absentCount = $students->where('status', 'absent')->count();
-                $lateCount = $students->where('status', 'late')->count();
+                $presentCount = $students->where('status', Attendance::STATUS_PRESENT)->count();
+                $absentCount = $students->where('status', Attendance::STATUS_ABSENT)->count();
+                $lateCount = $students->where('status', Attendance::STATUS_LATE)->count();
                 $totalStudents = $students->count();
 
                 \App\Models\StudentNotification::create([
                     'user_id' => $subject->doctor_id,
                     'type' => 'lecture_report',
-                    'title' => "ًں“‹ طھظ‚ط±ظٹط± ظ…ط­ط§ط¶ط±ط©: {$subject->name}",
-                    'message' => "طھظ… طھط³ط¬ظٹظ„ ط§ظ„ط­ط¶ظˆط± ظ„ظ…ط­ط§ط¶ط±ط© \"{$request->title}\" ط¨طھط§ط±ظٹط® {$request->date}.\n"
-                        . "ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط·ظ„ط§ط¨: {$totalStudents} | ط­ط¶ظˆط±: {$presentCount} | ط؛ظٹط§ط¨: {$absentCount} | طھط£ط®ظٹط±: {$lateCount}",
+                    'title' => "تقرير محاضرة: {$subject->name}",
+                    'message' => "تم تسجيل الحضور لمحاضرة \"{$request->title}\" بتاريخ {$request->date}.\n"
+                        . "إجمالي الطلاب: {$totalStudents} | حضور: {$presentCount} | غياب: {$absentCount} | تأخر: {$lateCount}",
                     'data' => [
                         'subject_id' => $subject->id,
                         'lecture_id' => $lecture->id,
@@ -197,16 +193,18 @@ class AttendanceController extends DelegateApiController
             }
 
             DB::commit();
+
             return $this->success([
                 'lecture_id' => $lecture->id,
                 'lecture_type' => $lecture->lecture_type,
                 'merge_mode' => true,
                 'gender_filter' => $genderFilter,
                 'updated_students_count' => $students->count(),
-            ], 'طھظ… ط­ظپط¸ ط³ط¬ظ„ ط§ظ„ط­ط¶ظˆط± ظˆط§ظ„ط؛ظٹط§ط¨ ط¨ظ†ط¬ط§ط­', 201);
-        } catch (\Exception $e) {
+            ], 'تم حفظ سجل الحضور بنجاح.', 201);
+        } catch (\Throwable $exception) {
             DB::rollBack();
-            return $this->error('ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط±طµط¯ ط§ظ„ط؛ظٹط§ط¨: ' . $e->getMessage(), 500);
+
+            return $this->error('حدث خطأ أثناء حفظ الحضور: ' . $exception->getMessage(), 500);
         }
     }
 
@@ -221,11 +219,11 @@ class AttendanceController extends DelegateApiController
             ->first();
 
         if (!$subject) {
-            return $this->error('ط§ظ„ظ…ط§ط¯ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط© ط£ظˆ ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ', 403);
+            return $this->error('المادة غير موجودة أو ليست ضمن نطاق المندوب.', 403);
         }
 
         if (!$subject->allow_delegate_attendance) {
-            return $this->error('ط§ظ„طھط­ط¶ظٹط± ظ…ط؛ظ„ظ‚ ظ…ظ† ظ‚ط¨ظ„ ط§ظ„ط¯ظƒطھظˆط± ط§ظ„ظ…ط´ط±ظپ ط¹ظ„ظ‰ ط§ظ„ظ…ط§ط¯ط©.', 403);
+            return $this->error('التحضير مغلق من قبل الدكتور المشرف على المادة.', 403);
         }
 
         $date = $request->input('date') ?? now()->format('Y-m-d');
@@ -235,7 +233,7 @@ class AttendanceController extends DelegateApiController
             ? $request->input('gender_filter')
             : 'all';
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
@@ -243,9 +241,10 @@ class AttendanceController extends DelegateApiController
             ->get(['id', 'name', 'student_number', 'gender']);
 
         $prefill = ['date' => $date];
+        $verification = null;
 
         if ($qrSessionId) {
-            $qrSession = \App\Models\QrAttendanceSession::where('id', $qrSessionId)
+            $qrSession = QrAttendanceSession::where('id', $qrSessionId)
                 ->where('delegate_id', $delegate->id)
                 ->firstOrFail();
 
@@ -254,17 +253,25 @@ class AttendanceController extends DelegateApiController
             $prefill['title'] = $qrSession->title;
             $prefill['lecture_number'] = $qrSession->lecture_number;
             $prefill['from_qr'] = true;
+            $verification = $qrSession->buildVerificationPayload();
         }
 
         $lecture = null;
         if ($lectureId) {
-            $lecture = Lecture::where('id', $lectureId)->where('subject_id', $subject->id)->first();
+            $lecture = Lecture::where('id', $lectureId)
+                ->where('subject_id', $subject->id)
+                ->first();
         }
         if (!$lecture) {
-            $lecture = Lecture::where('subject_id', $subject->id)->where('date', $date)->latest()->first();
+            $lecture = Lecture::where('subject_id', $subject->id)
+                ->where('date', $date)
+                ->latest()
+                ->first();
         }
 
-        $attendanceQuery = Attendance::where('subject_id', $subject->id)->where('date', $date);
+        $attendanceQuery = Attendance::where('subject_id', $subject->id)
+            ->where('date', $date);
+
         if ($lecture) {
             $attendanceQuery->where('lecture_id', $lecture->id);
             $prefill['title'] = $prefill['title'] ?? $lecture->title;
@@ -280,6 +287,7 @@ class AttendanceController extends DelegateApiController
             'students' => $students,
             'attendance_records' => $attendanceQuery->get()->keyBy('student_id'),
             'prefill' => $prefill,
+            'verification' => $verification,
             'filters' => [
                 'gender_filter' => $genderFilter,
                 'available_gender_filters' => ['all', 'male', 'female'],
@@ -288,11 +296,9 @@ class AttendanceController extends DelegateApiController
                 'merge_mode' => true,
                 'description' => 'Re-saving the same lecture updates only submitted students and keeps previously recorded students unchanged.',
             ],
-        ], 'طھظ… ط¬ظ„ط¨ ظ†ظ…ظˆط°ط¬ ط§ظ„ط­ط¶ظˆط± ط¨ظ†ط¬ط§ط­');
+        ], 'تم جلب نموذج الحضور بنجاح.');
     }
-    /**
-     * View details of a specific attendance session by lecture ID.
-     */
+
     public function show(Request $request, $lectureId)
     {
         $delegate = $request->user();
@@ -305,7 +311,7 @@ class AttendanceController extends DelegateApiController
             ->first();
 
         if (!$subject) {
-            return $this->error('ط§ظ„ظ…ط§ط¯ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط© ط£ظˆ ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ', 403);
+            return $this->error('المادة غير موجودة أو ليست ضمن نطاق المندوب.', 403);
         }
 
         $records = Attendance::where('lecture_id', $lectureId)
@@ -313,23 +319,22 @@ class AttendanceController extends DelegateApiController
             ->get();
 
         if ($records->isEmpty()) {
-            return $this->error('ظ„ط§ طھظˆط¬ط¯ ط³ط¬ظ„ط§طھ ظ„ظ‡ط°ظ‡ ط§ظ„ط¬ظ„ط³ط©', 404);
+            return $this->error('لا توجد سجلات لهذه الجلسة.', 404);
         }
 
         return $this->success([
             'subject' => $subject->only('id', 'name'),
             'lecture' => [
-                'id'             => $lecture->id,
-                'title'          => $lecture->title,
+                'id' => $lecture->id,
+                'title' => $lecture->title,
                 'lecture_number' => $lecture->lecture_number,
-                'date'           => $lecture->date,
-                'start_time'     => $lecture->start_time,
-                'end_time'       => $lecture->end_time,
+                'date' => $lecture->date,
+                'start_time' => $lecture->start_time,
+                'end_time' => $lecture->end_time,
             ],
-            'records' => $records
-        ], 'طھظ… ط¬ظ„ط¨ طھظپط§طµظٹظ„ ط¬ظ„ط³ط© ط§ظ„ط­ط¶ظˆط± ط¨ظ†ط¬ط§ط­');
+            'records' => $records,
+        ], 'تم جلب تفاصيل جلسة الحضور بنجاح.');
     }
-
 
     public function report(Request $request, int $subjectId, string $date)
     {
@@ -345,7 +350,7 @@ class AttendanceController extends DelegateApiController
             ? $request->input('gender_filter')
             : 'all';
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
@@ -408,39 +413,34 @@ class AttendanceController extends DelegateApiController
                 'gender_filter' => $genderFilter,
                 'available_gender_filters' => ['all', 'male', 'female'],
             ],
-        ], 'طھظ… ط¬ظ„ط¨ طھظ‚ط±ظٹط± ط§ظ„ط­ط¶ظˆط± ط¨ظ†ط¬ط§ط­');
+        ], 'تم جلب تقرير الحضور بنجاح.');
     }
-    /**
-     * Get Absence Alerts (Students absent today + At-risk students).
-     */
+
     public function alerts(Request $request)
     {
         $delegate = $request->user();
 
-        // 1. Students absent today
         $absentToday = Attendance::where('date', date('Y-m-d'))
-            ->where('status', 'absent')
-            ->whereHas('student', function ($q) use ($delegate) {
-                $q->where('major_id', $delegate->major_id)
-                  ->where('level_id', $delegate->level_id);
+            ->where('status', Attendance::STATUS_ABSENT)
+            ->whereHas('student', function ($query) use ($delegate) {
+                $query->where('major_id', $delegate->major_id)
+                    ->where('level_id', $delegate->level_id);
             })
-            ->with(['student:id,name,avatar,student_number', 'subject:id,name', 'lecture:id,title'])
+            ->with(['student:id,name,student_number', 'subject:id,name', 'lecture:id,title'])
             ->latest()
             ->get();
 
-        // 2. At-Risk Students (> 20% absence rate in any subject)
         $atRiskStudents = collect();
-        
+
         $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->get();
 
-        $allStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $allStudents = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->get(['id', 'name', 'avatar', 'student_number']);
+            ->get(['id', 'name', 'student_number']);
 
-        // Grouped stats calculation
         $totalSessionsQuery = Attendance::whereIn('student_id', $allStudents->pluck('id'))
             ->whereIn('subject_id', $subjects->pluck('id'))
             ->select('student_id', 'subject_id', DB::raw('count(*) as total'))
@@ -449,44 +449,69 @@ class AttendanceController extends DelegateApiController
 
         $absencesQuery = Attendance::whereIn('student_id', $allStudents->pluck('id'))
             ->whereIn('subject_id', $subjects->pluck('id'))
-            ->where('status', 'absent')
+            ->where('status', Attendance::STATUS_ABSENT)
             ->select('student_id', 'subject_id', DB::raw('count(*) as absences'))
             ->groupBy('student_id', 'subject_id')
             ->get()
-            ->keyBy(function ($item) {
-                return $item->student_id . '_' . $item->subject_id;
-            });
+            ->keyBy(fn ($item) => $item->student_id . '_' . $item->subject_id);
 
         foreach ($totalSessionsQuery as $sessionStat) {
             $studentId = $sessionStat->student_id;
             $subjectId = $sessionStat->subject_id;
             $totalSessions = $sessionStat->total;
 
-            if ($totalSessions >= 3) { // Only calculate for students with at least 3 sessions
-                $absenceKey = $studentId . '_' . $subjectId;
-                $absences = $absencesQuery->has($absenceKey) ? $absencesQuery->get($absenceKey)->absences : 0;
-                $absenceRate = ($absences / $totalSessions) * 100;
+            if ($totalSessions < 3) {
+                continue;
+            }
 
-                if ($absenceRate >= 20) {
-                    $student = $allStudents->firstWhere('id', $studentId);
-                    $subject = $subjects->firstWhere('id', $subjectId);
+            $absenceKey = $studentId . '_' . $subjectId;
+            $absences = $absencesQuery->has($absenceKey) ? $absencesQuery->get($absenceKey)->absences : 0;
+            $absenceRate = ($absences / $totalSessions) * 100;
 
-                    if ($student && $subject) {
-                        $atRiskStudents->push([
-                            'student' => $student,
-                            'subject' => $subject->only('id', 'name'),
-                            'absence_rate' => round($absenceRate, 1),
-                            'absences' => $absences,
-                            'total_sessions' => $totalSessions
-                        ]);
-                    }
+            if ($absenceRate >= 20) {
+                $student = $allStudents->firstWhere('id', $studentId);
+                $subject = $subjects->firstWhere('id', $subjectId);
+
+                if ($student && $subject) {
+                    $atRiskStudents->push([
+                        'student' => $student,
+                        'subject' => $subject->only('id', 'name'),
+                        'absence_rate' => round($absenceRate, 1),
+                        'absences' => $absences,
+                        'total_sessions' => $totalSessions,
+                    ]);
                 }
             }
         }
 
         return $this->success([
             'absent_today' => $absentToday,
-            'at_risk_students' => $atRiskStudents->sortByDesc('absence_rate')->values()
-        ], 'طھظ… ط¬ظ„ط¨ طھظ†ط¨ظٹظ‡ط§طھ ط§ظ„ط؛ظٹط§ط¨ ط¨ظ†ط¬ط§ط­');
+            'at_risk_students' => $atRiskStudents->sortByDesc('absence_rate')->values(),
+        ], 'تم جلب تنبيهات الغياب بنجاح.');
+    }
+
+    protected function syncQrVerificationResults(int $qrSessionId, Collection $students, int $reviewerId): void
+    {
+        $session = QrAttendanceSession::with('verifications')->find($qrSessionId);
+
+        if (!$session) {
+            return;
+        }
+
+        $statusMap = $students->pluck('status', 'id');
+
+        foreach ($session->verifications as $verification) {
+            $finalStatus = $statusMap->get($verification->student_id);
+
+            if (!$finalStatus) {
+                continue;
+            }
+
+            $verification->update([
+                'verification_status' => $finalStatus === Attendance::STATUS_ABSENT ? 'confirmed_absent' : 'confirmed_present',
+                'reviewed_by' => $reviewerId,
+                'reviewed_at' => now(),
+            ]);
+        }
     }
 }

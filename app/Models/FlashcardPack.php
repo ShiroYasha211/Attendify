@@ -24,6 +24,7 @@ class FlashcardPack extends Model
         'is_active',
         'is_public',
         'source_pack_id',
+        'parent_pack_id',
     ];
 
     protected $casts = [
@@ -35,8 +36,6 @@ class FlashcardPack extends Model
 
     protected $appends = ['is_assigned'];
 
-    // ── Relationships ──
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -47,20 +46,19 @@ class FlashcardPack extends Model
         return $this->hasMany(FlashcardItem::class, 'pack_id');
     }
 
-    /**
-     * Returns items from this pack, or from the source pack if this is a clone.
-     */
-    public function effectiveItems()
+    public function parentPack(): BelongsTo
     {
-        if ($this->source_pack_id) {
-            return FlashcardItem::where('pack_id', $this->source_pack_id);
-        }
-        return $this->items();
+        return $this->belongsTo(self::class, 'parent_pack_id');
+    }
+
+    public function childPacks(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_pack_id');
     }
 
     public function sourcePack(): BelongsTo
     {
-        return $this->belongsTo(FlashcardPack::class, 'source_pack_id');
+        return $this->belongsTo(self::class, 'source_pack_id');
     }
 
     public function storeEntry(): HasOne
@@ -72,8 +70,6 @@ class FlashcardPack extends Model
     {
         return $this->hasMany(FlashcardNotificationLog::class, 'pack_id');
     }
-
-    // ── Scopes ──
 
     public function scopeActive($query)
     {
@@ -90,7 +86,14 @@ class FlashcardPack extends Model
         return $query->where('user_id', $userId);
     }
 
-    // ── Helpers ──
+    public function effectiveItems()
+    {
+        $packIds = $this->is_assigned
+            ? $this->resolvedSourcePack()->descendantPackIds()
+            : $this->descendantPackIds();
+
+        return FlashcardItem::whereIn('pack_id', $packIds);
+    }
 
     public function cardsCount(): int
     {
@@ -102,23 +105,11 @@ class FlashcardPack extends Model
         return $this->effectiveItems()->whereIn('priority', ['high', 'critical'])->count();
     }
 
-    /**
-     * Get display mode text in Arabic.
-     */
     public function getDisplayModeTextAttribute(): string
     {
-        return match ($this->display_mode) {
-            'flash_card' => 'بطاقة تعليمية',
-            'one_line' => 'رسالة نصية',
-            'qa' => 'سؤال وجواب',
-            'mcq' => 'اختيارات',
-            default => $this->display_mode,
-        };
+        return self::itemTypeLabel($this->display_mode);
     }
 
-    /**
-     * Get repeat cycle text in Arabic.
-     */
     public function getRepeatCycleTextAttribute(): string
     {
         return match ($this->repeat_cycle) {
@@ -129,21 +120,76 @@ class FlashcardPack extends Model
         };
     }
 
-    /**
-     * Determine if a pack was assigned by an admin rather than cloned.
-     * Assigned packs have a source_pack_id but don't duplicate items locally.
-     */
     public function getIsAssignedAttribute(): bool
     {
         if ($this->source_pack_id === null) {
             return false;
         }
 
-        if ($this->relationLoaded('items')) {
-            return $this->items->isEmpty();
+        if ($this->relationLoaded('items') && $this->items->isNotEmpty()) {
+            return false;
         }
 
-        // Check if any physical items exist for this pack ID
-        return !$this->items()->exists();
+        if ($this->relationLoaded('childPacks') && $this->childPacks->isNotEmpty()) {
+            return false;
+        }
+
+        return !$this->items()->exists() && !$this->childPacks()->exists();
+    }
+
+    public function resolvedSourcePack(): self
+    {
+        return $this->sourcePack ?? $this;
+    }
+
+    public function effectivePackIds(): array
+    {
+        return $this->is_assigned
+            ? $this->resolvedSourcePack()->descendantPackIds()
+            : $this->descendantPackIds();
+    }
+
+    public function descendantPackIds(): array
+    {
+        $ids = [$this->id];
+        $children = $this->relationLoaded('childPacks')
+            ? $this->childPacks
+            : $this->childPacks()->get();
+
+        foreach ($children as $child) {
+            $ids = array_merge($ids, $child->descendantPackIds());
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    public function isDescendantOf(?int $candidateParentId): bool
+    {
+        if (!$candidateParentId) {
+            return false;
+        }
+
+        $current = $this->parentPack()->first();
+
+        while ($current) {
+            if ($current->id === $candidateParentId) {
+                return true;
+            }
+
+            $current = $current->parentPack()->first();
+        }
+
+        return false;
+    }
+
+    public static function itemTypeLabel(?string $type): string
+    {
+        return match ($type) {
+            'flash_card' => 'بطاقة تعليمية',
+            'one_line' => 'نص واحد',
+            'qa' => 'سؤال وجواب',
+            'mcq' => 'اختيارات',
+            default => $type ?: 'غير محدد',
+        };
     }
 }

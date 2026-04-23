@@ -7,9 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Academic\Lecture;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
+use App\Models\QrAttendanceSession;
 use App\Models\Student\StudentScheduleItem;
 use App\Models\StudentNotification;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -34,7 +36,7 @@ class AttendanceController extends Controller
                     ->orWhere(function ($unofficialQuery) use ($delegate) {
                         $unofficialQuery->whereNull('subject_id')
                             ->whereHas('student', function ($studentQuery) use ($delegate) {
-                                $studentQuery->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+                                $studentQuery->whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
                                     ->where('major_id', $delegate->major_id)
                                     ->where('level_id', $delegate->level_id);
                             });
@@ -55,7 +57,6 @@ class AttendanceController extends Controller
                 ]);
             })
             ->map(function ($records) {
-                /** @var \App\Models\Attendance $first */
                 $first = $records->first();
 
                 return (object) [
@@ -119,9 +120,10 @@ class AttendanceController extends Controller
         $prefill = [
             'lecture_type' => $requestedLectureType,
         ];
+        $qrVerification = null;
 
         if ($qrSessionId) {
-            $qrSession = \App\Models\QrAttendanceSession::where('id', $qrSessionId)
+            $qrSession = QrAttendanceSession::where('id', $qrSessionId)
                 ->where('delegate_id', $delegate->id)
                 ->firstOrFail();
 
@@ -130,6 +132,7 @@ class AttendanceController extends Controller
             $prefill['lecture_number'] = $qrSession->lecture_number;
             $prefill['date'] = $date;
             $prefill['from_qr'] = true;
+            $qrVerification = $qrSession->buildVerificationPayload();
         }
 
         if ($date) {
@@ -162,8 +165,8 @@ class AttendanceController extends Controller
                 $prefill['lecture_number'] = $prefill['lecture_number'] ?? $lecture->lecture_number;
                 $prefill['description'] = $lecture->description;
                 $prefill['lecture_type'] = $lecture->lecture_type;
-                $prefill['start_time'] = $lecture->start_time ? \Carbon\Carbon::parse($lecture->start_time)->format('H:i') : null;
-                $prefill['end_time'] = $lecture->end_time ? \Carbon\Carbon::parse($lecture->end_time)->format('H:i') : null;
+                $prefill['start_time'] = $lecture->start_time ? Carbon::parse($lecture->start_time)->format('H:i') : null;
+                $prefill['end_time'] = $lecture->end_time ? Carbon::parse($lecture->end_time)->format('H:i') : null;
                 $prefill['date'] = $date;
             }
         }
@@ -176,6 +179,7 @@ class AttendanceController extends Controller
             'genderFilter' => $genderFilter,
             'isUnofficial' => false,
             'formAction' => route('delegate.attendance.store', $subject->id),
+            'qrVerification' => $qrVerification,
         ]);
     }
 
@@ -215,7 +219,7 @@ class AttendanceController extends Controller
                 $attendanceRecords = Attendance::whereNull('subject_id')
                     ->where('lecture_id', $lecture->id)
                     ->whereHas('student', function ($query) use ($delegate) {
-                        $query->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+                        $query->whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
                             ->where('major_id', $delegate->major_id)
                             ->where('level_id', $delegate->level_id);
                     })
@@ -225,8 +229,8 @@ class AttendanceController extends Controller
                 $prefill['title'] = $lecture->title;
                 $prefill['lecture_number'] = $lecture->lecture_number;
                 $prefill['description'] = $lecture->description;
-                $prefill['start_time'] = $lecture->start_time ? \Carbon\Carbon::parse($lecture->start_time)->format('H:i') : null;
-                $prefill['end_time'] = $lecture->end_time ? \Carbon\Carbon::parse($lecture->end_time)->format('H:i') : null;
+                $prefill['start_time'] = $lecture->start_time ? Carbon::parse($lecture->start_time)->format('H:i') : null;
+                $prefill['end_time'] = $lecture->end_time ? Carbon::parse($lecture->end_time)->format('H:i') : null;
                 $prefill['date'] = $lecture->date->format('Y-m-d');
             }
         }
@@ -239,6 +243,7 @@ class AttendanceController extends Controller
             'genderFilter' => $genderFilter,
             'isUnofficial' => true,
             'formAction' => route('delegate.attendance.unofficial.store'),
+            'qrVerification' => null,
         ]);
     }
 
@@ -247,6 +252,7 @@ class AttendanceController extends Controller
         $delegate = Auth::user();
 
         $subject = Subject::findOrFail($subjectId);
+
         if ($subject->major_id != $delegate->major_id || $subject->level_id != $delegate->level_id) {
             abort(403);
         }
@@ -266,9 +272,10 @@ class AttendanceController extends Controller
             'gender_filter' => 'nullable|in:all,male,female',
             'attendance' => 'required|array',
             'attendance.*' => 'required|in:present,absent,late',
+            'qr_session_id' => 'nullable|integer|exists:qr_attendance_sessions,id',
         ]);
 
-        $attendanceMethod = $request->has('qr_session_id') ? 'qr' : 'manual';
+        $attendanceMethod = $request->filled('qr_session_id') ? 'qr' : 'manual';
 
         $lectureKey = [
             'subject_id' => $subject->id,
@@ -286,7 +293,7 @@ class AttendanceController extends Controller
             [
                 'title' => $validated['title'],
                 'lecture_type' => $validated['lecture_type'] ?? 'official',
-                'lecture_number' => $validated['lecture_number'],
+                'lecture_number' => $validated['lecture_number'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'start_time' => $validated['start_time'] ?? null,
                 'end_time' => $validated['end_time'] ?? null,
@@ -324,10 +331,14 @@ class AttendanceController extends Controller
             );
         }
 
+        if (!empty($validated['qr_session_id'])) {
+            $this->syncQrVerificationResults((int) $validated['qr_session_id'], $validated['attendance'], $delegate->id);
+        }
+
         if ($subject->doctor_id) {
-            $presentCount = collect($validated['attendance'])->filter(fn ($s) => $s === 'present')->count();
-            $absentCount = collect($validated['attendance'])->filter(fn ($s) => $s === 'absent')->count();
-            $lateCount = collect($validated['attendance'])->filter(fn ($s) => $s === 'late')->count();
+            $presentCount = collect($validated['attendance'])->filter(fn ($status) => $status === 'present')->count();
+            $absentCount = collect($validated['attendance'])->filter(fn ($status) => $status === 'absent')->count();
+            $lateCount = collect($validated['attendance'])->filter(fn ($status) => $status === 'late')->count();
             $totalStudents = count($validated['attendance']);
 
             StudentNotification::create([
@@ -344,8 +355,9 @@ class AttendanceController extends Controller
             ]);
         }
 
-        return redirect()->route('delegate.attendance.index')
-            ->with('success', 'تم حفظ سجل الحضور بنجاح.');
+        return redirect()
+            ->route('delegate.attendance.index')
+            ->with('success', 'تم حفظ سجل الحضور وتحديث قائمة التحقق بنجاح.');
     }
 
     public function storeUnofficial(Request $request)
@@ -380,7 +392,7 @@ class AttendanceController extends Controller
             [
                 'title' => $validated['title'],
                 'lecture_type' => 'special',
-                'lecture_number' => $validated['lecture_number'],
+                'lecture_number' => $validated['lecture_number'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'start_time' => $validated['start_time'] ?? null,
                 'end_time' => $validated['end_time'] ?? null,
@@ -418,7 +430,8 @@ class AttendanceController extends Controller
             );
         }
 
-        return redirect()->route('delegate.attendance.index')
+        return redirect()
+            ->route('delegate.attendance.index')
             ->with('success', 'تم حفظ جلسة الحضور غير الرسمية بنجاح.');
     }
 
@@ -488,7 +501,7 @@ class AttendanceController extends Controller
         $attendanceRecords = Attendance::whereNull('subject_id')
             ->where('lecture_id', $lecture->id)
             ->whereHas('student', function ($query) use ($delegate) {
-                $query->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+                $query->whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
                     ->where('major_id', $delegate->major_id)
                     ->where('level_id', $delegate->level_id);
             })
@@ -516,8 +529,8 @@ class AttendanceController extends Controller
 
         $lecture = Lecture::where('subject_id', $subjectId)
             ->where('date', $date)
-            ->when($title, fn ($q) => $q->where('title', $title))
-            ->when($lectureNumber, fn ($q) => $q->where('lecture_number', $lectureNumber))
+            ->when($title, fn ($query) => $query->where('title', $title))
+            ->when($lectureNumber, fn ($query) => $query->where('lecture_number', $lectureNumber))
             ->first();
 
         $exists = $lecture
@@ -536,11 +549,34 @@ class AttendanceController extends Controller
 
     protected function getScopedStudents(User $delegate, string $genderFilter = 'all')
     {
-        return User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        return User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
             ->orderBy('name')
             ->get();
+    }
+
+    protected function syncQrVerificationResults(int $qrSessionId, array $attendance, int $reviewerId): void
+    {
+        $session = QrAttendanceSession::with('verifications')->find($qrSessionId);
+
+        if (!$session) {
+            return;
+        }
+
+        foreach ($session->verifications as $verification) {
+            $finalStatus = $attendance[$verification->student_id] ?? null;
+
+            if (!$finalStatus) {
+                continue;
+            }
+
+            $verification->update([
+                'verification_status' => $finalStatus === Attendance::STATUS_ABSENT ? 'confirmed_absent' : 'confirmed_present',
+                'reviewed_by' => $reviewerId,
+                'reviewed_at' => now(),
+            ]);
+        }
     }
 }

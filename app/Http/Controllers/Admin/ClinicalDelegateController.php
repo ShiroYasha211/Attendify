@@ -2,30 +2,29 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
-use App\Models\ClinicalDelegate;
-use App\Models\Academic\Major;
-use App\Models\User;
 use App\Enums\UserRole;
+use App\Http\Controllers\Controller;
+use App\Models\Academic\Major;
+use App\Models\ClinicalDelegate;
+use App\Models\User;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ClinicalDelegateController extends Controller
 {
     use LogsActivity;
 
     /**
-     * عرض قائمة مندوبي العملي.
+     * Display the list of practical delegates per clinical major.
      */
     public function index()
     {
-        // التخصصات التي تحتوي على عملي فقط
         $clinicalMajors = Major::where('has_clinical', true)
             ->with(['college.university', 'clinicalDelegate.student'])
             ->get();
 
-        // الطلاب المتاحين — مجمّعين حسب التخصص
-        $studentsByMajor = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $studentsByMajor = User::where('role', UserRole::STUDENT)
             ->select('id', 'name', 'student_number', 'major_id')
             ->orderBy('name')
             ->get()
@@ -35,7 +34,7 @@ class ClinicalDelegateController extends Controller
     }
 
     /**
-     * تعيين أو تحديث مندوب عملي لتخصص.
+     * Assign or replace the practical delegate for one clinical major.
      */
     public function store(Request $request)
     {
@@ -47,17 +46,32 @@ class ClinicalDelegateController extends Controller
             'student_id.required' => 'يرجى اختيار الطالب.',
         ]);
 
-        // Verify major has clinical
         $major = Major::where('has_clinical', true)->findOrFail($request->major_id);
 
-        // Verify user is a student
-        $student = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->findOrFail($request->student_id);
+        $student = User::where('role', UserRole::STUDENT)
+            ->where('major_id', $major->id)
+            ->findOrFail($request->student_id);
 
-        // Create or update (each major has at most one clinical delegate)
-        $delegate = ClinicalDelegate::updateOrCreate(
-            ['major_id' => $major->id],
-            ['student_id' => $student->id]
-        );
+        $delegate = DB::transaction(function () use ($major, $student) {
+            $existing = ClinicalDelegate::with('student')->where('major_id', $major->id)->first();
+
+            if ($existing && $existing->student_id !== $student->id) {
+                $previousStudent = $existing->student;
+
+                if ($previousStudent && $previousStudent->role === UserRole::PRACTICAL_DELEGATE) {
+                    $previousStudent->update(['role' => UserRole::STUDENT]);
+                    $previousStudent->revokeDelegatePermissions();
+                }
+            }
+
+            $student->update(['role' => UserRole::PRACTICAL_DELEGATE]);
+            $student->grantAllDelegatePermissions(auth()->id());
+
+            return ClinicalDelegate::updateOrCreate(
+                ['major_id' => $major->id],
+                ['student_id' => $student->id]
+            );
+        });
 
         $this->logCreate('ClinicalDelegate', $delegate, "تم تعيين {$student->name} كمندوب عملي لتخصص {$major->name}");
 
@@ -66,18 +80,26 @@ class ClinicalDelegateController extends Controller
     }
 
     /**
-     * إلغاء تعيين مندوب عملي.
+     * Remove the practical delegate assignment for one major.
      */
     public function destroy(ClinicalDelegate $clinical_delegate)
     {
         $studentName = $clinical_delegate->student->name ?? 'غير معروف';
         $majorName = $clinical_delegate->major->name ?? 'غير معروف';
 
+        DB::transaction(function () use ($clinical_delegate) {
+            $student = $clinical_delegate->student;
+            $clinical_delegate->delete();
+
+            if ($student && $student->role === UserRole::PRACTICAL_DELEGATE) {
+                $student->update(['role' => UserRole::STUDENT]);
+                $student->revokeDelegatePermissions();
+            }
+        });
+
         $this->logDelete('ClinicalDelegate', $clinical_delegate, "تم إلغاء تعيين {$studentName} كمندوب عملي لتخصص {$majorName}");
 
-        $clinical_delegate->delete();
-
         return redirect()->route('admin.clinical-delegates.index')
-            ->with('success', "تم إلغاء تعيين مندوب العملي بنجاح.");
+            ->with('success', 'تم إلغاء تعيين مندوب العملي بنجاح.');
     }
 }

@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'status' => \App\Http\Middleware\CheckUserStatus::class,
             'clinical_delegate' => \App\Http\Middleware\EnsureClinicalDelegate::class,
             'clinical.major' => \App\Http\Middleware\EnsureClinicalMajor::class,
+            'desktop.token' => \App\Http\Middleware\EnsureDesktopToken::class,
             'permission' => \App\Http\Middleware\EnsureUserPermission::class,
             'subscribed' => \App\Http\Middleware\CheckSubscription::class,
             'administrative' => \App\Http\Middleware\AdministrativeMiddleware::class,

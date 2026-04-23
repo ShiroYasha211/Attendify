@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Delegate;
 use App\Enums\UserRole;
 use App\Models\DelegateGradeDelegation;
 use App\Models\Grade;
+use App\Models\GradeCategory;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,36 +16,36 @@ class AuthorizedGradeController extends DelegateApiController
     {
         $user = $request->user();
 
-        $delegations = $user->delegatedGradeCategories()
-            ->with(['subject:id,name,major_id,level_id', 'doctor:id,name'])
+        $directDelegations = $user->delegatedGradeCategories()
+            ->with(['subject.major', 'subject.level', 'doctor'])
             ->get();
 
         $helperTasks = $user->delegatedGradeHelperTasks()
             ->active()
-            ->with(['category.subject:id,name,major_id,level_id', 'category.doctor:id,name', 'delegatedBy:id,name', 'students:id,name,student_number'])
+            ->with(['category.subject.major', 'category.subject.level', 'category.doctor', 'delegatedBy', 'helperUser', 'students'])
             ->get();
 
         return $this->success([
             'module' => [
                 'name' => 'authorized_grade_tasks',
-                'purpose' => 'Shows direct doctor delegations and helper tasks assigned by the main delegate.',
-                'main_delegate' => 'The main delegate can create helper tasks for selected students or for the full category scope.',
-                'helper_rule' => 'Helpers can enter grades only for their assigned scope and cannot approve them.',
+                'purpose' => 'Shows the grade categories delegated directly by the doctor and the helper tasks issued under them.',
+                'delegate_power' => 'The main delegate can create helper tasks for students, delegates, or practical delegates inside the same academic scope.',
+                'approval_rule' => 'No delegated entry is final until the doctor reviews and approves it.',
             ],
-            'direct_delegations' => $delegations,
-            'helper_tasks' => $helperTasks,
+            'direct_delegations' => $directDelegations->map(fn ($category) => $this->mapDelegationCategory($category)),
+            'helper_tasks' => $helperTasks->map(fn ($task) => $this->mapHelperTask($task)),
         ]);
     }
 
     public function show(Request $request, $categoryId)
     {
-        [$category, $helperTask, $students] = $this->resolveCategoryAccess($request->user(), (int) $categoryId);
+        $user = $request->user();
+        [$category, $helperTask, $students] = $this->resolveCategoryAccess($user, (int) $categoryId);
 
         return $this->success([
-            'category' => $category->loadMissing(['subject:id,name', 'doctor:id,name']),
-            'access_mode' => $helperTask ? 'helper_task' : 'direct_delegation',
-            'helper_task' => $helperTask,
-            'students' => $students,
+            'category' => $this->mapDelegationCategory($category),
+            'delegation_context' => $this->buildDelegationContext($category, $helperTask, $students),
+            'students' => $students->map(fn ($student) => $this->mapStudentRow($student)),
         ]);
     }
 
@@ -61,6 +62,7 @@ class AuthorizedGradeController extends DelegateApiController
         ]);
 
         DB::beginTransaction();
+
         try {
             foreach ($request->grades as $gradeData) {
                 if (!array_key_exists('score', $gradeData) || $gradeData['score'] === null || $gradeData['score'] === '') {
@@ -92,26 +94,27 @@ class AuthorizedGradeController extends DelegateApiController
             return $this->success([
                 'status' => 'pending_review',
                 'access_mode' => $helperTask ? 'helper_task' : 'direct_delegation',
+                'next_step' => 'The doctor must review and approve the delegated grades before they become final.',
             ], 'Grades saved and sent for doctor review.');
         } catch (\Throwable $exception) {
             DB::rollBack();
+
             return $this->error('Failed to save delegated grades.', 500);
         }
     }
 
     protected function resolveCategoryAccess(User $user, int $categoryId): array
     {
-        $directCategory = $user->delegatedGradeCategories()
-            ->with(['subject:id,name,major_id,level_id', 'doctor:id,name'])
+        $category = $user->delegatedGradeCategories()
+            ->with(['subject.major', 'subject.level', 'doctor'])
             ->find($categoryId);
 
         $helperTask = null;
-        $category = $directCategory;
 
         if (!$category) {
             $helperTask = $user->delegatedGradeHelperTasks()
                 ->active()
-                ->with(['category.subject:id,name,major_id,level_id', 'category.doctor:id,name', 'students:id,name,student_number'])
+                ->with(['category.subject.major', 'category.subject.level', 'category.doctor', 'delegatedBy', 'helperUser', 'students'])
                 ->where('category_id', $categoryId)
                 ->latest()
                 ->firstOrFail();
@@ -119,20 +122,91 @@ class AuthorizedGradeController extends DelegateApiController
             $category = $helperTask->category;
         }
 
-        $studentsQuery = User::query()
+        $students = User::query()
             ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where('major_id', $category->subject->major_id)
             ->where('level_id', $category->subject->level_id)
             ->with(['grades' => function ($query) use ($category) {
                 $query->where('category_id', $category->id);
             }])
-            ->select('id', 'name', 'student_number')
             ->orderBy('name');
 
         if ($helperTask && $helperTask->delegation_type === DelegateGradeDelegation::TYPE_PARTIAL) {
-            $studentsQuery->whereIn('id', $helperTask->students->pluck('id'));
+            $students->whereIn('id', $helperTask->students->pluck('id'));
         }
 
-        return [$category, $helperTask, $studentsQuery->get()];
+        return [$category, $helperTask, $students->get(['users.id', 'users.name', 'users.student_number', 'users.role'])];
+    }
+
+    protected function mapDelegationCategory(GradeCategory $category): array
+    {
+        return [
+            'id' => $category->id,
+            'name' => $category->name,
+            'max_score' => $category->max_score,
+            'subject' => [
+                'id' => $category->subject?->id,
+                'name' => $category->subject?->name,
+                'major' => $category->subject?->major?->name,
+                'level' => $category->subject?->level?->name,
+            ],
+            'doctor' => [
+                'id' => $category->doctor?->id,
+                'name' => $category->doctor?->name,
+            ],
+        ];
+    }
+
+    protected function mapHelperTask(DelegateGradeDelegation $task): array
+    {
+        return [
+            'id' => $task->id,
+            'title' => $task->title,
+            'notes' => $task->notes,
+            'delegation_type' => $task->delegation_type,
+            'due_at' => $task->due_at,
+            'student_scope_count' => $task->delegation_type === DelegateGradeDelegation::TYPE_PARTIAL
+                ? $task->students->count()
+                : null,
+            'category' => $this->mapDelegationCategory($task->category),
+            'delegated_by' => [
+                'id' => $task->delegatedBy?->id,
+                'name' => $task->delegatedBy?->name,
+            ],
+            'helper_user' => [
+                'id' => $task->helperUser?->id,
+                'name' => $task->helperUser?->name,
+            ],
+        ];
+    }
+
+    protected function mapStudentRow(User $student): array
+    {
+        $currentGrade = $student->grades->first();
+
+        return [
+            'id' => $student->id,
+            'name' => $student->name,
+            'student_number' => $student->student_number,
+            'role' => $student->role?->value ?? (string) $student->role,
+            'current_grade' => $currentGrade ? [
+                'score' => $currentGrade->score,
+                'max_score' => $currentGrade->max_score,
+                'status' => $currentGrade->status,
+            ] : null,
+        ];
+    }
+
+    protected function buildDelegationContext(GradeCategory $category, ?DelegateGradeDelegation $helperTask, $students): array
+    {
+        return [
+            'access_mode' => $helperTask ? 'helper_task' : 'direct_delegation',
+            'scope_label' => $helperTask
+                ? ($helperTask->delegation_type === DelegateGradeDelegation::TYPE_PARTIAL ? 'selected_students_only' : 'full_category_students')
+                : 'direct_doctor_delegation',
+            'student_scope_count' => $students->count(),
+            'doctor_name' => $category->doctor?->name,
+            'helper_task' => $helperTask ? $this->mapHelperTask($helperTask) : null,
+        ];
     }
 }

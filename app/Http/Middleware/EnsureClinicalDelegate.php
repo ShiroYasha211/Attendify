@@ -16,7 +16,7 @@ class EnsureClinicalDelegate
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::check() && (Auth::user()->isClinicalDelegate() || Auth::user()->isClinicalSubDelegate())) {
+        if (Auth::check() && Auth::user()->canAccessClinicalDelegateWorkspace()) {
             return $next($request);
         }
 

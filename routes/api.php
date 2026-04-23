@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\QrAttendanceController;
 use App\Http\Controllers\Api\RegisterController as ApiRegisterController;
+use App\Http\Controllers\Api\Desktop\AuthController as DesktopAuthController;
+use App\Http\Controllers\Api\Desktop\AttendanceController as DesktopAttendanceController;
 
 // Admin API Controllers
 use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
@@ -74,9 +76,13 @@ Route::post('register', [ApiRegisterController::class, 'register']);
 // Public Academic Data (For Registration Form)
 Route::prefix('public')->group(function () {
     Route::get('universities', [\App\Http\Controllers\Api\Public\DataController::class, 'universities']);
+    Route::get('colleges', [\App\Http\Controllers\Api\Public\DataController::class, 'colleges']);
     Route::get('colleges/{university}', [\App\Http\Controllers\Api\Public\DataController::class, 'colleges']);
+    Route::get('majors', [\App\Http\Controllers\Api\Public\DataController::class, 'majors']);
     Route::get('majors/{college}', [\App\Http\Controllers\Api\Public\DataController::class, 'majors']);
+    Route::get('levels', [\App\Http\Controllers\Api\Public\DataController::class, 'levels']);
     Route::get('levels/{major}', [\App\Http\Controllers\Api\Public\DataController::class, 'levels']);
+    Route::get('subjects', [\App\Http\Controllers\Api\Public\DataController::class, 'subjects']);
     Route::get('subjects/{level}', [\App\Http\Controllers\Api\Public\DataController::class, 'subjects']);
 });
 
@@ -95,6 +101,8 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     // Auth
     Route::post('logout', [AdminAuthController::class, 'logout']);
     Route::get('me', [AdminAuthController::class, 'me']);
+    Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
+    Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
 
     // Dashboard
     Route::get('dashboard', [AdminDashboardController::class, 'index']);
@@ -218,6 +226,9 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
         Route::post('{id}/publish', [AdminFlashcardController::class, 'publishToStore']);
         Route::post('{id}/assign', [AdminFlashcardController::class, 'assignToUser']);
         Route::post('{id}/import', [AdminFlashcardController::class, 'import']);
+        Route::post('{id}/items', [AdminFlashcardController::class, 'storeItem']);
+        Route::put('items/{itemId}', [AdminFlashcardController::class, 'updateItem']);
+        Route::delete('items/{itemId}', [AdminFlashcardController::class, 'destroyItem']);
     });
 
     // Quiz Management
@@ -256,6 +267,9 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [DelegateAuthController::class, 'logout']);
     Route::post('change-password', [DelegateAuthController::class, 'changePassword']);
     Route::get('me', [DelegateAuthController::class, 'me']);
+    Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
+    Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
+    Route::post('desktop/pairing-code', [\App\Http\Controllers\DesktopPairingCodeController::class, 'issueForDelegate']);
 
     // Dashboard
     Route::get('dashboard', [DelegateDashboardController::class, 'index']);
@@ -331,6 +345,12 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('authorized-grades', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'index']);
     Route::get('authorized-grades/{category}', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'show']);
     Route::post('authorized-grades/{category}/store', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'store']);
+    Route::prefix('qr-attendance')->group(function () {
+        Route::post('start', [QrAttendanceController::class, 'startSession']);
+        Route::get('{session}/token', [QrAttendanceController::class, 'rotateToken']);
+        Route::get('{session}/status', [QrAttendanceController::class, 'getStatus']);
+        Route::post('{session}/finalize', [QrAttendanceController::class, 'finalize']);
+    });
     Route::get('grade-helper-delegations', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'index']);
     Route::get('grade-helper-delegations/students', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'getStudents']);
     Route::post('grade-helper-delegations', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'store']);
@@ -376,6 +396,23 @@ Route::middleware(['web', 'auth'])->prefix('qr-attendance')->group(function () {
     // Moved to Student API (Sanctum)
 });
 
+Route::prefix('desktop')->group(function () {
+    Route::post('pairing/exchange', [DesktopAuthController::class, 'exchange']);
+
+    Route::middleware(['auth:sanctum', 'desktop.token'])->group(function () {
+        Route::get('me', [DesktopAuthController::class, 'me']);
+        Route::post('logout', [DesktopAuthController::class, 'logout']);
+
+        Route::prefix('qr-attendance')->group(function () {
+            Route::get('subjects', [DesktopAttendanceController::class, 'subjects']);
+            Route::post('start', [QrAttendanceController::class, 'startSession']);
+            Route::get('{session}/token', [QrAttendanceController::class, 'rotateToken']);
+            Route::get('{session}/status', [QrAttendanceController::class, 'getStatus']);
+            Route::post('{session}/finalize', [QrAttendanceController::class, 'finalize']);
+        });
+    });
+});
+
 // ══════════════════════════════════════════════════════════════
 // Student API Controllers
 // ══════════════════════════════════════════════════════════════
@@ -401,6 +438,8 @@ Route::prefix('administrative')->middleware(['auth:sanctum', 'administrative', '
     Route::post('logout', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'logout']);
     Route::get('me', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'me']);
     Route::post('change-password', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'changePassword']);
+    Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
+    Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
 
     Route::get('dashboard', [\App\Http\Controllers\Api\Administrative\DashboardController::class, 'index']);
     Route::get('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'show']);
@@ -465,6 +504,8 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::post('logout', [StudentAuthController::class, 'logout']);
     Route::post('change-password', [StudentAuthController::class, 'changePassword']);
     Route::get('me', [StudentAuthController::class, 'me']);
+    Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
+    Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
 
     // ─── News Center ───
     Route::get('news-hub', [\App\Http\Controllers\Api\Student\NewsHubController::class, 'index']);
@@ -680,6 +721,9 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [DoctorAuthController::class, 'logout']);
     Route::get('me', [DoctorAuthController::class, 'me']);
     Route::post('change-password', [DoctorAuthController::class, 'changePassword']);
+    Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
+    Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
+    Route::post('desktop/pairing-code', [\App\Http\Controllers\DesktopPairingCodeController::class, 'issueForDoctor']);
 
     // Dashboard
     Route::get('dashboard', [DoctorDashboardController::class, 'index']);
@@ -769,6 +813,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     Route::get('quizzes/{quiz}', [DoctorQuizController::class, 'show']);
     Route::put('quizzes/{quiz}', [DoctorQuizController::class, 'update']);
     Route::delete('quizzes/{quiz}', [DoctorQuizController::class, 'destroy']);
+    Route::get('quizzes/{quiz}/results/export', [DoctorQuizController::class, 'exportResults']);
     Route::get('quizzes/{quiz}/results', [DoctorQuizController::class, 'results']);
     Route::patch('quizzes/{quiz}/publish', [DoctorQuizController::class, 'publish']);
     Route::patch('quizzes/{quiz}/close', [DoctorQuizController::class, 'close']);
@@ -781,6 +826,12 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     Route::middleware('permission:generate_cards')->group(function () {
         Route::get('cards-generate', [DoctorCardGenerationController::class, 'index']);
         Route::post('cards-generate', [DoctorCardGenerationController::class, 'generate']);
+    });
+    Route::prefix('qr-attendance')->group(function () {
+        Route::post('start', [QrAttendanceController::class, 'startSession']);
+        Route::get('{session}/token', [QrAttendanceController::class, 'rotateToken']);
+        Route::get('{session}/status', [QrAttendanceController::class, 'getStatus']);
+        Route::post('{session}/finalize', [QrAttendanceController::class, 'finalize']);
     });
 
     // Clinical Section
@@ -857,3 +908,6 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::delete('announcements/{id}', [DoctorAnnouncementApiController::class, 'destroy']);
     });
 });
+
+
+

@@ -3,17 +3,15 @@
 namespace App\Http\Controllers\Api\Delegate;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Api\Delegate\DelegateApiController;
 use App\Models\User;
-use App\Enums\UserRole;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends DelegateApiController
 {
     /**
-     * Login Delegate and issue a token.
+     * Login delegate workspace users and issue a token.
      */
     public function login(Request $request)
     {
@@ -28,29 +26,33 @@ class AuthController extends DelegateApiController
 
         $user = User::where('email', $request->email)->first();
 
-        // Check if user exists and password is correct
         if (! $user || ! Hash::check($request->password, $user->password)) {
             return $this->error('البريد الإلكتروني أو كلمة المرور غير صحيحة', 401);
         }
 
-        // Check active status
         if ($user->status !== 'active') {
             return $this->error('حسابك غير مفعل', 403);
         }
 
-        // Allow delegates, practical delegates, or super-admins to use this app
-        if (!in_array($user->role, [UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE, UserRole::ADMIN])) {
+        if (! $user->canAccessDelegateWorkspace()) {
             return $this->error('غير مصرح لك بالدخول لتطبيق المندوب', 403);
         }
 
-        // Delete old tokens (optional - if you want single device login)
         $user->tokens()->where('name', 'delegate_app')->delete();
-
-        // Create new token
         $token = $user->createToken('delegate_app', ['delegate'])->plainTextToken;
 
         return $this->success([
-            'user' => $user->only(['id', 'name', 'email', 'avatar', 'role', 'major_id', 'level_id']),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar' => $user->avatar,
+                'role' => $user->role,
+                'major_id' => $user->major_id,
+                'level_id' => $user->level_id,
+                'is_practical_delegate' => $user->isPracticalDelegate(),
+                'is_clinical_delegate' => $user->isClinicalDelegate(),
+            ],
             'token' => $token,
         ], 'تم تسجيل الدخول بنجاح');
     }
@@ -60,7 +62,7 @@ class AuthController extends DelegateApiController
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()->currentAccessToken()?->delete();
 
         return $this->success(null, 'تم تسجيل الخروج بنجاح');
     }
@@ -70,15 +72,21 @@ class AuthController extends DelegateApiController
      */
     public function me(Request $request)
     {
-        $user = $request->user()->load(['major', 'level']);
+        $user = $request->user()->load(['major', 'level', 'clinicalDelegateAssignment']);
 
         return $this->success([
-            'user' => $user,
+            'user' => array_merge(
+                $user->toArray(),
+                [
+                    'is_practical_delegate' => $user->isPracticalDelegate(),
+                    'is_clinical_delegate' => $user->isClinicalDelegate(),
+                ]
+            ),
         ], 'تم جلب البيانات بنجاح');
     }
 
     /**
-     * Change User Password
+     * Change user password.
      */
     public function changePassword(Request $request)
     {
@@ -93,12 +101,12 @@ class AuthController extends DelegateApiController
 
         $user = $request->user();
 
-        if (!Hash::check($request->old_password, $user->password)) {
+        if (! Hash::check($request->old_password, $user->password)) {
             return $this->error('كلمة المرور القديمة غير صحيحة', 422);
         }
 
         $user->update([
-            'password' => Hash::make($request->new_password)
+            'password' => Hash::make($request->new_password),
         ]);
 
         return $this->success(null, 'تم تغيير كلمة المرور بنجاح');

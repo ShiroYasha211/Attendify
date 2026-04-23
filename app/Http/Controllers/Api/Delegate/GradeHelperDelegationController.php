@@ -15,18 +15,30 @@ class GradeHelperDelegationController extends DelegateApiController
         $delegate = $request->user();
 
         $tasks = $delegate->issuedGradeHelperTasks()
-            ->with(['category.subject:id,name,major_id,level_id', 'helperUser:id,name,student_number', 'students:id,name,student_number'])
+            ->active()
+            ->with([
+                'category.subject:id,name,major_id,level_id',
+                'category.doctor:id,name',
+                'helperUser:id,name,student_number,role',
+                'students:id,name,student_number,role',
+            ])
             ->latest()
             ->get();
 
-        return $this->success($tasks);
+        return $this->success([
+            'summary' => [
+                'issued_tasks_count' => $tasks->count(),
+                'active_tasks_count' => $tasks->where('is_revoked', false)->count(),
+            ],
+            'tasks' => $tasks,
+        ]);
     }
 
     public function getStudents(Request $request)
     {
         $delegate = $request->user();
         $category = $delegate->delegatedGradeCategories()
-            ->with('subject:id,major_id,level_id')
+            ->with(['subject:id,name,major_id,level_id', 'doctor:id,name'])
             ->findOrFail($request->integer('category_id'));
 
         $students = User::query()
@@ -36,12 +48,16 @@ class GradeHelperDelegationController extends DelegateApiController
             ->orderBy('name')
             ->get(['id', 'name', 'student_number', 'role']);
 
-        return $this->success($students);
+        return $this->success([
+            'category' => $category,
+            'eligible_students' => $students,
+        ]);
     }
 
     public function store(Request $request)
     {
         $delegate = $request->user();
+
         $validated = $request->validate([
             'category_id' => 'required|exists:grade_categories,id',
             'helper_user_id' => 'required|exists:users,id',
@@ -53,8 +69,12 @@ class GradeHelperDelegationController extends DelegateApiController
             'student_ids.*' => 'exists:users,id',
         ]);
 
+        if ((int) $validated['helper_user_id'] === (int) $delegate->id) {
+            return $this->error('Delegate cannot create a helper task for the same account.', 422);
+        }
+
         $category = $delegate->delegatedGradeCategories()
-            ->with('subject:id,major_id,level_id')
+            ->with(['subject:id,name,major_id,level_id', 'doctor:id,name'])
             ->findOrFail($validated['category_id']);
 
         $eligibleIds = User::query()
@@ -65,6 +85,17 @@ class GradeHelperDelegationController extends DelegateApiController
 
         if (!$eligibleIds->contains((int) $validated['helper_user_id'])) {
             return $this->error('Helper user is outside the delegated scope.', 422);
+        }
+
+        $existingTask = DelegateGradeDelegation::query()
+            ->where('category_id', $category->id)
+            ->where('delegated_by_id', $delegate->id)
+            ->where('helper_user_id', $validated['helper_user_id'])
+            ->where('is_revoked', false)
+            ->exists();
+
+        if ($existingTask) {
+            return $this->error('An active helper delegation already exists for this user and category.', 422);
         }
 
         $selectedIds = collect($validated['student_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
@@ -88,7 +119,19 @@ class GradeHelperDelegationController extends DelegateApiController
             $task->students()->sync($selectedIds);
         }
 
-        return $this->success($task->load(['helperUser:id,name,student_number', 'students:id,name,student_number']), 'Grade helper task created.', 201);
+        return $this->success([
+            'workflow' => [
+                'step_1' => 'The main delegate creates a helper task for the selected category.',
+                'step_2' => 'The helper enters grades only inside the assigned scope.',
+                'step_3' => 'Saved grades remain pending for doctor review.',
+            ],
+            'task' => $task->load([
+                'category.subject:id,name,major_id,level_id',
+                'category.doctor:id,name',
+                'helperUser:id,name,student_number,role',
+                'students:id,name,student_number,role',
+            ]),
+        ], 'Grade helper task created.', 201);
     }
 
     public function revoke(Request $request, DelegateGradeDelegation $delegation)

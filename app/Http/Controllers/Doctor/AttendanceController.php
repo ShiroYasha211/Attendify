@@ -2,33 +2,31 @@
 
 namespace App\Http\Controllers\Doctor;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Academic\Lecture;
+use App\Models\Academic\Subject;
+use App\Models\Attendance;
+use App\Models\QrAttendanceSession;
+use App\Models\Student\StudentScheduleItem;
+use App\Models\User;
+use App\Support\ExcuseWorkflow;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Academic\Subject;
-use App\Models\User;
-use App\Models\Attendance;
-use App\Models\Academic\Lecture;
-use App\Enums\UserRole;
-use App\Support\ExcuseWorkflow;
 
 class AttendanceController extends Controller
 {
-    /**
-     * Display subjects list + attendance reports (two-tab view).
-     */
     public function index()
     {
         $doctor = Auth::user();
 
-        // Fetch subjects assigned to this doctor
         $subjects = Subject::where('doctor_id', $doctor->id)
             ->with(['major', 'level'])
             ->get();
 
         $subjectIds = $subjects->pluck('id');
 
-        // Get attendance sessions for the Reports tab (grouped by lecture)
         $sessions = Attendance::selectRaw('subject_id, date, lecture_id, recorded_by, attendance_method, count(*) as total_records')
             ->whereIn('subject_id', $subjectIds)
             ->groupBy('subject_id', 'date', 'lecture_id', 'recorded_by', 'attendance_method')
@@ -39,14 +37,10 @@ class AttendanceController extends Controller
         return view('doctor.attendance.index', compact('sessions', 'subjects'));
     }
 
-    /**
-     * Show the form for creating/editing attendance.
-     */
     public function create(Request $request, Subject $subject)
     {
         $doctor = Auth::user();
 
-        // Ensure subject belongs to doctor
         if ($subject->doctor_id !== $doctor->id) {
             abort(403, 'غير مصرح لك بالوصول لهذا المقرر.');
         }
@@ -57,8 +51,7 @@ class AttendanceController extends Controller
             : 'all';
         $qrSessionId = $request->input('qr_session_id');
 
-        // Fetch Students in the same scope
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->orderBy('name')
@@ -66,10 +59,10 @@ class AttendanceController extends Controller
 
         $attendanceRecords = null;
         $prefill = [];
+        $qrVerification = null;
 
-        // If coming from QR Session Review
         if ($qrSessionId) {
-            $qrSession = \App\Models\QrAttendanceSession::where('id', $qrSessionId)
+            $qrSession = QrAttendanceSession::where('id', $qrSessionId)
                 ->where('delegate_id', $doctor->id)
                 ->firstOrFail();
 
@@ -78,52 +71,60 @@ class AttendanceController extends Controller
             $prefill['lecture_number'] = $qrSession->lecture_number;
             $prefill['date'] = $date;
             $prefill['from_qr'] = true;
+            $qrVerification = $qrSession->buildVerificationPayload();
         }
 
-        // If date is provided, fetch existing records
         if ($date) {
-            // Try to find the specific lecture (by lecture_id from request, or by date)
             $lectureId = $request->input('lecture_id');
             $lecture = null;
 
             if ($lectureId) {
-                $lecture = Lecture::where('id', $lectureId)->where('subject_id', $subject->id)->first();
-            }
-            if (!$lecture) {
-                $lecture = Lecture::where('subject_id', $subject->id)->where('date', $date)->latest()->first();
+                $lecture = Lecture::where('id', $lectureId)
+                    ->where('subject_id', $subject->id)
+                    ->first();
             }
 
-            // Fetch attendance records for this specific lecture or all on this date
-            $attendanceQuery = Attendance::where('subject_id', $subject->id)->where('date', $date);
+            if (!$lecture) {
+                $lecture = Lecture::where('subject_id', $subject->id)
+                    ->where('date', $date)
+                    ->latest()
+                    ->first();
+            }
+
+            $attendanceQuery = Attendance::where('subject_id', $subject->id)
+                ->where('date', $date);
+
             if ($lecture) {
                 $attendanceQuery->where('lecture_id', $lecture->id);
             }
+
             $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
 
-            // Pre-fill lecture data
             if ($lecture && empty($prefill['from_qr'])) {
                 $prefill['title'] = $prefill['title'] ?? $lecture->title;
                 $prefill['lecture_number'] = $prefill['lecture_number'] ?? $lecture->lecture_number;
                 $prefill['description'] = $lecture->description;
                 $prefill['lecture_type'] = $lecture->lecture_type;
-                $prefill['start_time'] = $lecture->start_time ? \Carbon\Carbon::parse($lecture->start_time)->format('H:i') : null;
-                $prefill['end_time'] = $lecture->end_time ? \Carbon\Carbon::parse($lecture->end_time)->format('H:i') : null;
+                $prefill['start_time'] = $lecture->start_time ? Carbon::parse($lecture->start_time)->format('H:i') : null;
+                $prefill['end_time'] = $lecture->end_time ? Carbon::parse($lecture->end_time)->format('H:i') : null;
                 $prefill['date'] = $date;
             }
         }
 
-        return view('doctor.attendance.create', compact('subject', 'students', 'attendanceRecords', 'prefill', 'genderFilter'));
+        return view('doctor.attendance.create', compact(
+            'subject',
+            'students',
+            'attendanceRecords',
+            'prefill',
+            'genderFilter',
+            'qrVerification'
+        ));
     }
 
-    /**
-     * Store attendance records.
-     * Creates/updates a Lecture record and links attendance to it.
-     */
     public function store(Request $request, Subject $subject)
     {
         $doctor = Auth::user();
 
-        // Ensure subject belongs to doctor
         if ($subject->doctor_id !== $doctor->id) {
             abort(403, 'غير مصرح لك بالوصول لهذا المقرر.');
         }
@@ -139,19 +140,18 @@ class AttendanceController extends Controller
             'gender_filter' => 'nullable|in:all,male,female',
             'attendance' => 'required|array',
             'attendance.*' => 'required|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
+            'qr_session_id' => 'nullable|integer|exists:qr_attendance_sessions,id',
         ]);
 
-        // Determine attendance method (QR session review = qr, otherwise manual)
-        $attendanceMethod = $request->has('qr_session_id') ? 'qr' : 'manual';
+        $attendanceMethod = $request->filled('qr_session_id') ? 'qr' : 'manual';
 
-        // Auto-create or update Lecture record
-        // Unique by subject + date + title + lecture_number (allows multiple lectures per day)
         $lectureKey = [
             'subject_id' => $subject->id,
             'date' => $validated['date'],
             'title' => $validated['title'],
             'lecture_type' => $validated['lecture_type'] ?? 'official',
         ];
+
         if (!empty($validated['lecture_number'])) {
             $lectureKey['lecture_number'] = $validated['lecture_number'];
         }
@@ -161,7 +161,7 @@ class AttendanceController extends Controller
             [
                 'title' => $validated['title'],
                 'lecture_type' => $validated['lecture_type'] ?? 'official',
-                'lecture_number' => $validated['lecture_number'],
+                'lecture_number' => $validated['lecture_number'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'start_time' => $validated['start_time'] ?? null,
                 'end_time' => $validated['end_time'] ?? null,
@@ -183,8 +183,7 @@ class AttendanceController extends Controller
                 ]
             );
 
-            // Auto-add to Student Study Schedule
-            \App\Models\Student\StudentScheduleItem::firstOrCreate(
+            StudentScheduleItem::firstOrCreate(
                 [
                     'user_id' => $studentId,
                     'referenceable_type' => Lecture::class,
@@ -200,13 +199,15 @@ class AttendanceController extends Controller
             );
         }
 
-        return redirect()->route('doctor.attendance.index')
-            ->with('success', 'تم رصد الحضور وتم جدولة المحاضرة للطلاب بنجاح.');
+        if (!empty($validated['qr_session_id'])) {
+            $this->syncQrVerificationResults((int) $validated['qr_session_id'], $validated['attendance'], $doctor->id);
+        }
+
+        return redirect()
+            ->route('doctor.attendance.index')
+            ->with('success', 'تم رصد الحضور وتحديث قائمة التحقق بنجاح.');
     }
 
-    /**
-     * Show attendance report for a specific subject and date.
-     */
     public function showReport(Request $request, $subjectId, $date)
     {
         $doctor = Auth::user();
@@ -219,7 +220,7 @@ class AttendanceController extends Controller
             ? $request->input('gender_filter')
             : 'all';
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
@@ -242,6 +243,7 @@ class AttendanceController extends Controller
         $attendanceQuery = Attendance::where('subject_id', $subject->id)
             ->where('date', $date)
             ->with('recorder');
+
         if ($lecture) {
             $attendanceQuery->where('lecture_id', $lecture->id);
         }
@@ -251,9 +253,6 @@ class AttendanceController extends Controller
         return view('doctor.attendance.report-clean', compact('subject', 'students', 'attendanceRecords', 'date', 'genderFilter', 'lecture'));
     }
 
-    /**
-     * Toggle delegate attendance permission.
-     */
     public function toggleDelegateAttendance(Request $request, Subject $subject)
     {
         $doctor = Auth::user();
@@ -266,6 +265,32 @@ class AttendanceController extends Controller
         $subject->save();
 
         $status = $subject->allow_delegate_attendance ? 'تم تفعيل' : 'تم إيقاف';
-        return redirect()->back()->with('success', "{$status} صلاحية تحضير المندوب للمقرر بنجاح.");
+
+        return redirect()
+            ->back()
+            ->with('success', "{$status} صلاحية تحضير المندوب للمقرر بنجاح.");
+    }
+
+    protected function syncQrVerificationResults(int $qrSessionId, array $attendance, int $reviewerId): void
+    {
+        $session = QrAttendanceSession::with('verifications')->find($qrSessionId);
+
+        if (!$session) {
+            return;
+        }
+
+        foreach ($session->verifications as $verification) {
+            $finalStatus = $attendance[$verification->student_id] ?? null;
+
+            if (!$finalStatus) {
+                continue;
+            }
+
+            $verification->update([
+                'verification_status' => $finalStatus === Attendance::STATUS_ABSENT ? 'confirmed_absent' : 'confirmed_present',
+                'reviewed_by' => $reviewerId,
+                'reviewed_at' => now(),
+            ]);
+        }
     }
 }

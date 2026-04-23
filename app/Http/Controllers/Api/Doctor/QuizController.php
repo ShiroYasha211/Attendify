@@ -212,17 +212,67 @@ class QuizController extends DoctorApiController
 
     public function results(Quiz $quiz)
     {
-        $quiz = $this->ownedQuizOrFail($quiz);
-
-        $attempts = QuizAttempt::where('quiz_id', $quiz->id)
-            ->with(['student:id,name,student_number', 'quizModel:id,name'])
-            ->orderByDesc('score')
-            ->get();
+        [$quiz, $attempts] = $this->quizResultsData($quiz);
 
         return $this->success([
-            'quiz' => $quiz->only(['id', 'title', 'status', 'results_visibility']),
+            'quiz' => [
+                'id' => $quiz->id,
+                'title' => $quiz->title,
+                'status' => $quiz->status,
+                'results_visibility' => $quiz->results_visibility,
+                'subject_name' => $quiz->subject?->name,
+                'major_name' => $quiz->subject?->major?->name,
+                'level_name' => $quiz->subject?->level?->name,
+            ],
             'attempts' => $attempts,
         ]);
+    }
+
+    public function exportResults(Quiz $quiz)
+    {
+        [$quiz, $attempts] = $this->quizResultsData($quiz);
+
+        $rows = [
+            ['Quiz Results Report'],
+            ['Subject', $quiz->subject?->name ?? '-'],
+            ['Quiz', $quiz->title],
+            ['Major', $quiz->subject?->major?->name ?? '-'],
+            ['Level', $quiz->subject?->level?->name ?? '-'],
+            ['Attempts Count', $attempts->count()],
+            ['Exported At', now()->format('Y-m-d H:i:s')],
+            [],
+            ['#', 'Student Name', 'Student Number', 'Quiz Model', 'Score', 'Max Score', 'Percentage', 'Correct Answers', 'Wrong Answers', 'Duration (Minutes)', 'Status', 'Submitted At'],
+        ];
+
+        foreach ($attempts as $index => $attempt) {
+            $rows[] = [
+                $index + 1,
+                $attempt->student?->name ?? '-',
+                $attempt->student?->student_number ?? '-',
+                $attempt->quizModel?->name ?? '-',
+                (float) ($attempt->score ?? 0),
+                (float) ($attempt->max_score ?? 0),
+                $attempt->percentage,
+                $attempt->correct_count,
+                $attempt->wrong_count,
+                $attempt->duration ?? '-',
+                $attempt->status_label,
+                $attempt->submitted_at?->format('Y-m-d H:i') ?? '-',
+            ];
+        }
+
+        $csvContent = chr(0xEF) . chr(0xBB) . chr(0xBF);
+        foreach ($rows as $row) {
+            $escaped = array_map(static function ($value) {
+                $value = (string) $value;
+                return '"' . str_replace('"', '""', $value) . '"';
+            }, $row);
+            $csvContent .= implode(',', $escaped) . "\n";
+        }
+
+        return response($csvContent)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="quiz_results_' . $quiz->id . '_' . now()->format('Y-m-d_His') . '.csv"');
     }
 
     public function publish(Quiz $quiz)
@@ -291,5 +341,18 @@ class QuizController extends DoctorApiController
                 }
             }
         }
+    }
+
+    protected function quizResultsData(Quiz $quiz): array
+    {
+        $quiz = $this->ownedQuizOrFail($quiz);
+        $quiz->loadMissing(['subject.major', 'subject.level']);
+
+        $attempts = QuizAttempt::where('quiz_id', $quiz->id)
+            ->with(['student:id,name,student_number', 'quizModel:id,name', 'answers.question'])
+            ->orderByDesc('score')
+            ->get();
+
+        return [$quiz, $attempts];
     }
 }

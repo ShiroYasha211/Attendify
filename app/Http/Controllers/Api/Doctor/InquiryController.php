@@ -9,17 +9,14 @@ use Illuminate\Support\Facades\Auth;
 
 class InquiryController extends DoctorApiController
 {
-    /** GET /api/doctor/inquiries */
     public function index(Request $request)
     {
-        $subjects = Subject::where('doctor_id', Auth::id())
+        $doctorId = Auth::id();
+        $subjects = Subject::where('doctor_id', $doctorId)
             ->orderBy('name')
             ->get();
 
-        $subjectIds = $subjects->pluck('id');
-
-        $query = Inquiry::whereIn('subject_id', $subjectIds)
-            ->where('status', '!=', 'pending')
+        $query = Inquiry::visibleToDoctor($doctorId)
             ->with(['student:id,name,student_number', 'subject:id,name', 'answeredBy:id,name,role']);
 
         if ($request->filled('status')) {
@@ -28,14 +25,14 @@ class InquiryController extends DoctorApiController
 
         $inquiries = $query->latest()->paginate(15);
 
-        $statsRaw = Inquiry::whereIn('subject_id', $subjectIds)
-            ->where('status', '!=', 'pending')
+        $statsRaw = Inquiry::visibleToDoctor($doctorId)
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'forwarded' THEN 1 ELSE 0 END) as forwarded,
                 SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END) as answered,
                 SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed
-            ")->first();
+            ")
+            ->first();
 
         return $this->success([
             'settings' => [
@@ -51,7 +48,7 @@ class InquiryController extends DoctorApiController
                         'closed_reason' => $subject->inquiries_closed_reason,
                         'status_message' => $open
                             ? 'الاستفسارات مفتوحة لهذه المادة.'
-                            : ($subject->inquiries_closed_reason ?: 'الاستفسارات مغلقة حالياً لهذه المادة.'),
+                            : ($subject->inquiries_closed_reason ?: 'الاستفسارات مغلقة حاليًا لهذه المادة.'),
                     ];
                 })->values(),
             ],
@@ -71,7 +68,6 @@ class InquiryController extends DoctorApiController
         ]);
     }
 
-    /** GET /api/doctor/inquiries/settings */
     public function settings()
     {
         $subjects = Subject::where('doctor_id', Auth::id())
@@ -91,24 +87,21 @@ class InquiryController extends DoctorApiController
                     'closed_reason' => $subject->inquiries_closed_reason,
                     'status_message' => $open
                         ? 'الاستفسارات مفتوحة لهذه المادة.'
-                        : ($subject->inquiries_closed_reason ?: 'الاستفسارات مغلقة حالياً لهذه المادة.'),
+                        : ($subject->inquiries_closed_reason ?: 'الاستفسارات مغلقة حاليًا لهذه المادة.'),
                 ];
             })->values(),
         ]);
     }
 
-    /** GET /api/doctor/inquiries/{id} */
     public function show($id)
     {
-        $subjectIds = Subject::where('doctor_id', Auth::id())->pluck('id');
-        $inquiry = Inquiry::whereIn('subject_id', $subjectIds)
+        $inquiry = Inquiry::visibleToDoctor(Auth::id())
             ->with(['student:id,name,student_number', 'subject:id,name', 'answeredBy:id,name,role'])
             ->findOrFail($id);
 
         return $this->success($inquiry);
     }
 
-    /** PATCH /api/doctor/inquiries/subjects/{subject}/settings */
     public function updateSettings(Request $request, Subject $subject)
     {
         abort_unless($subject->doctor_id === Auth::id(), 403);
@@ -123,7 +116,9 @@ class InquiryController extends DoctorApiController
 
         $subject->update([
             'inquiries_enabled' => $enabled,
-            'inquiries_closed_reason' => $enabled ? null : ($reason !== '' ? $reason : $subject->inquiries_closed_reason),
+            'inquiries_closed_reason' => $enabled
+                ? null
+                : ($reason !== '' ? $reason : $subject->inquiries_closed_reason),
         ]);
 
         return $this->success([
@@ -138,13 +133,15 @@ class InquiryController extends DoctorApiController
         ], $enabled ? 'تم فتح الاستفسارات لهذه المادة.' : 'تم إغلاق الاستفسارات لهذه المادة.');
     }
 
-    /** POST /api/doctor/inquiries/{id}/answer */
     public function answer(Request $request, $id)
     {
-        $request->validate(['answer' => 'required|string']);
+        $request->validate([
+            'answer' => 'required|string',
+        ]);
 
-        $subjectIds = Subject::where('doctor_id', Auth::id())->pluck('id');
-        $inquiry = Inquiry::whereIn('subject_id', $subjectIds)->findOrFail($id);
+        $inquiry = Inquiry::visibleToDoctor(Auth::id())
+            ->where('status', 'forwarded')
+            ->findOrFail($id);
 
         $inquiry->update([
             'answer' => $request->answer,

@@ -22,14 +22,11 @@ class CheckUserRole
         $user = Auth::user();
         $userRole = $user->role->value;
 
-        $isClinicalDelegate = \App\Models\ClinicalDelegate::where('student_id', Auth::id())->exists();
-
-        // Delegate context switching logic
-        if ($role === 'delegate' && $isClinicalDelegate) {
+        if ($role === 'delegate' && $user->canAccessDelegateWorkspace()) {
             return $next($request);
         }
 
-        if ($role === 'student' && ($userRole === 'delegate' || $isClinicalDelegate)) {
+        if ($role === 'student' && $user->canAccessStudentWorkspace()) {
             return $next($request);
         }
 

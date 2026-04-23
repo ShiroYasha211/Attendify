@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Administrative;
 
+use App\Jobs\SendBatchPushNotificationsJob;
 use App\Enums\UserRole;
 use App\Models\Academic\Major;
 use App\Models\PollOption;
@@ -156,6 +157,8 @@ class NotificationController extends AdministrativeApiController
             }
         });
 
+
+        SendBatchPushNotificationsJob::dispatch($batchId);
         return $this->success([
             'batch_id' => $batchId,
             'recipients_count' => $users->count(),
@@ -227,3 +230,7 @@ class NotificationController extends AdministrativeApiController
         return $this->success(null, 'تم حذف الإعلان بنجاح');
     }
 }
+
+
+
+

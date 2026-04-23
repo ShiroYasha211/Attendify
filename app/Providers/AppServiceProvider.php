@@ -25,5 +25,6 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\CourseResource::observe(\App\Observers\ResourceObserver::class);
         \App\Models\Message::observe(\App\Observers\MessageObserver::class);
         \App\Models\DoctorMessage::observe(\App\Observers\DoctorMessageObserver::class);
+        \App\Models\StudentNotification::observe(\App\Observers\StudentNotificationObserver::class);
     }
 }

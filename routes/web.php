@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DesktopPairingCodeController;
 
 // Redirect root to login
 Route::redirect('/', '/admin/login');
@@ -232,6 +233,7 @@ Route::prefix('doctor')
         Route::get('attendance', [App\Http\Controllers\Doctor\AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('attendance/{subject}/create', [App\Http\Controllers\Doctor\AttendanceController::class, 'create'])->name('attendance.create');
         Route::post('attendance/{subject}', [App\Http\Controllers\Doctor\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('desktop/pairing-code', [DesktopPairingCodeController::class, 'issueForDoctor'])->name('desktop.pairing-code');
         Route::patch('attendance-records/{attendance}', [App\Http\Controllers\Doctor\AttendanceRecordController::class, 'update'])->name('attendance.records.update');
         Route::post('attendance/{subject}/toggle-delegate', [App\Http\Controllers\Doctor\AttendanceController::class, 'toggleDelegateAttendance'])->name('attendance.toggle-delegate');
         Route::get('attendance/{subject}/{date}/report', [App\Http\Controllers\Doctor\AttendanceController::class, 'showReport'])->name('attendance.report');
@@ -332,6 +334,7 @@ Route::prefix('doctor')
             Route::get('{quiz}', [App\Http\Controllers\Doctor\QuizController::class, 'show'])->name('show');
             Route::get('{quiz}/edit', [App\Http\Controllers\Doctor\QuizController::class, 'edit'])->name('edit');
             Route::put('{quiz}', [App\Http\Controllers\Doctor\QuizController::class, 'update'])->name('update');
+            Route::get('{quiz}/results/export', [App\Http\Controllers\Doctor\QuizController::class, 'exportResults'])->name('results.export');
             Route::get('{quiz}/results', [App\Http\Controllers\Doctor\QuizController::class, 'results'])->name('results');
             Route::patch('{quiz}/publish', [App\Http\Controllers\Doctor\QuizController::class, 'publish'])->name('publish');
             Route::patch('{quiz}/close', [App\Http\Controllers\Doctor\QuizController::class, 'close'])->name('close');
@@ -595,6 +598,7 @@ Route::prefix('delegate')
         Route::get('attendance/{subject}/create', [App\Http\Controllers\Delegate\AttendanceController::class, 'create'])->name('attendance.create');
         Route::get('attendance/{subject}/check', [App\Http\Controllers\Delegate\AttendanceController::class, 'check'])->name('attendance.check');
         Route::post('attendance/{subject}', [App\Http\Controllers\Delegate\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('desktop/pairing-code', [DesktopPairingCodeController::class, 'issueForDelegate'])->name('desktop.pairing-code');
         // Assignments
         Route::resource('assignments', App\Http\Controllers\Delegate\AssignmentController::class)->except(['create', 'edit', 'show']);
 

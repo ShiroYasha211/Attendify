@@ -2,7 +2,7 @@
     "info":  {
                  "_postman_id":  "attendify-doctor-api",
                  "name":  "Attendify - Doctor API",
-                 "description":  "Doctor workspace endpoints for Attendify. A doctor account may also carry administrative access through `administrative_access=true`, which means the same authenticated user can access both the doctor and administrative workspaces. This is now the official path for new administrative access. Check `administrative_access` and `available_workspaces` in auth responses to know whether the current account is doctor only or doctor plus administrative.",
+                 "description":  "Doctor workspace endpoints for Attendify.\n\nFrontend auth flow for this collection:\n1. `POST /login`\n2. Save `response.data.data.token` and `response.data.data.user`\n3. `GET /me`\n4. If the account has `administrative_access=true`, inspect `available_workspaces` and allow switching between doctor and administrative with the same token\n5. `POST /devices/token` if Firebase push is enabled\n6. Use the bearer token on all later requests\n7. `DELETE /devices/token` before `POST /logout`\n\nGrades save requests must send `grades` as an array. QR attendance creation and token rotation are available under `/api/doctor/qr-attendance/*`, while student scanning stays under `/api/student/qr-attendance/scan`.",
                  "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
              },
     "auth":  {
@@ -85,12 +85,22 @@
                          "key":  "lecture_id",
                          "value":  "1",
                          "type":  "string"
+                     },
+                     {
+                         "key":  "desktop_base_url",
+                         "value":  "http://127.0.0.1:8000/api/desktop",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "desktop_token",
+                         "value":  "",
+                         "type":  "string"
                      }
                  ],
     "item":  [
                  {
                      "name":  "Section 1",
-                     "description":  "English documentation placeholder for this section in the Attendify - Doctor API collection.",
+                     "description":  "Authentication runtime for doctor clients:\n1. Login with `email` and `password`\n2. Save `response.data.data.token`\n3. Call `GET /me`\n4. Inspect `administrative_access` and `available_workspaces`\n5. Register Firebase token with `POST /devices/token`\n6. Reuse the same token for all doctor requests\n7. Remove the device token before logout",
                      "item":  [
                                   {
                                       "name":  "Login",
@@ -137,29 +147,7 @@
                                                                                "login"
                                                                            ]
                                                               },
-                                                      "description":  "Authenticate a doctor account. If the authenticated user also has `administrative_access=true`, the same account can use both the doctor and administrative collections, and `available_workspaces` should include both doctor and administrative."
-                                                  }
-                                  },
-                                  {
-                                      "name":  "Logout",
-                                      "request":  {
-                                                      "method":  "POST",
-                                                      "header":  [
-                                                                     {
-                                                                         "key":  "Accept",
-                                                                         "value":  "application/json"
-                                                                     }
-                                                                 ],
-                                                      "url":  {
-                                                                  "raw":  "{{base_url}}/logout",
-                                                                  "host":  [
-                                                                               "{{base_url}}"
-                                                                           ],
-                                                                  "path":  [
-                                                                               "logout"
-                                                                           ]
-                                                              },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Authenticate a doctor account.\n\nRequest body:\n- `email`\n- `password`\n\nSave the returned token from `response.data.data.token`, save the user object from `response.data.data.user`, then call `GET /me`. If the profile exposes both doctor and administrative in `available_workspaces`, keep the same token and switch only the API prefix."
                                                   }
                                   },
                                   {
@@ -181,8 +169,86 @@
                                                                                "me"
                                                                            ]
                                                               },
-                                                      "description":  "Return the current doctor profile and workspace flags. Use this request to confirm whether the account is doctor only or doctor plus administrative by checking `administrative_access` and `available_workspaces`."
+                                                      "description":  "Use this request immediately after login and on app start to verify the saved doctor token and inspect `administrative_access` plus `available_workspaces`."
                                                   }
+                                  },
+                                  {
+                                      "name":  "Register Device Token",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"device_token\": \"FCM_DEVICE_TOKEN\",\r\n    \"platform\": \"android\",\r\n    \"device_name\": \"Pixel 8\",\r\n    \"app_version\": \"1.0.0\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/devices/token",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "devices",
+                                                                               "token"
+                                                                           ]
+                                                              },
+                                                      "description":  "Register or refresh the Firebase device token for the current doctor session.\n\nCall this immediately after a successful login and again whenever the FCM token changes.\nRequest body:\n- `device_token`: the Firebase/FCM token from the device\n- `platform`: `android`, `ios`, or `web`\n- `device_name`: optional human-readable device label\n- `app_version`: optional app version string"
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Remove Device Token",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"device_token\": \"FCM_DEVICE_TOKEN\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/devices/token",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "devices",
+                                                                               "token"
+                                                                           ]
+                                                              },
+                                                      "description":  "Remove the Firebase device token for the current doctor session.\n\nCall this before logout when push notifications are enabled, then call the normal logout endpoint and clear local storage."
+                                                  },
+                                      "response":  [
+
+                                                   ]
                                   },
                                   {
                                       "name":  "Change Password",
@@ -212,6 +278,28 @@
                                                                    "mode":  "raw",
                                                                    "raw":  "{\r\n    \"current_password\":  \"password\",\r\n    \"password\":  \"NewPassword123!\",\r\n    \"password_confirmation\":  \"NewPassword123!\"\r\n}"
                                                                }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Logout",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/logout",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "logout"
+                                                                           ]
+                                                              },
+                                                      "description":  "If push is enabled, call `DELETE /devices/token` first with the current FCM token, then call logout and clear local storage."
                                                   }
                                   },
                                   {
@@ -326,7 +414,7 @@
                                                                                "dashboard"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -373,7 +461,7 @@
                                                                                 }
                                                                             ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -404,7 +492,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -432,7 +520,7 @@
                                                                                "reports"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -455,7 +543,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -497,7 +585,7 @@
                                                                                 }
                                                                             ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -527,7 +615,7 @@
                                                                                "assignments"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -558,7 +646,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -581,7 +669,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -605,7 +693,7 @@
                                                                                "submissions"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -637,7 +725,7 @@
                                                                                "review"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -673,7 +761,7 @@
                                                                                 }
                                                                             ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -696,7 +784,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -728,7 +816,7 @@
                                                                                "answer"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -756,7 +844,7 @@
                                                                                "grades"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -779,7 +867,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -798,7 +886,7 @@
                                                                  ],
                                                       "body":  {
                                                                    "mode":  "raw",
-                                                                   "raw":  "{\r\n    \"grades\":  {\r\n                   \"student_id\":  1,\r\n                   \"midterm\":  25,\r\n                   \"practical\":  15,\r\n                   \"homework\":  10,\r\n                   \"final\":  40\r\n               }\r\n}"
+                                                                   "raw":  "{\r\n    \"grades\":  [\r\n                   {\r\n                       \"student_id\":  1,\r\n                       \"midterm\":  25,\r\n                       \"practical\":  15,\r\n                       \"homework\":  10,\r\n                       \"final\":  40\r\n                   }\r\n               ]\r\n}"
                                                                },
                                                       "url":  {
                                                                   "raw":  "{{base_url}}/grades/1",
@@ -810,7 +898,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -834,7 +922,7 @@
                                                                                "report"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -867,7 +955,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1113,7 +1201,7 @@
                                                                                "messages"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1136,7 +1224,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1166,7 +1254,7 @@
                                                                                "messages"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1198,7 +1286,7 @@
                                                                                "send"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -1226,7 +1314,7 @@
                                                                                "notifications"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1250,7 +1338,7 @@
                                                                                "read"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1273,7 +1361,7 @@
                                                                                "mark-all-read"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -1302,7 +1390,7 @@
                                                                                "overview"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -1338,7 +1426,7 @@
                                                                                 }
                                                                             ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1369,7 +1457,7 @@
                                                                                "training-centers"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1401,7 +1489,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1425,7 +1513,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -1454,7 +1542,7 @@
                                                                                "departments"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1485,7 +1573,7 @@
                                                                                "departments"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1517,7 +1605,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1541,7 +1629,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1592,7 +1680,7 @@
                                                                                "body-systems"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1623,7 +1711,7 @@
                                                                                "body-systems"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1655,7 +1743,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1679,7 +1767,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1748,7 +1836,7 @@
                                                                                 }
                                                                             ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1779,7 +1867,7 @@
                                                                                "cases"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1803,7 +1891,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1835,7 +1923,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -1859,7 +1947,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -1972,7 +2060,7 @@
                  },
                  {
                      "name":  "Section 16",
-                     "description":  "Clinical daily log QR review. Doctors can scan a student's QR token, review grouped sections, confirm selected sections with per-section diagnosis, or reject the whole log.",
+                     "description":  "Clinical daily log QR review. Doctors can scan a student\u0027s QR token, review grouped sections, confirm selected sections with per-section diagnosis, or reject the whole log.",
                      "item":  [
                                   {
                                       "name":  "Scan QR Token",
@@ -2003,7 +2091,7 @@
                                                                                "scan"
                                                                            ]
                                                               },
-                                                      "description":  "Scan a student's clinical QR token and receive grouped log sections (`history`, `exam`, `round`) with confirmation state, diagnosis, and item labels."
+                                                      "description":  "Scan a student\u0027s clinical QR token and receive grouped log sections (`history`, `exam`, `round`) with confirmation state, diagnosis, and item labels."
                                                   }
                                   },
                                   {
@@ -2105,7 +2193,7 @@
                                                                                "manual"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   }
                               ]
@@ -2143,7 +2231,7 @@
                                                                                 }
                                                                             ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2175,7 +2263,7 @@
                                                                                "checklists"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2208,7 +2296,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2233,7 +2321,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2257,7 +2345,7 @@
                                                                                "start-data"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2289,7 +2377,7 @@
                                                                                "submit"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2331,7 +2419,7 @@
                                                                                 }
                                                                             ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2356,7 +2444,7 @@
                                                                                "1"
                                                                            ]
                                                               },
-                                                      "description":  "English documentation placeholder for this item in the Attendify - Doctor API collection."
+                                                      "description":  "Doctor personal inbox notifications. Use these endpoints for unread/read workflow. For broadcast news-center content, use the News section instead."
                                                   }
                                   },
                                   {
@@ -2557,7 +2645,7 @@
                  },
                  {
                      "name":  "News",
-                    "description":  "Doctor news center API. This feed shows broadcast batches that were actually delivered to the current doctor account, including college administration announcements, exams, assignments, attendance alerts, and polls.",
+                     "description":  "Doctor news center API. This feed shows broadcast batches that were actually delivered to the current doctor account, including college administration announcements, exams, assignments, attendance alerts, and polls.",
                      "item":  [
                                   {
                                       "name":  "List News",
@@ -2802,7 +2890,7 @@
                  },
                  {
                      "name":  "Cards Generate",
-                     "description":  "Doctor card generation API.",
+                     "description":  "Doctor card generation API. Requires the generate_cards permission; QR attendance is a separate flow under /api/doctor/qr-attendance/* and is not part of cards-generate.",
                      "item":  [
                                   {
                                       "name":  "Generated Cards Dashboard",
@@ -3252,6 +3340,29 @@
                                                   }
                                   },
                                   {
+                                      "name":  "Export Quiz Results CSV",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  {
+                                                                     "key":  "Accept",
+                                                                     "value":  "text/csv"
+                                                                 },
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/quizzes/{{quiz_id}}/results/export",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "quizzes",
+                                                                               "{{quiz_id}}",
+                                                                               "results",
+                                                                               "export"
+                                                                           ]
+                                                              },
+                                                      "description":  "Download a CSV file that opens in Excel. The report includes header rows for subject, quiz, major, and level, followed by each student attempt with name, student number, score, percentage, and status."
+                                                  }
+                                  },
+                                  {
                                       "name":  "Publish Quiz",
                                       "request":  {
                                                       "method":  "PATCH",
@@ -3620,6 +3731,326 @@
                                                               },
                                                       "description":  "Delete a volunteer record."
                                                   }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Section 18 - Desktop QR Pairing",
+                     "description":  "Desktop QR flow for doctor accounts.\n1. Issue a pairing code from the authenticated doctor token.\n2. Exchange it from the Windows desktop app using /api/desktop.\n3. Save desktop token separately.\n4. Use desktop token for subjects/start/status/finalize only.",
+                     "item":  [
+                                  {
+                                      "name":  "Issue Pairing Code",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/desktop/pairing-code",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "desktop",
+                                                                               "pairing-code"
+                                                                           ]
+                                                              },
+                                                      "description":  "Generate a 10-minute pairing code from the authenticated doctor account before opening the desktop app.",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{doctor_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n  \"device_name\": \"Classroom Display\"\r\n}",
+                                                                   "options":  {
+
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Desktop Exchange Pairing Code",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{desktop_base_url}}/pairing/exchange",
+                                                                  "host":  [
+                                                                               "{{desktop_base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "pairing",
+                                                                               "exchange"
+                                                                           ]
+                                                              },
+                                                      "description":  "Run this from the Windows desktop app. Exchange the pairing code for a dedicated desktop Sanctum token.",
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n  \"code\": \"ABCD1234\",\r\n  \"device_name\": \"Classroom Display\"\r\n}",
+                                                                   "options":  {
+
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Desktop Me",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{desktop_base_url}}/me",
+                                                                  "host":  [
+                                                                               "{{desktop_base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "me"
+                                                                           ]
+                                                              },
+                                                      "description":  "Validate the saved desktop token on app startup.",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{desktop_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Desktop Subjects",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{desktop_base_url}}/qr-attendance/subjects",
+                                                                  "host":  [
+                                                                               "{{desktop_base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "qr-attendance",
+                                                                               "subjects"
+                                                                           ]
+                                                              },
+                                                      "description":  "Get doctor subjects available for QR attendance from the desktop app.",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{desktop_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Desktop Start QR Session",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{desktop_base_url}}/qr-attendance/start",
+                                                                  "host":  [
+                                                                               "{{desktop_base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "qr-attendance",
+                                                                               "start"
+                                                                           ]
+                                                              },
+                                                      "description":  "Start a QR attendance session from the desktop app.",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{desktop_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n  \"subject_id\": 1,\r\n  \"date\": \"2026-04-23\",\r\n  \"title\": \"Practical lecture - projector session\",\r\n  \"lecture_number\": \"3\"\r\n}",
+                                                                   "options":  {
+
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Desktop Session Status",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{desktop_base_url}}/qr-attendance/1/status",
+                                                                  "host":  [
+                                                                               "{{desktop_base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "qr-attendance",
+                                                                               "1",
+                                                                               "status"
+                                                                           ]
+                                                              },
+                                                      "description":  "Poll scanned_count, total_students, recent_scans, and verification summary from the desktop app.",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{desktop_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Desktop Finalize Session",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{desktop_base_url}}/qr-attendance/1/finalize",
+                                                                  "host":  [
+                                                                               "{{desktop_base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "qr-attendance",
+                                                                               "1",
+                                                                               "finalize"
+                                                                           ]
+                                                              },
+                                                      "description":  "Finalize the desktop QR session and open redirect_url in the browser for final review on the website.",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{desktop_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Desktop Logout",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Accept",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{desktop_base_url}}/logout",
+                                                                  "host":  [
+                                                                               "{{desktop_base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "logout"
+                                                                           ]
+                                                              },
+                                                      "description":  "Revoke the current desktop token when the Windows app is unpaired.",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{desktop_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ]
                                   }
                               ]
                  }

@@ -16,6 +16,13 @@ use Illuminate\Support\Str;
 
 class QuizController extends Controller
 {
+    protected function ownedQuizOrFail(Quiz $quiz): Quiz
+    {
+        abort_unless($quiz->created_by === Auth::id() && $quiz->creator_type === 'doctor', 403);
+
+        return $quiz;
+    }
+
     /**
      * List all quizzes created by this doctor.
      */
@@ -160,11 +167,7 @@ class QuizController extends Controller
      */
     public function show(Quiz $quiz)
     {
-        $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
+        $quiz = $this->ownedQuizOrFail($quiz);
 
         $quiz->load(['subject', 'models.questions.options', 'attempts.student']);
 
@@ -184,10 +187,7 @@ class QuizController extends Controller
     public function edit(Quiz $quiz)
     {
         $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
+        $quiz = $this->ownedQuizOrFail($quiz);
 
         $quiz->load(['models.questions.options']);
         $subjects = Subject::where('doctor_id', $doctor->id)->with('level')->get();
@@ -223,10 +223,7 @@ class QuizController extends Controller
     public function update(Request $request, Quiz $quiz)
     {
         $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
+        $quiz = $this->ownedQuizOrFail($quiz);
 
         $canEditContent = $quiz->attempts()->count() === 0;
 
@@ -348,18 +345,61 @@ class QuizController extends Controller
      */
     public function results(Quiz $quiz)
     {
-        $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
-
-        $attempts = QuizAttempt::where('quiz_id', $quiz->id)
-            ->with(['student', 'quizModel', 'answers.question'])
-            ->orderByDesc('score')
-            ->get();
+        [$quiz, $attempts] = $this->quizResultsData($quiz);
 
         return view('doctor.quizzes.results', compact('quiz', 'attempts'));
+    }
+
+    public function exportResults(Quiz $quiz)
+    {
+        [$quiz, $attempts] = $this->quizResultsData($quiz);
+
+        $rows = [
+            ['Quiz Results Report'],
+            ['Subject', $quiz->subject?->name ?? '-'],
+            ['Quiz', $quiz->title],
+            ['Major', $quiz->subject?->major?->name ?? '-'],
+            ['Level', $quiz->subject?->level?->name ?? '-'],
+            ['Attempts Count', $attempts->count()],
+            ['Exported At', now()->format('Y-m-d H:i:s')],
+            [],
+            ['#', 'Student Name', 'Student Number', 'Quiz Model', 'Score', 'Max Score', 'Percentage', 'Correct Answers', 'Wrong Answers', 'Duration (Minutes)', 'Status', 'Submitted At'],
+        ];
+
+        foreach ($attempts as $index => $attempt) {
+            $rows[] = [
+                $index + 1,
+                $attempt->student?->name ?? '-',
+                $attempt->student?->student_number ?? '-',
+                $attempt->quizModel?->name ?? '-',
+                (float) ($attempt->score ?? 0),
+                (float) ($attempt->max_score ?? 0),
+                $attempt->percentage,
+                $attempt->correct_count,
+                $attempt->wrong_count,
+                $attempt->duration ?? '-',
+                $attempt->status_label,
+                $attempt->submitted_at?->format('Y-m-d H:i') ?? '-',
+            ];
+        }
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="quiz_results_' . $quiz->id . '_' . now()->format('Y-m-d_His') . '.csv"',
+        ];
+
+        $callback = static function () use ($rows): void {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     /**
@@ -367,11 +407,7 @@ class QuizController extends Controller
      */
     public function publish(Quiz $quiz)
     {
-        $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
+        $quiz = $this->ownedQuizOrFail($quiz);
 
         $quiz->update(['status' => 'published']);
 
@@ -383,11 +419,7 @@ class QuizController extends Controller
      */
     public function close(Quiz $quiz)
     {
-        $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
+        $quiz = $this->ownedQuizOrFail($quiz);
 
         $quiz->update(['status' => 'closed']);
 
@@ -399,11 +431,7 @@ class QuizController extends Controller
      */
     public function shareResults(Request $request, Quiz $quiz)
     {
-        $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
+        $quiz = $this->ownedQuizOrFail($quiz);
 
         $visibility = $request->get('visibility', 'individual');
         $quiz->update(['results_visibility' => $visibility]);
@@ -416,15 +444,23 @@ class QuizController extends Controller
      */
     public function destroy(Quiz $quiz)
     {
-        $doctor = Auth::user();
-
-        if ($quiz->created_by !== $doctor->id) {
-            abort(403);
-        }
+        $quiz = $this->ownedQuizOrFail($quiz);
 
         $quiz->delete();
 
         return redirect()->route('doctor.quizzes.index')
             ->with('success', 'تم حذف الكويز بنجاح.');
+    }
+    protected function quizResultsData(Quiz $quiz): array
+    {
+        $quiz = $this->ownedQuizOrFail($quiz);
+        $quiz->loadMissing(['subject.major', 'subject.level']);
+
+        $attempts = QuizAttempt::where('quiz_id', $quiz->id)
+            ->with(['student:id,name,student_number', 'quizModel:id,name', 'answers.question'])
+            ->orderByDesc('score')
+            ->get();
+
+        return [$quiz, $attempts];
     }
 }

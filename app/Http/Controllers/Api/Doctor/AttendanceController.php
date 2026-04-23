@@ -43,16 +43,15 @@ class AttendanceController extends DoctorApiController
             ? $request->input('gender_filter')
             : 'all';
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
             ->orderBy('name')
             ->get(['id', 'name', 'student_number', 'gender']);
 
-        $prefill = [
-            'date' => $date,
-        ];
+        $prefill = ['date' => $date];
+        $verification = null;
 
         if ($qrSessionId) {
             $qrSession = QrAttendanceSession::where('id', $qrSessionId)
@@ -64,6 +63,7 @@ class AttendanceController extends DoctorApiController
             $prefill['title'] = $qrSession->title;
             $prefill['lecture_number'] = $qrSession->lecture_number;
             $prefill['from_qr'] = true;
+            $verification = $qrSession->buildVerificationPayload();
         }
 
         $lecture = null;
@@ -90,6 +90,7 @@ class AttendanceController extends DoctorApiController
             'students' => $students,
             'attendance_records' => $attendanceQuery->get()->keyBy('student_id'),
             'prefill' => $prefill,
+            'verification' => $verification,
             'filters' => [
                 'gender_filter' => $genderFilter,
                 'available_gender_filters' => ['all', 'male', 'female'],
@@ -181,7 +182,7 @@ class AttendanceController extends DoctorApiController
             ? $request->input('gender_filter')
             : 'all';
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
@@ -295,7 +296,7 @@ class AttendanceController extends DoctorApiController
             ? $request->input('gender_filter')
             : 'all';
 
-        $allowedStudentIds = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $allowedStudentIds = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->when($genderFilter !== 'all', fn ($query) => $query->where('gender', $genderFilter))
@@ -353,6 +354,10 @@ class AttendanceController extends DoctorApiController
                 );
             }
 
+            if ($request->filled('qr_session_id')) {
+                $this->syncQrVerificationResults((int) $request->input('qr_session_id'), $students, $request->user()->id);
+            }
+
             DB::commit();
 
             return $this->success([
@@ -365,6 +370,31 @@ class AttendanceController extends DoctorApiController
         } catch (\Throwable $exception) {
             DB::rollBack();
             return $this->error('ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط±طµط¯ ط§ظ„ط­ط¶ظˆط±: ' . $exception->getMessage(), 500);
+        }
+    }
+
+    protected function syncQrVerificationResults(int $qrSessionId, \Illuminate\Support\Collection $students, int $reviewerId): void
+    {
+        $session = QrAttendanceSession::with('verifications')->find($qrSessionId);
+
+        if (!$session) {
+            return;
+        }
+
+        $statusMap = $students->pluck('status', 'id');
+
+        foreach ($session->verifications as $verification) {
+            $finalStatus = $statusMap->get($verification->student_id);
+
+            if (!$finalStatus) {
+                continue;
+            }
+
+            $verification->update([
+                'verification_status' => $finalStatus === Attendance::STATUS_ABSENT ? 'confirmed_absent' : 'confirmed_present',
+                'reviewed_by' => $reviewerId,
+                'reviewed_at' => now(),
+            ]);
         }
     }
 }

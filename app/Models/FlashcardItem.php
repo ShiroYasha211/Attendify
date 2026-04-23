@@ -10,10 +10,12 @@ class FlashcardItem extends Model
 {
     protected $fillable = [
         'pack_id',
+        'item_type',
         'front_content',
         'back_content',
         'options',
         'correct_option',
+        'item_color',
         'priority',
         'sort_order',
     ];
@@ -24,7 +26,7 @@ class FlashcardItem extends Model
         'sort_order' => 'integer',
     ];
 
-    // ── Relationships ──
+    protected $appends = ['resolved_item_type', 'resolved_color', 'item_type_label'];
 
     public function pack(): BelongsTo
     {
@@ -36,11 +38,6 @@ class FlashcardItem extends Model
         return $this->hasMany(FlashcardProgress::class, 'item_id');
     }
 
-    // ── Helpers ──
-
-    /**
-     * Get priority text in Arabic.
-     */
     public function getPriorityTextAttribute(): string
     {
         return match ($this->priority) {
@@ -51,9 +48,21 @@ class FlashcardItem extends Model
         };
     }
 
-    /**
-     * Get the user's progress for this item.
-     */
+    public function getResolvedItemTypeAttribute(): string
+    {
+        return $this->item_type ?: ($this->pack?->display_mode ?? 'flash_card');
+    }
+
+    public function getResolvedColorAttribute(): string
+    {
+        return $this->item_color ?: ($this->pack?->color ?? '#4f46e5');
+    }
+
+    public function getItemTypeLabelAttribute(): string
+    {
+        return FlashcardPack::itemTypeLabel($this->resolved_item_type);
+    }
+
     public function userProgress(int $userId)
     {
         return $this->progress()->where('user_id', $userId)->first();

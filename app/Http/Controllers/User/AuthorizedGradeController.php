@@ -2,39 +2,34 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\DelegateGradeDelegation;
 use App\Models\Grade;
 use App\Models\GradeCategory;
 use App\Models\User;
-use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class AuthorizedGradeController extends Controller
 {
-    /**
-     * Display categories delegated to the current user.
-     */
     public function index()
     {
         $user = Auth::user();
-        
-        $delegations = $user->delegatedGradeCategories()
-            ->with(['subject', 'doctor'])
+
+        $directDelegations = $user->delegatedGradeCategories()
+            ->with(['subject.major', 'subject.level', 'doctor'])
             ->get();
 
         $helperTasks = $user->delegatedGradeHelperTasks()
             ->active()
-            ->with(['category.subject', 'category.doctor', 'delegatedBy', 'students'])
+            ->with(['category.subject.major', 'category.subject.level', 'category.doctor', 'delegatedBy', 'helperUser', 'students'])
             ->get();
 
-        return view('user.grades.authorized.index', compact('delegations', 'helperTasks'));
+        return view('user.grades.authorized.index', compact('directDelegations', 'helperTasks'));
     }
 
-    /**
-     * Show entry form for a specific category.
-     */
     public function show($categoryId)
     {
         $user = Auth::user();
@@ -49,11 +44,11 @@ class AuthorizedGradeController extends Controller
             $delegateHelperCandidates = $this->eligibleStudentsQuery($category)
                 ->where('id', '!=', $user->id)
                 ->orderBy('name')
-                ->get();
+                ->get(['id', 'name', 'student_number', 'role']);
 
             $delegateHelperStudentScope = $this->eligibleStudentsQuery($category)
                 ->orderBy('name')
-                ->get();
+                ->get(['id', 'name', 'student_number', 'role']);
 
             $delegateHelperTasks = $user->issuedGradeHelperTasks()
                 ->active()
@@ -63,16 +58,23 @@ class AuthorizedGradeController extends Controller
                 ->get();
         }
 
-        return view('user.grades.authorized.show', compact('category', 'students', 'helperTask', 'delegateHelperCandidates', 'delegateHelperTasks', 'delegateHelperStudentScope'));
+        $delegationContext = $this->buildDelegationContext($user, $category, $helperTask, $students);
+
+        return view('user.grades.authorized.show', compact(
+            'category',
+            'students',
+            'helperTask',
+            'delegateHelperCandidates',
+            'delegateHelperTasks',
+            'delegateHelperStudentScope',
+            'delegationContext'
+        ));
     }
 
-    /**
-     * Store grades for a category.
-     */
     public function store(Request $request, $categoryId)
     {
         $user = Auth::user();
-        
+
         [$category, $helperTask, $students] = $this->resolveCategoryAccess($user, (int) $categoryId);
         $allowedStudentIds = $students->pluck('id');
 
@@ -83,9 +85,12 @@ class AuthorizedGradeController extends Controller
         ]);
 
         DB::beginTransaction();
+
         try {
             foreach ($request->grades as $gradeData) {
-                if ($gradeData['score'] === null) continue;
+                if (!array_key_exists('score', $gradeData) || $gradeData['score'] === null || $gradeData['score'] === '') {
+                    continue;
+                }
 
                 if (!$allowedStudentIds->contains((int) $gradeData['student_id'])) {
                     return back()->with('error', 'بعض الطلاب المحددين خارج نطاق التفويض المسموح لك.');
@@ -102,27 +107,30 @@ class AuthorizedGradeController extends Controller
                         'score' => $gradeData['score'],
                         'max_score' => $category->max_score,
                         'created_by' => $user->id,
-                        'status' => 'pending', // Always pending when authorized user enters it
+                        'status' => 'pending',
                     ]
                 );
             }
+
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $exception) {
             DB::rollBack();
+
             return back()->with('error', 'حدث خطأ أثناء حفظ الدرجات.');
         }
 
-        $redirectRoute = Auth::user()->role === UserRole::DELEGATE 
-            ? 'delegate.authorized-grades.index' 
+        $redirectRoute = $user->role === UserRole::DELEGATE
+            ? 'delegate.authorized-grades.index'
             : 'student.authorized-grades.index';
 
         return redirect()->route($redirectRoute)
-            ->with('success', 'تم حفظ الدرجات وإرسالها للمراجعة.');
+            ->with('success', 'تم حفظ الدرجات وإرسالها إلى الدكتور للمراجعة والاعتماد.');
     }
+
     protected function resolveCategoryAccess(User $user, int $categoryId): array
     {
         $category = $user->delegatedGradeCategories()
-            ->with(['subject', 'doctor'])
+            ->with(['subject.major', 'subject.level', 'doctor'])
             ->find($categoryId);
 
         $helperTask = null;
@@ -130,7 +138,7 @@ class AuthorizedGradeController extends Controller
         if (!$category) {
             $helperTask = $user->delegatedGradeHelperTasks()
                 ->active()
-                ->with(['category.subject', 'category.doctor', 'students'])
+                ->with(['category.subject.major', 'category.subject.level', 'category.doctor', 'delegatedBy', 'students'])
                 ->where('category_id', $categoryId)
                 ->latest()
                 ->firstOrFail();
@@ -144,11 +152,11 @@ class AuthorizedGradeController extends Controller
             }])
             ->orderBy('name');
 
-        if ($helperTask && $helperTask->delegation_type === \App\Models\DelegateGradeDelegation::TYPE_PARTIAL) {
+        if ($helperTask && $helperTask->delegation_type === DelegateGradeDelegation::TYPE_PARTIAL) {
             $students->whereIn('id', $helperTask->students->pluck('id'));
         }
 
-        return [$category, $helperTask, $students->get()];
+        return [$category, $helperTask, $students->get(['users.id', 'users.name', 'users.student_number', 'users.role'])];
     }
 
     protected function eligibleStudentsQuery(GradeCategory $category)
@@ -159,5 +167,22 @@ class AuthorizedGradeController extends Controller
             ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id);
+    }
+
+    protected function buildDelegationContext(User $user, GradeCategory $category, ?DelegateGradeDelegation $helperTask, $students): array
+    {
+        return [
+            'access_mode' => $helperTask ? 'helper_task' : 'direct_delegation',
+            'subject_name' => $category->subject->name,
+            'major_name' => $category->subject->major?->name,
+            'level_name' => $category->subject->level?->name,
+            'doctor_name' => $category->doctor?->name,
+            'can_delegate_helpers' => $user->role === UserRole::DELEGATE && !$helperTask,
+            'student_scope_count' => $students->count(),
+            'helper_task' => $helperTask,
+            'scope_label' => $helperTask
+                ? ($helperTask->delegation_type === DelegateGradeDelegation::TYPE_PARTIAL ? 'طلاب محددون فقط' : 'كل طلاب الفئة')
+                : 'تفويض مباشر من الدكتور',
+        ];
     }
 }

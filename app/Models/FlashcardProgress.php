@@ -14,6 +14,8 @@ class FlashcardProgress extends Model
         'item_id',
         'times_shown',
         'times_correct',
+        'last_response',
+        'review_weight',
         'last_shown_at',
         'next_review_at',
     ];
@@ -23,9 +25,8 @@ class FlashcardProgress extends Model
         'next_review_at' => 'datetime',
         'times_shown' => 'integer',
         'times_correct' => 'integer',
+        'review_weight' => 'integer',
     ];
-
-    // ── Relationships ──
 
     public function user(): BelongsTo
     {
@@ -37,23 +38,21 @@ class FlashcardProgress extends Model
         return $this->belongsTo(FlashcardItem::class, 'item_id');
     }
 
-    // ── Helpers ──
-
-    /**
-     * Calculate the accuracy percentage.
-     */
     public function getAccuracyAttribute(): float
     {
-        if ($this->times_shown === 0) return 0;
+        if ($this->times_shown === 0) {
+            return 0;
+        }
+
         return round(($this->times_correct / $this->times_shown) * 100, 1);
     }
 
-    /**
-     * Check if the item is due for review.
-     */
     public function isDue(): bool
     {
-        if (!$this->next_review_at) return true;
+        if (!$this->next_review_at) {
+            return true;
+        }
+
         return $this->next_review_at->isPast();
     }
 }

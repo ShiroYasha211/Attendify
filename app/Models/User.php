@@ -118,6 +118,28 @@ class User extends Authenticatable
         return $this->role === UserRole::ADMINISTRATIVE || $this->isDoctorWithAdministrativeAccess();
     }
 
+    /**
+     * Check whether the user can access the delegate workspace.
+     *
+     * This centralizes the practical-delegate identity so legacy
+     * clinical assignments and explicit practical_delegate roles
+     * behave the same from the application's perspective.
+     */
+    public function canAccessDelegateWorkspace(): bool
+    {
+        return in_array($this->role, [UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE, UserRole::ADMIN], true)
+            || $this->hasClinicalDelegateAssignment();
+    }
+
+    /**
+     * Check whether the user can access the student workspace.
+     */
+    public function canAccessStudentWorkspace(): bool
+    {
+        return in_array($this->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE], true)
+            || $this->hasClinicalDelegateAssignment();
+    }
+
     public function canAccessClinicalWorkspace(): bool
     {
         if ($this->major?->has_clinical) {
@@ -166,6 +188,10 @@ class User extends Authenticatable
             return 'doctor';
         }
 
+        if ($this->isPracticalDelegate()) {
+            return UserRole::PRACTICAL_DELEGATE->value;
+        }
+
         return $this->role->value;
     }
     public function university()
@@ -212,6 +238,11 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Grade::class, 'student_id');
     }
 
+    public function devices()
+    {
+        return $this->hasMany(UserDevice::class);
+    }
+
     /**
      * Get the student notes.
      */
@@ -255,9 +286,29 @@ class User extends Authenticatable
         return $this->hasOne(\App\Models\ClinicalDelegate::class, 'student_id');
     }
 
+    public function hasClinicalDelegateAssignment(): bool
+    {
+        if ($this->relationLoaded('clinicalDelegateAssignment')) {
+            return $this->clinicalDelegateAssignment !== null;
+        }
+
+        return $this->clinicalDelegateAssignment()->exists();
+    }
+
+    /**
+     * Unified practical delegate identity.
+     *
+     * A user is considered a practical delegate if they explicitly carry
+     * the role or if they still rely on the legacy clinical assignment row.
+     */
+    public function isPracticalDelegate(): bool
+    {
+        return $this->role === UserRole::PRACTICAL_DELEGATE || $this->hasClinicalDelegateAssignment();
+    }
+
     public function isClinicalDelegate(): bool
     {
-        return $this->clinicalDelegateAssignment()->exists();
+        return $this->hasClinicalDelegateAssignment();
     }
 
     public function receivedSubDelegations()
@@ -273,6 +324,11 @@ class User extends Authenticatable
                 $query->whereNull('expires_at')
                       ->orWhere('expires_at', '>', now());
             })->exists();
+    }
+
+    public function canAccessClinicalDelegateWorkspace(): bool
+    {
+        return $this->isClinicalDelegate() || $this->isClinicalSubDelegate();
     }
 
     /**
@@ -518,3 +574,4 @@ class User extends Authenticatable
         return true;
     }
 }
+
