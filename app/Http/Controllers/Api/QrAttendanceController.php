@@ -260,6 +260,7 @@ class QrAttendanceController extends DelegateApiController
             [
                 'status' => Attendance::STATUS_PRESENT,
                 'recorded_by' => $session->delegate_id,
+                'attendance_method' => 'qr',
             ]
         );
 

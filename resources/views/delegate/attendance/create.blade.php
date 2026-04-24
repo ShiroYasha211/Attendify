@@ -242,10 +242,8 @@
                         @foreach($students as $index => $student)
                         @php
                         $record = $attendanceRecords ? ($attendanceRecords[$student->id] ?? null) : null;
-                        // Default logic:
-                        // If records exist (review mode): Scanned -> present, Not Scanned -> absent
-                        // If new mode: Default -> present (as before)
-                        $defaultStatus = $attendanceRecords ? 'absent' : 'present';
+                        // Default logic: records are respected in review mode, otherwise students start absent.
+                        $defaultStatus = 'absent';
                         $status = $record ? $record->status : $defaultStatus;
                         $verificationType = $verificationMap[$student->id] ?? null;
                         @endphp
@@ -598,6 +596,18 @@
                 this.desktopPairingCode = '';
                 this.desktopPairingRawCode = '';
                 this.desktopPairingExpiresAt = '';
+                const sessionPayload = {
+                    device_name: 'Classroom Display',
+                    subject_id: this.subjectId,
+                    date: document.getElementById('date').value,
+                    title: document.getElementById('title').value,
+                    lecture_number: document.getElementById('lecture_number').value || null,
+                };
+                if (!sessionPayload.date || !sessionPayload.title) {
+                    this.desktopPairingLoading = false;
+                    this.desktopPairingError = 'أدخل تاريخ المحاضرة وعنوانها قبل إنشاء رمز الربط.';
+                    return;
+                }
 
                 try {
                     const response = await fetch('{{ route('delegate.desktop.pairing-code') }}', {
@@ -606,9 +616,7 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
-                        body: JSON.stringify({
-                            device_name: 'Classroom Display',
-                        })
+                        body: JSON.stringify(sessionPayload)
                     });
 
                     const data = await response.json();

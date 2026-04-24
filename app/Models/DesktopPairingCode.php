@@ -11,6 +11,10 @@ class DesktopPairingCode extends Model
     protected $fillable = [
         'user_id',
         'workspace',
+        'subject_id',
+        'attendance_date',
+        'session_title',
+        'lecture_number',
         'code',
         'device_name',
         'expires_at',
@@ -18,6 +22,7 @@ class DesktopPairingCode extends Model
     ];
 
     protected $casts = [
+        'attendance_date' => 'date',
         'expires_at' => 'datetime',
         'used_at' => 'datetime',
     ];
@@ -25,6 +30,11 @@ class DesktopPairingCode extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function subject()
+    {
+        return $this->belongsTo(\App\Models\Academic\Subject::class);
     }
 
     public function scopeUsable(Builder $query): Builder

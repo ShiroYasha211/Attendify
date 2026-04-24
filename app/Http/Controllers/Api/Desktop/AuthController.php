@@ -21,7 +21,7 @@ class AuthController extends BaseController
         $pairing = DesktopPairingCode::query()
             ->usable()
             ->where('code', $code)
-            ->with('user')
+            ->with(['user', 'subject.doctor:id,name', 'subject.major:id,name', 'subject.level:id,name'])
             ->first();
 
         if (!$pairing || !$pairing->user) {
@@ -49,6 +49,7 @@ class AuthController extends BaseController
             'token' => $token,
             'workspace' => $workspace,
             'user' => $this->userPayload($user),
+            'session_context' => $this->sessionContextPayload($pairing),
             'permissions' => [
                 'can_start_qr' => true,
                 'can_finalize_qr' => true,
@@ -106,6 +107,35 @@ class AuthController extends BaseController
             'role' => $user->role,
             'preferred_workspace' => $user->preferredWorkspace(),
             'is_practical_delegate' => $user->isPracticalDelegate(),
+        ];
+    }
+
+    protected function sessionContextPayload(DesktopPairingCode $pairing): array
+    {
+        $subject = $pairing->subject;
+
+        return [
+            'subject' => $subject ? [
+                'id' => $subject->id,
+                'name' => $subject->name,
+                'code' => $subject->code,
+                'doctor' => $subject->doctor ? [
+                    'id' => $subject->doctor->id,
+                    'name' => $subject->doctor->name,
+                ] : null,
+                'major' => $subject->major ? [
+                    'id' => $subject->major->id,
+                    'name' => $subject->major->name,
+                ] : null,
+                'level' => $subject->level ? [
+                    'id' => $subject->level->id,
+                    'name' => $subject->level->name,
+                ] : null,
+                'allow_delegate_attendance' => (bool) $subject->allow_delegate_attendance,
+            ] : null,
+            'date' => $pairing->attendance_date?->format('Y-m-d'),
+            'title' => $pairing->session_title,
+            'lecture_number' => $pairing->lecture_number,
         ];
     }
 }
