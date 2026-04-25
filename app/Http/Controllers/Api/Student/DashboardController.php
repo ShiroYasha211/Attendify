@@ -49,7 +49,7 @@ class DashboardController extends StudentApiController
             ->where('event_date', '>=', now())
             ->orderBy('event_date', 'asc')
             ->take(5)
-            ->get(['id', 'title', 'description', 'event_date', 'location']);
+            ->get(['id', 'title', 'description', 'event_date']);
 
         // 4. Deprivation Warnings (Horman)
         $warnings = [];

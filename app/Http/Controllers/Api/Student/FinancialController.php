@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\Student;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use App\Models\Transaction;
 
 class FinancialController extends StudentApiController
 {
@@ -13,7 +13,7 @@ class FinancialController extends StudentApiController
     public function ledger(Request $request)
     {
         $user = $request->user();
-        
+
         $transactions = $user->transactions()
             ->latest()
             ->paginate(15);
@@ -25,21 +25,37 @@ class FinancialController extends StudentApiController
     }
 
     /**
-     * Export the account statement to PDF. (Return a URL or basic info since API clients might download it differently)
-     * For full PDF generation, typically the client either constructs it or calls a dedicated web/export route.
-     * We can return a direct download link that the client can hit with the token.
+     * Export the account statement as a real PDF response for API clients.
      */
     public function exportPdf(Request $request)
     {
-        // For API, returning the URL to the web route might be easiest, 
-        // or a signed URL, but here we can just return a success indicating the feature is available via the matching Web route or generate base64 if needed.
-        // A common pattern is returning a direct URL that is auth-protected.
-        
-        $url = route('student.ledger.export');
+        $user = $request->user();
+        $transactions = $user->transactions()->latest()->get();
+        $totalBalance = $user->balance;
 
-        return $this->success([
-            'export_url' => $url,
-            'message' => 'يرجى استخدام هذا الرابط مع إرسال التوكن (Bearer Token) لتحميل كشف الحساب كملف PDF.',
-        ]);
+        $user->name_fixed = \App\Helpers\ArabicHelper::fixArabic($user->name, true);
+
+        foreach ($transactions as $transaction) {
+            $transaction->description_fixed = \App\Helpers\ArabicHelper::fixArabic($transaction->description, true);
+        }
+
+        $account_statement_text = \App\Helpers\ArabicHelper::fixArabic('كشف الحساب المالي', true);
+        $system_desc_text = \App\Helpers\ArabicHelper::fixArabic('نظام Moeen لإدارة الطلاب والعمليات المالية', true);
+
+        $pdf = Pdf::loadView('reports.statement', compact(
+            'user',
+            'transactions',
+            'totalBalance',
+            'account_statement_text',
+            'system_desc_text'
+        ));
+
+        $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+        $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+        $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
+
+        return $pdf
+            ->setPaper('a4', 'portrait')
+            ->download("statement_{$user->id}_" . date('Y-m-d') . '.pdf');
     }
 }
