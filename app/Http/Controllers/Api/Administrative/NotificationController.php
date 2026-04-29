@@ -9,6 +9,7 @@ use App\Models\PollOption;
 use App\Models\PollVote;
 use App\Models\StudentNotification;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -158,7 +159,11 @@ class NotificationController extends AdministrativeApiController
         });
 
 
-        SendBatchPushNotificationsJob::dispatch($batchId);
+        if (config('services.firebase.queue')) {
+            SendBatchPushNotificationsJob::dispatch($batchId);
+        } else {
+            app(PushNotificationService::class)->sendBatchByBatchId($batchId);
+        }
         return $this->success([
             'batch_id' => $batchId,
             'recipients_count' => $users->count(),

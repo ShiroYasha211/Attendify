@@ -37,7 +37,18 @@ return [
 
     'firebase' => [
         'project_id' => env('FIREBASE_PROJECT_ID'),
-        'credentials' => env('FIREBASE_CREDENTIALS'),
+        'queue' => env('FIREBASE_PUSH_QUEUE', false),
+        'credentials' => (function () {
+            $path = env('FIREBASE_CREDENTIALS');
+            if (! $path) {
+                return null;
+            }
+
+            $isAbsolute = str_starts_with($path, DIRECTORY_SEPARATOR)
+                || preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1;
+
+            return $isAbsolute ? $path : base_path($path);
+        })(),
     ],
 
 ];

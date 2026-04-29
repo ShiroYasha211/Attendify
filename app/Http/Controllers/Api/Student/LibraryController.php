@@ -75,6 +75,7 @@ class LibraryController extends StudentApiController
                 'semesters' => $semesters,
                 'lecturers' => $lecturers,
                 'years' => $years,
+                'can_upload' => $user->hasPermission('upload_shared_library'),
             ],
             'resources' => $resources,
         ]);

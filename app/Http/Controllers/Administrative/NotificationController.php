@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StudentNotification;
 use App\Models\User;
 use App\Enums\UserRole;
+use App\Services\PushNotificationService;
 use App\Models\Academic\Major;
 use App\Models\Academic\Level;
 use Illuminate\Http\Request;
@@ -155,7 +156,11 @@ class NotificationController extends Controller
             }
         });
 
-        SendBatchPushNotificationsJob::dispatch($batchId);
+        if (config('services.firebase.queue')) {
+            SendBatchPushNotificationsJob::dispatch($batchId);
+        } else {
+            app(PushNotificationService::class)->sendBatchByBatchId($batchId);
+        }
 
         return redirect()->route('administrative.notifications.index')
             ->with('success', "تم إرسال " . ($request->type === 'poll' ? "الاستفتاء" : "التنبيه") . " إلى " . count($users) . " مستخدم بنجاح.");

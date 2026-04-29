@@ -24,7 +24,11 @@ class MessageController extends StudentApiController
         $conversations = Conversation::where('student_id', $user->id)
             ->with(['delegate:id,name', 'lastMessage'])
             ->orderByDesc('last_message_at')
-            ->get();
+            ->get()
+            ->map(function (Conversation $conversation) use ($user) {
+                $conversation->setAttribute('unread_count', $conversation->unreadCountFor($user->id));
+                return $conversation;
+            });
 
         return $this->success([
             'delegate' => $delegate ? ['id' => $delegate->id, 'name' => $delegate->name] : null,

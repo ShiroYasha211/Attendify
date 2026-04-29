@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Jobs\SendPushNotificationJob;
 use App\Models\StudentNotification;
+use App\Services\PushNotificationService;
 
 class StudentNotificationObserver
 {
@@ -13,6 +14,11 @@ class StudentNotificationObserver
             return;
         }
 
-        SendPushNotificationJob::dispatch($studentNotification->id);
+        if (config('services.firebase.queue')) {
+            SendPushNotificationJob::dispatch($studentNotification->id);
+            return;
+        }
+
+        app(PushNotificationService::class)->sendStudentNotification($studentNotification);
     }
 }
