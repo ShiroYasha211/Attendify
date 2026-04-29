@@ -103,6 +103,8 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     Route::get('me', [AdminAuthController::class, 'me']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
+    Route::get('devices/status', [\App\Http\Controllers\Api\DeviceTokenController::class, 'status']);
+    Route::post('devices/test-push', [\App\Http\Controllers\Api\DeviceTokenController::class, 'test']);
 
     // Dashboard
     Route::get('dashboard', [AdminDashboardController::class, 'index']);
@@ -269,6 +271,8 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('me', [DelegateAuthController::class, 'me']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
+    Route::get('devices/status', [\App\Http\Controllers\Api\DeviceTokenController::class, 'status']);
+    Route::post('devices/test-push', [\App\Http\Controllers\Api\DeviceTokenController::class, 'test']);
     Route::post('desktop/pairing-code', [\App\Http\Controllers\DesktopPairingCodeController::class, 'issueForDelegate']);
 
     // Dashboard
@@ -441,6 +445,8 @@ Route::prefix('administrative')->middleware(['auth:sanctum', 'administrative', '
     Route::post('change-password', [\App\Http\Controllers\Api\Administrative\AuthController::class, 'changePassword']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
+    Route::get('devices/status', [\App\Http\Controllers\Api\DeviceTokenController::class, 'status']);
+    Route::post('devices/test-push', [\App\Http\Controllers\Api\DeviceTokenController::class, 'test']);
 
     Route::get('dashboard', [\App\Http\Controllers\Api\Administrative\DashboardController::class, 'index']);
     Route::get('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'show']);
@@ -507,6 +513,8 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('me', [StudentAuthController::class, 'me']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
+    Route::get('devices/status', [\App\Http\Controllers\Api\DeviceTokenController::class, 'status']);
+    Route::post('devices/test-push', [\App\Http\Controllers\Api\DeviceTokenController::class, 'test']);
 
     // ─── News Center ───
     Route::get('news-hub', [\App\Http\Controllers\Api\Student\NewsHubController::class, 'index']);
@@ -724,6 +732,8 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     Route::post('change-password', [DoctorAuthController::class, 'changePassword']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
+    Route::get('devices/status', [\App\Http\Controllers\Api\DeviceTokenController::class, 'status']);
+    Route::post('devices/test-push', [\App\Http\Controllers\Api\DeviceTokenController::class, 'test']);
     Route::post('desktop/pairing-code', [\App\Http\Controllers\DesktopPairingCodeController::class, 'issueForDoctor']);
 
     // Dashboard

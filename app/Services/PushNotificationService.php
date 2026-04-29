@@ -51,6 +51,11 @@ class PushNotificationService
         $tokens = $user->devices()->pluck('device_token')->filter()->unique()->values();
 
         if ($tokens->isEmpty()) {
+            Log::info('Push skipped because user has no registered device tokens.', [
+                'user_id' => $user->id,
+                'payload_type' => data_get($payload, 'data.type'),
+            ]);
+
             return ['sent' => 0, 'failed' => 0, 'skipped' => true, 'reason' => 'no_device_tokens'];
         }
 
