@@ -112,12 +112,16 @@ class NotificationController extends DelegateApiController
         }
 
         $notification = StudentNotification::create([
-            'student_id' => $request->student_id,
+            'user_id' => $request->student_id,
             'sender_id' => $delegate->id,
             'title' => 'إنذار غياب',
             'message' => $request->message,
             'type' => 'absence_warning',
-            'subject_id' => $request->subject_id,
+            'data' => [
+                'subject_id' => (int) $request->subject_id,
+                'absence_count' => (int) $request->absence_count,
+                'sender_role' => 'delegate',
+            ],
         ]);
 
         return $this->success($notification, 'تم إرسال إنذار الغياب بنجاح', 201);

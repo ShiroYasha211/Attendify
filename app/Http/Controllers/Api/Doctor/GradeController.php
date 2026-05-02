@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\Api\Doctor;
 
+use App\Enums\UserRole;
+use App\Models\Academic\Subject;
+use App\Models\Grade;
+use App\Models\StudentNote;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\Grade;
-use App\Models\StudentNote;
-use App\Models\Academic\Subject;
-use App\Models\User;
-use App\Enums\UserRole;
 
 class GradeController extends DoctorApiController
 {
@@ -20,27 +20,38 @@ class GradeController extends DoctorApiController
         $subjectIds = $subjects->pluck('id');
 
         $gradeStats = Grade::whereIn('subject_id', $subjectIds)
-            ->select('subject_id', DB::raw('AVG(total) as avg_grade'), DB::raw('COUNT(DISTINCT student_id) as graded_students'))
-            ->groupBy('subject_id')->get()->keyBy('subject_id');
+            ->where('status', 'approved')
+            ->select(
+                'subject_id',
+                DB::raw('SUM(score) as total_score'),
+                DB::raw('COUNT(DISTINCT student_id) as graded_students')
+            )
+            ->groupBy('subject_id')
+            ->get()
+            ->keyBy('subject_id');
 
-        $studentsCountMap = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $studentsCountMap = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', DB::raw('count(*) as count'))
-            ->groupBy('major_id', 'level_id')->get()
-            ->keyBy(fn($i) => $i->major_id . '_' . $i->level_id);
+            ->groupBy('major_id', 'level_id')
+            ->get()
+            ->keyBy(fn ($i) => $i->major_id . '_' . $i->level_id);
 
-        $data = $subjects->map(function ($s) use ($gradeStats, $studentsCountMap) {
-            $stats = $gradeStats->get($s->id);
-            $key = $s->major_id . '_' . $s->level_id;
+        $data = $subjects->map(function ($subject) use ($gradeStats, $studentsCountMap) {
+            $stats = $gradeStats->get($subject->id);
+            $key = $subject->major_id . '_' . $subject->level_id;
+
             return [
-                'id' => $s->id,
-                'name' => $s->name,
-                'major' => $s->major?->name,
-                'level' => $s->level?->name,
+                'id' => $subject->id,
+                'name' => $subject->name,
+                'major' => $subject->major?->name,
+                'level' => $subject->level?->name,
                 'students_count' => $studentsCountMap->has($key) ? $studentsCountMap->get($key)->count : 0,
                 'graded_students' => $stats?->graded_students ?? 0,
-                'average_grade' => $stats ? round($stats->avg_grade, 1) : null,
+                'average_grade' => $stats && $stats->graded_students > 0
+                    ? round($stats->total_score / $stats->graded_students, 1)
+                    : null,
             ];
         });
 
@@ -50,29 +61,45 @@ class GradeController extends DoctorApiController
     /** GET /api/doctor/grades/{subject} */
     public function show(Request $request, $id)
     {
-        $subject = Subject::where('doctor_id', Auth::id())->findOrFail($id);
+        $subject = Subject::where('doctor_id', Auth::id())
+            ->with('gradeCategories')
+            ->findOrFail($id);
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
-            ->with(['grades' => fn($q) => $q->where('subject_id', $subject->id)])
-            ->orderBy('name')->get()
-            ->map(function ($s) use ($subject) {
-                $grade = $s->grades->first();
+            ->with(['grades' => fn ($query) => $query->where('subject_id', $subject->id)])
+            ->orderBy('name')
+            ->get()
+            ->map(function ($student) {
+                $finalGrade = $student->grades->where('type', 'final')->first();
+                $continuous = $student->grades
+                    ->where('type', 'continuous')
+                    ->where('status', 'approved')
+                    ->sum('score');
+
                 return [
-                    'id' => $s->id,
-                    'name' => $s->name,
-                    'student_number' => $s->student_number,
-                    'midterm' => $grade?->midterm,
-                    'practical' => $grade?->practical,
-                    'homework' => $grade?->homework,
-                    'final' => $grade?->final,
-                    'total' => $grade?->total,
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'student_number' => $student->student_number,
+                    'continuous' => round((float) $continuous, 2),
+                    'final' => $finalGrade?->score,
+                    'total' => round((float) $continuous + (float) ($finalGrade?->score ?? 0), 2),
+                    'category_grades' => $student->grades
+                        ->where('type', 'continuous')
+                        ->whereNotNull('category_id')
+                        ->values()
+                        ->map(fn ($grade) => [
+                            'category_id' => $grade->category_id,
+                            'score' => $grade->score,
+                            'status' => $grade->status,
+                        ]),
                 ];
             });
 
         return $this->success([
             'subject' => ['id' => $subject->id, 'name' => $subject->name],
+            'categories' => $subject->gradeCategories,
             'students' => $students,
         ]);
     }
@@ -85,26 +112,76 @@ class GradeController extends DoctorApiController
         $request->validate([
             'grades' => 'required|array',
             'grades.*.student_id' => 'required|exists:users,id',
-            'grades.*.midterm' => 'nullable|numeric|min:0',
-            'grades.*.practical' => 'nullable|numeric|min:0',
-            'grades.*.homework' => 'nullable|numeric|min:0',
-            'grades.*.final' => 'nullable|numeric|min:0',
+            'grades.*.continuous' => 'nullable|numeric|min:0|max:40',
+            'grades.*.final' => 'nullable|numeric|min:0|max:60',
+            'grades.*.categories' => 'nullable|array',
+            'grades.*.categories.*' => 'nullable|numeric|min:0',
         ]);
 
         foreach ($request->grades as $gradeData) {
-            $total = ($gradeData['midterm'] ?? 0) + ($gradeData['practical'] ?? 0) +
-                ($gradeData['homework'] ?? 0) + ($gradeData['final'] ?? 0);
+            $studentId = $gradeData['student_id'];
 
-            Grade::updateOrCreate(
-                ['subject_id' => $subject->id, 'student_id' => $gradeData['student_id']],
-                [
-                    'midterm' => $gradeData['midterm'] ?? 0,
-                    'practical' => $gradeData['practical'] ?? 0,
-                    'homework' => $gradeData['homework'] ?? 0,
-                    'final' => $gradeData['final'] ?? 0,
-                    'total' => $total,
-                ]
-            );
+            if (array_key_exists('continuous', $gradeData) && $gradeData['continuous'] !== null && $gradeData['continuous'] !== '') {
+                Grade::updateOrCreate(
+                    [
+                        'subject_id' => $subject->id,
+                        'student_id' => $studentId,
+                        'type' => 'continuous',
+                        'category_id' => null,
+                    ],
+                    [
+                        'category' => 'أعمال السنة',
+                        'score' => $gradeData['continuous'],
+                        'max_score' => 40,
+                        'created_by' => Auth::id(),
+                        'status' => 'approved',
+                    ]
+                );
+            }
+
+            if (array_key_exists('final', $gradeData) && $gradeData['final'] !== null && $gradeData['final'] !== '') {
+                Grade::updateOrCreate(
+                    [
+                        'subject_id' => $subject->id,
+                        'student_id' => $studentId,
+                        'type' => 'final',
+                    ],
+                    [
+                        'category' => 'final',
+                        'score' => $gradeData['final'],
+                        'max_score' => 60,
+                        'created_by' => Auth::id(),
+                        'status' => 'approved',
+                    ]
+                );
+            }
+
+            foreach (($gradeData['categories'] ?? []) as $categoryId => $score) {
+                if ($score === null || $score === '') {
+                    continue;
+                }
+
+                $category = $subject->gradeCategories()->find($categoryId);
+                if (! $category) {
+                    continue;
+                }
+
+                Grade::updateOrCreate(
+                    [
+                        'subject_id' => $subject->id,
+                        'student_id' => $studentId,
+                        'type' => 'continuous',
+                        'category_id' => $category->id,
+                    ],
+                    [
+                        'category' => $category->name,
+                        'score' => $score,
+                        'max_score' => $category->max_score,
+                        'created_by' => Auth::id(),
+                        'status' => 'approved',
+                    ]
+                );
+            }
         }
 
         return $this->success(null, 'تم حفظ الدرجات بنجاح.');
@@ -115,34 +192,37 @@ class GradeController extends DoctorApiController
     {
         $subject = Subject::where('doctor_id', Auth::id())->with(['major', 'level'])->findOrFail($id);
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
-            ->with(['grades' => fn($q) => $q->where('subject_id', $subject->id)])
-            ->orderBy('name')->get();
+            ->with(['grades' => fn ($query) => $query->where('subject_id', $subject->id)])
+            ->orderBy('name')
+            ->get();
 
-        $grades = $students->map(fn($s) => $s->grades->first()?->total ?? 0)->filter(fn($v) => $v > 0);
+        $totals = $students
+            ->map(fn ($student) => $student->grades->where('status', 'approved')->sum('score'))
+            ->filter(fn ($value) => $value > 0);
 
         $stats = [
             'total_students' => $students->count(),
-            'graded' => $grades->count(),
-            'average' => $grades->count() > 0 ? round($grades->avg(), 1) : 0,
-            'highest' => $grades->max() ?? 0,
-            'lowest' => $grades->min() ?? 0,
-            'pass_rate' => $grades->count() > 0 ? round($grades->filter(fn($v) => $v >= 50)->count() / $grades->count() * 100) : 0,
+            'graded' => $totals->count(),
+            'average' => $totals->count() > 0 ? round($totals->avg(), 1) : 0,
+            'highest' => $totals->max() ?? 0,
+            'lowest' => $totals->min() ?? 0,
+            'pass_rate' => $totals->count() > 0 ? round($totals->filter(fn ($value) => $value >= 50)->count() / $totals->count() * 100) : 0,
         ];
 
-        $studentsData = $students->map(function ($s) {
-            $grade = $s->grades->first();
+        $studentsData = $students->map(function ($student) {
+            $finalGrade = $student->grades->where('type', 'final')->first();
+            $continuous = $student->grades->where('type', 'continuous')->where('status', 'approved')->sum('score');
+
             return [
-                'id' => $s->id,
-                'name' => $s->name,
-                'student_number' => $s->student_number,
-                'midterm' => $grade?->midterm,
-                'practical' => $grade?->practical,
-                'homework' => $grade?->homework,
-                'final' => $grade?->final,
-                'total' => $grade?->total,
+                'id' => $student->id,
+                'name' => $student->name,
+                'student_number' => $student->student_number,
+                'continuous' => round((float) $continuous, 2),
+                'final' => $finalGrade?->score,
+                'total' => round((float) $continuous + (float) ($finalGrade?->score ?? 0), 2),
             ];
         });
 

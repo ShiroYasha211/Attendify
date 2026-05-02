@@ -9,6 +9,8 @@ use App\Models\Academic\Lecture;
 use App\Models\Academic\Assignment;
 use App\Models\Academic\StudentLectureStatus;
 use App\Models\Attendance;
+use App\Models\Grade;
+use App\Models\GradeCategory;
 use App\Models\Setting;
 use App\Support\ExcuseWorkflow;
 use Illuminate\Support\Facades\Auth;
@@ -153,35 +155,12 @@ class SubjectController extends StudentApiController
             ];
         });
 
-        // 4. Fetch Grades
-        $grades = \App\Models\Grade::where('student_id', $student->id)
-            ->where('subject_id', $subject->id)
-            ->get();
-
-        $continuousGrade = $grades->where('type', 'continuous')->first();
-        $finalGrade = $grades->where('type', 'final')->first();
-
-        // Calculate total percentage
-        $totalGradePercentage = null;
-        if ($continuousGrade || $finalGrade) {
-            $cWeight = ($continuousGrade && $continuousGrade->max_score > 0) ? ($continuousGrade->score / $continuousGrade->max_score) * 40 : 0;
-            $fWeight = ($finalGrade && $finalGrade->max_score > 0) ? ($finalGrade->score / $finalGrade->max_score) * 60 : 0;
-            $totalGradePercentage = round($cWeight + $fWeight, 1);
-        }
+        // 4. Fetch Grades with the same category-based structure used by doctors.
+        $gradesData = $this->formatSubjectGrades($student->id, $subject->id);
 
         return $this->success([
             'subject' => $subject,
-            'grades' => [
-                'continuous' => $continuousGrade ? [
-                    'score' => $continuousGrade->score,
-                    'max_score' => $continuousGrade->max_score,
-                ] : null,
-                'final' => $finalGrade ? [
-                    'score' => $finalGrade->score,
-                    'max_score' => $finalGrade->max_score,
-                ] : null,
-                'total_percentage' => $totalGradePercentage,
-            ],
+            'grades' => $gradesData,
             'progress' => [
                 'attendance_percentage' => $attendancePercentage,
                 'total_lectures_held' => $totalLecturesHeld,
@@ -200,6 +179,102 @@ class SubjectController extends StudentApiController
             'assignments' => $assignments,
             'attendance_history' => $history,
         ]);
+    }
+
+    private function formatSubjectGrades(int $studentId, int $subjectId): array
+    {
+        $categories = GradeCategory::where('subject_id', $subjectId)
+            ->orderBy('created_at')
+            ->get();
+
+        $grades = Grade::where('student_id', $studentId)
+            ->where('subject_id', $subjectId)
+            ->with(['gradeCategory:id,name,max_score', 'creator:id,name'])
+            ->get();
+
+        $categoryItems = $categories->map(function ($category) use ($grades) {
+            $grade = $grades->firstWhere('category_id', $category->id);
+
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+                'type' => 'category',
+                'score' => $grade?->score !== null ? (float) $grade->score : null,
+                'max_score' => (float) $category->max_score,
+                'percentage' => ($grade && $category->max_score > 0)
+                    ? round(((float) $grade->score / (float) $category->max_score) * 100, 1)
+                    : null,
+                'status' => $grade?->status ?? 'not_entered',
+                'entered_at' => $grade?->updated_at?->format('Y-m-d H:i'),
+                'created_by' => $grade?->creator?->name,
+            ];
+        })->values();
+
+        $generalContinuous = $grades->where('type', 'continuous')->whereNull('category_id')->values();
+        $generalItems = $generalContinuous->map(function ($grade) {
+            return [
+                'id' => $grade->id,
+                'name' => $grade->category ?: 'أعمال السنة',
+                'type' => 'general_continuous',
+                'score' => $grade->score !== null ? (float) $grade->score : null,
+                'max_score' => (float) $grade->max_score,
+                'percentage' => $grade->max_score > 0
+                    ? round(((float) $grade->score / (float) $grade->max_score) * 100, 1)
+                    : null,
+                'status' => $grade->status,
+                'entered_at' => $grade->updated_at?->format('Y-m-d H:i'),
+                'created_by' => $grade->creator?->name,
+            ];
+        });
+
+        $finalGrades = $grades->where('type', 'final')->values();
+        $finalItems = $finalGrades->map(function ($grade) {
+            return [
+                'id' => $grade->id,
+                'name' => 'الاختبار النهائي',
+                'type' => 'final',
+                'score' => $grade->score !== null ? (float) $grade->score : null,
+                'max_score' => (float) $grade->max_score,
+                'percentage' => $grade->max_score > 0
+                    ? round(((float) $grade->score / (float) $grade->max_score) * 100, 1)
+                    : null,
+                'status' => $grade->status,
+                'entered_at' => $grade->updated_at?->format('Y-m-d H:i'),
+                'created_by' => $grade->creator?->name,
+            ];
+        });
+
+        $allItems = $categoryItems->concat($generalItems)->concat($finalItems)->values();
+        $approvedItems = $allItems->where('status', 'approved');
+        $earned = round($approvedItems->sum(fn ($item) => (float) ($item['score'] ?? 0)), 2);
+        $max = round($allItems->sum(fn ($item) => (float) ($item['max_score'] ?? 0)), 2);
+
+        $approvedGrades = $grades->where('status', 'approved');
+        $continuousScore = round((float) $approvedGrades->where('type', 'continuous')->sum('score'), 2);
+        $continuousMax = round(max((float) $categories->sum('max_score'), (float) $generalContinuous->sum('max_score')), 2);
+        $finalScore = round((float) $approvedGrades->where('type', 'final')->sum('score'), 2);
+        $finalMax = round((float) $finalGrades->sum('max_score'), 2);
+
+        return [
+            'continuous' => $continuousMax > 0 ? [
+                'score' => $continuousScore,
+                'max_score' => $continuousMax,
+            ] : null,
+            'final' => $finalMax > 0 ? [
+                'score' => $finalScore,
+                'max_score' => $finalMax,
+            ] : null,
+            'total_score' => $earned,
+            'max_possible' => $max,
+            'total_percentage' => $max > 0 ? round(($earned / $max) * 100, 1) : null,
+            'items' => $allItems,
+            'summary' => [
+                'entered_count' => $allItems->whereNotNull('score')->count(),
+                'approved_count' => $allItems->where('status', 'approved')->count(),
+                'pending_count' => $allItems->where('status', 'pending')->count(),
+                'not_entered_count' => $allItems->where('status', 'not_entered')->count(),
+            ],
+        ];
     }
 
     /**

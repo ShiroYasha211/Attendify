@@ -18,6 +18,10 @@ class SubDelegationController extends DelegateApiController
     public function index()
     {
         $delegator = Auth::user();
+
+        if (! $delegator->isClinicalDelegate()) {
+            return $this->error('هذه العملية متاحة للمندوب العملي الرئيسي فقط.', 403);
+        }
         
         $subDelegations = ClinicalSubDelegation::with('student:id,name,university_id,major_id,level_id')
             ->where('delegator_id', $delegator->id)
@@ -33,6 +37,10 @@ class SubDelegationController extends DelegateApiController
     public function getStudents()
     {
         $delegator = Auth::user();
+
+        if (! $delegator->isClinicalDelegate()) {
+            return $this->error('هذه العملية متاحة للمندوب العملي الرئيسي فقط.', 403);
+        }
 
         $students = User::where('role', 'student')
             ->where('id', '!=', $delegator->id)
@@ -50,6 +58,10 @@ class SubDelegationController extends DelegateApiController
      */
     public function store(Request $request)
     {
+        if (! Auth::user()->isClinicalDelegate()) {
+            return $this->error('هذه العملية متاحة للمندوب العملي الرئيسي فقط.', 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'student_id' => 'required|exists:users,id',
             'duration_hours' => 'required|integer|min:1|max:168',
@@ -99,6 +111,10 @@ class SubDelegationController extends DelegateApiController
      */
     public function revoke($id)
     {
+        if (! Auth::user()->isClinicalDelegate()) {
+            return $this->error('هذه العملية متاحة للمندوب العملي الرئيسي فقط.', 403);
+        }
+
         $delegation = ClinicalSubDelegation::where('delegator_id', Auth::id())
             ->findOrFail($id);
 

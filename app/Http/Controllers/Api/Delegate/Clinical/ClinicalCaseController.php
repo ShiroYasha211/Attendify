@@ -16,8 +16,16 @@ class ClinicalCaseController extends DelegateApiController
      */
     public function pending()
     {
+        $user = Auth::user();
+
         $cases = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])
             ->where('approval_status', 'pending')
+            ->whereHas('doctor', function ($query) use ($user) {
+                $query->where('university_id', $user->university_id)
+                    ->where('college_id', $user->college_id)
+                    ->where('major_id', $user->major_id)
+                    ->where('level_id', $user->level_id);
+            })
             ->latest()
             ->paginate(15);
 
@@ -29,6 +37,10 @@ class ClinicalCaseController extends DelegateApiController
      */
     public function approve($id)
     {
+        if (!Auth::user()->isClinicalDelegate()) {
+            return $this->error('هذه العملية متاحة للمندوب العملي الرئيسي فقط.', 403);
+        }
+
         $case = ClinicalCase::findOrFail($id);
 
         if ($case->approval_status !== 'pending') {
@@ -48,6 +60,10 @@ class ClinicalCaseController extends DelegateApiController
      */
     public function reject(Request $request, $id)
     {
+        if (!Auth::user()->isClinicalDelegate()) {
+            return $this->error('هذه العملية متاحة للمندوب العملي الرئيسي فقط.', 403);
+        }
+
         $case = ClinicalCase::findOrFail($id);
 
         if ($case->approval_status !== 'pending') {

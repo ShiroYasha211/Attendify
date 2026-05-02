@@ -20,10 +20,14 @@ class DashboardController extends DelegateApiController
     {
         $delegate = $request->user();
 
-        // 1. Total Subjects in the delegate's batch
-        $totalSubjects = Subject::where('major_id', $delegate->major_id)
+        $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->count();
+            ->with(['doctor:id,name,avatar', 'term:id,name'])
+            ->orderBy('name')
+            ->get();
+
+        // 1. Total Subjects in the delegate's batch
+        $totalSubjects = $subjects->count();
 
         // 2. Total Students in the delegate's batch
         $totalStudents = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])

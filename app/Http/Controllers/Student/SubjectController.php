@@ -62,20 +62,33 @@ class SubjectController extends Controller
         $totalLectures = $attendanceRecords->count();
         $attendancePercentage = $totalLectures > 0 ? round(($presentCount / $totalLectures) * 100) : 0;
 
-        // Fetch Grades for this student in this subject
+        // Fetch Grades for this student in this subject.
+        // Continuous grades can be split into doctor-defined categories, so sum approved entries.
         $grades = \App\Models\Grade::where('student_id', $student->id)
             ->where('subject_id', $subject->id)
             ->get();
 
-        $continuousGrade = $grades->where('type', 'continuous')->first();
-        $finalGrade = $grades->where('type', 'final')->first();
+        $approvedGrades = $grades->where('status', 'approved');
+        $continuousScore = (float) $approvedGrades->where('type', 'continuous')->sum('score');
+        $continuousMax = (float) $grades->where('type', 'continuous')->sum('max_score');
+        $finalScore = (float) $approvedGrades->where('type', 'final')->sum('score');
+        $finalMax = (float) $grades->where('type', 'final')->sum('max_score');
+
+        $continuousGrade = $continuousMax > 0 ? (object) [
+            'score' => $continuousScore,
+            'max_score' => $continuousMax,
+        ] : null;
+
+        $finalGrade = $finalMax > 0 ? (object) [
+            'score' => $finalScore,
+            'max_score' => $finalMax,
+        ] : null;
 
         // Calculate total percentage
         $totalGradePercentage = null;
-        if ($continuousGrade || $finalGrade) {
-            $cWeight = $continuousGrade ? ($continuousGrade->score / $continuousGrade->max_score) * 40 : 0;
-            $fWeight = $finalGrade ? ($finalGrade->score / $finalGrade->max_score) * 60 : 0;
-            $totalGradePercentage = round($cWeight + $fWeight, 1);
+        $totalMax = $continuousMax + $finalMax;
+        if ($totalMax > 0) {
+            $totalGradePercentage = round((($continuousScore + $finalScore) / $totalMax) * 100, 1);
         }
 
         // ── Deprivation Warning Logic ──

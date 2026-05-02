@@ -199,7 +199,7 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     });
 
     // Clinical Master Data
-    Route::prefix('clinical')->group(function () {
+    Route::prefix('clinical')->middleware('clinical_delegate')->group(function () {
         Route::apiResource('departments', AdminClinicalDepartmentController::class);
         Route::apiResource('body-systems', AdminBodySystemController::class);
         Route::apiResource('checklists', AdminEvaluationChecklistController::class);
