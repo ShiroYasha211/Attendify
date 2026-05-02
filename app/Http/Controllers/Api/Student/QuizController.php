@@ -307,6 +307,8 @@ class QuizController extends StudentApiController
             'attempt' => array_merge($attempt->toArray(), [
                 'percentage' => $attempt->percentage,
                 'duration'   => $attempt->duration,
+                'correct_answers_count' => $attempt->correct_count,
+                'wrong_answers_count'   => $attempt->wrong_count,
             ]),
         ], 'تم جلب النتيجة بنجاح');
     }
