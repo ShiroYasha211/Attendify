@@ -97,6 +97,7 @@ class QuizController extends StudentApiController
                     'wrong_answers_count'   => $attempt->wrong_count,
                     'status'         => $attempt->status,
                     'status_label'   => $attempt->status_label,
+                    'duration'       => $attempt->duration,
                     'submitted_at'   => $attempt->submitted_at?->toIso8601String(),
                     'started_at'     => $attempt->started_at?->toIso8601String(),
                     'quiz'           => ['id' => $attempt->quiz_id, 'title' => $attempt->quiz->title ?? ''],
@@ -303,7 +304,10 @@ class QuizController extends StudentApiController
 
         return $this->success([
             'quiz'    => $quiz->load(['creator:id,name', 'subject:id,name']),
-            'attempt' => $attempt,
+            'attempt' => array_merge($attempt->toArray(), [
+                'percentage' => $attempt->percentage,
+                'duration'   => $attempt->duration,
+            ]),
         ], 'تم جلب النتيجة بنجاح');
     }
 }
