@@ -148,6 +148,7 @@ class QuizController extends StudentApiController
             'shuffle_questions' => $quiz->shuffle_questions,
             'shuffle_options'  => $quiz->shuffle_options,
             'results_visibility' => $quiz->results_visibility,
+            'requires_access_code' => !empty($quiz->access_code),
             'created_at'       => $quiz->created_at->toIso8601String(),
         ];
     }
