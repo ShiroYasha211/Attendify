@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Student;
 
 use App\Models\Academic\Subject;
 use App\Models\Grade;
+use App\Models\GradeCategory;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class GradeController extends StudentApiController
 {
@@ -14,7 +14,7 @@ class GradeController extends StudentApiController
      */
     public function index(Request $request)
     {
-        $student = Auth::user();
+        $student = $request->user();
 
         $subjects = Subject::where('major_id', $student->major_id)
             ->where('level_id', $student->level_id)
@@ -31,17 +31,62 @@ class GradeController extends StudentApiController
 
         foreach ($subjects as $subject) {
             $subjectGrades = $grades->where('subject_id', $subject->id);
-            $categories = [];
-            $totalMark = 0;
-            $maxPossibleMark = 0;
+            $gradeCategories = GradeCategory::where('subject_id', $subject->id)
+                ->orderBy('created_at')
+                ->get();
 
-            foreach ($subjectGrades as $grade) {
-                $maxScore = (float) ($grade->max_score ?? ($grade->gradeCategory->max_score ?? 0));
+            $items = [];
+            $totalMark = 0.0;
+            $maxPossibleMark = 0.0;
 
-                $categories[] = [
-                    'category_name' => $grade->gradeCategory->name
-                        ?? $grade->category
-                        ?? ($grade->type === 'final' ? 'الاختبار النهائي' : 'أعمال السنة'),
+            if ($gradeCategories->isNotEmpty()) {
+                foreach ($gradeCategories as $category) {
+                    $grade = $subjectGrades->firstWhere('category_id', $category->id);
+                    $score = $grade?->score !== null ? (float) $grade->score : null;
+                    $maxScore = (float) $category->max_score;
+
+                    $items[] = [
+                        'category_name' => $category->name,
+                        'type' => 'category',
+                        'score' => $score,
+                        'max_score' => $maxScore,
+                        'status' => $grade?->status ?? 'not_entered',
+                        'date' => $grade?->created_at?->format('Y-m-d'),
+                    ];
+
+                    if ($grade?->status === 'approved') {
+                        $totalMark += (float) $grade->score;
+                    }
+
+                    $maxPossibleMark += $maxScore;
+                }
+            } else {
+                foreach ($subjectGrades->where('type', 'continuous')->whereNull('category_id') as $grade) {
+                    $maxScore = (float) ($grade->max_score ?? 0);
+
+                    $items[] = [
+                        'category_name' => $grade->category ?? 'أعمال السنة',
+                        'type' => 'general_continuous',
+                        'score' => (float) $grade->score,
+                        'max_score' => $maxScore,
+                        'status' => $grade->status,
+                        'date' => $grade->created_at->format('Y-m-d'),
+                    ];
+
+                    if ($grade->status === 'approved') {
+                        $totalMark += (float) $grade->score;
+                    }
+
+                    $maxPossibleMark += $maxScore;
+                }
+            }
+
+            foreach ($subjectGrades->where('type', 'final') as $grade) {
+                $maxScore = (float) ($grade->max_score ?? 0);
+
+                $items[] = [
+                    'category_name' => 'الاختبار النهائي',
+                    'type' => 'final',
                     'score' => (float) $grade->score,
                     'max_score' => $maxScore,
                     'status' => $grade->status,
@@ -61,7 +106,7 @@ class GradeController extends StudentApiController
                 'total_score' => round($totalMark, 2),
                 'max_possible' => round($maxPossibleMark, 2),
                 'percentage' => $maxPossibleMark > 0 ? round(($totalMark / $maxPossibleMark) * 100, 1) : 0,
-                'categories' => $categories,
+                'categories' => $items,
             ];
         }
 
@@ -69,7 +114,7 @@ class GradeController extends StudentApiController
             'grades' => $results,
             'summary' => [
                 'total_subjects' => $subjects->count(),
-                'graded_subjects' => count(array_filter($results, fn ($r) => count($r['categories']) > 0)),
+                'graded_subjects' => count(array_filter($results, fn ($result) => count($result['categories']) > 0)),
             ],
         ]);
     }

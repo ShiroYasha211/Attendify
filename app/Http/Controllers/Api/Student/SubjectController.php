@@ -85,6 +85,8 @@ class SubjectController extends StudentApiController
                     'description' => $assignment->description,
                     'due_date' => $assignment->due_date,
                     'marks' => $assignment->marks,
+                    'requires_submission' => (bool) $assignment->requires_submission,
+                    'requires_file' => (bool) $assignment->requires_submission,
                     'status' => $status,
                 ];
             });
@@ -244,14 +246,19 @@ class SubjectController extends StudentApiController
             ];
         });
 
-        $allItems = $categoryItems->concat($generalItems)->concat($finalItems)->values();
+        $hasCategories = $categoryItems->isNotEmpty();
+        $visibleContinuousItems = $hasCategories ? $categoryItems : $generalItems;
+        $allItems = $visibleContinuousItems->concat($finalItems)->values();
         $approvedItems = $allItems->where('status', 'approved');
         $earned = round($approvedItems->sum(fn ($item) => (float) ($item['score'] ?? 0)), 2);
         $max = round($allItems->sum(fn ($item) => (float) ($item['max_score'] ?? 0)), 2);
 
         $approvedGrades = $grades->where('status', 'approved');
-        $continuousScore = round((float) $approvedGrades->where('type', 'continuous')->sum('score'), 2);
-        $continuousMax = round(max((float) $categories->sum('max_score'), (float) $generalContinuous->sum('max_score')), 2);
+        $continuousScore = round($visibleContinuousItems
+            ->where('status', 'approved')
+            ->sum(fn ($item) => (float) ($item['score'] ?? 0)), 2);
+        $continuousMax = round($visibleContinuousItems
+            ->sum(fn ($item) => (float) ($item['max_score'] ?? 0)), 2);
         $finalScore = round((float) $approvedGrades->where('type', 'final')->sum('score'), 2);
         $finalMax = round((float) $finalGrades->sum('max_score'), 2);
 
