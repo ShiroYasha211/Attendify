@@ -45,7 +45,8 @@ class QuizController extends StudentApiController
             ->with(['creator:id,name', 'subject:id,name'])
             ->withCount('models')
             ->latest()
-            ->get();
+            ->get()
+            ->map(fn($quiz) => $this->formatQuiz($quiz, $student));
 
         // 2. Competition quizzes targeting this student
         $competitions = Quiz::competitions()
@@ -71,20 +72,84 @@ class QuizController extends StudentApiController
             })
             ->with(['creator:id,name'])
             ->latest()
-            ->get();
+            ->get()
+            ->map(fn($quiz) => $this->formatQuiz($quiz, $student));
 
         // 3. My recent attempts
         $myAttempts = QuizAttempt::where('student_id', $student->id)
-            ->with(['quiz.subject', 'quiz.creator:id,name'])
+            ->with(['quiz.subject', 'quiz.creator:id,name', 'quizModel'])
             ->latest()
-            ->take(10)
-            ->get();
+            ->take(20)
+            ->get()
+            ->map(function ($attempt) {
+                $pct = $attempt->percentage;
+                return [
+                    'id'             => $attempt->id,
+                    'quiz_id'        => $attempt->quiz_id,
+                    'quiz_title'     => $attempt->quiz->title ?? '—',
+                    'subject_name'   => $attempt->quiz->subject->name ?? '—',
+                    'creator_name'   => $attempt->quiz->creator->name ?? '—',
+                    'model_name'     => $attempt->quizModel->name ?? '—',
+                    'score'          => (float) $attempt->score,
+                    'max_score'      => (float) $attempt->max_score,
+                    'percentage'     => $pct,
+                    'correct_answers_count' => $attempt->correct_count,
+                    'wrong_answers_count'   => $attempt->wrong_count,
+                    'status'         => $attempt->status,
+                    'status_label'   => $attempt->status_label,
+                    'submitted_at'   => $attempt->submitted_at?->toIso8601String(),
+                    'started_at'     => $attempt->started_at?->toIso8601String(),
+                    'quiz'           => ['id' => $attempt->quiz_id, 'title' => $attempt->quiz->title ?? ''],
+                ];
+            });
 
         return $this->success([
             'doctor_quizzes' => $doctorQuizzes,
             'competitions'   => $competitions,
             'my_attempts'    => $myAttempts,
         ], 'تم جلب الكويزات بنجاح');
+    }
+
+    /**
+     * Format a quiz object into the flat structure expected by the Flutter app.
+     */
+    private function formatQuiz(Quiz $quiz, $student): array
+    {
+        $isAttempted = $quiz->hasAttemptBy($student);
+        $attemptId   = $isAttempted ? $quiz->attemptBy($student)?->id : null;
+
+        // Calculate total questions across all models
+        $questionsCount = $quiz->models()->withCount('questions')->get()->sum('questions_count');
+
+        return [
+            'id'               => $quiz->id,
+            'title'            => $quiz->title,
+            'description'      => $quiz->description,
+            'subject_name'     => $quiz->subject->name ?? null,
+            'subject_id'       => $quiz->subject_id,
+            'creator_name'     => $quiz->creator->name ?? null,
+            'creator_type'     => $quiz->creator_type,
+            'is_competition'   => $quiz->is_competition,
+            'status'           => $quiz->status,
+            'status_label'     => $quiz->status_label,
+            'status_color'     => $quiz->status_color,
+            'duration_minutes' => $quiz->time_limit_minutes,   // Flutter reads 'duration_minutes'
+            'time_limit_minutes' => $quiz->time_limit_minutes,
+            'questions_count'  => $questionsCount,
+            'models_count'     => $quiz->models_count ?? 0,
+            'starts_at'        => $quiz->scheduled_at?->toIso8601String(),  // Flutter reads 'starts_at'
+            'scheduled_at'     => $quiz->scheduled_at?->toIso8601String(),
+            'closes_at'        => $quiz->closes_at?->toIso8601String(),
+            'is_upcoming'      => $quiz->isUpcoming(),
+            'is_effectively_published' => $quiz->isEffectivelyPublished(),
+            'show_countdown'   => $quiz->show_countdown,
+            'is_attempted'     => $isAttempted,
+            'attempt_id'       => $attemptId,
+            'shuffle_questions' => $quiz->shuffle_questions,
+            'shuffle_options'  => $quiz->shuffle_options,
+            'results_visibility' => $quiz->results_visibility,
+            'created_at'       => $quiz->created_at->toIso8601String(),
+        ];
     }
 
     /**
