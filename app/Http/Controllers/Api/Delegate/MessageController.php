@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Api\Delegate;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Api\Delegate\DelegateApiController;
+use App\Enums\UserRole;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
-use App\Enums\UserRole;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class MessageController extends DelegateApiController
@@ -20,12 +18,20 @@ class MessageController extends DelegateApiController
     {
         $delegate = $request->user();
 
+        if (!$delegate->isCurrentClassDelegate()) {
+            return $this->success([
+                'conversations' => [],
+            ], 'هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.');
+        }
+
         $conversations = Conversation::where('delegate_id', $delegate->id)
             ->with(['student:id,name,avatar', 'lastMessage'])
             ->orderByDesc('last_message_at')
             ->get();
 
-        return $this->success($conversations, 'تم جلب المحادثات بنجاح');
+        return $this->success([
+            'conversations' => $conversations,
+        ], 'تم جلب المحادثات بنجاح');
     }
 
     /**
@@ -35,29 +41,31 @@ class MessageController extends DelegateApiController
     {
         $delegate = $request->user();
 
+        if (!$delegate->isCurrentClassDelegate()) {
+            return $this->error('هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.', 403);
+        }
+
         $conversation = Conversation::where('delegate_id', $delegate->id)
             ->with('student:id,name,avatar')
             ->find($id);
 
         if (!$conversation) {
-            // Check if $id is actually a userId (fallback/legacy support)
             $conversation = Conversation::where('delegate_id', $delegate->id)
                 ->where('student_id', $id)
                 ->first();
-            
+
             if (!$conversation) {
                 return $this->error('المحادثة غير موجودة', 404);
             }
         }
 
-        // Mark messages as read
         $conversation->markAsReadFor($delegate->id);
 
-        $messages = $conversation->messages()->with('sender:id,name,avatar')->get();
+        $messages = $conversation->messages()->with('sender:id,name,avatar,role')->get();
 
         return $this->success([
             'conversation' => $conversation,
-            'messages' => $messages
+            'messages' => $messages,
         ], 'تم جلب رسائل المحادثة بنجاح');
     }
 
@@ -67,6 +75,10 @@ class MessageController extends DelegateApiController
     public function store(Request $request)
     {
         $delegate = $request->user();
+
+        if (!$delegate->isCurrentClassDelegate()) {
+            return $this->error('هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.', 403);
+        }
 
         $validator = Validator::make($request->all(), [
             'student_id' => 'required_without:conversation_id|exists:users,id',
@@ -79,9 +91,9 @@ class MessageController extends DelegateApiController
         }
 
         if ($request->conversation_id) {
-            $conversation = Conversation::where('delegate_id', $delegate->id)->find($request->conversation_id);
+            $conversation = Conversation::where('delegate_id', $delegate->id)
+                ->find($request->conversation_id);
         } else {
-            // Start or continue conversation
             $student = User::where('id', $request->student_id)
                 ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
                 ->where('major_id', $delegate->major_id)
@@ -109,7 +121,11 @@ class MessageController extends DelegateApiController
 
         $conversation->update(['last_message_at' => now()]);
 
-        return $this->success($message->load('sender:id,name,avatar'), 'تم إرسال الرسالة بنجاح', 201);
+        return $this->success(
+            $message->load('sender:id,name,avatar,role'),
+            'تم إرسال الرسالة بنجاح',
+            201
+        );
     }
 
     /**
@@ -118,6 +134,10 @@ class MessageController extends DelegateApiController
     public function eligibleStudents(Request $request)
     {
         $delegate = $request->user();
+
+        if (!$delegate->isCurrentClassDelegate()) {
+            return $this->success([], 'هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.');
+        }
 
         $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)

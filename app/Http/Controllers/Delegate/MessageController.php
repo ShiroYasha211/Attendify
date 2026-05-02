@@ -18,6 +18,13 @@ class MessageController extends Controller
     {
         $user = Auth::user();
 
+        if (!$user->isCurrentClassDelegate()) {
+            $conversations = collect();
+
+            return view('delegate.messages.index', compact('conversations'))
+                ->with('warning', 'هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.');
+        }
+
         // Get all conversations where delegate is this user
         $conversations = Conversation::where('delegate_id', $user->id)
             ->with(['student', 'lastMessage'])
@@ -33,6 +40,11 @@ class MessageController extends Controller
     public function show($id)
     {
         $user = Auth::user();
+
+        if (!$user->isCurrentClassDelegate()) {
+            return redirect()->route('delegate.messages.index')
+                ->with('error', 'هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.');
+        }
 
         // Get the conversation
         $conversation = Conversation::where('delegate_id', $user->id)
@@ -61,6 +73,11 @@ class MessageController extends Controller
     {
         $user = Auth::user();
 
+        if (!$user->isCurrentClassDelegate()) {
+            return redirect()->route('delegate.messages.index')
+                ->with('error', 'هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.');
+        }
+
         // Get students in this delegate's level/major
         $students = User::whereIn('role', ['student', 'delegate'])
             ->where('major_id', $user->major_id)
@@ -81,6 +98,11 @@ class MessageController extends Controller
         ]);
 
         $user = Auth::user();
+
+        if (!$user->isCurrentClassDelegate()) {
+            return redirect()->route('delegate.messages.index')
+                ->with('error', 'هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.');
+        }
 
         // Verify student is in delegate's level/major
         $student = User::where('id', $request->student_id)
@@ -109,6 +131,11 @@ class MessageController extends Controller
         ]);
 
         $user = Auth::user();
+
+        if (!$user->isCurrentClassDelegate()) {
+            return redirect()->route('delegate.messages.index')
+                ->with('error', 'هذا الحساب ليس المندوب الأكاديمي الحالي لهذه الدفعة.');
+        }
 
         $conversation = Conversation::where('delegate_id', $user->id)->findOrFail($id);
 

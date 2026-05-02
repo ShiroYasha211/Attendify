@@ -140,6 +140,29 @@ class User extends Authenticatable
             || $this->hasClinicalDelegateAssignment();
     }
 
+    /**
+     * Resolve the active academic delegate for a student's batch.
+     */
+    public static function currentClassDelegateFor(User $student): ?self
+    {
+        return self::query()
+            ->where('role', UserRole::DELEGATE)
+            ->when($student->college_id, fn ($query) => $query->where('college_id', $student->college_id))
+            ->where('major_id', $student->major_id)
+            ->where('level_id', $student->level_id)
+            ->where('status', 'active')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    public function isCurrentClassDelegate(): bool
+    {
+        $delegate = self::currentClassDelegateFor($this);
+
+        return $delegate && (int) $delegate->id === (int) $this->id;
+    }
+
     public function canAccessClinicalWorkspace(): bool
     {
         if ($this->major?->has_clinical) {

@@ -19,16 +19,17 @@ class MessageController extends Controller
         $user = Auth::user();
 
         // Get delegate for this student
-        $delegate = User::where('role', 'delegate')
-            ->where('major_id', $user->major_id)
-            ->where('level_id', $user->level_id)
-            ->first();
+        $delegate = User::currentClassDelegateFor($user);
 
-        // Get all conversations for this student
-        $conversations = Conversation::where('student_id', $user->id)
-            ->with(['delegate', 'lastMessage'])
-            ->orderByDesc('last_message_at')
-            ->get();
+        $conversations = collect();
+
+        if ($delegate) {
+            $conversations = Conversation::where('student_id', $user->id)
+                ->where('delegate_id', $delegate->id)
+                ->with(['delegate', 'lastMessage'])
+                ->orderByDesc('last_message_at')
+                ->get();
+        }
 
         return view('student.messages.index', compact('conversations', 'delegate'));
     }
@@ -41,13 +42,16 @@ class MessageController extends Controller
         $user = Auth::user();
 
         // Get delegate for this student
-        $delegate = User::where('role', 'delegate')
-            ->where('major_id', $user->major_id)
-            ->where('level_id', $user->level_id)
-            ->first();
+        $delegate = User::currentClassDelegateFor($user);
+
+        if (!$delegate) {
+            return redirect()->route('student.messages.index')
+                ->with('error', 'لا يوجد مندوب نشط لدفعتك حالياً');
+        }
 
         // Get the conversation
         $conversation = Conversation::where('student_id', $user->id)
+            ->where('delegate_id', $delegate->id)
             ->with('delegate')
             ->findOrFail($id);
 
@@ -59,6 +63,7 @@ class MessageController extends Controller
 
         // Get all conversations for sidebar
         $conversations = Conversation::where('student_id', $user->id)
+            ->where('delegate_id', $delegate->id)
             ->with(['delegate', 'lastMessage'])
             ->orderByDesc('last_message_at')
             ->get();
@@ -74,10 +79,7 @@ class MessageController extends Controller
         $user = Auth::user();
 
         // Get delegate for this student
-        $delegate = User::where('role', 'delegate')
-            ->where('major_id', $user->major_id)
-            ->where('level_id', $user->level_id)
-            ->first();
+        $delegate = User::currentClassDelegateFor($user);
 
         if (!$delegate) {
             return redirect()->route('student.messages.index')
@@ -101,7 +103,16 @@ class MessageController extends Controller
 
         $user = Auth::user();
 
-        $conversation = Conversation::where('student_id', $user->id)->findOrFail($id);
+        $delegate = User::currentClassDelegateFor($user);
+
+        if (!$delegate) {
+            return redirect()->route('student.messages.index')
+                ->with('error', 'لا يوجد مندوب نشط لدفعتك حالياً');
+        }
+
+        $conversation = Conversation::where('student_id', $user->id)
+            ->where('delegate_id', $delegate->id)
+            ->findOrFail($id);
 
         // Create the message
         Message::create([

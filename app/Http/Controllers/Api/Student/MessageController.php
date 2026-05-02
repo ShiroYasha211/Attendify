@@ -16,19 +16,21 @@ class MessageController extends StudentApiController
     {
         $user = $request->user();
 
-        $delegate = User::where('role', 'delegate')
-            ->where('major_id', $user->major_id)
-            ->where('level_id', $user->level_id)
-            ->first();
+        $delegate = User::currentClassDelegateFor($user);
 
-        $conversations = Conversation::where('student_id', $user->id)
-            ->with(['delegate:id,name', 'lastMessage'])
-            ->orderByDesc('last_message_at')
-            ->get()
-            ->map(function (Conversation $conversation) use ($user) {
-                $conversation->setAttribute('unread_count', $conversation->unreadCountFor($user->id));
-                return $conversation;
-            });
+        $conversations = collect();
+
+        if ($delegate) {
+            $conversations = Conversation::where('student_id', $user->id)
+                ->where('delegate_id', $delegate->id)
+                ->with(['delegate:id,name', 'lastMessage'])
+                ->orderByDesc('last_message_at')
+                ->get()
+                ->map(function (Conversation $conversation) use ($user) {
+                    $conversation->setAttribute('unread_count', $conversation->unreadCountFor($user->id));
+                    return $conversation;
+                });
+        }
 
         return $this->success([
             'delegate' => $delegate ? ['id' => $delegate->id, 'name' => $delegate->name] : null,
@@ -43,7 +45,14 @@ class MessageController extends StudentApiController
     {
         $user = $request->user();
 
+        $delegate = User::currentClassDelegateFor($user);
+
+        if (!$delegate) {
+            return $this->error('لا يوجد مندوب نشط لدفعتك حالياً', 404);
+        }
+
         $conversation = Conversation::where('student_id', $user->id)
+            ->where('delegate_id', $delegate->id)
             ->with('delegate:id,name')
             ->findOrFail($id);
 
@@ -67,10 +76,7 @@ class MessageController extends StudentApiController
     {
         $user = $request->user();
 
-        $delegate = User::where('role', 'delegate')
-            ->where('major_id', $user->major_id)
-            ->where('level_id', $user->level_id)
-            ->first();
+        $delegate = User::currentClassDelegateFor($user);
 
         if (!$delegate) {
             return $this->error('لا يوجد مندوب لشعبتك حالياً', 404);
@@ -95,7 +101,15 @@ class MessageController extends StudentApiController
 
         $user = $request->user();
 
-        $conversation = Conversation::where('student_id', $user->id)->findOrFail($id);
+        $delegate = User::currentClassDelegateFor($user);
+
+        if (!$delegate) {
+            return $this->error('لا يوجد مندوب نشط لدفعتك حالياً', 404);
+        }
+
+        $conversation = Conversation::where('student_id', $user->id)
+            ->where('delegate_id', $delegate->id)
+            ->findOrFail($id);
 
         $message = Message::create([
             'conversation_id' => $conversation->id,

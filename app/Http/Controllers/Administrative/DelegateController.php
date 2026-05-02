@@ -104,6 +104,19 @@ class DelegateController extends Controller
         $wasClinicalDelegate = $user->isClinicalDelegate();
 
         DB::transaction(function () use ($user, $newRoleValue, $wasClinicalDelegate) {
+            if ($newRoleValue === 'delegate') {
+                User::where('id', '!=', $user->id)
+                    ->where('role', UserRole::DELEGATE)
+                    ->where('college_id', $user->college_id)
+                    ->where('major_id', $user->major_id)
+                    ->where('level_id', $user->level_id)
+                    ->get()
+                    ->each(function (User $oldDelegate) {
+                        $oldDelegate->update(['role' => UserRole::STUDENT]);
+                        $oldDelegate->revokeDelegatePermissions();
+                    });
+            }
+
             $user->update(['role' => $newRoleValue]);
 
             if (in_array($newRoleValue, ['delegate', 'practical_delegate'], true)) {

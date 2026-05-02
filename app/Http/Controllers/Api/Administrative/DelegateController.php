@@ -94,6 +94,19 @@ class DelegateController extends AdministrativeApiController
         $wasClinicalDelegate = $user->isClinicalDelegate();
 
         DB::transaction(function () use ($user, $validated, $wasClinicalDelegate) {
+            if ($validated['role'] === 'delegate') {
+                User::where('id', '!=', $user->id)
+                    ->where('role', UserRole::DELEGATE)
+                    ->where('college_id', $user->college_id)
+                    ->where('major_id', $user->major_id)
+                    ->where('level_id', $user->level_id)
+                    ->get()
+                    ->each(function (User $oldDelegate) {
+                        $oldDelegate->update(['role' => UserRole::STUDENT]);
+                        $oldDelegate->revokeDelegatePermissions();
+                    });
+            }
+
             $user->update(['role' => $validated['role']]);
 
             if (in_array($validated['role'], ['delegate', 'practical_delegate'], true)) {
