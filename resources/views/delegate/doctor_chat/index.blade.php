@@ -125,6 +125,7 @@
         border-left: 1px solid #f1f5f9;
         display: flex;
         flex-direction: column;
+        min-height: 0;
         overflow: hidden;
         border-radius: 0;
     }
@@ -144,7 +145,10 @@
 
     .messages-container {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         padding: 1.5rem;
         display: flex;
         flex-direction: column;

@@ -20,26 +20,15 @@
     @media (max-width: 768px) {
         .chat-container {
             grid-template-columns: 1fr;
+            height: calc(100vh - 140px);
         }
 
         .conversations-list {
-            display: {
-                    {
-                    isset($conversation) ? 'none': 'block'
-                }
-            }
-
-            !important;
+            display: {{ isset($conversation) ? 'none' : 'block' }} !important;
         }
 
         .chat-area {
-            display: {
-                    {
-                    isset($conversation) ? 'flex': 'none'
-                }
-            }
-
-            !important;
+            display: {{ isset($conversation) ? 'flex' : 'none' }} !important;
         }
     }
 
@@ -170,6 +159,8 @@
         display: flex;
         flex-direction: column;
         background: white;
+        min-height: 0;
+        overflow: hidden;
     }
 
     .chat-header {
@@ -210,7 +201,10 @@
 
     .messages-area {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         padding: 1.5rem;
         display: flex;
         flex-direction: column;
@@ -417,8 +411,12 @@
         </div>
 
         <script>
-            // Scroll to bottom
-            document.getElementById('messagesArea').scrollTop = document.getElementById('messagesArea').scrollHeight;
+            document.addEventListener('DOMContentLoaded', function() {
+                var area = document.getElementById('messagesArea');
+                if (area) {
+                    area.scrollTop = area.scrollHeight;
+                }
+            });
         </script>
         @else
         <div class="empty-chat">
