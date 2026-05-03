@@ -95,24 +95,24 @@ class ExcuseWorkflow
     public static function receiverLabel(?string $receiver): string
     {
         return match (self::normalizeReceiver($receiver)) {
-            self::RECEIVER_DOCTOR => 'Doctor',
-            default => 'Administrative',
+            self::RECEIVER_DOCTOR => 'مدرس المادة',
+            default => 'شؤون الطلاب',
         };
     }
 
     public static function receiverDescription(?string $receiver): string
     {
         return match (self::normalizeReceiver($receiver)) {
-            self::RECEIVER_DOCTOR => 'The excuse is routed to the subject doctor for the final decision.',
-            default => 'The excuse is routed to the college administrative account for the final decision.',
+            self::RECEIVER_DOCTOR => 'سيتم إرسال العذر إلى مدرس المادة للمراجعة والبت فيه.',
+            default => 'سيتم إرسال العذر إلى الشؤون الإدارية بالكلية للمراجعة والبت فيه.',
         };
     }
 
     public static function pendingMessage(?string $receiver): string
     {
         return match (self::normalizeReceiver($receiver)) {
-            self::RECEIVER_DOCTOR => 'The excuse has been submitted and is waiting for the subject doctor review.',
-            default => 'The excuse has been submitted and is waiting for the college administrative review.',
+            self::RECEIVER_DOCTOR => 'تم تقديم العذر بنجاح وهو قيد المراجعة من قبل مدرس المادة.',
+            default => 'تم تقديم العذر بنجاح وهو قيد المراجعة من قبل الشؤون الإدارية.',
         };
     }
 
@@ -134,9 +134,9 @@ class ExcuseWorkflow
     public static function resolutionLabel(?string $resolution): ?string
     {
         return match ($resolution) {
-            self::RESOLUTION_PERMISSION => 'Permitted',
-            self::RESOLUTION_EXEMPTION => 'Exempted',
-            self::RESOLUTION_KEEP_ABSENT => 'Keep Absent',
+            self::RESOLUTION_PERMISSION => 'إذن غياب',
+            self::RESOLUTION_EXEMPTION => 'إعفاء',
+            self::RESOLUTION_KEEP_ABSENT => 'إبقاء الغياب',
             default => null,
         };
     }
@@ -144,12 +144,12 @@ class ExcuseWorkflow
     public static function attendanceStatusLabel(?string $status): string
     {
         return match ($status) {
-            'present' => 'Present',
-            'absent' => 'Absent',
-            'late' => 'Late',
-            'excused' => 'Excused',
-            self::STATUS_PERMITTED => 'Permitted',
-            self::STATUS_EXEMPTED => 'Exempted',
+            'present' => 'حاضر',
+            'absent' => 'غائب',
+            'late' => 'متأخر',
+            'excused' => 'معذور',
+            self::STATUS_PERMITTED => 'مسموح',
+            self::STATUS_EXEMPTED => 'معفى',
             default => (string) $status,
         };
     }

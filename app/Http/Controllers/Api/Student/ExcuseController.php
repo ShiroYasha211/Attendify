@@ -34,22 +34,22 @@ class ExcuseController extends StudentApiController
             ->first();
 
         if (!$attendance) {
-            return $this->error('The selected attendance record does not belong to the current student.', 403);
+            return $this->error('سجل الحضور المحدد لا يخص الطالب الحالي.', 403);
         }
 
         if ($attendance->status !== 'absent') {
-            return $this->error('Only absent attendance records can receive a new excuse request.', 400);
+            return $this->error('يمكن تقديم طلب عذر فقط لسجلات الغياب.', 400);
         }
 
         $deadlineDays = (int) ($student->college?->excuses_deadline_days ?? 3);
         $deadline = Carbon::parse($attendance->date)->copy()->addDays($deadlineDays);
 
         if (now()->gt($deadline)) {
-            return $this->error("Excuse submission deadline has passed ({$deadlineDays} days from the absence date).", 400);
+            return $this->error("لقد انتهت مهلة تقديم الأعذار (مسموح خلال {$deadlineDays} أيام من تاريخ الغياب).", 400);
         }
 
         if ($attendance->excuse) {
-            return $this->error('An excuse has already been submitted for this absence.', 400);
+            return $this->error('تم تقديم عذر مسبقاً لهذا الغياب.', 400);
         }
 
         $attachmentPath = null;

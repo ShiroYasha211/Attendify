@@ -127,9 +127,13 @@ class SubjectController extends StudentApiController
         $history = $attendanceRecords->map(function ($rec) use ($excuseDeadlineDays) {
             $canSubmit = false;
             $daysSince = 0;
+            
+            // Only allow excuse submission if the student was absent and hasn't submitted one yet
             if ($rec->status == 'absent' && !$rec->excuse) {
+                // Calculate days since the absence
                 $daysSince = now()->diffInDays($rec->date);
-                $canSubmit = $daysSince <= $excuseDeadlineDays;
+                // Check if it's within the allowed deadline
+                $canSubmit = $daysSince < $excuseDeadlineDays;
             }
 
             return [
