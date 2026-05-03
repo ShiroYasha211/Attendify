@@ -248,6 +248,34 @@ class StudentScheduleController extends StudentApiController
         ])), 'Last study action undone successfully.');
     }
 
+    public function undoColumnLastAction(Request $request, StudySessionColumn $column)
+    {
+        $this->authorizeColumn($request, $column);
+
+        $lastAction = $column->actions()
+            ->where('user_id', $request->user()->id)
+            ->latest('occurred_at')
+            ->latest('id')
+            ->first();
+
+        if (! $lastAction) {
+            return $this->error('There is no study action to undo in this column.', 422);
+        }
+
+        $item = $column->scheduleItem;
+        $lastAction->delete();
+
+        if (! $item->is_completed && $item->studyActions()->count() === 0) {
+            $item->update(['status' => 'pending']);
+        }
+
+        return $this->success($this->transformSession($item->fresh([
+            'referenceable',
+            'studyColumns.actions',
+            'studyActions',
+        ])), 'Last column study action undone successfully.');
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -261,6 +289,7 @@ class StudentScheduleController extends StudentApiController
             'category_tag' => 'nullable|string|max:100',
             'repeat_type' => 'nullable|in:none,daily,weekly',
             'reminder_at' => 'nullable|date',
+            ...$this->reminderScheduleValidationRules(),
         ]);
 
         $student = $request->user();
@@ -318,6 +347,8 @@ class StudentScheduleController extends StudentApiController
             'sort_order' => StudentScheduleItem::where('user_id', $student->id)->max('sort_order') + 1,
         ]);
 
+        $item->configureReminderSchedule($this->reminderSchedulePayload($request));
+        $item->save();
         $item->ensureDefaultStudyColumn();
 
         return $this->success([
@@ -336,6 +367,7 @@ class StudentScheduleController extends StudentApiController
             'category_tag' => 'nullable|string|max:100',
             'repeat_type' => 'nullable|in:none,daily,weekly',
             'reminder_at' => 'nullable|date',
+            ...$this->reminderScheduleValidationRules(),
         ]);
 
         $student = $request->user();
@@ -355,6 +387,8 @@ class StudentScheduleController extends StudentApiController
             'sort_order' => StudentScheduleItem::where('user_id', $student->id)->max('sort_order') + 1,
         ]);
 
+        $item->configureReminderSchedule($this->reminderSchedulePayload($request));
+        $item->save();
         $item->ensureDefaultStudyColumn();
 
         return $this->success([
@@ -377,9 +411,15 @@ class StudentScheduleController extends StudentApiController
             'status' => 'nullable|in:pending,in_progress,completed,overdue',
             'category_tag' => 'nullable|string|max:100',
             'reminder_at' => 'nullable|date',
+            ...$this->reminderScheduleValidationRules(),
         ]);
 
-        if ($request->has('is_completed') && $request->boolean('is_completed') && $item->repeat_type !== 'none') {
+        if (
+            $request->has('is_completed')
+            && $request->boolean('is_completed')
+            && $item->repeat_type !== 'none'
+            && ($item->reminder_schedule_type === null || $item->reminder_schedule_type === 'none')
+        ) {
             $currentDate = $item->scheduled_date ? Carbon::parse($item->scheduled_date) : Carbon::today();
             $originalReminderTime = $item->reminder_at ? Carbon::parse($item->reminder_at)->format('H:i:s') : null;
             $nextDate = $currentDate->copy();
@@ -432,6 +472,9 @@ class StudentScheduleController extends StudentApiController
         if ($request->has('reminder_at')) {
             $item->reminder_at = $request->reminder_at;
         }
+        if ($this->requestHasReminderSchedule($request)) {
+            $item->configureReminderSchedule($this->reminderSchedulePayload($request));
+        }
 
         $item->save();
 
@@ -473,10 +516,18 @@ class StudentScheduleController extends StudentApiController
         $student = $request->user();
 
         $dueReminders = StudentScheduleItem::where('user_id', $student->id)
-            ->where('reminder_sent', false)
-            ->whereNotNull('reminder_at')
-            ->where('reminder_at', '<=', now())
             ->where('is_completed', false)
+            ->where(function ($query) {
+                $query->where(function ($nextQuery) {
+                    $nextQuery->whereNotNull('next_reminder_at')
+                        ->where('next_reminder_at', '<=', now());
+                })->orWhere(function ($legacyQuery) {
+                    $legacyQuery->whereNull('next_reminder_at')
+                        ->where('reminder_sent', false)
+                        ->whereNotNull('reminder_at')
+                        ->where('reminder_at', '<=', now());
+                });
+            })
             ->get();
 
         $results = [];
@@ -487,7 +538,7 @@ class StudentScheduleController extends StudentApiController
                 'تذكير من مركز الدراسة',
                 "حان وقت تنفيذ: {$reminder->display_title}"
             );
-            $reminder->update(['reminder_sent' => true]);
+            $reminder->markReminderSentAndScheduleNext();
             $results[] = [
                 'id' => $reminder->id,
                 'title' => $reminder->display_title,
@@ -511,6 +562,53 @@ class StudentScheduleController extends StudentApiController
             : 'study';
     }
 
+    private function reminderScheduleValidationRules(): array
+    {
+        return [
+            'reminder_schedule_type' => 'nullable|in:none,daily,weekly,weekdays,dates',
+            'reminder_time' => 'nullable|date_format:H:i',
+            'reminder_weekdays' => 'nullable|array',
+            'reminder_weekdays.*' => 'integer|min:0|max:6',
+            'reminder_dates' => 'nullable|array',
+            'reminder_dates.*' => 'date',
+        ];
+    }
+
+    private function requestHasReminderSchedule(Request $request): bool
+    {
+        return $request->hasAny([
+            'reminder_schedule_type',
+            'reminder_time',
+            'reminder_weekdays',
+            'reminder_dates',
+            'reminder_at',
+        ]);
+    }
+
+    private function reminderSchedulePayload(Request $request): array
+    {
+        $payload = $request->only([
+            'reminder_schedule_type',
+            'reminder_time',
+            'reminder_weekdays',
+            'reminder_dates',
+        ]);
+
+        if ($request->filled('reminder_at') && empty($payload['reminder_schedule_type'])) {
+            $reminderAt = Carbon::parse($request->reminder_at);
+            $payload['reminder_schedule_type'] = 'dates';
+            $payload['reminder_time'] = $reminderAt->format('H:i');
+            $payload['reminder_dates'] = [$reminderAt->format('Y-m-d')];
+        }
+
+        if (($payload['reminder_schedule_type'] ?? null) === 'weekly' && empty($payload['reminder_weekdays'])) {
+            $scheduledDate = $request->filled('scheduled_date') ? Carbon::parse($request->scheduled_date) : now();
+            $payload['reminder_weekdays'] = [$scheduledDate->dayOfWeek];
+        }
+
+        return $payload;
+    }
+
     private function transformItem(StudentScheduleItem $item): array
     {
         return [
@@ -531,6 +629,14 @@ class StudentScheduleController extends StudentApiController
             'completed_at' => $item->completed_at?->toIso8601String(),
             'reminder_at' => $item->reminder_at?->toIso8601String(),
             'repeat_type' => $item->repeat_type,
+            'reminder_schedule' => [
+                'type' => $item->reminder_schedule_type ?: 'none',
+                'time' => $item->reminder_time ? Carbon::parse($item->reminder_time)->format('H:i') : null,
+                'weekdays' => $item->reminder_weekdays ?? [],
+                'dates' => $item->reminder_dates ?? [],
+                'next_reminder_at' => $item->next_reminder_at?->toIso8601String(),
+                'last_sent_at' => $item->last_reminder_sent_at?->toIso8601String(),
+            ],
             'category_tag' => $item->category_tag,
             'note' => $item->note,
             'reference' => $this->transformReference($item->referenceable),
@@ -562,6 +668,7 @@ class StudentScheduleController extends StudentApiController
                     'name' => $column->name,
                     'sort_order' => $column->sort_order,
                     'actions_count' => $column->actions->count(),
+                    'can_undo' => $column->actions->isNotEmpty(),
                     'last_action_at' => optional($actions->first())->occurred_at?->toIso8601String(),
                 ];
             })->values(),

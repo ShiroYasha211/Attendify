@@ -12,4 +12,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('attendance:remind-deadlines')->dailyAt('09:00');
 Schedule::command('assignment:remind-deadlines')->dailyAt('09:00');
-Schedule::command('study:send-reminders')->dailyAt('08:00');
+Schedule::command('study:send-reminders')->everyMinute()->withoutOverlapping();

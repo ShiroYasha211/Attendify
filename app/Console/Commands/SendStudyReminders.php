@@ -5,61 +5,48 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Student\StudentScheduleItem;
 use App\Services\StudyReminderNotificationService;
-use Carbon\Carbon;
 
 class SendStudyReminders extends Command
 {
     protected $signature = 'study:send-reminders';
-    protected $description = 'Send recurring study reminders based on user preference (daily/weekly)';
+    protected $description = 'Send due study reminders based on each item reminder schedule';
 
     public function handle(StudyReminderNotificationService $studyReminderNotifications)
     {
-        $today = Carbon::today();
-        $dayOfWeek = $today->dayOfWeek; // 0=Sunday ... 6=Saturday
-
-        // ── Daily Reminders ──
-        // Get all pending study items with repeat_type = 'daily'
-        $dailyItems = StudentScheduleItem::where('repeat_type', 'daily')
-            ->where('is_completed', false)
-            ->where('reminder_sent', false)
-            ->whereNotNull('scheduled_date')
-            ->whereDate('scheduled_date', '<=', $today)
+        $items = StudentScheduleItem::where('is_completed', false)
+            ->whereNotNull('next_reminder_at')
+            ->where('next_reminder_at', '<=', now())
             ->get();
 
-        $dailySent = 0;
-        foreach ($dailyItems as $item) {
+        $sent = 0;
+        foreach ($items as $item) {
             $studyReminderNotifications->notify(
                 $item,
-                'تذكير يومي بالمذاكرة',
-                "لا تنسَ مذاكرة: {$item->display_title}"
+                'تذكير من مركز الدراسة',
+                "حان وقت تنفيذ: {$item->display_title}"
             );
-            $item->update(['reminder_sent' => true]);
-            $dailySent++;
+            $item->markReminderSentAndScheduleNext();
+            $sent++;
         }
 
-        // ── Weekly Reminders (send on Saturday = start of week) ──
-        $weeklyItems = StudentScheduleItem::where('repeat_type', 'weekly')
+        $legacyItems = StudentScheduleItem::whereNull('next_reminder_at')
             ->where('is_completed', false)
             ->where('reminder_sent', false)
-            ->whereNotNull('scheduled_date')
-            ->whereDate('scheduled_date', '<=', $today)
+            ->whereNotNull('reminder_at')
+            ->where('reminder_at', '<=', now())
             ->get();
 
-        $weeklySent = 0;
-        // Send on Saturday (dayOfWeek = 6) — start of Arabic week
-        if ($dayOfWeek === 6) {
-            foreach ($weeklyItems as $item) {
-                $studyReminderNotifications->notify(
-                    $item,
-                    'تذكير أسبوعي بالمذاكرة',
-                    "تذكير أسبوعي: {$item->display_title}"
-                );
-                $item->update(['reminder_sent' => true]);
-                $weeklySent++;
-            }
+        foreach ($legacyItems as $item) {
+            $studyReminderNotifications->notify(
+                $item,
+                'تذكير من مركز الدراسة',
+                "حان وقت تنفيذ: {$item->display_title}"
+            );
+            $item->markReminderSentAndScheduleNext();
+            $sent++;
         }
 
-        $this->info("Sent {$dailySent} daily + {$weeklySent} weekly study reminders.");
+        $this->info("Sent {$sent} study reminders.");
 
         return Command::SUCCESS;
     }

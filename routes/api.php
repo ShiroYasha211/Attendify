@@ -556,6 +556,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::put('study-center/columns/{column}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'updateColumn']);
     Route::delete('study-center/columns/{column}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'destroyColumn']);
     Route::post('study-center/columns/{column}/increment', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'incrementColumn']);
+    Route::post('study-center/columns/{column}/undo-last-action', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'undoColumnLastAction']);
     Route::post('study-center/{id}/undo-last-action', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'undoLastAction']);
     Route::put('study-center/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'update']);
     Route::delete('study-center/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'destroy']);
