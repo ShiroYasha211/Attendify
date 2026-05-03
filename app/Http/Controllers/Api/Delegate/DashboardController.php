@@ -36,8 +36,10 @@ class DashboardController extends DelegateApiController
             ->count();
 
         // 3. Active Assignments (Deadline >= today)
-        $activeAssignments = Assignment::where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)
+        $activeAssignments = Assignment::whereHas('subject', function ($q) use ($delegate) {
+                $q->where('major_id', $delegate->major_id)
+                    ->where('level_id', $delegate->level_id);
+            })
             ->where('due_date', '>=', now()->toDateString())
             ->count();
 

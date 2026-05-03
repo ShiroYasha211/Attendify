@@ -17,15 +17,36 @@ class StudentController extends DelegateApiController
     public function index(Request $request)
     {
         $delegate = $request->user();
+        $search = $request->query('query');
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $baseQuery = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
             ->where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)
-            ->with(['university:id,name', 'college:id,name', 'major:id,name', 'level:id,name'])
-            ->latest()
-            ->paginate(15);
+            ->where('level_id', $delegate->level_id);
 
-        return $this->success($students, 'تم جلب قائمة الطلاب بنجاح');
+        $maleCount = (clone $baseQuery)->where('gender', 'male')->count();
+        $activeCount = (clone $baseQuery)->where('status', 'active')->count();
+
+        $query = $baseQuery->when($search, function ($q) use ($search) {
+            $q->where(function ($sq) use ($search) {
+                $sq->where('name', 'like', "%$search%")
+                    ->orWhere('student_number', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%");
+            });
+        })
+            ->with(['university:id,name', 'college:id,name', 'major:id,name', 'level:id,name'])
+            ->latest();
+
+        if ($request->query('all')) {
+            $data = $query->get();
+            $response = ['data' => $data];
+        } else {
+            $response = $query->paginate(15)->toArray();
+        }
+
+        $response['male_count'] = $maleCount;
+        $response['active_count'] = $activeCount;
+
+        return $this->success($response, 'تم جلب قائمة الطلاب بنجاح');
     }
 
     /**
@@ -135,7 +156,7 @@ class StudentController extends DelegateApiController
 
         if (($handle = fopen($file->getRealPath(), "r")) !== FALSE) {
             $header = fgetcsv($handle, 1000, ",");
-            
+
             // Clean BOM
             if (isset($header[0])) {
                 $header[0] = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $header[0]);
@@ -145,7 +166,8 @@ class StudentController extends DelegateApiController
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                 $rowNumber++;
 
-                if (empty(array_filter($data))) continue;
+                if (empty(array_filter($data)))
+                    continue;
 
                 if (count($data) < 3) {
                     $errors[] = "السطر $rowNumber: أعمدة ناقصة.";
@@ -242,7 +264,7 @@ class StudentController extends DelegateApiController
 
         // Sync (only for the allowed restricted set)
         $allowedSlugs = ['upload_shared_library'];
-        
+
         // Remove currently held allowed permissions to refresh
         $student->permissions()->detach(\App\Models\Permission::whereIn('slug', $allowedSlugs)->pluck('id'));
 
@@ -257,5 +279,27 @@ class StudentController extends DelegateApiController
         }
 
         return $this->success(null, 'تم تحديث صلاحيات الطالب بنجاح');
+    }
+
+    /**
+     * Download the student import template.
+     */
+    public function template()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="students_template.csv"',
+        ];
+
+        $callback = function () {
+            $file = fopen('php://output', 'w');
+            // Write UTF-8 BOM for Excel compatibility
+            fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($file, ['Name', 'Email', 'Student Number']);
+            fputcsv($file, ['Ahmed Ali', 'ahmed@example.com', '12345678']);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
