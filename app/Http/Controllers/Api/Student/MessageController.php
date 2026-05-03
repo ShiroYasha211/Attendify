@@ -32,8 +32,13 @@ class MessageController extends StudentApiController
                 });
         }
 
+        $unreadCount = $conversations->sum(function (Conversation $conversation) {
+            return (int) $conversation->getAttribute('unread_count');
+        });
+
         return $this->success([
             'delegate' => $delegate ? ['id' => $delegate->id, 'name' => $delegate->name] : null,
+            'unread_count' => $unreadCount,
             'conversations' => $conversations,
         ]);
     }

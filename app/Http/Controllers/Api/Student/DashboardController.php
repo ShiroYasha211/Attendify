@@ -87,6 +87,8 @@ class DashboardController extends StudentApiController
             ->get()
             ->map(function ($attendance) {
                 return [
+                    'attendance_id' => $attendance->id,
+                    'subject_id' => $attendance->subject_id,
                     'date' => $attendance->date,
                     'subject' => $attendance->subject->name ?? 'مجهول',
                     'message' => "لديك غياب بتاريخ {$attendance->date} اقترب من تجاوز مهلة تقديم العذر (أسبوع)."
