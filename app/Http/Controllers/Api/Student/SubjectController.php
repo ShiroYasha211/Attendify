@@ -109,6 +109,7 @@ class SubjectController extends StudentApiController
             : 0;
 
         // 4. Deprivation Warning Logic
+        $student->loadMissing('college');
         $maxAbsences = (int) Setting::get('default_max_absences', 3);
         $deprivationThreshold = (int) Setting::get('deprivation_threshold', 25);
         $excuseDeadlineDays = (int) ($student->college?->excuses_deadline_days ?? 3);
@@ -127,13 +128,14 @@ class SubjectController extends StudentApiController
         $history = $attendanceRecords->map(function ($rec) use ($excuseDeadlineDays) {
             $canSubmit = false;
             $daysSince = 0;
+            $isExpired = false;
             
-            // Only allow excuse submission if the student was absent and hasn't submitted one yet
             if ($rec->status == 'absent' && !$rec->excuse) {
-                // Calculate days since the absence
-                $daysSince = now()->diffInDays($rec->date);
-                // Check if it's within the allowed deadline
-                $canSubmit = $daysSince < $excuseDeadlineDays;
+                $deadline = \Carbon\Carbon::parse($rec->date)->addDays($excuseDeadlineDays)->endOfDay();
+                $canSubmit = now()->lte($deadline);
+                $isExpired = now()->gt($deadline);
+                $daysSince = (int) now()->diffInDays(\Carbon\Carbon::parse($rec->date), false);
+                $daysSince = abs($daysSince);
             }
 
             return [
@@ -156,7 +158,7 @@ class SubjectController extends StudentApiController
                 'deadline_info' => [
                     'days_since_absence' => $daysSince,
                     'max_deadline_days' => $excuseDeadlineDays,
-                    'is_expired' => !$canSubmit && $rec->status == 'absent' && !$rec->excuse
+                    'is_expired' => $isExpired
                 ]
             ];
         });

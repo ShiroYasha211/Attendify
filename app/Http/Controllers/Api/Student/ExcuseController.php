@@ -28,6 +28,7 @@ class ExcuseController extends StudentApiController
         }
 
         $student = Auth::user();
+        $student->loadMissing('college');
         $attendance = Attendance::with('subject.major.college')
             ->where('id', $request->attendance_id)
             ->where('student_id', $student->id)
@@ -42,7 +43,7 @@ class ExcuseController extends StudentApiController
         }
 
         $deadlineDays = (int) ($student->college?->excuses_deadline_days ?? 3);
-        $deadline = Carbon::parse($attendance->date)->copy()->addDays($deadlineDays);
+        $deadline = Carbon::parse($attendance->date)->copy()->addDays($deadlineDays)->endOfDay();
 
         if (now()->gt($deadline)) {
             return $this->error("لقد انتهت مهلة تقديم الأعذار (مسموح خلال {$deadlineDays} أيام من تاريخ الغياب).", 400);
