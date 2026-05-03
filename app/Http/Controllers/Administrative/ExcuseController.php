@@ -15,8 +15,8 @@ class ExcuseController extends Controller
         $college = auth()->user()->college;
 
         $query = Excuse::whereHas('student', function ($query) use ($college) {
-                $query->where('college_id', $college->id);
-            })
+            $query->where('college_id', $college->id);
+        })
             ->with(['student', 'attendance.subject', 'reviewer', 'attachments']);
 
         $status = $request->get('status', 'pending');
@@ -34,7 +34,7 @@ class ExcuseController extends Controller
 
         $excuses = $query->latest()->paginate(15)->withQueryString();
 
-        $statsRaw = Excuse::whereHas('student', fn ($query) => $query->where('college_id', $college->id))
+        $statsRaw = Excuse::whereHas('student', fn($query) => $query->where('college_id', $college->id))
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -93,21 +93,21 @@ class ExcuseController extends Controller
             ]);
         }
 
-        $subjectName = $excuse->attendance->subject->name ?? 'Unknown subject';
-        $statusLabel = $validated['status'] === 'accepted' ? 'accepted' : 'rejected';
+        $subjectName = $excuse->attendance->subject->name ?? 'مادة غير معروفة';
+        $statusLabel = $validated['status'] === 'accepted' ? 'مقبولاً' : 'مرفوضاً';
         $resolutionLabel = $validated['status'] === 'accepted'
-            ? (' Final action: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
+            ? (' الإجراء النهائي: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
             : '';
 
-        $message = "Your excuse for {$subjectName} on {$excuse->attendance->date->format('Y-m-d')} was {$statusLabel} by the college administration.{$resolutionLabel}";
+        $message = "تم اعتبار عذرك المقدم لمادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')} {$statusLabel} من قبل إدارة الكلية.{$resolutionLabel}";
         if (!empty($validated['comment'])) {
-            $message .= "\nAdministrative note: {$validated['comment']}";
+            $message .= "\nملاحظة الإدارة: {$validated['comment']}";
         }
 
         StudentNotification::create([
             'user_id' => $excuse->student_id,
             'type' => 'excuse',
-            'title' => 'Excuse decision',
+            'title' => 'قرار بشأن العذر',
             'message' => $message,
             'data' => [
                 'excuse_id' => $excuse->id,
@@ -117,6 +117,6 @@ class ExcuseController extends Controller
             ],
         ]);
 
-        return back()->with('success', 'Excuse decision saved successfully.');
+        return back()->with('success', 'تم حفظ القرار بشأن العذر بنجاح.');
     }
 }

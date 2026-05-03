@@ -6,12 +6,19 @@ use App\Models\Academic\Assignment;
 use App\Models\Academic\Lecture;
 use App\Models\CourseResource;
 use App\Models\Student\StudentScheduleItem;
+use App\Models\Student\StudySessionColumn;
+use App\Models\Student\StudySessionAction;
+use App\Services\StudyReminderNotificationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
 
 class StudentScheduleController extends StudentApiController
 {
+    public function __construct(private readonly StudyReminderNotificationService $studyReminderNotifications)
+    {
+    }
+
     public function index(Request $request)
     {
         $student = $request->user();
@@ -122,6 +129,125 @@ class StudentScheduleController extends StudentApiController
         ], 'Study center retrieved successfully.');
     }
 
+    public function session(Request $request, int $id)
+    {
+        $item = $this->studentItem($request, $id);
+        $item->ensureDefaultStudyColumn();
+
+        return $this->success($this->transformSession($item->fresh([
+            'referenceable',
+            'studyColumns.actions',
+            'studyActions',
+        ])), 'Study session loaded successfully.');
+    }
+
+    public function storeColumn(Request $request, int $id)
+    {
+        $item = $this->studentItem($request, $id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:80',
+        ]);
+
+        $item->studyColumns()->create([
+            'name' => trim($validated['name']),
+            'sort_order' => (int) $item->studyColumns()->max('sort_order') + 1,
+        ]);
+
+        return $this->success($this->transformSession($item->fresh([
+            'referenceable',
+            'studyColumns.actions',
+            'studyActions',
+        ])), 'Study session column created successfully.', 201);
+    }
+
+    public function updateColumn(Request $request, StudySessionColumn $column)
+    {
+        $this->authorizeColumn($request, $column);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:80',
+        ]);
+
+        $column->update(['name' => trim($validated['name'])]);
+
+        return $this->success($this->transformSession($column->scheduleItem->fresh([
+            'referenceable',
+            'studyColumns.actions',
+            'studyActions',
+        ])), 'Study session column updated successfully.');
+    }
+
+    public function destroyColumn(Request $request, StudySessionColumn $column)
+    {
+        $this->authorizeColumn($request, $column);
+
+        $item = $column->scheduleItem;
+        if ($item->studyColumns()->count() <= 1) {
+            return $this->error('At least one study column is required.', 422);
+        }
+
+        $column->delete();
+
+        return $this->success($this->transformSession($item->fresh([
+            'referenceable',
+            'studyColumns.actions',
+            'studyActions',
+        ])), 'Study session column deleted successfully.');
+    }
+
+    public function incrementColumn(Request $request, StudySessionColumn $column)
+    {
+        $this->authorizeColumn($request, $column);
+
+        $item = $column->scheduleItem;
+
+        StudySessionAction::create([
+            'student_schedule_item_id' => $item->id,
+            'study_session_column_id' => $column->id,
+            'user_id' => $request->user()->id,
+            'action_type' => 'increment',
+            'occurred_at' => now(),
+        ]);
+
+        if (! $item->is_completed && $item->status === 'pending') {
+            $item->update(['status' => 'in_progress']);
+        }
+
+        return $this->success($this->transformSession($item->fresh([
+            'referenceable',
+            'studyColumns.actions',
+            'studyActions',
+        ])), 'Study action recorded successfully.');
+    }
+
+    public function undoLastAction(Request $request, int $id)
+    {
+        $item = $this->studentItem($request, $id);
+
+        $lastAction = $item->studyActions()
+            ->where('user_id', $request->user()->id)
+            ->latest('occurred_at')
+            ->latest('id')
+            ->first();
+
+        if (! $lastAction) {
+            return $this->error('There is no study action to undo.', 422);
+        }
+
+        $lastAction->delete();
+
+        if (! $item->is_completed && $item->studyActions()->count() === 0) {
+            $item->update(['status' => 'pending']);
+        }
+
+        return $this->success($this->transformSession($item->fresh([
+            'referenceable',
+            'studyColumns.actions',
+            'studyActions',
+        ])), 'Last study action undone successfully.');
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -192,6 +318,8 @@ class StudentScheduleController extends StudentApiController
             'sort_order' => StudentScheduleItem::where('user_id', $student->id)->max('sort_order') + 1,
         ]);
 
+        $item->ensureDefaultStudyColumn();
+
         return $this->success([
             'item' => $this->transformItem($item->fresh('referenceable')),
         ], 'Item added to the study center successfully.', 201);
@@ -226,6 +354,8 @@ class StudentScheduleController extends StudentApiController
             'reminder_at' => $request->reminder_at,
             'sort_order' => StudentScheduleItem::where('user_id', $student->id)->max('sort_order') + 1,
         ]);
+
+        $item->ensureDefaultStudyColumn();
 
         return $this->success([
             'item' => $this->transformItem($item),
@@ -352,6 +482,11 @@ class StudentScheduleController extends StudentApiController
         $results = [];
 
         foreach ($dueReminders as $reminder) {
+            $notification = $this->studyReminderNotifications->notify(
+                $reminder,
+                'تذكير من مركز الدراسة',
+                "حان وقت تنفيذ: {$reminder->display_title}"
+            );
             $reminder->update(['reminder_sent' => true]);
             $results[] = [
                 'id' => $reminder->id,
@@ -359,6 +494,7 @@ class StudentScheduleController extends StudentApiController
                 'scheduled_date' => $reminder->scheduled_date?->format('Y-m-d'),
                 'priority' => $reminder->priority,
                 'priority_label' => $reminder->priority_label,
+                'notification_id' => $notification->id,
             ];
         }
 
@@ -398,7 +534,69 @@ class StudentScheduleController extends StudentApiController
             'category_tag' => $item->category_tag,
             'note' => $item->note,
             'reference' => $this->transformReference($item->referenceable),
+            'session_enabled' => true,
+            'session_summary' => [
+                'columns_count' => $item->studyColumns()->count(),
+                'total_actions' => $item->studyActions()->count(),
+            ],
         ];
+    }
+
+    private function transformSession(StudentScheduleItem $item): array
+    {
+        $item->loadMissing(['referenceable', 'studyColumns.actions', 'studyActions']);
+
+        $lastAction = $item->studyActions()
+            ->with('column:id,name')
+            ->latest('occurred_at')
+            ->latest('id')
+            ->first();
+
+        return [
+            'item' => $this->transformItem($item),
+            'columns' => $item->studyColumns->map(function (StudySessionColumn $column) {
+                $actions = $column->actions->sortByDesc('occurred_at');
+
+                return [
+                    'id' => $column->id,
+                    'name' => $column->name,
+                    'sort_order' => $column->sort_order,
+                    'actions_count' => $column->actions->count(),
+                    'last_action_at' => optional($actions->first())->occurred_at?->toIso8601String(),
+                ];
+            })->values(),
+            'total_actions' => $item->studyActions->count(),
+            'can_undo' => $lastAction !== null,
+            'last_action' => $lastAction ? [
+                'id' => $lastAction->id,
+                'column_id' => $lastAction->study_session_column_id,
+                'column_name' => $lastAction->column?->name,
+                'occurred_at' => $lastAction->occurred_at?->toIso8601String(),
+            ] : null,
+        ];
+    }
+
+    private function studentItem(Request $request, int $id): StudentScheduleItem
+    {
+        return StudentScheduleItem::where('user_id', $request->user()->id)
+            ->with([
+                'referenceable' => function (MorphTo $morphTo) {
+                    $morphTo->morphWith([
+                        Lecture::class => ['subject:id,name,doctor_id', 'subject.doctor:id,name'],
+                    ]);
+                },
+                'studyColumns.actions',
+                'studyActions',
+            ])
+            ->findOrFail($id);
+    }
+
+    private function authorizeColumn(Request $request, StudySessionColumn $column): void
+    {
+        abort_if(
+            (int) $column->scheduleItem->user_id !== (int) $request->user()->id,
+            404
+        );
     }
 
     private function transformReference($reference): ?array

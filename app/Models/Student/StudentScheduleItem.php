@@ -45,6 +45,30 @@ class StudentScheduleItem extends Model
         return $this->morphTo();
     }
 
+    public function studyColumns()
+    {
+        return $this->hasMany(StudySessionColumn::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function studyActions()
+    {
+        return $this->hasMany(StudySessionAction::class);
+    }
+
+    public function ensureDefaultStudyColumn(): StudySessionColumn
+    {
+        $column = $this->studyColumns()->first();
+
+        if ($column) {
+            return $column;
+        }
+
+        return $this->studyColumns()->create([
+            'name' => 'مذاكرة',
+            'sort_order' => 0,
+        ]);
+    }
+
     public function scopeStudyItems($query)
     {
         return $query->where('item_type', 'study');

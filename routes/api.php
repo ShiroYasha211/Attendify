@@ -551,6 +551,12 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::post('study-center', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'store']);
     Route::post('study-center/custom-task', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'storeCustomTask']);
     Route::get('study-center/check-reminders', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'checkReminders']);
+    Route::get('study-center/{id}/session', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'session']);
+    Route::post('study-center/{id}/columns', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'storeColumn']);
+    Route::put('study-center/columns/{column}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'updateColumn']);
+    Route::delete('study-center/columns/{column}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'destroyColumn']);
+    Route::post('study-center/columns/{column}/increment', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'incrementColumn']);
+    Route::post('study-center/{id}/undo-last-action', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'undoLastAction']);
     Route::put('study-center/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'update']);
     Route::delete('study-center/{id}', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'destroy']);
     Route::post('study-center/reorder', [\App\Http\Controllers\Api\Student\StudentScheduleController::class, 'reorder']);

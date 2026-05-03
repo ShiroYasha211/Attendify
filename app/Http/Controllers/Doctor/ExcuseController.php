@@ -112,21 +112,21 @@ class ExcuseController extends Controller
             ]);
         }
 
-        $subjectName = $excuse->attendance->subject->name ?? 'Unknown subject';
-        $statusLabel = $validated['status'] === 'accepted' ? 'accepted' : 'rejected';
+        $subjectName = $excuse->attendance->subject->name ?? 'مادة غير معروفة';
+        $statusLabel = $validated['status'] === 'accepted' ? 'مقبولاً' : 'مرفوضاً';
         $resolutionLabel = $validated['status'] === 'accepted'
-            ? (' Final action: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
+            ? (' الإجراء النهائي: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
             : '';
 
-        $message = "Your excuse for {$subjectName} on {$excuse->attendance->date->format('Y-m-d')} was {$statusLabel}.{$resolutionLabel}";
+        $message = "تم اعتبار عذرك المقدم لمادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')} {$statusLabel} من قبل مدرس المادة.{$resolutionLabel}";
         if (!empty($validated['comment'])) {
-            $message .= "\nDoctor note: {$validated['comment']}";
+            $message .= "\nملاحظة المدرس: {$validated['comment']}";
         }
 
         StudentNotification::create([
             'user_id' => $excuse->student_id,
             'type' => 'excuse',
-            'title' => 'Excuse decision',
+            'title' => 'قرار بشأن العذر',
             'message' => $message,
             'data' => [
                 'excuse_id' => $excuse->id,
@@ -136,6 +136,6 @@ class ExcuseController extends Controller
             ],
         ]);
 
-        return back()->with('success', 'Excuse decision saved successfully.');
+        return back()->with('success', 'تم حفظ القرار بشأن العذر بنجاح.');
     }
 }
