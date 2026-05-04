@@ -22,7 +22,7 @@ class DashboardController extends DelegateApiController
 
         $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->with(['doctor:id,name,avatar', 'term:id,name'])
+            ->with(['doctor:id,name', 'term:id,name'])
             ->orderBy('name')
             ->get();
 
@@ -46,7 +46,9 @@ class DashboardController extends DelegateApiController
         // 4. Upcoming Exams
         $upcomingExams = \App\Models\ExamSchedule::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
-            ->where('exam_date', '>=', now()->toDateString())
+            ->whereHas('items', function ($query) {
+                $query->where('exam_date', '>=', now()->toDateString());
+            })
             ->count();
 
         // 5. Today's Lectures
@@ -88,14 +90,14 @@ class DashboardController extends DelegateApiController
             ->having('absence_count', '>', 0)
             ->orderByDesc('absence_count')
             ->take(5)
-            ->get(['id', 'name', 'avatar']);
+            ->get(['id', 'name', 'student_number']);
 
         // 9. Recent Attendance
         $latestAttendance = \App\Models\Attendance::whereHas('student', function ($q) use ($delegate) {
             $q->where('major_id', $delegate->major_id)
                 ->where('level_id', $delegate->level_id);
         })
-            ->with(['student:id,name,avatar', 'subject:id,name'])
+            ->with(['student:id,name,student_number', 'subject:id,name'])
             ->latest()
             ->take(5)
             ->get();
@@ -147,7 +149,7 @@ class DashboardController extends DelegateApiController
                             'student' => [
                                 'id' => $student->id,
                                 'name' => $student->name,
-                                'avatar' => $student->avatar
+                                'student_number' => $student->student_number,
                             ],
                             'subject' => [
                                 'id' => $subject->id,
@@ -181,7 +183,7 @@ class DashboardController extends DelegateApiController
                 ->where('level_id', $delegate->level_id)
                 ->latest()
                 ->take(5)
-                ->get(['id', 'name', 'avatar', 'created_at']),
+                ->get(['id', 'name', 'student_number', 'created_at']),
         ], 'تم جلب بيانات لوحة القيادة بنجاح');
     }
 }
