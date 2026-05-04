@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Api\Delegate;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Enums\UserRole;
 use App\Http\Controllers\Api\Delegate\DelegateApiController;
 use App\Models\Academic\Schedule;
 use App\Models\Academic\Subject;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class ScheduleController extends DelegateApiController
@@ -18,16 +19,16 @@ class ScheduleController extends DelegateApiController
     {
         $delegate = $request->user();
 
-        // Get subjects for this delegate's scope
         $subjectIds = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->pluck('id');
 
         $schedules = Schedule::whereIn('subject_id', $subjectIds)
-            ->with(['subject:id,name,code,doctor_id', 'subject.doctor:id,name'])
+            ->with(['doctor:id,name', 'subject:id,name,code,doctor_id', 'subject.doctor:id,name'])
             ->orderBy('day_of_week')
             ->orderBy('start_time')
-            ->get();
+            ->get()
+            ->map(fn (Schedule $schedule) => $this->withResolvedDoctor($schedule));
 
         return $this->success($schedules, 'تم جلب جدول المحاضرات بنجاح');
     }
@@ -41,6 +42,7 @@ class ScheduleController extends DelegateApiController
 
         $validator = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
+            'doctor_id' => 'nullable|exists:users,id',
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
@@ -51,18 +53,22 @@ class ScheduleController extends DelegateApiController
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
-        // Validate subject belongs to delegate scope
         $subject = Subject::where('id', $request->subject_id)
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
             ->first();
 
-        if (!$subject) {
+        if (! $subject) {
             return $this->error('المادة غير موجودة أو غير مصرح لك', 403);
+        }
+
+        if (! $this->isValidDoctor($request->doctor_id)) {
+            return $this->error('المستخدم المحدد ليس دكتوراً', 422);
         }
 
         $schedule = Schedule::create([
             'subject_id' => $request->subject_id,
+            'doctor_id' => $request->filled('doctor_id') ? $request->doctor_id : null,
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
@@ -70,7 +76,11 @@ class ScheduleController extends DelegateApiController
             'created_by' => $delegate->id,
         ]);
 
-        return $this->success($schedule, 'تمت إضافة المحاضرة للجدول بنجاح', 201);
+        return $this->success(
+            $this->withResolvedDoctor($schedule->load(['doctor:id,name', 'subject:id,name,code,doctor_id', 'subject.doctor:id,name'])),
+            'تمت إضافة المحاضرة للجدول بنجاح',
+            201
+        );
     }
 
     /**
@@ -82,12 +92,13 @@ class ScheduleController extends DelegateApiController
 
         $schedule = Schedule::with('subject')->find($id);
 
-        if (!$schedule || $schedule->subject->major_id !== $delegate->major_id || $schedule->subject->level_id !== $delegate->level_id) {
+        if (! $schedule || $schedule->subject->major_id !== $delegate->major_id || $schedule->subject->level_id !== $delegate->level_id) {
             return $this->error('سجل الجدول غير موجود أو غير مصرح لك', 404);
         }
 
         $validator = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
+            'doctor_id' => 'nullable|exists:users,id',
             'day_of_week' => 'required|integer|between:1,7',
             'start_time' => 'required|date_format:H:i|string',
             'end_time' => 'required|date_format:H:i|string|after:start_time',
@@ -98,27 +109,34 @@ class ScheduleController extends DelegateApiController
             return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
-        // Validate new subject belongs to delegate scope (if changed)
         if ($request->subject_id != $schedule->subject_id) {
             $newSubject = Subject::where('id', $request->subject_id)
                 ->where('major_id', $delegate->major_id)
                 ->where('level_id', $delegate->level_id)
                 ->first();
 
-            if (!$newSubject) {
+            if (! $newSubject) {
                 return $this->error('المادة الجديدة غير مصرح بها', 403);
             }
         }
 
+        if (! $this->isValidDoctor($request->doctor_id)) {
+            return $this->error('المستخدم المحدد ليس دكتوراً', 422);
+        }
+
         $schedule->update([
             'subject_id' => $request->subject_id,
+            'doctor_id' => $request->filled('doctor_id') ? $request->doctor_id : null,
             'day_of_week' => $request->day_of_week,
             'start_time' => $request->start_time,
             'end_time' => $request->end_time,
             'hall_name' => $request->filled('hall_name') ? $request->hall_name : null,
         ]);
 
-        return $this->success($schedule, 'تم تحديث المحاضرة بنجاح');
+        return $this->success(
+            $this->withResolvedDoctor($schedule->fresh(['doctor:id,name', 'subject:id,name,code,doctor_id', 'subject.doctor:id,name'])),
+            'تم تحديث المحاضرة بنجاح'
+        );
     }
 
     /**
@@ -130,12 +148,34 @@ class ScheduleController extends DelegateApiController
 
         $schedule = Schedule::with('subject')->find($id);
 
-        if (!$schedule || $schedule->subject->major_id !== $delegate->major_id || $schedule->subject->level_id !== $delegate->level_id) {
+        if (! $schedule || $schedule->subject->major_id !== $delegate->major_id || $schedule->subject->level_id !== $delegate->level_id) {
             return $this->error('سجل الجدول غير موجود أو غير مصرح لك', 404);
         }
 
         $schedule->delete();
 
         return $this->success(null, 'تم حذف المحاضرة من الجدول بنجاح');
+    }
+
+    private function isValidDoctor(?int $doctorId): bool
+    {
+        if (! $doctorId) {
+            return true;
+        }
+
+        return User::where('id', $doctorId)
+            ->where('role', UserRole::DOCTOR)
+            ->exists();
+    }
+
+    private function withResolvedDoctor(Schedule $schedule): Schedule
+    {
+        $doctor = $schedule->doctor ?: $schedule->subject?->doctor;
+
+        $schedule->setRelation('doctor', $doctor);
+        $schedule->doctor_id = $doctor?->id;
+        $schedule->doctor_name = $doctor?->name;
+
+        return $schedule;
     }
 }

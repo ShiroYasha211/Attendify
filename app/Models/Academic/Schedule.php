@@ -13,12 +13,18 @@ class Schedule extends Model
         'start_time',
         'end_time',
         'hall_name',
+        'doctor_id',
         'created_by',
     ];
 
     public function subject()
     {
         return $this->belongsTo(\App\Models\Academic\Subject::class);
+    }
+
+    public function doctor()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'doctor_id');
     }
 
     public function creator()

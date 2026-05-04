@@ -30,11 +30,25 @@ class ScheduleController extends StudentApiController
             $q->where('major_id', $student->major_id)
                 ->where('level_id', $student->level_id);
         })
-            ->with(['subject:id,name', 'subject.doctor:id,name'])
+            ->with([
+                'doctor:id,name',
+                'subject:id,name,doctor_id',
+                'subject.doctor:id,name',
+            ])
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
-            
+
+        $schedules->transform(function (Schedule $schedule) {
+            $doctor = $schedule->doctor ?: $schedule->subject?->doctor;
+
+            $schedule->setRelation('doctor', $doctor);
+            $schedule->doctor_id = $doctor?->id;
+            $schedule->doctor_name = $doctor?->name;
+
+            return $schedule;
+        });
+
         // Group schedules by day_of_week for easier consumption by mobile apps
         $groupedSchedules = $schedules->groupBy('day_of_week');
 
