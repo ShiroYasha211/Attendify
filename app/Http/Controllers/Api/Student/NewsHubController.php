@@ -84,28 +84,7 @@ class NewsHubController extends StudentApiController
         $newsCenterItems = StudentNotification::with('sender:id,name')
             ->where('user_id', $student->id)
             ->whereIn('type', ['announcement', 'exam', 'assignment', 'poll'])
-            ->get()
-            ->map(function (StudentNotification $item) {
-                return [
-                    'id' => 'center-' . $item->id,
-                    'source' => 'administration',
-                    'channel' => 'news_center',
-                    'source_label' => 'Administration & News Center',
-                    'channel_label' => 'News Center',
-                    'title' => $item->title,
-                    'body' => $item->message,
-                    'created_at' => $item->created_at,
-                    'author_name' => $item->sender?->name ?? 'Administration',
-                    'subject_name' => null,
-                    'badge' => $this->centerTypeLabel($item->type),
-                    'icon' => $this->centerIcon($item->type),
-                    'attachment_url' => $item->attachment_url,
-                    'is_unread' => is_null($item->read_at),
-                    'detail_url' => url('/student/news/' . $item->batch_id),
-                    'open_mode' => 'link',
-                    'can_vote' => $item->type === 'poll',
-                ];
-            });
+            ->get();
 
         $adminAnnouncements = Announcement::with('creator:id,name,role')
             ->where('major_id', $student->major_id)
@@ -113,28 +92,7 @@ class NewsHubController extends StudentApiController
             ->whereHas('creator', function ($query) {
                 $query->whereIn('role', ['admin', 'administrative']);
             })
-            ->get()
-            ->map(function (Announcement $item) {
-                return [
-                    'id' => 'admin-' . $item->id,
-                    'source' => 'administration',
-                    'channel' => 'admin_announcement',
-                    'source_label' => 'Administration & News Center',
-                    'channel_label' => 'Administrative Announcement',
-                    'title' => $item->title,
-                    'body' => $item->content,
-                    'created_at' => $item->created_at,
-                    'author_name' => $item->creator?->name ?? 'Administration',
-                    'subject_name' => null,
-                    'badge' => $this->announcementCategoryLabel($item->category),
-                    'icon' => 'fa-building',
-                    'attachment_url' => $item->attachment_url,
-                    'is_unread' => false,
-                    'detail_url' => null,
-                    'open_mode' => 'modal',
-                    'can_vote' => false,
-                ];
-            });
+            ->get();
 
         return $newsCenterItems->merge($adminAnnouncements);
     }
@@ -148,28 +106,7 @@ class NewsHubController extends StudentApiController
         return DoctorAnnouncement::published()
             ->with(['doctor:id,name', 'subject:id,name'])
             ->whereIn('subject_id', $subjectIds)
-            ->get()
-            ->map(function (DoctorAnnouncement $item) {
-                return [
-                    'id' => 'doctor-' . $item->id,
-                    'source' => 'doctor',
-                    'channel' => 'doctor_announcement',
-                    'source_label' => 'Doctor Announcements',
-                    'channel_label' => 'Doctor Announcement',
-                    'title' => $item->title,
-                    'body' => $item->content,
-                    'created_at' => $item->published_at ?? $item->created_at,
-                    'author_name' => $item->doctor?->name ?? 'Doctor',
-                    'subject_name' => $item->subject?->name,
-                    'badge' => $item->type_label,
-                    'icon' => $item->type_icon,
-                    'attachment_url' => $item->attachment_url,
-                    'is_unread' => false,
-                    'detail_url' => null,
-                    'open_mode' => 'modal',
-                    'can_vote' => false,
-                ];
-            });
+            ->get();
     }
 
     private function mapDelegateItems($student): Collection
@@ -180,62 +117,82 @@ class NewsHubController extends StudentApiController
             ->whereHas('creator', function ($query) {
                 $query->whereIn('role', ['delegate', 'practical_delegate']);
             })
-            ->get()
-            ->map(function (Announcement $item) {
-                return [
-                    'id' => 'delegate-' . $item->id,
-                    'source' => 'delegate',
-                    'channel' => 'delegate_announcement',
-                    'source_label' => 'Delegate Announcements',
-                    'channel_label' => 'Delegate Announcement',
-                    'title' => $item->title,
-                    'body' => $item->content,
-                    'created_at' => $item->created_at,
-                    'author_name' => $item->creator?->name ?? 'Delegate',
-                    'subject_name' => null,
-                    'badge' => $this->announcementCategoryLabel($item->category),
-                    'icon' => 'fa-users',
-                    'attachment_url' => $item->attachment_url,
-                    'is_unread' => false,
-                    'detail_url' => null,
-                    'open_mode' => 'modal',
-                    'can_vote' => false,
-                ];
-            });
+            ->get();
     }
 
-    private function serializeItem(array $item): array
+    private function serializeItem($item): array
     {
-        $createdAt = $item['created_at'] ?? null;
-        if ($createdAt && !($createdAt instanceof \Carbon\Carbon)) {
-            try {
-                $createdAt = \Carbon\Carbon::parse($createdAt);
-            } catch (\Exception $e) {
-                $createdAt = null;
-            }
+        if ($item instanceof StudentNotification) {
+            return [
+                'id' => 'center-' . $item->id,
+                'source' => 'administration',
+                'channel' => 'news_center',
+                'source_label' => 'Administration & News Center',
+                'channel_label' => 'News Center',
+                'title' => $item->title,
+                'body' => $item->message,
+                'created_at' => $item->created_at?->toISOString(),
+                'created_at_human' => $item->created_at?->diffForHumans(),
+                'author_name' => $item->sender?->name ?? 'Administration',
+                'subject_name' => null,
+                'badge' => $this->centerTypeLabel($item->type),
+                'icon' => $this->centerIcon($item->type),
+                'attachment_url' => $item->attachment_url,
+                'is_unread' => is_null($item->read_at),
+                'detail_url' => url('/student/news/' . $item->batch_id),
+                'open_mode' => 'link',
+                'can_vote' => $item->type === 'poll',
+            ];
         }
 
-        return [
-            'id' => $item['id'],
-            'source' => $item['source'],
-            'channel' => $item['channel'],
-            'source_label' => $item['source_label'],
-            'channel_label' => $item['channel_label'],
-            'title' => $item['title'],
-            'body' => $item['body'],
-            'excerpt' => \Illuminate\Support\Str::limit($item['body'], 180),
-            'created_at' => $createdAt?->toISOString(),
-            'created_at_human' => $createdAt?->diffForHumans(),
-            'author_name' => $item['author_name'],
-            'subject_name' => $item['subject_name'],
-            'badge' => $item['badge'],
-            'icon' => $item['icon'],
-            'attachment_url' => $item['attachment_url'],
-            'is_unread' => $item['is_unread'],
-            'detail_url' => $item['detail_url'],
-            'open_mode' => $item['open_mode'],
-            'can_vote' => $item['can_vote'],
-        ];
+        if ($item instanceof DoctorAnnouncement) {
+            return [
+                'id' => 'doctor-' . $item->id,
+                'source' => 'doctor',
+                'channel' => 'doctor_announcement',
+                'source_label' => 'Doctor Announcements',
+                'channel_label' => 'Doctor Announcement',
+                'title' => $item->title,
+                'body' => $item->content,
+                'created_at' => ($item->published_at ?? $item->created_at)?->toISOString(),
+                'created_at_human' => ($item->published_at ?? $item->created_at)?->diffForHumans(),
+                'author_name' => $item->doctor?->name ?? 'Doctor',
+                'subject_name' => $item->subject?->name,
+                'badge' => $item->type_label,
+                'icon' => $item->type_icon,
+                'attachment_url' => $item->attachment_url,
+                'is_unread' => false,
+                'detail_url' => null,
+                'open_mode' => 'modal',
+                'can_vote' => false,
+            ];
+        }
+
+        if ($item instanceof Announcement) {
+            $isAdmin = in_array($item->creator?->role?->value, ['admin', 'administrative']);
+            return [
+                'id' => ($isAdmin ? 'admin-' : 'delegate-') . $item->id,
+                'source' => $isAdmin ? 'administration' : 'delegate',
+                'channel' => $isAdmin ? 'admin_announcement' : 'delegate_announcement',
+                'source_label' => $isAdmin ? 'Administration & News Center' : 'Delegate Announcements',
+                'channel_label' => $isAdmin ? 'Administrative Announcement' : 'Delegate Announcement',
+                'title' => $item->title,
+                'body' => $item->content,
+                'created_at' => $item->created_at?->toISOString(),
+                'created_at_human' => $item->created_at?->diffForHumans(),
+                'author_name' => $item->creator?->name ?? ($isAdmin ? 'Administration' : 'Delegate'),
+                'subject_name' => null,
+                'badge' => $this->announcementCategoryLabel($item->category),
+                'icon' => $isAdmin ? 'fa-building' : 'fa-users',
+                'attachment_url' => $item->attachment_url,
+                'is_unread' => false,
+                'detail_url' => null,
+                'open_mode' => 'modal',
+                'can_vote' => false,
+            ];
+        }
+
+        return (array) $item;
     }
 
     private function centerTypeLabel(string $type): string

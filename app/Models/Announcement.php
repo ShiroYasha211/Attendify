@@ -30,11 +30,13 @@ class Announcement extends Model
         'views_count' => 'integer',
     ];
 
+    protected $appends = ['attachment_url'];
+
     // Accessor for attachment URL
     public function getAttachmentUrlAttribute()
     {
         if ($this->attachment_path) {
-            return Storage::url($this->attachment_path);
+            return asset(Storage::url($this->attachment_path));
         }
         return null;
     }
