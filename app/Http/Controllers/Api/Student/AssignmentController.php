@@ -149,6 +149,15 @@ class AssignmentController extends StudentApiController
             ->where('student_id', $student->id)
             ->first();
 
+        $isOverdue = $assignment->isOverdue();
+        $status = 'available';
+
+        if ($submission) {
+            $status = 'submitted';
+        } elseif ($isOverdue) {
+            $status = 'missing';
+        }
+
         return $this->success([
             'assignment' => [
                 'id' => $assignment->id,
@@ -160,9 +169,11 @@ class AssignmentController extends StudentApiController
                 'requires_submission' => (bool) $assignment->requires_submission,
                 'requires_file' => (bool) $assignment->requires_submission,
                 'subject' => $assignment->subject,
+                'status' => $status,
+                'can_submit' => ! $isOverdue,
             ],
             'submission' => $submission ? $this->serializeSubmission($submission) : null,
-            'is_overdue' => $assignment->isOverdue(),
+            'is_overdue' => $isOverdue,
             'formatted_due_date' => \Carbon\Carbon::parse($assignment->due_date)->format('Y-m-d'),
             'formatted_submitted_at' => $submission ? \Carbon\Carbon::parse($submission->submitted_at)->format('Y-m-d H:i') : null,
             'is_late' => $submission ? $submission->isLate() : false,
@@ -181,6 +192,10 @@ class AssignmentController extends StudentApiController
             ->pluck('id');
 
         $assignment = Assignment::whereIn('subject_id', $subjectIds)->findOrFail($id);
+
+        if ($assignment->isOverdue()) {
+            return $this->error('انتهت مهلة تسليم هذا التكليف ولم يعد بالإمكان الإرسال.', 422);
+        }
 
         $rules = [
             'notes' => 'nullable|string|max:500',
