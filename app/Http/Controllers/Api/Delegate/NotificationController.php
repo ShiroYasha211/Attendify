@@ -75,11 +75,17 @@ class NotificationController extends DelegateApiController
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // 4. Get personal notifications for the delegate
+        $notifications = StudentNotification::where('user_id', $delegate->id)
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
         return $this->success([
             'stats' => $stats,
             'absence_stats' => $report,
             'sent_warnings' => $sentWarnings,
-        ], 'تم جلب إحصائيات الغياب بنجاح');
+            'notifications' => $notifications,
+        ], 'تم جلب الإحصائيات والتنبيهات بنجاح');
     }
 
     /**
@@ -125,5 +131,29 @@ class NotificationController extends DelegateApiController
         ]);
 
         return $this->success($notification, 'تم إرسال إنذار الغياب بنجاح', 201);
+    }
+    /**
+     * Mark a notification as read.
+     */
+    public function markAsRead($id)
+    {
+        $notification = StudentNotification::where('user_id', request()->user()->id)
+            ->findOrFail($id);
+
+        $notification->markAsRead();
+
+        return $this->success(null, 'تم تحديد التنبيه كمقروء');
+    }
+
+    /**
+     * Mark all notifications as read.
+     */
+    public function markAllAsRead()
+    {
+        StudentNotification::where('user_id', request()->user()->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return $this->success(null, 'تم تحديد جميع التنبيهات كمقروءة');
     }
 }

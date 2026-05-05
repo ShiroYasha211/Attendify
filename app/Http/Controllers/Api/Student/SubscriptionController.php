@@ -16,7 +16,15 @@ class SubscriptionController extends StudentApiController
     public function index(Request $request)
     {
         $user = $request->user();
-        $packages = Package::where('is_active', true)->get();
+        $effectiveRole = $this->effectiveSubscriptionRole($user);
+        $packages = Package::where('is_active', true)
+            ->get()
+            ->map(function (Package $package) use ($effectiveRole) {
+                $package->effective_price = $package->getPriceForRole($effectiveRole);
+                $package->effective_role = $effectiveRole;
+
+                return $package;
+            });
         
         return $this->success([
             'user_balance' => $user->balance,
@@ -84,8 +92,7 @@ class SubscriptionController extends StudentApiController
             return $this->error('أنت مشترك بالفعل في باقة أخرى. يرجى الانتظار حتى انتهاء اشتراكك الحالي لتتمكن من التجديد أو تغيير الباقة.');
         }
         
-        $roleValue = $user->role instanceof UserRole ? $user->role->value : $user->role;
-        $price = $package->getPriceForRole($roleValue);
+        $price = $package->getPriceForRole($this->effectiveSubscriptionRole($user));
 
         if ($user->balance < $price) {
             return $this->error('رصيدك غير كافٍ للاشتراك في هذه الباقة. يرجى شحن رصيدك أولاً.');
@@ -144,5 +151,14 @@ class SubscriptionController extends StudentApiController
         return $this->success([
             'auto_renew' => (bool)$user->auto_renew,
         ], "تم {$status} التجديد التلقائي بنجاح.");
+    }
+
+    private function effectiveSubscriptionRole($user): string
+    {
+        if (method_exists($user, 'canAccessDelegateWorkspace') && $user->canAccessDelegateWorkspace()) {
+            return UserRole::DELEGATE->value;
+        }
+
+        return $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
     }
 }

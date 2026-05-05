@@ -281,6 +281,8 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     // Notifications & Absence Alerts
     Route::get('notifications', [DelegateNotificationController::class, 'index']);
     Route::post('notifications', [DelegateNotificationController::class, 'store']);
+    Route::post('notifications/{id}/read', [DelegateNotificationController::class, 'markAsRead']);
+    Route::post('notifications/mark-all-read', [DelegateNotificationController::class, 'markAllAsRead']);
 
     // Basic Connectivity Test
     Route::get('health-check', function() { return response()->json(['status' => 'ok', 'user' => request()->user()->name]); });
@@ -360,8 +362,6 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::post('grade-helper-delegations', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'store']);
     Route::delete('grade-helper-delegations/{delegation}', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'revoke']);
 
-    Route::get('notifications', [DelegateNotificationController::class, 'index']);
-    Route::post('notifications', [DelegateNotificationController::class, 'store']);
 
     // Clinical - Sub-Delegation & Case Review
     Route::prefix('clinical')->group(function () {

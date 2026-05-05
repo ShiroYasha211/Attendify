@@ -17,7 +17,14 @@ class SubscriptionController extends DelegateApiController
     public function index(Request $request)
     {
         $user = $request->user();
-        $packages = Package::where('is_active', true)->get();
+        $packages = Package::where('is_active', true)
+            ->get()
+            ->map(function (Package $package) {
+                $package->effective_price = $package->getPriceForRole(UserRole::DELEGATE->value);
+                $package->effective_role = UserRole::DELEGATE->value;
+
+                return $package;
+            });
         
         return $this->success([
             'user_balance' => $user->balance,
@@ -85,8 +92,7 @@ class SubscriptionController extends DelegateApiController
             return $this->error('أنت مشترك بالفعل في باقة أخرى. يرجى الانتظار حتى انتهاء اشتراكك الحالي لتتمكن من التجديد أو تغيير الباقة.');
         }
         
-        $roleValue = $user->role instanceof UserRole ? $user->role->value : $user->role;
-        $price = $package->getPriceForRole($roleValue);
+        $price = $package->getPriceForRole(UserRole::DELEGATE->value);
 
         if ($user->balance < $price) {
             return $this->error('رصيدك غير كافٍ للاشتراك في هذه الباقة. يرجى شحن رصيدك أولاً.');

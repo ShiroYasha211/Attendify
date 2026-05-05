@@ -27,7 +27,7 @@ class InquiryController extends DelegateApiController
             $query->where('status', $request->status);
         }
 
-        $inquiries = $query->get();
+        $inquiries = $query->paginate(15);
 
         $stats = [
             'total' => Inquiry::whereIn('subject_id', $subjectIds)->count(),
