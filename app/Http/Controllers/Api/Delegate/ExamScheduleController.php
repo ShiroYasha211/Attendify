@@ -9,8 +9,22 @@ use App\Models\ExamSchedule;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
-class ExamScheduleController extends DelegateApiController
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class ExamScheduleController extends DelegateApiController implements HasMiddleware
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('delegate.permission:exams,create', only: ['store']),
+            new Middleware('delegate.permission:exams,update', only: ['update']),
+            new Middleware('delegate.permission:exams,delete', only: ['destroy']),
+        ];
+    }
     /**
      * Display a listing of exam schedules for the delegate's batch.
      */

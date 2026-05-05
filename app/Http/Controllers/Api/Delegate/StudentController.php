@@ -9,8 +9,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
-class StudentController extends DelegateApiController
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class StudentController extends DelegateApiController implements HasMiddleware
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('delegate.permission:students,create', only: ['store', 'import']),
+            new Middleware('delegate.permission:students,update', only: ['update']),
+            new Middleware('delegate.permission:students,delete', only: ['destroy']),
+        ];
+    }
     /**
      * Display a listing of students in the delegate's batch.
      */

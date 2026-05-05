@@ -10,8 +10,22 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class ScheduleController extends DelegateApiController
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class ScheduleController extends DelegateApiController implements HasMiddleware
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('delegate.permission:schedules,create', only: ['store']),
+            new Middleware('delegate.permission:schedules,update', only: ['update']),
+            new Middleware('delegate.permission:schedules,delete', only: ['destroy']),
+        ];
+    }
     /**
      * Display a listing of schedules for the delegate's batch.
      */
