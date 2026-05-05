@@ -60,7 +60,7 @@ class ReminderController extends DelegateApiController
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'event_date' => 'required|date|after:now',
+            'event_date' => 'required|date|after:yesterday',
             'notify_at' => 'required|date|before_or_equal:event_date',
         ]);
 
@@ -97,7 +97,7 @@ class ReminderController extends DelegateApiController
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'event_date' => 'required|date|after:now',
+            'event_date' => 'required|date|after:yesterday',
             'notify_at' => 'required|date|before_or_equal:event_date',
         ]);
 
