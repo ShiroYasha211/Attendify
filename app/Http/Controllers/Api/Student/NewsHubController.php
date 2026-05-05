@@ -206,6 +206,15 @@ class NewsHubController extends StudentApiController
 
     private function serializeItem(array $item): array
     {
+        $createdAt = $item['created_at'] ?? null;
+        if ($createdAt && !($createdAt instanceof \Carbon\Carbon)) {
+            try {
+                $createdAt = \Carbon\Carbon::parse($createdAt);
+            } catch (\Exception $e) {
+                $createdAt = null;
+            }
+        }
+
         return [
             'id' => $item['id'],
             'source' => $item['source'],
@@ -215,8 +224,8 @@ class NewsHubController extends StudentApiController
             'title' => $item['title'],
             'body' => $item['body'],
             'excerpt' => \Illuminate\Support\Str::limit($item['body'], 180),
-            'created_at' => $item['created_at']?->toISOString(),
-            'created_at_human' => $item['created_at']?->diffForHumans(),
+            'created_at' => $createdAt?->toISOString(),
+            'created_at_human' => $createdAt?->diffForHumans(),
             'author_name' => $item['author_name'],
             'subject_name' => $item['subject_name'],
             'badge' => $item['badge'],
