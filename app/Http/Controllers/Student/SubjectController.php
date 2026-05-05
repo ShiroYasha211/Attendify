@@ -92,11 +92,13 @@ class SubjectController extends Controller
         }
 
         // ── Deprivation Warning Logic ──
-        $maxAbsences = (int) Setting::get('default_max_absences', 3);
-        $deprivationThreshold = (int) Setting::get('deprivation_threshold', 25);
+        $student->loadMissing('college');
+        $maxAbsences = (int) ($subject->max_absences ?: Setting::get('default_max_absences', 3));
+        $deprivationThreshold = (int) ($student->college?->absence_deprivation_percentage ?: Setting::get('deprivation_threshold', 25));
 
         $absencePercent = $totalLectures > 0 ? round(($absentCount / $totalLectures) * 100) : 0;
         $warning = null;
+        $remainingAbsences = max($maxAbsences - $absentCount, 0);
         
         if ($absencePercent >= $deprivationThreshold) {
             $warning = 'danger'; // Deprivation zone
@@ -114,6 +116,7 @@ class SubjectController extends Controller
                 'absence_percent' => $absencePercent,
                 'warning_level' => $warning,
                 'max_absences' => $maxAbsences,
+                'remaining_absences' => $remainingAbsences,
                 'threshold' => $deprivationThreshold,
             ];
         }

@@ -2,76 +2,74 @@
 
 namespace App\Http\Controllers\Api\Student;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Setting;
 use App\Support\ExcuseWorkflow;
+use Illuminate\Http\Request;
 
 class AttendanceController extends StudentApiController
 {
     /**
-     * Get Student Attendance Stats & History
+     * Get student attendance stats and history.
      */
     public function index(Request $request)
     {
         $student = $request->user();
+        $student->loadMissing('college');
 
-        // Fetch all attendance records for this student
         $attendances = Attendance::where('student_id', $student->id)
-            ->with(['subject:id,name', 'excuse'])
+            ->with(['subject:id,name,max_absences', 'excuse'])
             ->orderBy('date', 'desc')
             ->get();
 
-        // Calculate Stats
         $totalLectures = $attendances->count();
         $presentCount = $attendances->where('status', 'present')->count();
         $absentCount = $attendances->where('status', 'absent')->count();
         $lateCount = $attendances->where('status', 'late')->count();
         $excusedCount = $attendances->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
 
-        // Presence Percentage
         $presencePercentage = $totalLectures > 0
             ? round((($presentCount + $lateCount + $excusedCount) / $totalLectures) * 100, 1)
             : 0;
 
-        // Group by Subject for warnings and subject-specific stats
         $attendanceBySubject = $attendances->groupBy('subject_id');
-
-        // Deprivation Warning Logic
-        $maxAbsences = (int) Setting::get('default_max_absences', 3);
-        $deprivationThreshold = (int) Setting::get('deprivation_threshold', 25);
+        $defaultMaxAbsences = (int) Setting::get('default_max_absences', 3);
+        $deprivationThreshold = (int) ($student->college?->absence_deprivation_percentage ?: Setting::get('deprivation_threshold', 25));
 
         $subjectWarnings = [];
         $history = [];
 
         foreach ($attendanceBySubject as $subjectId => $records) {
-            $subjectName = $records->first()->subject->name ?? 'مجهول';
+            $subject = $records->first()->subject;
+            $subjectName = $subject?->name ?? 'Unknown';
+            $maxAbsences = (int) (($subject?->max_absences) ?: $defaultMaxAbsences);
             $subjectAbsent = $records->where('status', 'absent')->count();
-            $subjectTotal  = $records->count();
+            $subjectTotal = $records->count();
             $absencePercent = $subjectTotal > 0 ? round(($subjectAbsent / $subjectTotal) * 100) : 0;
+            $remainingAbsences = max($maxAbsences - $subjectAbsent, 0);
 
             $warningLevel = null;
             if ($absencePercent >= $deprivationThreshold) {
-                $warningLevel = 'danger'; // Deprivation zone
+                $warningLevel = 'danger';
             } elseif ($subjectAbsent >= $maxAbsences) {
-                $warningLevel = 'danger'; // Exceeded max allowed
+                $warningLevel = 'danger';
             } elseif ($subjectAbsent >= ($maxAbsences - 1)) {
-                $warningLevel = 'warning'; // One absence away from max
+                $warningLevel = 'warning';
             }
 
             $subjectWarnings[] = [
                 'subject_id' => $subjectId,
                 'subject_name' => $subjectName,
                 'absent_count' => $subjectAbsent,
-                'total_lectures'  => $subjectTotal,
+                'total_lectures' => $subjectTotal,
                 'absence_percent' => $absencePercent,
                 'warning_level' => $warningLevel,
                 'max_absences_allowed' => $maxAbsences,
+                'remaining_absences' => $remainingAbsences,
+                'deprivation_threshold_percent' => $deprivationThreshold,
                 'is_banned' => $warningLevel === 'danger',
             ];
 
-            // Push to history array but simplified
             foreach ($records as $rec) {
                 $history[] = [
                     'id' => $rec->id,
@@ -79,14 +77,13 @@ class AttendanceController extends StudentApiController
                     'date' => $rec->date,
                     'status' => $rec->status,
                     'is_excused' => in_array($rec->status, ExcuseWorkflow::countedAsExcusedStatuses(), true) || $rec->excuse !== null,
-                    'excuse_status' => $rec->excuse ? $rec->excuse->status : null,
-                    'excuse_resolution' => $rec->excuse ? $rec->excuse->resolution : null,
+                    'excuse_status' => $rec->excuse?->status,
+                    'excuse_resolution' => $rec->excuse?->resolution,
                 ];
             }
         }
 
-        // Sort history by date descending again just in case traversing grouped collection messed order
-        usort($history, function ($a, $b) {
+        usort($history, static function ($a, $b) {
             return strtotime($b['date']) - strtotime($a['date']);
         });
 

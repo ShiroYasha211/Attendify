@@ -110,12 +110,13 @@ class SubjectController extends StudentApiController
 
         // 4. Deprivation Warning Logic
         $student->loadMissing('college');
-        $maxAbsences = (int) Setting::get('default_max_absences', 3);
-        $deprivationThreshold = (int) Setting::get('deprivation_threshold', 25);
+        $maxAbsences = (int) ($subject->max_absences ?: Setting::get('default_max_absences', 3));
+        $deprivationThreshold = (int) ($student->college?->absence_deprivation_percentage ?: Setting::get('deprivation_threshold', 25));
         $excuseDeadlineDays = (int) ($student->college?->excuses_deadline_days ?? 3);
 
         $absencePercent = $totalLecturesHeld > 0 ? round(($absentCount / $totalLecturesHeld) * 100) : 0;
         $warningLevel = null;
+        $remainingAbsences = max($maxAbsences - $absentCount, 0);
 
         if ($absencePercent >= $deprivationThreshold) {
             $warningLevel = 'danger'; // Deprivation zone
@@ -181,6 +182,8 @@ class SubjectController extends StudentApiController
                 'warning_level' => $warningLevel,
                 'absence_percent' => $absencePercent,
                 'max_absences_allowed' => $maxAbsences,
+                'remaining_absences' => $remainingAbsences,
+                'deprivation_threshold_percent' => $deprivationThreshold,
                 'is_banned' => $warningLevel === 'danger',
             ],
             'lectures' => $lectures,

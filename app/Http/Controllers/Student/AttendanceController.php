@@ -38,14 +38,18 @@ class AttendanceController extends Controller
         $attendanceBySubject = $attendances->groupBy('subject_id');
 
         // ── Deprivation Warning Logic ──
-        $maxAbsences = (int) Setting::get('default_max_absences', 3);
-        $deprivationThreshold = (int) Setting::get('deprivation_threshold', 25);
+        $student->loadMissing('college');
+        $defaultMaxAbsences = (int) Setting::get('default_max_absences', 3);
+        $deprivationThreshold = (int) ($student->college?->absence_deprivation_percentage ?: Setting::get('deprivation_threshold', 25));
 
         $subjectWarnings = [];
         foreach ($attendanceBySubject as $subjectId => $records) {
+            $subject = $records->first()->subject;
+            $maxAbsences = (int) (($subject?->max_absences) ?: $defaultMaxAbsences);
             $subjectAbsent = $records->where('status', 'absent')->count();
             $subjectTotal  = $records->count();
             $absencePercent = $subjectTotal > 0 ? round(($subjectAbsent / $subjectTotal) * 100) : 0;
+            $remainingAbsences = max($maxAbsences - $subjectAbsent, 0);
 
             $warning = null;
             if ($absencePercent >= $deprivationThreshold) {
@@ -62,6 +66,7 @@ class AttendanceController extends Controller
                 'absence_percent' => $absencePercent,
                 'warning_level' => $warning,
                 'max_absences' => $maxAbsences,
+                'remaining_absences' => $remainingAbsences,
                 'threshold' => $deprivationThreshold,
             ];
         }
