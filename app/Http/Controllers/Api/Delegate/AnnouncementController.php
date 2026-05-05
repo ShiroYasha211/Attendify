@@ -18,6 +18,7 @@ class AnnouncementController extends DelegateApiController
     {
         $delegate = $request->user();
         $category = $request->get('category', 'all');
+        $queryStr = $request->get('q');
 
         $query = Announcement::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id);
@@ -26,10 +27,17 @@ class AnnouncementController extends DelegateApiController
             $query->where('category', $category);
         }
 
+        if ($queryStr) {
+            $query->where(function($q) use ($queryStr) {
+                $q->where('title', 'like', "%{$queryStr}%")
+                  ->orWhere('content', 'like', "%{$queryStr}%");
+            });
+        }
+
         $announcements = $query->with('creator:id,name')
             ->orderBy('is_pinned', 'desc')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(15);
 
         // Get statistics
         $stats = [
