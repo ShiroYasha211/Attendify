@@ -53,13 +53,12 @@ class QrAttendanceController extends DelegateApiController
 
                 $existing->rotateToken();
 
-                return response()->json([
-                    'message' => 'الجلسة موجودة مسبقًا، تم تحديث الكود وإعادة تفعيلها.',
+                return $this->success([
                     'session_id' => $existing->id,
                     'token' => $existing->current_token,
                     'expires_at' => $existing->token_expires_at->toIso8601String(),
                     'rotation_seconds' => $existing->rotationSeconds(),
-                ]);
+                ], 'الجلسة موجودة مسبقًا، تم تحديث الكود وإعادة تفعيلها.');
             }
 
             $firstToken = Str::random(48) . bin2hex(random_bytes(8));
@@ -93,13 +92,12 @@ class QrAttendanceController extends DelegateApiController
                 ]);
             }
 
-            return response()->json([
-                'message' => 'تم بدء جلسة الحضور بنجاح.',
+            return $this->success([
                 'session_id' => $session->id,
                 'token' => $session->current_token,
                 'expires_at' => $session->token_expires_at->toIso8601String(),
                 'rotation_seconds' => $session->rotationSeconds(),
-            ], 201);
+            ], 'تم بدء جلسة الحضور بنجاح.', 201);
         } catch (\Exception $exception) {
             return response()->json([
                 'message' => 'Server Error: ' . $exception->getMessage(),
@@ -122,11 +120,11 @@ class QrAttendanceController extends DelegateApiController
 
         $newToken = $session->rotateToken();
 
-        return response()->json([
+        return $this->success([
             'token' => $newToken,
             'expires_at' => $session->token_expires_at->toIso8601String(),
             'rotation_seconds' => $session->rotationSeconds(),
-        ]);
+        ], 'تم تحديث الكود.');
     }
 
     public function getStatus(Request $request, QrAttendanceSession $session)
@@ -171,7 +169,7 @@ class QrAttendanceController extends DelegateApiController
             ->take(12)
             ->values();
 
-        return response()->json([
+        return $this->success([
             'session_status' => $session->status,
             'session' => [
                 'id' => $session->id,
@@ -197,7 +195,7 @@ class QrAttendanceController extends DelegateApiController
             'students' => $students,
             'recent_scans' => $recentScans,
             'verification' => $session->buildVerificationPayload(),
-        ]);
+        ], 'تم جلب حالة الجلسة.');
     }
 
     public function scan(Request $request)
