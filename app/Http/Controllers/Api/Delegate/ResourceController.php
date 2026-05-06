@@ -54,8 +54,13 @@ class ResourceController extends DelegateApiController
 
         $resources = $query->latest()->get();
 
+        $subjects = Subject::where('major_id', $user->major_id)
+            ->where('level_id', $user->level_id)
+            ->get(['id', 'name', 'code']);
+
         return $this->success([
             'stats' => $stats,
+            'subjects' => $subjects,
             'resources' => $resources
         ], 'تم جلب المصادر والمذكرات بنجاح');
     }
