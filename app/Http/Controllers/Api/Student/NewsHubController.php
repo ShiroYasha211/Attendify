@@ -75,7 +75,7 @@ class NewsHubController extends StudentApiController
                 'total' => $items->count(),
                 'last_page' => (int) ceil(max($items->count(), 1) / $perPage),
             ],
-            'items' => $paginated->map(fn (array $item) => $this->serializeItem($item))->values(),
+            'items' => $paginated->map(fn ($item) => $this->serializeItem($item))->values(),
         ]);
     }
 

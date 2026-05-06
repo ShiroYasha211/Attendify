@@ -52,6 +52,7 @@ class AuthController extends DelegateApiController
                 'level_id' => $user->level_id,
                 'is_practical_delegate' => $user->isPracticalDelegate(),
                 'is_clinical_delegate' => $user->isClinicalDelegate(),
+                'permissions' => $user->all_delegate_permissions,
             ],
             'token' => $token,
         ], 'تم تسجيل الدخول بنجاح');
@@ -80,6 +81,7 @@ class AuthController extends DelegateApiController
                 [
                     'is_practical_delegate' => $user->isPracticalDelegate(),
                     'is_clinical_delegate' => $user->isClinicalDelegate(),
+                    'permissions' => $user->all_delegate_permissions,
                 ]
             ),
         ], 'تم جلب البيانات بنجاح');

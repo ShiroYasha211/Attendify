@@ -481,6 +481,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Get a simple array of delegate permissions strings (e.g., ["students.create", "students.delete"]).
+     */
+    public function getAllDelegatePermissionsAttribute(): array
+    {
+        return $this->delegatePermissions()
+            ->get(['resource', 'action'])
+            ->map(fn($p) => "{$p->resource}.{$p->action}")
+            ->toArray();
+    }
+
+    /**
      * Check if user has a specific delegate permission.
      */
     public function hasDelegatePermission(string $resource, string $action): bool
