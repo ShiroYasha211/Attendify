@@ -30,7 +30,12 @@ class NewsHubController extends StudentApiController
             'doctor' => $doctorItems,
             'delegate' => $delegateItems,
             default => $adminItems->merge($doctorItems)->merge($delegateItems),
-        })->sortByDesc('created_at')->values();
+        })->sort(function ($a, $b) {
+            $aPinned = (bool) ($a->is_pinned ?? false);
+            $bPinned = (bool) ($b->is_pinned ?? false);
+            if ($aPinned !== $bPinned) return $bPinned <=> $aPinned;
+            return $b->created_at <=> $a->created_at;
+        })->values();
 
         $perPage = max(1, min((int) $request->query('per_page', 15), 50));
         $page = max((int) $request->query('page', 1), 1);
@@ -189,6 +194,7 @@ class NewsHubController extends StudentApiController
                 'detail_url' => null,
                 'open_mode' => 'modal',
                 'can_vote' => false,
+                'is_pinned' => (bool) $item->is_pinned,
             ];
         }
 
