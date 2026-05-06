@@ -33,7 +33,7 @@ class StudentController extends DelegateApiController implements HasMiddleware
         $delegate = $request->user();
         $search = $request->query('query');
 
-        $baseQuery = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $baseQuery = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id);
 
