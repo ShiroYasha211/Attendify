@@ -73,16 +73,14 @@ class StudentController extends DelegateApiController implements HasMiddleware
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'gender' => ['required', Rule::in(['male', 'female'])],
-            'email' => 'required|string|email|max:255|unique:users',
             'student_number' => 'required|string|max:20|unique:users',
-            'password' => 'required|string|min:6|confirmed',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'gender' => $validated['gender'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'email' => $this->generatedStudentEmail($validated['student_number']),
+            'password' => Hash::make($validated['student_number']),
             'role' => UserRole::STUDENT,
             'student_number' => $validated['student_number'],
             'university_id' => $delegate->university_id,
@@ -110,25 +108,22 @@ class StudentController extends DelegateApiController implements HasMiddleware
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'gender' => ['required', Rule::in(['male', 'female'])],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($student->id)],
             'student_number' => ['required', 'string', 'max:20', Rule::unique('users')->ignore($student->id)],
-            'password' => 'nullable|string|min:6|confirmed',
             'status' => ['nullable', Rule::in(['active', 'inactive', 'pending'])],
         ]);
 
         $data = [
             'name' => $validated['name'],
             'gender' => $validated['gender'],
-            'email' => $validated['email'],
             'student_number' => $validated['student_number'],
         ];
 
-        if (isset($validated['status'])) {
-            $data['status'] = $validated['status'];
+        if (str_ends_with((string) $student->email, '@students.moeen.local')) {
+            $data['email'] = $this->generatedStudentEmail($validated['student_number']);
         }
 
-        if (!empty($validated['password'])) {
-            $data['password'] = Hash::make($validated['password']);
+        if (isset($validated['status'])) {
+            $data['status'] = $validated['status'];
         }
 
         $student->update($data);
@@ -189,24 +184,24 @@ class StudentController extends DelegateApiController implements HasMiddleware
                 }
 
                 $name = trim($data[0]);
-                $email = trim($data[1]);
-                $studentNumber = trim($data[2]);
+                $studentNumber = trim($data[1]);
+                $gender = $this->normalizeGender($data[2] ?? '');
 
-                if (empty($name) || empty($email) || empty($studentNumber)) {
+                if (empty($name) || empty($studentNumber) || empty($gender)) {
                     $errors[] = "السطر $rowNumber: بيانات ناقصة ($name).";
                     continue;
                 }
 
-                if (User::where('email', $email)->exists() || User::where('student_number', $studentNumber)->exists()) {
-                    $errors[] = "السطر $rowNumber: البريد أو رقم القيد مسجل مسبقاً ($email).";
+                if (User::where('student_number', $studentNumber)->exists()) {
+                    $errors[] = "السطر $rowNumber: رقم القيد مسجل مسبقاً ($studentNumber).";
                     continue;
                 }
 
                 try {
                     User::create([
                         'name' => $name,
-                        'gender' => 'male',
-                        'email' => $email,
+                        'gender' => $gender,
+                        'email' => $this->generatedStudentEmail($studentNumber),
                         'password' => Hash::make($studentNumber),
                         'role' => UserRole::STUDENT,
                         'student_number' => $studentNumber,
@@ -309,11 +304,28 @@ class StudentController extends DelegateApiController implements HasMiddleware
             $file = fopen('php://output', 'w');
             // Write UTF-8 BOM for Excel compatibility
             fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Name', 'Email', 'Student Number']);
-            fputcsv($file, ['Ahmed Ali', 'ahmed@example.com', '12345678']);
+            fputcsv($file, ['Name', 'Student Number', 'Gender']);
+            fputcsv($file, ['Ahmed Ali', '12345678', 'male']);
+            fputcsv($file, ['Sara Ali', '12345679', 'female']);
             fclose($file);
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function generatedStudentEmail(string $studentNumber): string
+    {
+        $safeNumber = trim(preg_replace('/[^A-Za-z0-9._-]+/', '-', $studentNumber), '-');
+        return 'student-' . strtolower($safeNumber ?: uniqid()) . '@students.moeen.local';
+    }
+
+    private function normalizeGender(string $gender): ?string
+    {
+        $value = trim(mb_strtolower($gender));
+        return match ($value) {
+            'male', 'm', 'ذكر' => 'male',
+            'female', 'f', 'أنثى', 'انثى' => 'female',
+            default => null,
+        };
     }
 }

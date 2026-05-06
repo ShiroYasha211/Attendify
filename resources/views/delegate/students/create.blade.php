@@ -44,7 +44,7 @@
 
                 <div class="mb-3">
                     <label class="form-label font-weight-bold small text-uppercase">البريد الإلكتروني <span class="text-danger">*</span></label>
-                    <input type="email" name="email" class="form-control" required value="{{ old('email') }}" placeholder="student@university.edu.ye">
+                    <input type="email" name="email" class="form-control" value="{{ old('email') }}" placeholder="student@university.edu.ye">
                 </div>
 
                 <div class="mb-3">
@@ -59,11 +59,11 @@
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
                         <label class="form-label font-weight-bold small text-uppercase">كلمة المرور <span class="text-danger">*</span></label>
-                        <input type="password" name="password" class="form-control" required>
+                        <input type="password" name="password" class="form-control">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label font-weight-bold small text-uppercase">تأكيد كلمة المرور</label>
-                        <input type="password" name="password_confirmation" class="form-control" required>
+                        <input type="password" name="password_confirmation" class="form-control">
                     </div>
                 </div>
 

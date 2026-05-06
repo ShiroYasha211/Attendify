@@ -45,7 +45,7 @@
 
                 <div class="mb-3">
                     <label class="form-label font-weight-bold small text-uppercase">البريد الإلكتروني <span class="text-danger">*</span></label>
-                    <input type="email" name="email" class="form-control" required value="{{ old('email', $student->email) }}">
+                    <input type="email" name="email" class="form-control" value="{{ old('email', $student->email) }}">
                 </div>
 
                 <div class="mb-3">

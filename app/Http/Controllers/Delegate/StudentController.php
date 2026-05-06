@@ -61,16 +61,14 @@ class StudentController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'gender' => ['required', Rule::in(['male', 'female'])],
-            'email' => 'required|string|email|max:255|unique:users',
             'student_number' => 'required|string|max:20|unique:users',
-            'password' => 'required|string|min:6|confirmed',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'gender' => $validated['gender'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'email' => $this->generatedStudentEmail($validated['student_number']),
+            'password' => Hash::make($validated['student_number']),
             'role' => UserRole::STUDENT,
             'student_number' => $validated['student_number'],
             'university_id' => $delegate->university_id,
@@ -111,20 +109,17 @@ class StudentController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'gender' => ['required', Rule::in(['male', 'female'])],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($student->id)],
             'student_number' => ['required', 'string', 'max:20', Rule::unique('users')->ignore($student->id)],
-            'password' => 'nullable|string|min:6|confirmed',
         ]);
 
         $data = [
             'name' => $validated['name'],
             'gender' => $validated['gender'],
-            'email' => $validated['email'],
             'student_number' => $validated['student_number'],
         ];
 
-        if (!empty($validated['password'])) {
-            $data['password'] = Hash::make($validated['password']);
+        if (str_ends_with((string) $student->email, '@students.moeen.local')) {
+            $data['email'] = $this->generatedStudentEmail($validated['student_number']);
         }
 
         $student->update($data);
@@ -163,9 +158,9 @@ class StudentController extends Controller implements HasMiddleware
             $file = fopen('php://output', 'w');
             // Add BOM for UTF-8 Arabic support in Excel
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Name', 'Email', 'Student Number']);
-            fputcsv($file, ['أحمد محمد', 'ahmed@example.com', '2023001']);
-            fputcsv($file, ['سارة علي', 'sara@example.com', '2023002']);
+            fputcsv($file, ['Name', 'Student Number', 'Gender']);
+            fputcsv($file, ['Ahmed Ali', '2023001', 'male']);
+            fputcsv($file, ['Sara Ali', '2023002', 'female']);
             fclose($file);
         };
 
@@ -205,28 +200,23 @@ class StudentController extends Controller implements HasMiddleware
                     continue;
                 }
 
-                // Ensure we have exactly 3 columns (Name, Email, Student Number)
+                // Ensure we have exactly 3 columns (Name, Student Number, Gender)
                 if (count($data) < 3) {
                     $errors[] = "السطر $rowNumber: أعمدة ناقصة (مطلوب: الاسم، الإيميل، رقم القيد).";
                     continue;
                 }
 
                 $name = trim($data[0]);
-                $email = trim($data[1]);
-                $studentNumber = trim($data[2]);
+                $studentNumber = trim($data[1]);
+                $gender = $this->normalizeGender($data[2] ?? '');
 
                 // Validate empty fields
-                if (empty($name) || empty($email) || empty($studentNumber)) {
+                if (empty($name) || empty($studentNumber) || empty($gender)) {
                     $errors[] = "السطر $rowNumber: بيانات ناقصة للجندي ($name / $studentNumber).";
                     continue;
                 }
 
                 // Validate Email uniqueness
-                if (User::where('email', $email)->exists()) {
-                    $errors[] = "السطر $rowNumber: البريد الإلكتروني مكرر ($email).";
-                    continue;
-                }
-
                 // Validate Student Number uniqueness
                 if (User::where('student_number', $studentNumber)->exists()) {
                     $errors[] = "السطر $rowNumber: رقم القيد مكرر ($studentNumber).";
@@ -236,8 +226,8 @@ class StudentController extends Controller implements HasMiddleware
                 try {
                     User::create([
                         'name' => $name,
-                        'gender' => 'male',
-                        'email' => $email,
+                        'gender' => $gender,
+                        'email' => $this->generatedStudentEmail($studentNumber),
                         'password' => Hash::make($studentNumber), // Default password is student number
                         'role' => UserRole::STUDENT,
                         'student_number' => $studentNumber,
@@ -292,5 +282,21 @@ class StudentController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', 'تم تحديث صلاحيات الطالب بنجاح.');
+    }
+
+    private function generatedStudentEmail(string $studentNumber): string
+    {
+        $safeNumber = trim(preg_replace('/[^A-Za-z0-9._-]+/', '-', $studentNumber), '-');
+        return 'student-' . strtolower($safeNumber ?: uniqid()) . '@students.moeen.local';
+    }
+
+    private function normalizeGender(string $gender): ?string
+    {
+        $value = trim(mb_strtolower($gender));
+        return match ($value) {
+            'male', 'm', 'ذكر' => 'male',
+            'female', 'f', 'أنثى', 'انثى' => 'female',
+            default => null,
+        };
     }
 }
