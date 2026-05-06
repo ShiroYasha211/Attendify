@@ -289,6 +289,7 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
 
     // Academic
     Route::get('students', [DelegateStudentController::class, 'index']);
+    Route::get('students/template', [DelegateStudentController::class, 'template']);
     Route::post('students', [DelegateStudentController::class, 'store']);
     Route::patch('students/{student}', [DelegateStudentController::class, 'update']);
     Route::get('students/{student}/permissions', [DelegateStudentController::class, 'permissions']);
@@ -926,6 +927,5 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::delete('announcements/{id}', [DoctorAnnouncementApiController::class, 'destroy']);
     });
 });
-
 
 
