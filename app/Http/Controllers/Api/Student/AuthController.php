@@ -59,6 +59,9 @@ class AuthController extends StudentApiController
                     'name' => $user->level->name,
                 ] : null,
                 'academic_year' => $user->academic_year,
+                'permissions' => $user->canAccessDelegateWorkspace()
+                    ? $user->all_delegate_permissions
+                    : [],
             ],
         ], 'تم تسجيل الدخول بنجاح');
     }
@@ -82,6 +85,9 @@ class AuthController extends StudentApiController
             'status' => $user->status,
             'is_practical_delegate' => $user->isPracticalDelegate(),
             'academic_year' => $user->academic_year,
+            'permissions' => $user->canAccessDelegateWorkspace()
+                ? $user->all_delegate_permissions
+                : [],
             'university' => $user->university->name ?? null,
             'college' => $user->college->name ?? null,
             'clinical_delegate_assignment' => $user->clinicalDelegateAssignment ? [
