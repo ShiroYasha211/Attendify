@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sender_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('receiver_id')->constrained('users')->onDelete('cascade');
-            $table->string('subject');
+            $table->string('subject')->nullable();
             $table->text('body');
             $table->enum('type', ['student_to_delegate', 'delegate_to_student'])->default('student_to_delegate');
             $table->timestamp('read_at')->nullable();

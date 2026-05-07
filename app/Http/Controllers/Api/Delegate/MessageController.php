@@ -115,6 +115,7 @@ class MessageController extends DelegateApiController
             'conversation_id' => $conversation->id,
             'sender_id' => $delegate->id,
             'receiver_id' => $conversation->student_id,
+            'subject' => '',
             'body' => $request->content,
             'type' => 'delegate_to_student',
         ]);
