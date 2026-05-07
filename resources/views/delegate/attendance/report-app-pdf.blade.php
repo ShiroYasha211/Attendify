@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="utf-8">
     <title>تقرير الحضور والغياب</title>
@@ -15,8 +15,7 @@
 
         body {
             margin: 0;
-            direction: rtl;
-            unicode-bidi: embed;
+            direction: ltr;
             color: #111827;
             font-family: "DejaVu Sans", sans-serif;
             font-size: 11px;
@@ -28,23 +27,20 @@
             border: 2px solid #111827;
             padding: 14px;
             min-height: 760px;
-            direction: rtl;
-            unicode-bidi: embed;
+            direction: ltr;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            direction: rtl;
-            unicode-bidi: embed;
+            direction: ltr;
         }
 
         th,
         td,
         div,
         span {
-            direction: rtl;
-            unicode-bidi: embed;
+            direction: ltr;
         }
 
         .header-table td {
@@ -193,14 +189,12 @@
             display: inline-block;
         }
 
-        .rtl-text {
-            direction: rtl;
-            unicode-bidi: embed;
-        }
+        .rtl-text { direction: ltr; }
     </style>
 </head>
 <body>
 @php
+    $ar = fn ($text) => \App\Helpers\ArabicHelper::fixArabic((string) $text, true);
     $reportUniversity = $subject?->major?->college?->university ?? $delegate?->major?->college?->university;
     $reportCollege = $subject?->major?->college ?? $delegate?->major?->college;
     $reportMajor = $subject?->major ?? $delegate?->major;
@@ -223,9 +217,9 @@
     <table class="header-table">
         <tr>
             <td class="header-side rtl-text" style="text-align: right;">
-                <div>{{ $reportUniversity->name ?? 'اسم الجامعة' }}</div>
-                <div>كلية {{ $reportCollege->name ?? 'اسم الكلية' }}</div>
-                <div>قسم {{ $reportMajor->name ?? 'اسم القسم' }}</div>
+                <div>{{ $ar($reportUniversity->name ?? 'اسم الجامعة') }}</div>
+                <div>{{ $ar('كلية ' . ($reportCollege->name ?? 'اسم الكلية')) }}</div>
+                <div>{{ $ar('قسم ' . ($reportMajor->name ?? 'اسم القسم')) }}</div>
             </td>
             <td class="header-center">
                 @if($reportUniversity?->logo)
@@ -235,29 +229,29 @@
                 @endif
             </td>
             <td class="header-side rtl-text" style="text-align: right;">
-                <div>تاريخ التقرير: <span class="ltr">{{ now()->format('Y/m/d') }}</span></div>
-                <div>تاريخ المحاضرة: <span class="ltr">{{ $date }}</span></div>
+                <div>{{ $ar('تاريخ التقرير') }}: <span class="ltr">{{ now()->format('Y/m/d') }}</span></div>
+                <div>{{ $ar('تاريخ المحاضرة') }}: <span class="ltr">{{ $date }}</span></div>
             </td>
         </tr>
     </table>
 
-    <div class="title rtl-text">كشف حضور محاضرة (<span class="ltr">{{ $date }}</span>)</div>
+    <div class="title rtl-text">{{ $ar('كشف حضور محاضرة') }} (<span class="ltr">{{ $date }}</span>)</div>
 
     <table class="meta-table">
         <tr>
-            <td><span class="meta-label">المقرر الدراسي</span>{{ $reportSubjectLine }}</td>
-            <td><span class="meta-label">نوع المحاضرة</span>{{ $reportLectureType }}</td>
-            <td><span class="meta-label">المستوى</span>{{ $reportLevel }}</td>
+            <td><span class="meta-label">{{ $ar('المقرر الدراسي') }}</span>{{ $ar($reportSubjectLine) }}</td>
+            <td><span class="meta-label">{{ $ar('نوع المحاضرة') }}</span>{{ $ar($reportLectureType) }}</td>
+            <td><span class="meta-label">{{ $ar('المستوى') }}</span>{{ $ar($reportLevel) }}</td>
         </tr>
         <tr>
-            <td><span class="meta-label">دكتور المادة</span>{{ $reportDoctorName }}</td>
-            <td><span class="meta-label">طريقة التحضير</span>{{ $attendanceMethod }}</td>
-            <td><span class="meta-label">تم الرصد بواسطة</span>{{ $recordedBy }}</td>
+            <td><span class="meta-label">{{ $ar('دكتور المادة') }}</span>{{ $ar($reportDoctorName) }}</td>
+            <td><span class="meta-label">{{ $ar('طريقة التحضير') }}</span>{{ $ar($attendanceMethod) }}</td>
+            <td><span class="meta-label">{{ $ar('تم الرصد بواسطة') }}</span>{{ $ar($recordedBy) }}</td>
         </tr>
         <tr>
-            <td><span class="meta-label">فلتر العرض</span>{{ $genderLabel }}</td>
-            <td><span class="meta-label">عنوان المحاضرة</span>{{ $lecture?->title ?? '-' }}</td>
-            <td><span class="meta-label">رقم المحاضرة</span>{{ $lecture?->lecture_number ?? '-' }}</td>
+            <td><span class="meta-label">{{ $ar('فلتر العرض') }}</span>{{ $ar($genderLabel) }}</td>
+            <td><span class="meta-label">{{ $ar('عنوان المحاضرة') }}</span>{{ $lecture?->title ? $ar($lecture->title) : '-' }}</td>
+            <td><span class="meta-label">{{ $ar('رقم المحاضرة') }}</span><span class="ltr">{{ $lecture?->lecture_number ?? '-' }}</span></td>
         </tr>
     </table>
 
@@ -265,12 +259,12 @@
         <thead>
             <tr>
                 <th style="width: 34px;">#</th>
-                <th>اسم الطالب</th>
-                <th style="width: 88px;">رقم القيد</th>
-                <th style="width: 60px;">الجنس</th>
-                <th style="width: 90px;">حالة الحضور</th>
-                <th style="width: 78px;">الطريقة</th>
-                <th style="width: 110px;">تم بواسطة</th>
+                <th>{{ $ar('اسم الطالب') }}</th>
+                <th style="width: 88px;">{{ $ar('رقم القيد') }}</th>
+                <th style="width: 60px;">{{ $ar('الجنس') }}</th>
+                <th style="width: 90px;">{{ $ar('حالة الحضور') }}</th>
+                <th style="width: 78px;">{{ $ar('الطريقة') }}</th>
+                <th style="width: 110px;">{{ $ar('تم بواسطة') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -295,12 +289,12 @@
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td class="student-name">{{ $student->name }}</td>
+                    <td class="student-name">{{ $ar($student->name) }}</td>
                     <td><span class="ltr">{{ $student->student_number ?? '-' }}</span></td>
-                    <td>{{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}</td>
-                    <td class="{{ $statusClass }}">{{ $statusLabel }}</td>
-                    <td>{{ $record?->attendance_method === 'qr' ? 'QR' : ($record ? 'يدوي' : '-') }}</td>
-                    <td>{{ $record?->recorder?->name ?? '-' }}</td>
+                    <td>{{ $ar($student->gender === 'female' ? 'أنثى' : 'ذكر') }}</td>
+                    <td class="{{ $statusClass }}">{{ $ar($statusLabel) }}</td>
+                    <td>{{ $record?->attendance_method === 'qr' ? 'QR' : ($record ? $ar('يدوي') : '-') }}</td>
+                    <td>{{ $record?->recorder?->name ? $ar($record->recorder->name) : '-' }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -308,22 +302,22 @@
 
     <table class="summary-table">
         <tr>
-            <td>إجمالي الطلاب: {{ $students->count() }}</td>
-            <td>حاضر: {{ $presentCount }}</td>
-            <td>غائب: {{ $absentCount }}</td>
-            <td>متأخر: {{ $lateCount }}</td>
-            <td>بعذر: {{ $excusedCount }}</td>
+            <td>{{ $ar('إجمالي الطلاب') }}: {{ $students->count() }}</td>
+            <td>{{ $ar('حاضر') }}: {{ $presentCount }}</td>
+            <td>{{ $ar('غائب') }}: {{ $absentCount }}</td>
+            <td>{{ $ar('متأخر') }}: {{ $lateCount }}</td>
+            <td>{{ $ar('بعذر') }}: {{ $excusedCount }}</td>
         </tr>
     </table>
 
     <table class="footer-table">
         <tr>
             <td>
-                مندوب الدفعة
-                <span class="signature-line">{{ $delegate?->name ?? '-' }}</span>
+                {{ $ar('مندوب الدفعة') }}
+                <span class="signature-line">{{ $delegate?->name ? $ar($delegate->name) : '-' }}</span>
             </td>
             <td>
-                أستاذ المقرر
+                {{ $ar('أستاذ المقرر') }}
                 <span class="signature-line">........................................</span>
             </td>
         </tr>
