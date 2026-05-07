@@ -480,7 +480,7 @@ class AttendanceController extends DelegateApiController
 
         if ($request->input('export') === 'pdf') {
             Auth::setUser($delegate);
-            $pdf = Pdf::loadView('delegate.attendance.report', $data);
+            $pdf = Pdf::loadView('delegate.attendance.report-app-pdf', $data);
             $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
             $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
@@ -553,7 +553,7 @@ class AttendanceController extends DelegateApiController
         ];
 
         Auth::setUser($delegate);
-        $pdf = Pdf::loadView('delegate.attendance.report', $data);
+        $pdf = Pdf::loadView('delegate.attendance.report-app-pdf', $data);
         $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
         $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
         $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');

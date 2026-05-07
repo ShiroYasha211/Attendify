@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>تقرير الحضور والغياب</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 18px 22px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            direction: rtl;
+            color: #111827;
+            font-family: "DejaVu Sans", sans-serif;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .sheet {
+            border: 2px solid #111827;
+            padding: 14px;
+            min-height: 760px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .header-table td {
+            border-bottom: 2px solid #111827;
+            padding-bottom: 10px;
+            vertical-align: middle;
+        }
+
+        .header-side {
+            width: 36%;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1.8;
+        }
+
+        .header-center {
+            width: 28%;
+            text-align: center;
+        }
+
+        .logo-box {
+            display: inline-block;
+            width: 58px;
+            height: 58px;
+            border: 2px solid #111827;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 54px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .logo {
+            max-width: 64px;
+            max-height: 64px;
+        }
+
+        .title {
+            margin: 14px 0 12px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .meta-table {
+            margin-bottom: 12px;
+            border: 1px solid #111827;
+        }
+
+        .meta-table td {
+            width: 33.333%;
+            padding: 7px 8px;
+            border: 1px solid #111827;
+            vertical-align: top;
+        }
+
+        .meta-label {
+            display: block;
+            color: #374151;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .students-table th,
+        .students-table td {
+            border: 1px solid #111827;
+            padding: 5px 6px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .students-table th {
+            background: #e5e7eb;
+            font-weight: bold;
+        }
+
+        .student-name {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .summary-table {
+            margin-top: 12px;
+            border: 1px solid #111827;
+        }
+
+        .summary-table td {
+            width: 20%;
+            padding: 8px;
+            border: 1px solid #111827;
+            text-align: center;
+            background: #f9fafb;
+            font-weight: bold;
+        }
+
+        .status-present {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .status-absent {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .status-late {
+            color: #c2410c;
+            font-weight: bold;
+        }
+
+        .status-excused {
+            color: #1d4ed8;
+            font-weight: bold;
+        }
+
+        .status-empty {
+            color: #6b7280;
+            font-weight: bold;
+        }
+
+        .footer-table {
+            margin-top: 34px;
+            page-break-inside: avoid;
+        }
+
+        .footer-table td {
+            width: 50%;
+            text-align: center;
+            font-weight: bold;
+            padding-top: 10px;
+        }
+
+        .signature-line {
+            display: block;
+            margin-top: 24px;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+@php
+    $reportUniversity = $subject?->major?->college?->university ?? $delegate?->major?->college?->university;
+    $reportCollege = $subject?->major?->college ?? $delegate?->major?->college;
+    $reportMajor = $subject?->major ?? $delegate?->major;
+    $reportLevel = $subject?->level?->name ?? $delegate?->level?->name ?? '-';
+    $reportSubjectLine = $subject ? "{$subject->name} ({$subject->code})" : 'محاضرة غير رسمية غير مرتبطة بمادة';
+    $reportLectureType = ($isUnofficial ?? false)
+        ? 'محاضرة غير رسمية مستقلة'
+        : (($lecture?->lecture_type ?? 'official') === 'special' ? 'محاضرة خاصة' : 'محاضرة رسمية');
+    $reportDoctorName = $subject?->doctor?->name ?? 'غير مرتبطة بدكتور مادة';
+    $attendanceMethod = ($attendanceRecords->first()?->attendance_method ?? 'manual') === 'qr' ? 'باركود QR' : 'يدوي';
+    $recordedBy = $attendanceRecords->first()?->recorder?->name ?? 'غير محدد';
+    $genderLabel = ($genderFilter ?? 'all') === 'male' ? 'الأولاد فقط' : (($genderFilter ?? 'all') === 'female' ? 'البنات فقط' : 'الكل');
+    $presentCount = $attendanceRecords->where('status', 'present')->count();
+    $absentCount = $attendanceRecords->where('status', 'absent')->count();
+    $lateCount = $attendanceRecords->where('status', 'late')->count();
+    $excusedCount = $attendanceRecords->where('status', 'excused')->count();
+@endphp
+
+<div class="sheet">
+    <table class="header-table">
+        <tr>
+            <td class="header-side" style="text-align: right;">
+                <div>{{ $reportUniversity->name ?? 'اسم الجامعة' }}</div>
+                <div>كلية {{ $reportCollege->name ?? 'اسم الكلية' }}</div>
+                <div>قسم {{ $reportMajor->name ?? 'اسم القسم' }}</div>
+            </td>
+            <td class="header-center">
+                @if($reportUniversity?->logo)
+                    <img class="logo" src="{{ public_path('storage/' . $reportUniversity->logo) }}" alt="Logo">
+                @else
+                    <span class="logo-box">U</span>
+                @endif
+            </td>
+            <td class="header-side" style="text-align: left;">
+                <div>تاريخ التقرير: {{ now()->format('Y/m/d') }}</div>
+                <div>تاريخ المحاضرة: {{ $date }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="title">كشف حضور محاضرة ({{ $date }})</div>
+
+    <table class="meta-table">
+        <tr>
+            <td><span class="meta-label">المقرر الدراسي</span>{{ $reportSubjectLine }}</td>
+            <td><span class="meta-label">نوع المحاضرة</span>{{ $reportLectureType }}</td>
+            <td><span class="meta-label">المستوى</span>{{ $reportLevel }}</td>
+        </tr>
+        <tr>
+            <td><span class="meta-label">دكتور المادة</span>{{ $reportDoctorName }}</td>
+            <td><span class="meta-label">طريقة التحضير</span>{{ $attendanceMethod }}</td>
+            <td><span class="meta-label">تم الرصد بواسطة</span>{{ $recordedBy }}</td>
+        </tr>
+        <tr>
+            <td><span class="meta-label">فلتر العرض</span>{{ $genderLabel }}</td>
+            <td><span class="meta-label">عنوان المحاضرة</span>{{ $lecture?->title ?? '-' }}</td>
+            <td><span class="meta-label">رقم المحاضرة</span>{{ $lecture?->lecture_number ?? '-' }}</td>
+        </tr>
+    </table>
+
+    <table class="students-table">
+        <thead>
+            <tr>
+                <th style="width: 34px;">#</th>
+                <th>اسم الطالب</th>
+                <th style="width: 88px;">رقم القيد</th>
+                <th style="width: 60px;">الجنس</th>
+                <th style="width: 90px;">حالة الحضور</th>
+                <th style="width: 78px;">الطريقة</th>
+                <th style="width: 110px;">تم بواسطة</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($students as $index => $student)
+                @php
+                    $record = $attendanceRecords->get($student->id);
+                    $status = $record?->status;
+                    $statusClass = match ($status) {
+                        'present' => 'status-present',
+                        'absent' => 'status-absent',
+                        'late' => 'status-late',
+                        'excused' => 'status-excused',
+                        default => 'status-empty',
+                    };
+                    $statusLabel = match ($status) {
+                        'present' => 'حاضر',
+                        'absent' => 'غائب',
+                        'late' => 'متأخر',
+                        'excused' => 'بعذر',
+                        default => 'غير مرصود',
+                    };
+                @endphp
+                <tr>
+                    <td>{{ $index + 1 }}</td>
+                    <td class="student-name">{{ $student->name }}</td>
+                    <td>{{ $student->student_number ?? '-' }}</td>
+                    <td>{{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}</td>
+                    <td class="{{ $statusClass }}">{{ $statusLabel }}</td>
+                    <td>{{ $record?->attendance_method === 'qr' ? 'QR' : ($record ? 'يدوي' : '-') }}</td>
+                    <td>{{ $record?->recorder?->name ?? '-' }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <table class="summary-table">
+        <tr>
+            <td>إجمالي الطلاب: {{ $students->count() }}</td>
+            <td>حاضر: {{ $presentCount }}</td>
+            <td>غائب: {{ $absentCount }}</td>
+            <td>متأخر: {{ $lateCount }}</td>
+            <td>بعذر: {{ $excusedCount }}</td>
+        </tr>
+    </table>
+
+    <table class="footer-table">
+        <tr>
+            <td>
+                مندوب الدفعة
+                <span class="signature-line">{{ $delegate?->name ?? '-' }}</span>
+            </td>
+            <td>
+                أستاذ المقرر
+                <span class="signature-line">........................................</span>
+            </td>
+        </tr>
+    </table>
+</div>
+</body>
+</html>
