@@ -16,6 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\ViewErrorBag;
 
 class AttendanceController extends DelegateApiController
 {
@@ -473,6 +474,7 @@ class AttendanceController extends DelegateApiController
             'delegate' => $delegate,
             'isUnofficial' => is_null($subject),
             'is_unofficial' => is_null($subject),
+            'errors' => new ViewErrorBag(),
         ];
 
         if ($request->input('export') === 'pdf') {
@@ -545,6 +547,7 @@ class AttendanceController extends DelegateApiController
             'lecture' => $lecture,
             'delegate' => $delegate,
             'isUnofficial' => is_null($subject),
+            'errors' => new ViewErrorBag(),
         ];
 
         Auth::setUser($delegate);
