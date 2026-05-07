@@ -455,6 +455,74 @@ class AttendanceController extends DelegateApiController
         return $this->success($data, 'تم جلب تقرير الحضور بنجاح.');
     }
 
+    public function reportPdf(Request $request, int $subject_id, string $date)
+    {
+        $delegate = $request->user();
+
+        $subject = null;
+        if ($subject_id > 0) {
+            $subject = Subject::where('id', $subject_id)
+                ->where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->with('doctor:id,name')
+                ->firstOrFail();
+        }
+
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
+            ->where('major_id', $delegate->major_id)
+            ->where('level_id', $delegate->level_id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'student_number', 'gender']);
+
+        $lecture = null;
+        if ($request->filled('lecture_id')) {
+            $lecture = Lecture::where('id', $request->input('lecture_id'))
+                ->when($subject, fn ($q) => $q->where('subject_id', $subject->id), fn ($q) => $q->whereNull('subject_id'))
+                ->first();
+        }
+        if (!$lecture) {
+            $lecture = Lecture::where('date', $date)
+                ->when($subject, fn ($q) => $q->where('subject_id', $subject->id), fn ($q) => $q->whereNull('subject_id'))
+                ->latest()
+                ->first();
+        }
+
+        $attendanceQuery = Attendance::where('date', $date);
+
+        if ($subject) {
+            $attendanceQuery->where('subject_id', $subject->id);
+        } else {
+            $attendanceQuery->whereNull('subject_id');
+        }
+
+        if ($lecture) {
+            $attendanceQuery->where('lecture_id', $lecture->id);
+        }
+
+        $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
+
+        $data = [
+            'subject' => $subject,
+            'students' => $students,
+            'attendanceRecords' => $attendanceRecords,
+            'date' => $date,
+            'genderFilter' => 'all',
+            'lecture' => $lecture,
+            'delegate' => $delegate,
+            'isUnofficial' => is_null($subject),
+        ];
+
+        $pdf = Pdf::loadView('delegate.attendance.report', $data);
+        $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+        $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+        $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="attendance_report.pdf"',
+        ]);
+    }
+
     public function alerts(Request $request)
     {
         $delegate = $request->user();
