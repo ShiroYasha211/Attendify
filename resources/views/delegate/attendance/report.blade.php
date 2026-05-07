@@ -327,7 +327,7 @@
             <div class="report-footer">
                 <div class="footer-sign">
                     <p>مندوب الدفعة</p>
-                    <span>{{ Auth::user()->name }}</span>
+                    <span>{{ $delegate?->name ?? Auth::user()?->name ?? '-' }}</span>
                 </div>
                 <div class="footer-sign">
                     <p>أستاذ المقرر</p>

@@ -14,6 +14,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class AttendanceController extends DelegateApiController
@@ -431,20 +432,51 @@ class AttendanceController extends DelegateApiController
             $attendanceQuery->where('lecture_id', $lecture->id);
         }
 
-        $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
+        $attendanceRecords = $attendanceQuery
+            ->with('recorder:id,name')
+            ->get()
+            ->keyBy('student_id');
+
+        $appStudents = $students->map(function ($student) use ($attendanceRecords) {
+            $record = $attendanceRecords->get($student->id);
+
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'student_number' => $student->student_number,
+                'gender' => $student->gender,
+                'status' => $record?->status,
+                'attendance_method' => $record?->attendance_method,
+                'recorder_name' => $record?->recorder?->name,
+                'recorded_at' => $record?->created_at,
+            ];
+        });
+
+        $summary = [
+            'total' => $appStudents->count(),
+            'present' => $attendanceRecords->where('status', Attendance::STATUS_PRESENT)->count(),
+            'absent' => $attendanceRecords->where('status', Attendance::STATUS_ABSENT)->count(),
+            'late' => $attendanceRecords->where('status', Attendance::STATUS_LATE)->count(),
+            'excused' => $attendanceRecords->where('status', Attendance::STATUS_EXCUSED)->count(),
+            'unrecorded' => $appStudents->whereNull('status')->count(),
+        ];
 
         $data = [
             'subject' => $subject,
             'students' => $students,
+            'app_students' => $appStudents,
             'attendanceRecords' => $attendanceRecords,
+            'summary' => $summary,
             'date' => $date,
             'genderFilter' => $genderFilter,
             'lecture' => $lecture,
             'delegate' => $delegate,
             'isUnofficial' => is_null($subject),
+            'is_unofficial' => is_null($subject),
         ];
 
         if ($request->input('export') === 'pdf') {
+            Auth::setUser($delegate);
             $pdf = Pdf::loadView('delegate.attendance.report', $data);
             $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
@@ -499,7 +531,10 @@ class AttendanceController extends DelegateApiController
             $attendanceQuery->where('lecture_id', $lecture->id);
         }
 
-        $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
+        $attendanceRecords = $attendanceQuery
+            ->with('recorder:id,name')
+            ->get()
+            ->keyBy('student_id');
 
         $data = [
             'subject' => $subject,
@@ -512,6 +547,7 @@ class AttendanceController extends DelegateApiController
             'isUnofficial' => is_null($subject),
         ];
 
+        Auth::setUser($delegate);
         $pdf = Pdf::loadView('delegate.attendance.report', $data);
         $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
         $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
