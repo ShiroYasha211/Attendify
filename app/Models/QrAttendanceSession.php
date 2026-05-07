@@ -178,7 +178,7 @@ class QrAttendanceSession extends Model
             return collect();
         }
 
-        $sampleSize = max(1, (int) ceil($presentStudentIds->count() * 0.02));
+        $sampleSize = max(1, (int) ceil($presentStudentIds->count() * 0.20));
 
         return $presentStudentIds
             ->sortBy(fn ($studentId) => sprintf('%u', crc32($this->id . '-' . $studentId)))

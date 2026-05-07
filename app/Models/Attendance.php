@@ -22,6 +22,7 @@ class Attendance extends Model
         'date',
         'recorded_by',
         'attendance_method',
+        'qr_attendance_session_id',
     ];
 
     protected $casts = [
@@ -46,6 +47,11 @@ class Attendance extends Model
     public function recorder()
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function qrSession()
+    {
+        return $this->belongsTo(QrAttendanceSession::class, 'qr_attendance_session_id');
     }
 
     public function excuse()

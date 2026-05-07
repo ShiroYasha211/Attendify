@@ -197,6 +197,9 @@ class AttendanceController extends DelegateApiController
                         'status' => $student['status'],
                         'recorded_by' => $delegate->id,
                         'attendance_method' => $attendanceMethod,
+                        'qr_attendance_session_id' => $request->filled('qr_session_id')
+                            ? (int) $request->input('qr_session_id')
+                            : null,
                     ]
                 );
 

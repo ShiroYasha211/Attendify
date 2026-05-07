@@ -355,9 +355,11 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::post('authorized-grades/{category}/store', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'store']);
     Route::prefix('qr-attendance')->group(function () {
         Route::post('start', [QrAttendanceController::class, 'startSession']);
+        Route::get('active', [QrAttendanceController::class, 'active']);
         Route::get('{session}/token', [QrAttendanceController::class, 'rotateToken']);
         Route::get('{session}/status', [QrAttendanceController::class, 'getStatus']);
         Route::post('{session}/finalize', [QrAttendanceController::class, 'finalize']);
+        Route::post('{session}/cancel', [QrAttendanceController::class, 'cancel']);
     });
     Route::get('grade-helper-delegations', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'index']);
     Route::get('grade-helper-delegations/students', [\App\Http\Controllers\Api\Delegate\GradeHelperDelegationController::class, 'getStudents']);
@@ -928,5 +930,4 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::delete('announcements/{id}', [DoctorAnnouncementApiController::class, 'destroy']);
     });
 });
-
 

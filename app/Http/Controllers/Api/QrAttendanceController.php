@@ -46,7 +46,9 @@ class QrAttendanceController extends DelegateApiController
                 ->first();
 
             if ($existing) {
-                if ($existing->status === 'finalized') {
+                if (in_array($existing->status, ['finalized', 'cancelled'], true)) {
+                    Attendance::where('qr_attendance_session_id', $existing->id)->delete();
+                    $existing->verifications()->delete();
                     $existing->status = 'active';
                     $existing->save();
                 }
@@ -143,10 +145,18 @@ class QrAttendanceController extends DelegateApiController
             ->orderBy('name')
             ->get(['id', 'name', 'student_number', 'gender', 'role']);
 
-        $attendanceRecords = Attendance::where('subject_id', $session->subject_id)
-            ->whereDate('date', $session->date)
+        $attendanceRecords = Attendance::where('qr_attendance_session_id', $session->id)
             ->get()
             ->keyBy('student_id');
+
+        if ($attendanceRecords->isEmpty()) {
+            $attendanceRecords = Attendance::where('subject_id', $session->subject_id)
+                ->whereDate('date', $session->date)
+                ->where('attendance_method', 'qr')
+                ->where('recorded_by', $session->delegate_id)
+                ->get()
+                ->keyBy('student_id');
+        }
 
         $students = $allStudents->map(function (User $student) use ($attendanceRecords) {
             $record = $attendanceRecords->get($student->id);
@@ -178,6 +188,7 @@ class QrAttendanceController extends DelegateApiController
                 'lecture_number' => $session->lecture_number,
                 'expires_at' => $session->token_expires_at?->toIso8601String(),
                 'rotation_seconds' => $session->rotationSeconds(),
+                'status' => $session->status,
             ],
             'subject' => [
                 'id' => $subject->id,
@@ -259,6 +270,7 @@ class QrAttendanceController extends DelegateApiController
                 'status' => Attendance::STATUS_PRESENT,
                 'recorded_by' => $session->delegate_id,
                 'attendance_method' => 'qr',
+                'qr_attendance_session_id' => $session->id,
             ]
         );
 
@@ -299,5 +311,63 @@ class QrAttendanceController extends DelegateApiController
             ],
             'تم إنهاء المسح بنجاح. يمكنك الآن مراجعة غير الماسحين وعينة التحقق قبل الحفظ النهائي.'
         );
+    }
+
+    public function cancel(Request $request, QrAttendanceSession $session)
+    {
+        $user = $request->user();
+
+        if ((int) $session->delegate_id !== (int) $user->id) {
+            return response()->json(['message' => 'ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ.'], 403);
+        }
+
+        if ($session->status === 'finalized') {
+            return response()->json(['message' => 'ط§ظ„ط¬ظ„ط³ط© ظ…ظ†طھظ‡ظٹط© ط¨ط§ظ„ظپط¹ظ„.'], 410);
+        }
+
+        Attendance::where('qr_attendance_session_id', $session->id)->delete();
+        $session->verifications()->delete();
+        $session->update([
+            'status' => 'cancelled',
+            'current_token' => Str::random(48) . bin2hex(random_bytes(8)),
+            'token_expires_at' => now(),
+        ]);
+
+        return $this->success([
+            'session_id' => $session->id,
+            'status' => $session->status,
+        ], 'طھظ… ط¥ظ„ط؛ط§ط، ط¬ظ„ط³ط© QR.');
+    }
+
+    public function active(Request $request)
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'subject_id' => 'required|integer|exists:subjects,id',
+            'date' => 'required|date',
+            'title' => 'required|string|max:255',
+        ]);
+
+        $session = QrAttendanceSession::where('delegate_id', $user->id)
+            ->where('subject_id', $validated['subject_id'])
+            ->whereDate('date', $validated['date'])
+            ->where('title', $validated['title'])
+            ->latest('id')
+            ->first();
+
+        if (!$session) {
+            return $this->success(['session' => null], 'ظ„ط§ طھظˆط¬ط¯ ط¬ظ„ط³ط© ظ…ط·ط§ط¨ظ‚ط©.');
+        }
+
+        return $this->success([
+            'session' => [
+                'id' => $session->id,
+                'status' => $session->status,
+                'subject_id' => $session->subject_id,
+                'date' => $session->date?->format('Y-m-d'),
+                'title' => $session->title,
+                'lecture_number' => $session->lecture_number,
+            ],
+        ], 'طھظ… ط¬ظ„ط¨ ط­ط§ظ„ط© ط§ظ„ط¬ظ„ط³ط©.');
     }
 }
