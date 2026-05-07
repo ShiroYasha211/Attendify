@@ -20,6 +20,8 @@ class AttendanceController extends DelegateApiController
     public function index(Request $request)
     {
         $delegate = $request->user();
+        $search = $request->input('search');
+        $dateFilter = $request->input('date');
 
         $subjects = Subject::where('major_id', $delegate->major_id)
             ->where('level_id', $delegate->level_id)
@@ -27,14 +29,57 @@ class AttendanceController extends DelegateApiController
             ->orderBy('name')
             ->get();
 
-        $subjectIds = $subjects->pluck('id');
+        $subjectIds = $subjects->pluck('id')->filter();
 
-        $sessions = Attendance::selectRaw('subject_id, date, lecture_id, recorded_by, attendance_method, count(*) as total_records')
-            ->whereIn('subject_id', $subjectIds)
-            ->with(['subject:id,name,code', 'recorder:id,name,role', 'lecture:id,title,lecture_number,start_time,end_time,lecture_type'])
-            ->groupBy('subject_id', 'date', 'lecture_id', 'recorded_by', 'attendance_method')
-            ->orderByDesc('date')
-            ->get();
+        $query = Attendance::with(['subject:id,name,code', 'recorder:id,name,role', 'lecture:id,title,lecture_number,start_time,end_time,lecture_type'])
+            ->where(function ($q) use ($subjectIds, $delegate) {
+                $q->whereIn('subject_id', $subjectIds)
+                    ->orWhere(function ($unofficialQuery) use ($delegate) {
+                        $unofficialQuery->whereNull('subject_id')
+                            ->whereHas('student', function ($studentQuery) use ($delegate) {
+                                $studentQuery->whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
+                                    ->where('major_id', $delegate->major_id)
+                                    ->where('level_id', $delegate->level_id);
+                            });
+                    });
+            });
+
+        if ($dateFilter) {
+            $query->whereDate('date', $dateFilter);
+        }
+
+        if ($search) {
+            $query->whereHas('lecture', function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%");
+            });
+        }
+
+        $records = $query->orderByDesc('date')->orderByDesc('id')->get();
+
+        $sessions = $records->groupBy(function ($attendance) {
+            return implode('|', [
+                $attendance->subject_id ?? 0,
+                $attendance->date->format('Y-m-d'),
+                $attendance->lecture_id ?? 0,
+                $attendance->recorded_by ?? 0,
+                $attendance->attendance_method ?? 'manual',
+            ]);
+        })->map(function ($group) {
+            $first = $group->first();
+            return [
+                'subject_id' => $first->subject_id,
+                'subject' => $first->subject,
+                'date' => $first->date->format('Y-m-d'),
+                'lecture_id' => $first->lecture_id,
+                'lecture' => $first->lecture,
+                'recorded_by' => $first->recorded_by,
+                'recorder' => $first->recorder,
+                'attendance_method' => $first->attendance_method,
+                'total_records' => $group->count(),
+                'is_unofficial' => is_null($first->subject_id),
+                'display_name' => $first->subject?->name ?? $first->lecture?->title ?? 'محاضرة غير رسمية',
+            ];
+        })->values();
 
         return $this->success([
             'subjects' => $subjects,
@@ -340,11 +385,14 @@ class AttendanceController extends DelegateApiController
     {
         $delegate = $request->user();
 
-        $subject = Subject::where('id', $subjectId)
-            ->where('major_id', $delegate->major_id)
-            ->where('level_id', $delegate->level_id)
-            ->with('doctor:id,name')
-            ->firstOrFail();
+        $subject = null;
+        if ($subjectId > 0) {
+            $subject = Subject::where('id', $subjectId)
+                ->where('major_id', $delegate->major_id)
+                ->where('level_id', $delegate->level_id)
+                ->with('doctor:id,name')
+                ->firstOrFail();
+        }
 
         $genderFilter = in_array($request->input('gender_filter'), ['male', 'female'], true)
             ? $request->input('gender_filter')
@@ -370,9 +418,14 @@ class AttendanceController extends DelegateApiController
                 ->first();
         }
 
-        $attendanceQuery = Attendance::where('subject_id', $subject->id)
-            ->where('date', $date)
-            ->with('recorder');
+        $attendanceQuery = Attendance::where('date', $date);
+        
+        if ($subject) {
+            $attendanceQuery->where('subject_id', $subject->id);
+        } else {
+            $attendanceQuery->whereNull('subject_id');
+        }
+
         if ($lecture) {
             $attendanceQuery->where('lecture_id', $lecture->id);
         }
@@ -380,7 +433,8 @@ class AttendanceController extends DelegateApiController
         $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
 
         return $this->success([
-            'subject' => $subject->only(['id', 'name']),
+            'subject' => $subject ? $subject->only(['id', 'name']) : null,
+            'is_unofficial' => is_null($subject),
             'date' => $date,
             'lecture' => $lecture ? [
                 'id' => $lecture->id,
