@@ -382,13 +382,13 @@ class AttendanceController extends DelegateApiController
         ], 'تم جلب تفاصيل جلسة الحضور بنجاح.');
     }
 
-    public function report(Request $request, int $subjectId, string $date)
+    public function report(Request $request, int $subject_id, string $date)
     {
         $delegate = $request->user();
 
         $subject = null;
-        if ($subjectId > 0) {
-            $subject = Subject::where('id', $subjectId)
+        if ($subject_id > 0) {
+            $subject = Subject::where('id', $subject_id)
                 ->where('major_id', $delegate->major_id)
                 ->where('level_id', $delegate->level_id)
                 ->with('doctor:id,name')
@@ -409,12 +409,12 @@ class AttendanceController extends DelegateApiController
         $lecture = null;
         if ($request->filled('lecture_id')) {
             $lecture = Lecture::where('id', $request->input('lecture_id'))
-                ->where('subject_id', $subject->id)
+                ->when($subject, fn ($q) => $q->where('subject_id', $subject->id), fn ($q) => $q->whereNull('subject_id'))
                 ->first();
         }
         if (!$lecture) {
-            $lecture = Lecture::where('subject_id', $subject->id)
-                ->where('date', $date)
+            $lecture = Lecture::where('date', $date)
+                ->when($subject, fn ($q) => $q->where('subject_id', $subject->id), fn ($q) => $q->whereNull('subject_id'))
                 ->latest()
                 ->first();
         }

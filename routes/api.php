@@ -346,7 +346,7 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     Route::get('attendances', [DelegateAttendanceController::class, 'index']);
     Route::get('attendances/{subject}/create', [DelegateAttendanceController::class, 'create']);
     Route::post('attendances', [DelegateAttendanceController::class, 'store']);
-    Route::get('attendances/{subject}/{date}/report', [DelegateAttendanceController::class, 'report']);
+    Route::get('attendances/{subject_id}/{date}/report', [DelegateAttendanceController::class, 'report']);
     Route::get('attendances/{lecture}', [DelegateAttendanceController::class, 'show']);
 
     Route::get('authorized-grades', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'index']);
