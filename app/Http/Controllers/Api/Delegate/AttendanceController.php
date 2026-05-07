@@ -10,6 +10,7 @@ use App\Models\QrAttendanceSession;
 use App\Models\Student\StudentScheduleItem;
 use App\Models\User;
 use App\Support\ExcuseWorkflow;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -432,42 +433,26 @@ class AttendanceController extends DelegateApiController
 
         $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
 
-        return $this->success([
-            'subject' => $subject ? $subject->only(['id', 'name']) : null,
-            'is_unofficial' => is_null($subject),
+        $data = [
+            'subject' => $subject,
+            'students' => $students,
+            'attendanceRecords' => $attendanceRecords,
             'date' => $date,
-            'lecture' => $lecture ? [
-                'id' => $lecture->id,
-                'title' => $lecture->title,
-                'lecture_number' => $lecture->lecture_number,
-                'lecture_type' => $lecture->lecture_type,
-                'start_time' => $lecture->start_time,
-                'end_time' => $lecture->end_time,
-            ] : null,
-            'students' => $students->map(function ($student) use ($attendanceRecords) {
-                $record = $attendanceRecords->get($student->id);
+            'genderFilter' => $genderFilter,
+            'lecture' => $lecture,
+            'delegate' => $delegate,
+            'isUnofficial' => is_null($subject),
+        ];
 
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'student_number' => $student->student_number,
-                    'gender' => $student->gender,
-                    'status' => $record?->status,
-                    'record' => $record ? [
-                        'id' => $record->id,
-                        'status' => $record->status,
-                        'attendance_method' => $record->attendance_method,
-                        'recorded_by' => $record->recorded_by,
-                        'recorded_by_name' => $record->recorder?->name,
-                        'recorded_by_role' => $record->recorder?->role,
-                    ] : null,
-                ];
-            }),
-            'filters' => [
-                'gender_filter' => $genderFilter,
-                'available_gender_filters' => ['all', 'male', 'female'],
-            ],
-        ], 'تم جلب تقرير الحضور بنجاح.');
+        if ($request->input('export') === 'pdf') {
+            $pdf = Pdf::loadView('delegate.attendance.report', $data);
+            $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+            $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+            $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
+            return $pdf->setPaper('a4', 'portrait')->download("تقرير_حضور_{$date}.pdf");
+        }
+
+        return $this->success($data, 'تم جلب تقرير الحضور بنجاح.');
     }
 
     public function alerts(Request $request)

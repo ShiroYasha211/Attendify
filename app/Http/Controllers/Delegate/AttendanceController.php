@@ -11,6 +11,7 @@ use App\Models\QrAttendanceSession;
 use App\Models\Student\StudentScheduleItem;
 use App\Models\StudentNotification;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -474,7 +475,7 @@ class AttendanceController extends Controller
 
         $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
 
-        return view('delegate.attendance.report', [
+        $data = [
             'subject' => $subject,
             'students' => $students,
             'attendanceRecords' => $attendanceRecords,
@@ -483,7 +484,17 @@ class AttendanceController extends Controller
             'lecture' => $lecture,
             'delegate' => $delegate,
             'isUnofficial' => false,
-        ]);
+        ];
+
+        if ($request->input('export') === 'pdf') {
+            $pdf = Pdf::loadView('delegate.attendance.report', $data);
+            $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+            $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+            $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
+            return $pdf->setPaper('a4', 'portrait')->download("تقرير_حضور_{$date}.pdf");
+        }
+
+        return view('delegate.attendance.report', $data);
     }
 
     public function showUnofficialReport(Request $request, Lecture $lecture)
@@ -509,7 +520,7 @@ class AttendanceController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        return view('delegate.attendance.report', [
+        $data = [
             'subject' => null,
             'students' => $students,
             'attendanceRecords' => $attendanceRecords,
@@ -518,7 +529,17 @@ class AttendanceController extends Controller
             'lecture' => $lecture,
             'delegate' => $delegate,
             'isUnofficial' => true,
-        ]);
+        ];
+
+        if ($request->input('export') === 'pdf') {
+            $pdf = Pdf::loadView('delegate.attendance.report', $data);
+            $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+            $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+            $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
+            return $pdf->setPaper('a4', 'portrait')->download("تقرير_حضور_غير_رسمي.pdf");
+        }
+
+        return view('delegate.attendance.report', $data);
     }
 
     public function check(Request $request, $subjectId)
