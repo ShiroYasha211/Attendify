@@ -475,6 +475,7 @@ class AttendanceController extends DelegateApiController
             'isUnofficial' => is_null($subject),
             'is_unofficial' => is_null($subject),
             'errors' => new ViewErrorBag(),
+            'pdfMode' => true,
         ];
 
         if ($request->input('export') === 'pdf') {
@@ -548,6 +549,7 @@ class AttendanceController extends DelegateApiController
             'delegate' => $delegate,
             'isUnofficial' => is_null($subject),
             'errors' => new ViewErrorBag(),
+            'pdfMode' => true,
         ];
 
         Auth::setUser($delegate);

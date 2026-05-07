@@ -5,6 +5,16 @@
 @section('content')
 
 <style>
+    @if($pdfMode ?? false)
+    body,
+    .report-container,
+    .report-container * {
+        font-family: 'DejaVu Sans', sans-serif !important;
+        direction: rtl;
+        unicode-bidi: embed;
+    }
+    @endif
+
     @media print {
         @page {
             size: A4;
@@ -13,7 +23,7 @@
 
         body {
             background: white;
-            font-family: 'Tajawal', sans-serif;
+            font-family: {{ ($pdfMode ?? false) ? "'DejaVu Sans', sans-serif" : "'Tajawal', sans-serif" }};
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
