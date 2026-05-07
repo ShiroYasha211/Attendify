@@ -25,7 +25,9 @@ class DoctorChatController extends DelegateApiController
             ->orderByDesc('last_message_at')
             ->get();
 
-        return $this->success($conversations, 'تم جلب المحادثات مع الدكاترة بنجاح');
+        return $this->success([
+            'conversations' => $conversations,
+        ], 'تم جلب المحادثات مع الدكاترة بنجاح');
     }
 
     /**
@@ -100,7 +102,7 @@ class DoctorChatController extends DelegateApiController
         $message = DoctorMessage::create([
             'conversation_id' => $conversation->id,
             'sender_id' => $delegate->id,
-            'body' => $request->content,
+            'body' => $request->input('content'),
         ]);
 
         $conversation->update(['last_message_at' => now()]);
