@@ -16,21 +16,35 @@
         body {
             margin: 0;
             direction: rtl;
+            unicode-bidi: embed;
             color: #111827;
             font-family: "DejaVu Sans", sans-serif;
             font-size: 11px;
             line-height: 1.45;
+            text-align: right;
         }
 
         .sheet {
             border: 2px solid #111827;
             padding: 14px;
             min-height: 760px;
+            direction: rtl;
+            unicode-bidi: embed;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            direction: rtl;
+            unicode-bidi: embed;
+        }
+
+        th,
+        td,
+        div,
+        span {
+            direction: rtl;
+            unicode-bidi: embed;
         }
 
         .header-table td {
@@ -49,6 +63,7 @@
         .header-center {
             width: 28%;
             text-align: center;
+            direction: ltr;
         }
 
         .logo-box {
@@ -86,6 +101,7 @@
             padding: 7px 8px;
             border: 1px solid #111827;
             vertical-align: top;
+            text-align: right;
         }
 
         .meta-label {
@@ -101,6 +117,7 @@
             padding: 5px 6px;
             text-align: center;
             vertical-align: middle;
+            unicode-bidi: embed;
         }
 
         .students-table th {
@@ -169,6 +186,17 @@
             margin-top: 24px;
             font-weight: normal;
         }
+
+        .ltr {
+            direction: ltr;
+            unicode-bidi: embed;
+            display: inline-block;
+        }
+
+        .rtl-text {
+            direction: rtl;
+            unicode-bidi: embed;
+        }
     </style>
 </head>
 <body>
@@ -194,7 +222,7 @@
 <div class="sheet">
     <table class="header-table">
         <tr>
-            <td class="header-side" style="text-align: right;">
+            <td class="header-side rtl-text" style="text-align: right;">
                 <div>{{ $reportUniversity->name ?? 'اسم الجامعة' }}</div>
                 <div>كلية {{ $reportCollege->name ?? 'اسم الكلية' }}</div>
                 <div>قسم {{ $reportMajor->name ?? 'اسم القسم' }}</div>
@@ -206,14 +234,14 @@
                     <span class="logo-box">U</span>
                 @endif
             </td>
-            <td class="header-side" style="text-align: left;">
-                <div>تاريخ التقرير: {{ now()->format('Y/m/d') }}</div>
-                <div>تاريخ المحاضرة: {{ $date }}</div>
+            <td class="header-side rtl-text" style="text-align: right;">
+                <div>تاريخ التقرير: <span class="ltr">{{ now()->format('Y/m/d') }}</span></div>
+                <div>تاريخ المحاضرة: <span class="ltr">{{ $date }}</span></div>
             </td>
         </tr>
     </table>
 
-    <div class="title">كشف حضور محاضرة ({{ $date }})</div>
+    <div class="title rtl-text">كشف حضور محاضرة (<span class="ltr">{{ $date }}</span>)</div>
 
     <table class="meta-table">
         <tr>
@@ -268,7 +296,7 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td class="student-name">{{ $student->name }}</td>
-                    <td>{{ $student->student_number ?? '-' }}</td>
+                    <td><span class="ltr">{{ $student->student_number ?? '-' }}</span></td>
                     <td>{{ $student->gender === 'female' ? 'أنثى' : 'ذكر' }}</td>
                     <td class="{{ $statusClass }}">{{ $statusLabel }}</td>
                     <td>{{ $record?->attendance_method === 'qr' ? 'QR' : ($record ? 'يدوي' : '-') }}</td>
