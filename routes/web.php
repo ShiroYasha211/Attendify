@@ -200,6 +200,7 @@ Route::prefix('doctor')
 
         // Assignments Routes
         Route::resource('assignments', App\Http\Controllers\Doctor\AssignmentController::class)->except(['create', 'edit', 'show']);
+        Route::get('assignments/{assignment}/submissions/export', [App\Http\Controllers\Doctor\AssignmentController::class, 'exportSubmissions'])->name('assignments.submissions.export');
         Route::get('assignments/{assignment}/submissions', [App\Http\Controllers\Doctor\AssignmentController::class, 'submissions'])->name('assignments.submissions');
         Route::post('submissions/{submission}/review', [App\Http\Controllers\Doctor\AssignmentController::class, 'reviewSubmission'])->name('submissions.review');
 

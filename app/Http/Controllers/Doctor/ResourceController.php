@@ -96,7 +96,7 @@ class ResourceController extends Controller
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
             'category' => 'required|in:lectures,references,summaries,exams,other',
-            'file' => 'required|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:20480', // 20MB max
+            'file' => 'required|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:51200',
             'description' => 'nullable|string',
         ]);
 

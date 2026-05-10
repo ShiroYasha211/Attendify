@@ -117,6 +117,38 @@ class AssignmentController extends DoctorApiController
         return $this->success($submissions);
     }
 
+    public function exportSubmissions(Assignment $assignment)
+    {
+        if ($assignment->subject->doctor_id !== Auth::id()) {
+            return $this->error('غير مصرح لك.', 403);
+        }
+
+        $submissions = $assignment->submissions()->with('student:id,name,student_number')->latest()->get();
+        $rows = [
+            ['اسم الطالب', 'رقم القيد', 'حالة التسليم', 'الدرجة', 'الملاحظات', 'تاريخ التسليم'],
+        ];
+
+        foreach ($submissions as $submission) {
+            $rows[] = [
+                $submission->student?->name ?? '-',
+                $submission->student?->student_number ?? '-',
+                $submission->status ?? '-',
+                $submission->grade ?? '-',
+                $submission->feedback ?? '-',
+                $submission->submitted_at?->format('Y-m-d H:i') ?? '-',
+            ];
+        }
+
+        $csvContent = chr(0xEF) . chr(0xBB) . chr(0xBF);
+        foreach ($rows as $row) {
+            $csvContent .= implode(',', array_map(fn ($value) => '"' . str_replace('"', '""', (string) $value) . '"', $row)) . "\n";
+        }
+
+        return response($csvContent)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="assignment_submissions_' . $assignment->id . '_' . now()->format('Y-m-d_His') . '.csv"');
+    }
+
     /** POST /api/doctor/submissions/{id}/review */
     public function reviewSubmission(Request $request, AssignmentSubmission $submission)
     {

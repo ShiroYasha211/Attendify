@@ -74,7 +74,7 @@ class LibraryController extends DoctorApiController
             'category' => 'required|in:lectures,summaries,quizzes,exams,other',
             'sub_category' => 'nullable|string|in:theoretical,practical,seminar,other',
             'custom_category_type' => 'nullable|string|max:255',
-            'file' => 'required|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar',
+            'file' => 'required|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:51200',
             'description' => 'nullable|string',
             'unit_coordinator' => 'nullable|string|max:255',
             'lecturer_name' => 'nullable|string|max:255',

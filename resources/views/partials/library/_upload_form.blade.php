@@ -45,7 +45,7 @@
         <h4 x-show="!selectedFile && !fileError" style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; text-align: center;">اسحر الملفات هنا أو اضغط للاختيار</h4>
         <p x-show="!selectedFile && !fileError" style="color: var(--text-secondary); margin: 0; font-size: 0.95rem; text-align: center;">
             يدعم: PDF, PowerPoint, Word, Excel, صور, ملفات مضغوطة<br>
-            <span style="color: #94a3b8;">(الحد الأقصى: 20MB)</span>
+            <span style="color: #94a3b8;">(الحد الأقصى: 50MB)</span>
         </p>
 
         <div x-show="fileError" x-cloak style="text-align: center; margin-bottom: 1rem;">

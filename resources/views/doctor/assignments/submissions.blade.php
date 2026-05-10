@@ -247,6 +247,10 @@
         @if($assignment->isOverdue())
         <span style="background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 4px; margin-right: 0.5rem;">منتهي</span>
         @endif
+        <a href="{{ route('doctor.assignments.submissions.export', $assignment) }}" class="btn-download">
+            <i class="fa-solid fa-file-excel"></i>
+            تصدير Excel
+        </a>
     </div>
 </div>
 

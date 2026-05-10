@@ -128,6 +128,11 @@ class NotificationController extends StudentApiController
         $count = StudentNotification::where('user_id', Auth::id())
             ->whereNull('read_at')
             ->count();
+        $byScreen = StudentNotification::where('user_id', Auth::id())
+            ->whereNull('read_at')
+            ->get()
+            ->groupBy(fn ($notification) => $this->screenForType($notification->type))
+            ->map(fn ($items) => $items->count());
 
         return $this->success([
             'module' => [
@@ -135,6 +140,25 @@ class NotificationController extends StudentApiController
                 'purpose' => 'Returns the unread count for the personal student notification inbox.',
             ],
             'unread_count' => $count,
+            'by_screen' => $byScreen,
         ], 'تم جلب عدد الإشعارات غير المقروءة');
+    }
+
+    private function screenForType(?string $type): string
+    {
+        return match ($type) {
+            'message' => 'messages',
+            'inquiry', 'doctor_inquiry' => 'inquiries',
+            'star', 'stars' => 'stars',
+            'quiz', 'quizzes' => 'quizzes',
+            'assignment' => 'assignments',
+            'schedule' => 'schedule',
+            'reminder' => 'reminders',
+            'resource' => 'resources',
+            'library' => 'library',
+            'attendance', 'absence_warning', 'lecture_report' => 'attendance',
+            'exam', 'announcement', 'poll', 'alert' => 'news_hub',
+            default => 'notifications',
+        };
     }
 }

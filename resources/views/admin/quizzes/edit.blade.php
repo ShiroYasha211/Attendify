@@ -190,6 +190,7 @@
                                 <div class="d-flex gap-2">
                                     <input type="hidden" :name="'models['+mIdx+'][questions]['+qIdx+'][question_type]'" value="multiple_choice">
                                     <input type="number" :name="'models['+mIdx+'][questions]['+qIdx+'][score]'" class="form-control-q" style="width: 70px;" x-model="q.score" step="0.5" {{ !$canEditContent ? 'disabled' : '' }}>
+                                    <input type="number" :name="'models['+mIdx+'][questions]['+qIdx+'][time_limit_seconds]'" class="form-control-q" style="width: 115px;" x-model="q.time_limit_seconds" min="5" placeholder="ثواني" {{ !$canEditContent ? 'disabled' : '' }}>
                                     <button type="button" class="btn-remove" @click="removeQuestion(mIdx, qIdx)" x-show="model.questions.length > 1 && {{ $canEditContent ? 'true' : 'false' }}"><i class="fa-solid fa-times"></i></button>
                                 </div>
                             </div>
@@ -237,9 +238,9 @@ function adminQuizBuilder() {
         
         addTarget() { this.targets.push({ university_id: '', college_id: '', major_id: '', level_id: '' }); },
         removeTarget(idx) { this.targets.splice(idx, 1); },
-        addModel() { this.models.push({ name: 'نموذج جديد', questions: [{ text: '', score: 1, correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }] }); },
+        addModel() { this.models.push({ name: 'نموذج جديد', questions: [{ text: '', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }] }); },
         removeModel(idx) { this.models.splice(idx, 1); },
-        addQuestion(mIdx) { this.models[mIdx].questions.push({ text: '', score: 1, correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }); },
+        addQuestion(mIdx) { this.models[mIdx].questions.push({ text: '', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }); },
         removeQuestion(mIdx, qIdx) { this.models[mIdx].questions.splice(qIdx, 1); },
         addOption(mIdx, qIdx) { this.models[mIdx].questions[qIdx].options.push({ text: '', is_correct: false }); },
         removeOption(mIdx, qIdx, oIdx) {

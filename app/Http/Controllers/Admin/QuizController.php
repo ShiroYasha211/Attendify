@@ -82,6 +82,7 @@ class QuizController extends Controller
             'models.*.questions.*.question_text' => 'required|string',
             'models.*.questions.*.question_type' => 'required|in:multiple_choice,true_false',
             'models.*.questions.*.score'         => 'nullable|numeric|min:0',
+            'models.*.questions.*.time_limit_seconds' => 'nullable|integer|min:5|max:3600',
             'models.*.questions.*.options'       => 'required|array|min:2',
             'models.*.questions.*.options.*.option_text' => 'required|string',
             'models.*.questions.*.options.*.is_correct'  => 'nullable',
@@ -145,6 +146,7 @@ class QuizController extends Controller
                                 'question_text'   => $questionData['question_text'],
                                 'question_type'   => $questionData['question_type'],
                                 'score'           => $questionData['score'] ?? 1,
+                                'time_limit_seconds' => $questionData['time_limit_seconds'] ?? null,
                                 'correction_note' => $questionData['correction_note'] ?? null,
                                 'info_source'     => $questionData['info_source'] ?? null,
                                 'order'           => $qIndex + 1,
@@ -280,6 +282,7 @@ class QuizController extends Controller
                     return [
                         'text' => $q->question_text,
                         'score' => $q->score,
+                        'time_limit_seconds' => $q->time_limit_seconds,
                         'correction_note' => $q->correction_note,
                         'info_source' => $q->info_source,
                         'options' => $q->options->map(function($o) {
@@ -362,6 +365,7 @@ class QuizController extends Controller
                             'question_text' => $q['question_text'],
                             'question_type' => 'multiple_choice',
                             'score' => $q['score'] ?? 1,
+                            'time_limit_seconds' => $q['time_limit_seconds'] ?? null,
                             'correction_note' => $q['correction_note'] ?? null,
                             'info_source' => $q['info_source'] ?? null,
                             'order' => $qIdx + 1

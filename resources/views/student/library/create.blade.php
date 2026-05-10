@@ -16,8 +16,8 @@
     visibility: '{{ auth()->user()->hasRole('doctor') ? 'everyone' : 'batch' }}',
     handleFile(f) {
         if (!f) return;
-        if (f.size > 20 * 1024 * 1024) {
-            this.fileError = 'حجم الملف (' + this.formatSize(f.size) + ') يتجاوز الحد المسموح به (20MB)';
+        if (f.size > 50 * 1024 * 1024) {
+            this.fileError = 'حجم الملف (' + this.formatSize(f.size) + ') يتجاوز الحد المسموح به (50MB)';
             this.selectedFile = null;
             this.fileName = '';
             this.fileSize = '';

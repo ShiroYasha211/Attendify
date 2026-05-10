@@ -175,6 +175,20 @@ class QuizController extends StudentApiController
             ], 'لقد قمت بتسليم هذا الكويز مسبقاً');
         }
 
+        if ($existingAttempt && ! $existingAttempt->isWithinTimeLimit()) {
+            $existingAnswers = $existingAttempt->answers()
+                ->whereNotNull('selected_option_id')
+                ->pluck('selected_option_id', 'question_id')
+                ->toArray();
+            $existingAttempt->finalizeWithAnswers($existingAnswers);
+
+            return $this->success([
+                'already_submitted' => true,
+                'attempt_id' => $existingAttempt->id,
+                'expired' => true,
+            ], 'انتهى وقت الكويز وتم تسليم المحاولة.');
+        }
+
         // Pick or retrieve quiz model
         if ($existingAttempt) {
             $attempt = $existingAttempt;
@@ -218,8 +232,13 @@ class QuizController extends StudentApiController
         $existingAnswers = $attempt->answers()->pluck('selected_option_id', 'question_id');
 
         return $this->success([
-            'quiz'             => $quiz->load(['creator:id,name', 'subject:id,name']),
-            'attempt'          => $attempt,
+            'quiz'             => array_merge(
+                $quiz->load(['creator:id,name', 'subject:id,name'])->toArray(),
+                ['duration_minutes' => $quiz->time_limit_minutes]
+            ),
+            'attempt'          => array_merge($attempt->toArray(), [
+                'remaining_seconds' => $attempt->remaining_seconds,
+            ]),
             'questions'        => $questions,
             'existing_answers' => $existingAnswers,
         ], 'بدأ المحاولة');
@@ -240,31 +259,14 @@ class QuizController extends StudentApiController
             return $this->error('تم تسليم هذا الكويز مسبقاً', 400);
         }
 
-        $request->validate([
-            'answers'   => 'required|array',
-            'answers.*' => 'required|integer|exists:quiz_options,id',
+        $validated = $request->validate([
+            'answers'   => 'nullable|array',
+            'answers.*' => 'nullable|integer|exists:quiz_options,id',
         ]);
 
         DB::beginTransaction();
         try {
-            foreach ($request->answers as $questionId => $optionId) {
-                $option = QuizOption::findOrFail($optionId);
-
-                QuizAnswer::updateOrCreate(
-                    ['attempt_id' => $attempt->id, 'question_id' => $questionId],
-                    [
-                        'selected_option_id' => $optionId,
-                        'is_correct'         => $option->is_correct,
-                    ]
-                );
-            }
-
-            $attempt->update([
-                'submitted_at' => now(),
-                'status'       => 'submitted',
-            ]);
-
-            $attempt->calculateScore();
+            $attempt->finalizeWithAnswers($validated['answers'] ?? []);
 
             DB::commit();
 
@@ -309,6 +311,7 @@ class QuizController extends StudentApiController
                 'duration'   => $attempt->duration,
                 'correct_answers_count' => $attempt->correct_count,
                 'wrong_answers_count'   => $attempt->wrong_count,
+                'unanswered_answers_count' => $attempt->answers()->where('answer_status', 'unanswered')->count(),
             ]),
         ], 'تم جلب النتيجة بنجاح');
     }

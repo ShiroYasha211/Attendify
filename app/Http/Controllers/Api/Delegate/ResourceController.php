@@ -78,7 +78,7 @@ class ResourceController extends DelegateApiController
             'category' => 'required|in:lectures,references,summaries,exams,other,quizzes',
             'sub_category' => 'nullable|string|in:theoretical,practical,seminar,other',
             'custom_category_type' => 'nullable|string|max:255',
-            'file' => 'required|file|max:20480', // 20MB max
+            'file' => 'required|file|max:51200', // 50MB max
             'description' => 'nullable|string',
             'unit_coordinator' => 'nullable|string|max:255',
             'lecturer_name' => 'nullable|string|max:255',

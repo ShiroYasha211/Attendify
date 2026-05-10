@@ -775,6 +775,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
     Route::put('assignments/{assignment}', [DoctorAssignmentController::class, 'update']);
     Route::delete('assignments/{assignment}', [DoctorAssignmentController::class, 'destroy']);
     Route::get('assignments/{assignment}/submissions', [DoctorAssignmentController::class, 'submissions']);
+    Route::get('assignments/{assignment}/submissions/export', [DoctorAssignmentController::class, 'exportSubmissions']);
     Route::post('submissions/{submission}/review', [DoctorAssignmentController::class, 'reviewSubmission']);
 
     // Inquiries
@@ -930,4 +931,3 @@ Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
         Route::delete('announcements/{id}', [DoctorAnnouncementApiController::class, 'destroy']);
     });
 });
-

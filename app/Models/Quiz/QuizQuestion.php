@@ -15,6 +15,7 @@ class QuizQuestion extends Model
         'question_image',
         'question_type',
         'score',
+        'time_limit_seconds',
         'correction_note',
         'info_source',
         'order',
@@ -22,6 +23,7 @@ class QuizQuestion extends Model
 
     protected $casts = [
         'score' => 'decimal:2',
+        'time_limit_seconds' => 'integer',
     ];
 
     // ─── Relationships ───

@@ -368,6 +368,7 @@
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="hidden" :name="'models[' + modelIndex + '][questions][' + qIndex + '][question_type]'" value="multiple_choice">
                                     <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][score]'" class="form-control form-control-q" style="width: 80px;" x-model="question.score" step="0.5">
+                                    <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][time_limit_seconds]'" class="form-control form-control-q" style="width: 120px;" x-model="question.time_limit_seconds" min="5" placeholder="ثواني/سؤال">
                                     <button type="button" class="btn-remove" @click="removeQuestion(modelIndex, qIndex)" x-show="model.questions.length > 1">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
@@ -428,11 +429,11 @@ function quizBuilder() {
             const idx = this.models.length;
             this.models.push({
                 name: 'نموذج ' + (names[idx] || (idx + 1)),
-                questions: [{ text: '', score: 1, options: [ { text: '', is_correct: true }, { text: '', is_correct: false } ] }]
+                questions: [{ text: '', score: 1, time_limit_seconds: '', options: [ { text: '', is_correct: true }, { text: '', is_correct: false } ] }]
             });
         },
         removeModel(index) { if (this.canEditContent && this.models.length > 1) this.models.splice(index, 1); },
-        addQuestion(mIdx) { if (this.canEditContent) this.models[mIdx].questions.push({ text: '', score: 1, options: [ { text: '', is_correct: true }, { text: '', is_correct: false } ] }); },
+        addQuestion(mIdx) { if (this.canEditContent) this.models[mIdx].questions.push({ text: '', score: 1, time_limit_seconds: '', options: [ { text: '', is_correct: true }, { text: '', is_correct: false } ] }); },
         removeQuestion(mIdx, qIdx) { if (this.canEditContent && this.models[mIdx].questions.length > 1) this.models[mIdx].questions.splice(qIdx, 1); },
         addOption(mIdx, qIdx) { if (this.canEditContent) this.models[mIdx].questions[qIdx].options.push({ text: '', is_correct: false }); },
         removeOption(mIdx, qIdx, oIdx) {

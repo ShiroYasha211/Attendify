@@ -355,6 +355,7 @@
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="hidden" :name="'models[' + modelIndex + '][questions][' + qIndex + '][question_type]'" value="multiple_choice">
                                     <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][score]'" class="form-control form-control-q" style="width: 80px; padding: 0.3rem 0.5rem; font-size: 0.8rem;" placeholder="الدرجة" x-model="question.score" min="0" step="0.5">
+                                    <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][time_limit_seconds]'" class="form-control form-control-q" style="width: 120px; padding: 0.3rem 0.5rem; font-size: 0.8rem;" placeholder="ثواني/سؤال" x-model="question.time_limit_seconds" min="5">
                                     <button type="button" class="btn-remove" @click="removeQuestion(modelIndex, qIndex)" x-show="model.questions.length > 1" title="حذف السؤال">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
@@ -445,6 +446,7 @@ function quizBuilder() {
                     {
                         text: '',
                         score: 1,
+                        time_limit_seconds: '',
                         options: [
                             { text: '', is_correct: true },
                             { text: '', is_correct: false },
@@ -471,6 +473,7 @@ function quizBuilder() {
                     {
                         text: '',
                         score: 1,
+                        time_limit_seconds: '',
                         options: [
                             { text: '', is_correct: true },
                             { text: '', is_correct: false },
@@ -492,6 +495,7 @@ function quizBuilder() {
             this.models[modelIndex].questions.push({
                 text: '',
                 score: 1,
+                time_limit_seconds: '',
                 options: [
                     { text: '', is_correct: true },
                     { text: '', is_correct: false },

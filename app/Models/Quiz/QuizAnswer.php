@@ -14,6 +14,7 @@ class QuizAnswer extends Model
         'question_id',
         'selected_option_id',
         'is_correct',
+        'answer_status',
         'score_awarded',
     ];
 

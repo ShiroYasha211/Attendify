@@ -272,6 +272,12 @@ function quizTake(totalQuestions, timeLimitMinutes, remainingSecondsInit) {
         },
 
         init() {
+            window.addEventListener('beforeunload', (event) => {
+                if (this.submitting) return;
+                event.preventDefault();
+                event.returnValue = 'الخروج من صفحة الكويز قد يؤدي إلى تسليم الاختبار أو فقدان الإجابات غير المرسلة.';
+            });
+
             if (this.remainingSeconds !== null && this.remainingSeconds > 0) {
                 this.timerInterval = setInterval(() => {
                     this.remainingSeconds--;

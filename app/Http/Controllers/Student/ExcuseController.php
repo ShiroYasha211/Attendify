@@ -18,9 +18,9 @@ class ExcuseController extends Controller
         $request->validate([
             'attendance_id' => 'required|exists:attendances,id',
             'reason' => 'required|string|max:1000',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'attachments' => 'nullable|array|max:5',
-            'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         $student = Auth::user();

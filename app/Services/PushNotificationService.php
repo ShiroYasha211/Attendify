@@ -149,12 +149,15 @@ class PushNotificationService
             default => 'student',
         };
 
+        $screen = $this->resolveScreen($notification->type, $workspace);
+
         return array_merge($notification->data ?? [], [
             'notification_id' => (string) $notification->id,
             'type' => (string) $notification->type,
             'batch_id' => (string) ($notification->batch_id ?? ''),
             'workspace' => $workspace,
-            'screen' => $this->resolveScreen($notification->type, $workspace),
+            'screen' => $screen,
+            'target_screen' => $screen,
             'title' => (string) $notification->title,
             'message' => (string) $notification->message,
         ]);
@@ -165,9 +168,15 @@ class PushNotificationService
         return match ($type) {
             'message' => 'messages',
             'excuse' => 'excuses',
+            'inquiry', 'doctor_inquiry' => 'inquiries',
+            'star', 'stars' => 'stars',
+            'quiz', 'quizzes' => 'quizzes',
             'assignment' => 'assignments',
+            'schedule' => 'schedule',
+            'reminder' => 'reminders',
             'attendance', 'absence_warning', 'lecture_report' => 'attendance',
             'resource' => 'resources',
+            'library' => 'library',
             'exam', 'announcement', 'poll', 'alert' => $workspace === 'doctor' || $workspace === 'delegate' ? 'news' : 'news_hub',
             default => 'notifications',
         };

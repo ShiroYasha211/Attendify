@@ -66,6 +66,7 @@ class QuizController extends BaseController
             'models.*.questions.*.question_text'    => 'required|string',
             'models.*.questions.*.question_type'    => 'required|string|in:multiple_choice,true_false',
             'models.*.questions.*.score'            => 'nullable|numeric|default:1',
+            'models.*.questions.*.time_limit_seconds'=> 'nullable|integer|min:5|max:3600',
             'models.*.questions.*.correction_note'  => 'nullable|string',
             'models.*.questions.*.info_source'      => 'nullable|string',
             'models.*.questions.*.options'          => 'required|array|min:2',
@@ -128,6 +129,7 @@ class QuizController extends BaseController
                                 'question_text'   => $questionData['question_text'],
                                 'question_type'   => $questionData['question_type'],
                                 'score'           => $questionData['score'] ?? 1,
+                                'time_limit_seconds' => $questionData['time_limit_seconds'] ?? null,
                                 'correction_note' => $questionData['correction_note'] ?? null,
                                 'info_source'     => $questionData['info_source'] ?? null,
                                 'order'           => $qIndex + 1,
@@ -265,6 +267,7 @@ class QuizController extends BaseController
                                 'question_text'   => $q['question_text'],
                                 'question_type'   => $q['question_type'] ?? 'multiple_choice',
                                 'score'           => $q['score'] ?? 1,
+                                'time_limit_seconds' => $q['time_limit_seconds'] ?? null,
                                 'correction_note' => $q['correction_note'] ?? null,
                                 'info_source'     => $q['info_source'] ?? null,
                                 'order'           => $qIdx + 1

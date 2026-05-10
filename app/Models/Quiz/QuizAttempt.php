@@ -5,6 +5,7 @@ namespace App\Models\Quiz;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use App\Models\Quiz\QuizAnswer;
 
 class QuizAttempt extends Model
 {
@@ -98,14 +99,20 @@ class QuizAttempt extends Model
         $totalScore = 0;
         $maxScore = 0;
 
-        foreach ($this->answers()->with('question')->get() as $answer) {
-            $questionScore = $answer->question->score ?? 1;
+        $questions = $this->quizModel
+            ->questions()
+            ->with(['answers' => fn ($query) => $query->where('attempt_id', $this->id)])
+            ->get();
+
+        foreach ($questions as $question) {
+            $answer = $question->answers->first();
+            $questionScore = $question->score ?? 1;
             $maxScore += $questionScore;
 
-            if ($answer->is_correct) {
+            if ($answer && $answer->is_correct) {
                 $totalScore += $questionScore;
                 $answer->update(['score_awarded' => $questionScore]);
-            } else {
+            } elseif ($answer) {
                 $answer->update(['score_awarded' => 0]);
             }
         }
@@ -115,6 +122,39 @@ class QuizAttempt extends Model
             'max_score' => $maxScore,
             'status'    => 'graded',
         ]);
+    }
+
+    /**
+     * Persist submitted answers and add explicit wrong rows for unanswered questions.
+     */
+    public function finalizeWithAnswers(array $answers): void
+    {
+        $questions = $this->quizModel->questions()->with('options')->get();
+
+        foreach ($questions as $question) {
+            $questionId = (string) $question->id;
+            $optionId = $answers[$questionId] ?? $answers[$question->id] ?? null;
+            $option = $optionId
+                ? $question->options->firstWhere('id', (int) $optionId)
+                : null;
+
+            QuizAnswer::updateOrCreate(
+                ['attempt_id' => $this->id, 'question_id' => $question->id],
+                [
+                    'selected_option_id' => $option?->id,
+                    'is_correct' => $option ? (bool) $option->is_correct : false,
+                    'answer_status' => $option ? 'answered' : 'unanswered',
+                    'score_awarded' => 0,
+                ]
+            );
+        }
+
+        $this->update([
+            'submitted_at' => now(),
+            'status' => 'submitted',
+        ]);
+
+        $this->calculateScore();
     }
 
     /**

@@ -103,6 +103,17 @@ class QuizController extends Controller
                 ->with('info', 'لقد أكملت هذا الكويز مسبقاً.');
         }
 
+        if ($existingAttempt && ! $existingAttempt->isWithinTimeLimit()) {
+            $existingAnswers = $existingAttempt->answers()
+                ->whereNotNull('selected_option_id')
+                ->pluck('selected_option_id', 'question_id')
+                ->toArray();
+            $existingAttempt->finalizeWithAnswers($existingAnswers);
+
+            return redirect()->route('student.quizzes.result', $existingAttempt)
+                ->with('info', 'انتهى وقت الكويز وتم تسليم المحاولة.');
+        }
+
         // Pick or retrieve quiz model
         if ($existingAttempt) {
             $attempt = $existingAttempt;
@@ -170,32 +181,14 @@ class QuizController extends Controller
         }
 
         $validated = $request->validate([
-            'answers'   => 'required|array',
-            'answers.*' => 'required|integer|exists:quiz_options,id',
+            'answers'   => 'nullable|array',
+            'answers.*' => 'nullable|integer|exists:quiz_options,id',
         ]);
 
         DB::beginTransaction();
 
         try {
-            foreach ($validated['answers'] as $questionId => $optionId) {
-                $option = QuizOption::findOrFail($optionId);
-
-                QuizAnswer::updateOrCreate(
-                    ['attempt_id' => $attempt->id, 'question_id' => $questionId],
-                    [
-                        'selected_option_id' => $optionId,
-                        'is_correct'         => $option->is_correct,
-                    ]
-                );
-            }
-
-            $attempt->update([
-                'submitted_at' => now(),
-                'status'       => 'submitted',
-            ]);
-
-            // Auto-grade
-            $attempt->calculateScore();
+            $attempt->finalizeWithAnswers($validated['answers'] ?? []);
 
             DB::commit();
 
