@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends StudentApiController
 {
@@ -139,5 +140,44 @@ class AuthController extends StudentApiController
         ]);
 
         return $this->success(null, 'تم تغيير كلمة المرور بنجاح.');
+    }
+
+    /**
+     * Update student email address.
+     */
+    public function updateEmail(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'current_password' => ['required', 'string'],
+        ], [
+            'email.required' => 'البريد الإلكتروني مطلوب.',
+            'email.email' => 'يرجى إدخال بريد إلكتروني صحيح.',
+            'email.unique' => 'البريد الإلكتروني مستخدم مسبقًا.',
+            'current_password.required' => 'كلمة المرور الحالية مطلوبة.',
+        ]);
+
+        if (! Hash::check($request->current_password, $user->password)) {
+            return $this->error('كلمة المرور الحالية غير صحيحة.', 422);
+        }
+
+        $user->forceFill([
+            'email' => $request->email,
+            'email_verified_at' => null,
+        ])->save();
+
+        return $this->success([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ], 'تم تحديث البريد الإلكتروني بنجاح.');
     }
 }

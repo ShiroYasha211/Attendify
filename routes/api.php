@@ -514,6 +514,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     // Auth & Profile
     Route::post('logout', [StudentAuthController::class, 'logout']);
     Route::post('change-password', [StudentAuthController::class, 'changePassword']);
+    Route::patch('profile/email', [StudentAuthController::class, 'updateEmail']);
     Route::get('me', [StudentAuthController::class, 'me']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
@@ -735,7 +736,7 @@ Route::prefix('doctor')->group(function () {
 // ══════════════════════════════════════════════════════════════
 // Doctor API — Protected (Sanctum Auth + Doctor Role)
 // ══════════════════════════════════════════════════════════════
-Route::prefix('doctor')->middleware(['auth:sanctum'])->group(function () {
+Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->group(function () {
 
     // Auth
     Route::post('logout', [DoctorAuthController::class, 'logout']);
