@@ -26,7 +26,10 @@ class MockExamController extends Controller
         $previousMocks = MockEvaluation::with('checklist:id,title')
             ->where('student_id', $student->id)
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($evaluation) {
+                return $this->serializeEvaluation($evaluation);
+            });
 
         return response()->json([
             'success' => true,
@@ -277,9 +280,30 @@ class MockExamController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'evaluation' => $evaluation,
+                'evaluation' => $this->serializeEvaluation($evaluation),
                 'radar_chart' => $radarData,
             ]
         ], 200);
+    }
+
+    protected function serializeEvaluation(MockEvaluation $evaluation): array
+    {
+        $data = $evaluation->toArray();
+        $data['grade_label'] = $evaluation->grade_label;
+        $data['grade_color'] = $evaluation->grade_color;
+        $data['formatted_time'] = $evaluation->formatted_time;
+
+        if ($evaluation->relationLoaded('scores')) {
+            $data['scores'] = $evaluation->scores->map(function ($score) {
+                $item = $score->checklistItem;
+                return array_merge($score->toArray(), [
+                    'score_label' => $score->score_label,
+                    'max_marks' => $item?->marks,
+                    'checklist_item' => $item,
+                ]);
+            })->values();
+        }
+
+        return $data;
     }
 }

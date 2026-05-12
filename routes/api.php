@@ -646,6 +646,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
         // Logbook
         Route::get('logbook', [StudentLogbookController::class, 'index']);
         Route::post('logbook', [StudentLogbookController::class, 'store']);
+        Route::post('logbook/{log_id}/regenerate-qr', [StudentLogbookController::class, 'regenerateQr']);
         Route::put('logbook/{log_id}', [StudentLogbookController::class, 'update']);
         Route::delete('logbook/{log_id}', [StudentLogbookController::class, 'destroy']);
         Route::post('assignments/{assignment_id}/submit-review', [StudentLogbookController::class, 'submitAssignment']);

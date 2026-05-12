@@ -65,7 +65,7 @@ class LogbookController extends Controller
                     'pending_logs' => $pendingCount,
                 ],
                 'assignments' => $assignments,
-                'logs' => $logs,
+                'logs' => $logs->map(fn ($log) => $this->serializeLog($log))->values(),
                 'form_options' => $options,
             ],
         ]);
@@ -137,12 +137,12 @@ class LogbookController extends Controller
             }
         }
 
-        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'activities.bodySystem']);
+        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem', 'activities.confirmedBy']);
 
         return response()->json([
             'success' => true,
             'message' => 'Clinical daily log created successfully.',
-            'data' => $dailyLog,
+            'data' => $this->serializeLog($dailyLog),
         ], 201);
     }
 
@@ -215,12 +215,12 @@ class LogbookController extends Controller
             }
         }
 
-        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'activities.bodySystem']);
+        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem', 'activities.confirmedBy']);
 
         return response()->json([
             'success' => true,
             'message' => 'Clinical daily log updated successfully.',
-            'data' => $dailyLog,
+            'data' => $this->serializeLog($dailyLog),
         ]);
     }
 
@@ -241,6 +241,27 @@ class LogbookController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Clinical daily log deleted successfully.',
+        ]);
+    }
+
+    public function regenerateQr(Request $request, $id)
+    {
+        $student = $request->user();
+        $dailyLog = StudentDailyLog::where('student_id', $student->id)
+            ->whereIn('status', ['pending', 'partially_confirmed'])
+            ->findOrFail($id);
+
+        $dailyLog->update([
+            'qr_token' => StudentDailyLog::generateToken(),
+            'created_at' => now(),
+        ]);
+
+        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem', 'activities.confirmedBy']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تجديد الباركود بنجاح.',
+            'data' => $this->serializeLog($dailyLog),
         ]);
     }
 
@@ -286,6 +307,42 @@ class LogbookController extends Controller
             'data' => [
                 'download_url' => url('/student/clinical/logbook/export-pdf'),
             ],
+        ]);
+    }
+
+    protected function serializeLog(StudentDailyLog $log): array
+    {
+        $expiresAt = $log->created_at?->copy()->addMinutes(30);
+        $groups = collect($log->groupedActivities())->map(function ($group) {
+            $items = $group['items']->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'activity_type' => $item->activity_type,
+                    'body_system' => $item->bodySystem,
+                    'case_name' => $item->case_name,
+                    'is_confirmed' => (bool) $item->is_confirmed,
+                    'diagnosis' => $item->diagnosis,
+                    'confirmed_by' => $item->confirmedBy,
+                    'confirmed_at' => $item->confirmed_at,
+                ];
+            })->values();
+
+            return [
+                'key' => $group['key'],
+                'label' => $group['label'],
+                'activity_type' => $group['activity_type'],
+                'all_confirmed' => $items->isNotEmpty() && $items->every(fn ($item) => $item['is_confirmed']),
+                'diagnosis' => $items->pluck('diagnosis')->filter()->first(),
+                'items' => $items,
+            ];
+        })->values();
+
+        return array_merge($log->toArray(), [
+            'status_label' => $log->status_label,
+            'qr_expires_at' => $expiresAt?->toIso8601String(),
+            'is_qr_expired' => $expiresAt ? now()->greaterThanOrEqualTo($expiresAt) : false,
+            'can_regenerate_qr' => in_array($log->status, ['pending', 'partially_confirmed'], true),
+            'grouped_activities' => $groups,
         ]);
     }
 }
