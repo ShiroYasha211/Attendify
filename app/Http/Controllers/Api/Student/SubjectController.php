@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Student;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Academic\Subject;
+use App\Models\Academic\Term;
 use App\Models\Academic\Lecture;
 use App\Models\Academic\Assignment;
 use App\Models\Academic\StudentLectureStatus;
@@ -28,11 +29,31 @@ class SubjectController extends StudentApiController
             ->where('level_id', $student->level_id)
             ->with(['doctor:id,name,avatar', 'term:id,name', 'semester:id,name']);
 
+        if ($request->term_id) {
+            $subjects->where('term_id', $request->term_id);
+        }
+
         if ($request->semester_id) {
             $subjects->where('semester_id', $request->semester_id);
         }
 
-        return $this->success($subjects->get());
+        $terms = Term::where('level_id', $student->level_id)
+            ->with('semesters:id,term_id,name')
+            ->get(['id', 'level_id', 'name']);
+
+        return $this->success([
+            'subjects' => $subjects->get(),
+            'terms' => $terms,
+            'major' => $student->major ? [
+                'id' => $student->major->id,
+                'name' => $student->major->name,
+                'has_semesters' => (bool) $student->major->has_semesters,
+            ] : null,
+            'filters' => [
+                'term_id' => $request->term_id,
+                'semester_id' => $request->semester_id,
+            ],
+        ]);
     }
 
     /**

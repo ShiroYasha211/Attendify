@@ -13,6 +13,7 @@ class Major extends Model
 
     protected $casts = [
         'has_clinical' => 'boolean',
+        'has_semesters' => 'boolean',
     ];
 
     /**

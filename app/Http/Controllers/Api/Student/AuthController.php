@@ -171,7 +171,6 @@ class AuthController extends StudentApiController
 
         $user->forceFill([
             'email' => $request->email,
-            'email_verified_at' => null,
         ])->save();
 
         return $this->success([
