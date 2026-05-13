@@ -16,6 +16,10 @@ class MockScore extends Model
         'notes',
     ];
 
+    protected $casts = [
+        'marks_obtained' => 'float',
+    ];
+
     public function mockEvaluation()
     {
         return $this->belongsTo(MockEvaluation::class, 'mock_evaluation_id');
@@ -31,9 +35,10 @@ class MockScore extends Model
     {
         if (!$this->checklistItem) return 'not_done';
 
-        $max = $this->checklistItem->marks;
-        if ($this->marks_obtained >= $max) return 'done';
-        if ($this->marks_obtained > 0) return 'partial';
+        $max = (float) $this->checklistItem->marks;
+        $obtained = (float) $this->marks_obtained;
+        if ($max > 0 && $obtained >= $max) return 'done';
+        if ($obtained > 0) return 'partial';
         return 'not_done';
     }
 }

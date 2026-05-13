@@ -106,6 +106,7 @@ class LogbookController extends Controller
             'did_round' => $request->boolean('did_round'),
             'round_notes' => $request->round_notes,
             'qr_token' => StudentDailyLog::generateToken(),
+            'qr_generated_at' => now(),
             'status' => 'pending',
             'log_date' => now()->toDateString(),
             'log_time' => now()->toTimeString(),
@@ -253,7 +254,7 @@ class LogbookController extends Controller
 
         $dailyLog->update([
             'qr_token' => StudentDailyLog::generateToken(),
-            'created_at' => now(),
+            'qr_generated_at' => now(),
         ]);
 
         $dailyLog->load(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem', 'activities.confirmedBy']);
@@ -312,7 +313,8 @@ class LogbookController extends Controller
 
     protected function serializeLog(StudentDailyLog $log): array
     {
-        $expiresAt = $log->created_at?->copy()->addMinutes(30);
+        $generatedAt = $log->qr_generated_at ?? $log->created_at;
+        $expiresAt = $generatedAt?->copy()->addMinutes(30);
         $groups = collect($log->groupedActivities())->map(function ($group) {
             $items = $group['items']->map(function ($item) {
                 return [
@@ -339,6 +341,7 @@ class LogbookController extends Controller
 
         return array_merge($log->toArray(), [
             'status_label' => $log->status_label,
+            'qr_generated_at' => $generatedAt?->toIso8601String(),
             'qr_expires_at' => $expiresAt?->toIso8601String(),
             'is_qr_expired' => $expiresAt ? now()->greaterThanOrEqualTo($expiresAt) : false,
             'can_regenerate_qr' => in_array($log->status, ['pending', 'partially_confirmed'], true),

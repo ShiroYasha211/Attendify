@@ -17,6 +17,7 @@ class RareCaseController extends Controller
             ->where('is_active', true)
             ->latest()
             ->paginate(15);
+        $cases->getCollection()->transform(fn ($case) => $this->serializeCase($case));
 
         return response()->json([
             'status' => 'success',
@@ -40,7 +41,17 @@ class RareCaseController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $case
+            'data' => $this->serializeCase($case)
         ]);
+    }
+
+    protected function serializeCase(RareCase $case): array
+    {
+        $data = $case->toArray();
+        $data['attachment_url'] = $case->attachment_path
+            ? url('storage/' . ltrim($case->attachment_path, '/'))
+            : null;
+
+        return $data;
     }
 }

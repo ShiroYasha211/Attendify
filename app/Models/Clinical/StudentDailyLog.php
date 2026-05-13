@@ -18,6 +18,7 @@ class StudentDailyLog extends Model
         'did_round',
         'round_notes',
         'qr_token',
+        'qr_generated_at',
         'status',
         'confirmed_by',
         'confirmed_at',
@@ -28,6 +29,7 @@ class StudentDailyLog extends Model
 
     protected $casts = [
         'did_round' => 'boolean',
+        'qr_generated_at' => 'datetime',
         'confirmed_at' => 'datetime',
         'log_date' => 'date',
     ];
@@ -84,7 +86,9 @@ class StudentDailyLog extends Model
 
     public function isExpired(): bool
     {
-        return $this->created_at->diffInMinutes(now()) > 30;
+        $generatedAt = $this->qr_generated_at ?? $this->created_at;
+
+        return $generatedAt ? $generatedAt->diffInMinutes(now()) > 30 : false;
     }
 
     public function getStatusLabelAttribute(): string
