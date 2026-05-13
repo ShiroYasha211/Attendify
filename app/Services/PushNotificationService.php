@@ -172,6 +172,7 @@ class PushNotificationService
             'star', 'stars' => 'stars',
             'quiz', 'quizzes' => 'quizzes',
             'assignment' => 'assignments',
+            'study_reminder' => 'study_session',
             'schedule' => 'schedule',
             'reminder' => 'reminders',
             'attendance', 'absence_warning', 'lecture_report' => 'attendance',

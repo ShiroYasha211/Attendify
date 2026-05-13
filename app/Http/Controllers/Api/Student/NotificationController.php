@@ -152,6 +152,7 @@ class NotificationController extends StudentApiController
             'star', 'stars' => 'stars',
             'quiz', 'quizzes' => 'quizzes',
             'assignment' => 'assignments',
+            'study_reminder' => 'study_center',
             'schedule' => 'schedule',
             'reminder' => 'reminders',
             'resource' => 'resources',

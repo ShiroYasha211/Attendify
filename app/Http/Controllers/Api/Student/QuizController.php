@@ -83,6 +83,7 @@ class QuizController extends StudentApiController
             ->get()
             ->map(function ($attempt) {
                 $pct = $attempt->percentage;
+                $resultsHidden = ($attempt->quiz?->results_visibility ?? 'hidden') === 'hidden';
                 return [
                     'id'             => $attempt->id,
                     'quiz_id'        => $attempt->quiz_id,
@@ -90,11 +91,13 @@ class QuizController extends StudentApiController
                     'subject_name'   => $attempt->quiz->subject->name ?? '—',
                     'creator_name'   => $attempt->quiz->creator->name ?? '—',
                     'model_name'     => $attempt->quizModel->name ?? '—',
-                    'score'          => (float) $attempt->score,
-                    'max_score'      => (float) $attempt->max_score,
-                    'percentage'     => $pct,
-                    'correct_answers_count' => $attempt->correct_count,
-                    'wrong_answers_count'   => $attempt->wrong_count,
+                    'results_visibility' => $attempt->quiz?->results_visibility ?? 'hidden',
+                    'results_hidden' => $resultsHidden,
+                    'score'          => $resultsHidden ? null : (float) $attempt->score,
+                    'max_score'      => $resultsHidden ? null : (float) $attempt->max_score,
+                    'percentage'     => $resultsHidden ? null : $pct,
+                    'correct_answers_count' => $resultsHidden ? null : $attempt->correct_count,
+                    'wrong_answers_count'   => $resultsHidden ? null : $attempt->wrong_count,
                     'status'         => $attempt->status,
                     'status_label'   => $attempt->status_label,
                     'duration'       => $attempt->duration,
