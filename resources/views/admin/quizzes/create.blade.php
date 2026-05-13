@@ -56,6 +56,17 @@
                     <textarea name="description" class="form-control-q w-100" rows="2"></textarea>
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label-q">نوع التوقيت *</label>
+                    <select name="timer_mode" class="form-select-q w-100" x-model="timerMode" required>
+                        <option value="quiz">وقت عام للاختبار</option>
+                        <option value="per_question">وقت لكل سؤال</option>
+                    </select>
+                </div>
+                <div class="col-md-3" x-show="timerMode === 'quiz'">
+                    <label class="form-label-q">مدة الكويز (دقائق)</label>
+                    <input type="number" name="time_limit_minutes" class="form-control-q w-100" min="1" max="300" :required="timerMode === 'quiz'">
+                </div>
+                <div class="col-md-3">
                     <label class="form-label-q">وقت النشر</label>
                     <input type="datetime-local" name="scheduled_at" class="form-control-q w-100">
                 </div>
@@ -189,7 +200,7 @@
                                 <div class="d-flex gap-2">
                                     <input type="hidden" :name="'models['+mIdx+'][questions]['+qIdx+'][question_type]'" value="multiple_choice">
                                     <input type="number" :name="'models['+mIdx+'][questions]['+qIdx+'][score]'" class="form-control-q" style="width: 70px;" x-model="q.score" step="0.5">
-                                    <input type="number" :name="'models['+mIdx+'][questions]['+qIdx+'][time_limit_seconds]'" class="form-control-q" style="width: 115px;" x-model="q.time_limit_seconds" min="5" placeholder="ثواني">
+                                    <input type="number" :name="'models['+mIdx+'][questions]['+qIdx+'][time_limit_seconds]'" class="form-control-q" style="width: 115px;" x-model="q.time_limit_seconds" min="1" placeholder="ثواني" x-show="timerMode === 'per_question'" :required="timerMode === 'per_question'">
                                     <button type="button" class="btn-remove" @click="removeQuestion(mIdx, qIdx)" x-show="model.questions.length > 1"><i class="fa-solid fa-times"></i></button>
                                 </div>
                             </div>
@@ -231,6 +242,7 @@
 <script>
 function adminQuizBuilder() {
     return {
+        timerMode: 'quiz',
         use_access_code: false,
         targets: [{ university_id: '', college_id: '', major_id: '', level_id: '' }],
         models: [{ name: 'نموذج أ', questions: [{ text: '', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }] }],

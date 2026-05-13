@@ -44,13 +44,15 @@ class QuizController extends DoctorApiController
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'time_limit_minutes' => 'nullable|integer|min:1|max:300',
+            'timer_mode' => 'required|in:quiz,per_question',
+            'time_limit_minutes' => 'nullable|required_if:timer_mode,quiz|integer|min:1|max:300',
             'shuffle_questions' => 'nullable|boolean',
             'shuffle_options' => 'nullable|boolean',
             'show_correct_answers' => 'nullable|boolean',
             'show_correction_notes' => 'nullable|boolean',
             'notify_students' => 'nullable|boolean',
             'show_countdown' => 'nullable|boolean',
+            'use_access_code' => 'nullable|boolean',
             'results_visibility' => 'required|in:hidden,individual,public',
             'scheduled_at' => 'nullable|date',
             'closes_at' => 'nullable|date|after:scheduled_at',
@@ -60,7 +62,7 @@ class QuizController extends DoctorApiController
             'models.*.questions.*.question_text' => 'required|string',
             'models.*.questions.*.question_type' => 'required|in:multiple_choice,true_false',
             'models.*.questions.*.score' => 'nullable|numeric|min:0',
-            'models.*.questions.*.time_limit_seconds' => 'nullable|integer|min:5|max:3600',
+            'models.*.questions.*.time_limit_seconds' => 'nullable|required_if:timer_mode,per_question|integer|min:1',
             'models.*.questions.*.correction_note' => 'nullable|string',
             'models.*.questions.*.info_source' => 'nullable|string',
             'models.*.questions.*.options' => 'required|array|min:2',
@@ -87,6 +89,7 @@ class QuizController extends DoctorApiController
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
+                'timer_mode' => $validated['timer_mode'],
                 'shuffle_questions' => $request->boolean('shuffle_questions'),
                 'shuffle_options' => $request->boolean('shuffle_options'),
                 'show_correct_answers' => $request->boolean('show_correct_answers'),
@@ -99,7 +102,12 @@ class QuizController extends DoctorApiController
                 'show_countdown' => $request->boolean('show_countdown'),
             ]);
 
-            $this->syncModels($quiz, $validated['models']);
+            $this->syncModels(
+                $quiz,
+                $validated['models'],
+                $request->boolean('use_access_code'),
+                $validated['timer_mode']
+            );
 
             DB::commit();
 
@@ -138,13 +146,15 @@ class QuizController extends DoctorApiController
             'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'time_limit_minutes' => 'nullable|integer|min:1|max:300',
+            'timer_mode' => 'required|in:quiz,per_question',
+            'time_limit_minutes' => 'nullable|required_if:timer_mode,quiz|integer|min:1|max:300',
             'shuffle_questions' => 'nullable|boolean',
             'shuffle_options' => 'nullable|boolean',
             'show_correct_answers' => 'nullable|boolean',
             'show_correction_notes' => 'nullable|boolean',
             'notify_students' => 'nullable|boolean',
             'show_countdown' => 'nullable|boolean',
+            'use_access_code' => 'nullable|boolean',
             'results_visibility' => 'required|in:hidden,individual,public',
             'scheduled_at' => 'nullable|date',
             'closes_at' => 'nullable|date|after:scheduled_at',
@@ -158,7 +168,7 @@ class QuizController extends DoctorApiController
                 'models.*.questions.*.question_text' => 'required|string',
                 'models.*.questions.*.question_type' => 'required|in:multiple_choice,true_false',
                 'models.*.questions.*.score' => 'nullable|numeric|min:0',
-                'models.*.questions.*.time_limit_seconds' => 'nullable|integer|min:5|max:3600',
+                'models.*.questions.*.time_limit_seconds' => 'nullable|required_if:timer_mode,per_question|integer|min:1',
                 'models.*.questions.*.correction_note' => 'nullable|string',
                 'models.*.questions.*.info_source' => 'nullable|string',
                 'models.*.questions.*.options' => 'required|array|min:2',
@@ -186,6 +196,7 @@ class QuizController extends DoctorApiController
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
+                'timer_mode' => $validated['timer_mode'],
                 'shuffle_questions' => $request->boolean('shuffle_questions'),
                 'shuffle_options' => $request->boolean('shuffle_options'),
                 'show_correct_answers' => $request->boolean('show_correct_answers'),
@@ -200,7 +211,12 @@ class QuizController extends DoctorApiController
 
             if ($canEditContent && isset($validated['models'])) {
                 $quiz->models()->delete();
-                $this->syncModels($quiz, $validated['models']);
+                $this->syncModels(
+                    $quiz,
+                    $validated['models'],
+                    $request->boolean('use_access_code'),
+                    $validated['timer_mode']
+                );
             }
 
             DB::commit();
@@ -313,13 +329,18 @@ class QuizController extends DoctorApiController
         return $this->success(null, 'تم حذف الكويز بنجاح.');
     }
 
-    protected function syncModels(Quiz $quiz, array $models): void
+    protected function syncModels(
+        Quiz $quiz,
+        array $models,
+        bool $useAccessCode,
+        string $timerMode
+    ): void
     {
         foreach ($models as $modelData) {
             $quizModel = QuizModel::create([
                 'quiz_id' => $quiz->id,
                 'name' => $modelData['name'],
-                'access_code' => strtoupper(Str::random(6)),
+                'access_code' => $useAccessCode ? strtoupper(Str::random(6)) : null,
             ]);
 
             foreach ($modelData['questions'] as $qIndex => $questionData) {
@@ -328,7 +349,7 @@ class QuizController extends DoctorApiController
                     'question_text' => $questionData['question_text'],
                     'question_type' => $questionData['question_type'],
                     'score' => $questionData['score'] ?? 1,
-                    'time_limit_seconds' => $questionData['time_limit_seconds'] ?? null,
+                    'time_limit_seconds' => $timerMode === 'per_question' ? ($questionData['time_limit_seconds'] ?? null) : null,
                     'correction_note' => $questionData['correction_note'] ?? null,
                     'info_source' => $questionData['info_source'] ?? null,
                     'order' => $qIndex + 1,

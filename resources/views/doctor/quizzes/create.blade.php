@@ -276,8 +276,15 @@
 
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
+                    <label class="form-label-q">نوع التوقيت *</label>
+                    <select name="timer_mode" class="form-select form-select-q" x-model="timerMode" required>
+                        <option value="quiz">وقت عام للاختبار بالكامل</option>
+                        <option value="per_question">وقت مستقل لكل سؤال</option>
+                    </select>
+                </div>
+                <div class="col-md-4" x-show="timerMode === 'quiz'">
                     <label class="form-label-q">مدة الكويز (دقائق)</label>
-                    <input type="number" name="time_limit_minutes" class="form-control form-control-q" placeholder="مثال: 30" min="1" max="300">
+                    <input type="number" name="time_limit_minutes" class="form-control form-control-q" placeholder="مثال: 30" min="1" max="300" :required="timerMode === 'quiz'">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label-q">وقت النشر</label>
@@ -325,6 +332,10 @@
                     <input type="checkbox" name="show_countdown" value="1" id="show_cd" class="form-check-input" checked>
                     <label for="show_cd">إظهار عد تنازلي للطلاب</label>
                 </div>
+                <div class="toggle-item">
+                    <input type="checkbox" name="use_access_code" value="1" id="use_access_code" class="form-check-input">
+                    <label for="use_access_code">يتطلب رمز دخول</label>
+                </div>
             </div>
         </div>
 
@@ -355,7 +366,7 @@
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="hidden" :name="'models[' + modelIndex + '][questions][' + qIndex + '][question_type]'" value="multiple_choice">
                                     <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][score]'" class="form-control form-control-q" style="width: 80px; padding: 0.3rem 0.5rem; font-size: 0.8rem;" placeholder="الدرجة" x-model="question.score" min="0" step="0.5">
-                                    <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][time_limit_seconds]'" class="form-control form-control-q" style="width: 120px; padding: 0.3rem 0.5rem; font-size: 0.8rem;" placeholder="ثواني/سؤال" x-model="question.time_limit_seconds" min="5">
+                                    <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][time_limit_seconds]'" class="form-control form-control-q" style="width: 120px; padding: 0.3rem 0.5rem; font-size: 0.8rem;" placeholder="ثواني/سؤال" x-model="question.time_limit_seconds" min="1" x-show="timerMode === 'per_question'" :required="timerMode === 'per_question'">
                                     <button type="button" class="btn-remove" @click="removeQuestion(modelIndex, qIndex)" x-show="model.questions.length > 1" title="حذف السؤال">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
@@ -439,6 +450,7 @@
 <script>
 function quizBuilder() {
     return {
+        timerMode: 'quiz',
         models: [
             {
                 name: 'نموذج أ',

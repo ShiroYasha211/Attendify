@@ -18,6 +18,7 @@ class Quiz extends Model
         'title',
         'description',
         'time_limit_minutes',
+        'timer_mode',
         'shuffle_questions',
         'shuffle_options',
         'show_correct_answers',

@@ -136,6 +136,7 @@ class QuizController extends StudentApiController
             'status_color'     => $quiz->status_color,
             'duration_minutes' => $quiz->time_limit_minutes,   // Flutter reads 'duration_minutes'
             'time_limit_minutes' => $quiz->time_limit_minutes,
+            'timer_mode'       => $quiz->timer_mode ?? 'quiz',
             'questions_count'  => $questionsCount,
             'models_count'     => $quiz->models_count ?? 0,
             'starts_at'        => $quiz->scheduled_at?->toIso8601String(),  // Flutter reads 'starts_at'
@@ -234,7 +235,10 @@ class QuizController extends StudentApiController
         return $this->success([
             'quiz'             => array_merge(
                 $quiz->load(['creator:id,name', 'subject:id,name'])->toArray(),
-                ['duration_minutes' => $quiz->time_limit_minutes]
+                [
+                    'duration_minutes' => $quiz->time_limit_minutes,
+                    'timer_mode' => $quiz->timer_mode ?? 'quiz',
+                ]
             ),
             'attempt'          => array_merge($attempt->toArray(), [
                 'remaining_seconds' => $attempt->remaining_seconds,

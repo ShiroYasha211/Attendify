@@ -290,8 +290,18 @@
 
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
+                    <label class="form-label-q">نوع التوقيت *</label>
+                    @if(!$canEditContent)
+                        <input type="hidden" name="timer_mode" value="{{ $quiz->timer_mode ?? 'quiz' }}">
+                    @endif
+                    <select name="timer_mode" class="form-select form-select-q" x-model="timerMode" required {{ !$canEditContent ? 'disabled' : '' }}>
+                        <option value="quiz">وقت عام للاختبار بالكامل</option>
+                        <option value="per_question">وقت مستقل لكل سؤال</option>
+                    </select>
+                </div>
+                <div class="col-md-4" x-show="timerMode === 'quiz'">
                     <label class="form-label-q">مدة الكويز (دقائق)</label>
-                    <input type="number" name="time_limit_minutes" class="form-control form-control-q" value="{{ $quiz->time_limit_minutes }}" min="1" max="300">
+                    <input type="number" name="time_limit_minutes" class="form-control form-control-q" value="{{ $quiz->time_limit_minutes }}" min="1" max="300" :required="timerMode === 'quiz'">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label-q">وقت النشر</label>
@@ -339,6 +349,10 @@
                     <input type="checkbox" name="show_countdown" value="1" id="show_cd" class="form-check-input" {{ $quiz->show_countdown ? 'checked' : '' }}>
                     <label for="show_cd">إظهار عد تنازلي</label>
                 </div>
+                <div class="toggle-item">
+                    <input type="checkbox" name="use_access_code" value="1" id="use_access_code" class="form-check-input" {{ $quiz->models->whereNotNull('access_code')->count() > 0 ? 'checked' : '' }} {{ !$canEditContent ? 'disabled' : '' }}>
+                    <label for="use_access_code">يتطلب رمز دخول</label>
+                </div>
             </div>
         </div>
 
@@ -368,7 +382,7 @@
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="hidden" :name="'models[' + modelIndex + '][questions][' + qIndex + '][question_type]'" value="multiple_choice">
                                     <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][score]'" class="form-control form-control-q" style="width: 80px;" x-model="question.score" step="0.5">
-                                    <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][time_limit_seconds]'" class="form-control form-control-q" style="width: 120px;" x-model="question.time_limit_seconds" min="5" placeholder="ثواني/سؤال">
+                                    <input type="number" :name="'models[' + modelIndex + '][questions][' + qIndex + '][time_limit_seconds]'" class="form-control form-control-q" style="width: 120px;" x-model="question.time_limit_seconds" min="1" placeholder="ثواني/سؤال" x-show="timerMode === 'per_question'" :required="timerMode === 'per_question'">
                                     <button type="button" class="btn-remove" @click="removeQuestion(modelIndex, qIndex)" x-show="model.questions.length > 1">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
@@ -420,6 +434,7 @@ function quizBuilder() {
     const initialModels = @json($initialModels);
 
     return {
+        timerMode: @json($quiz->timer_mode ?? 'quiz'),
         models: initialModels || [],
         canEditContent: @json($canEditContent),
 
@@ -447,7 +462,7 @@ function quizBuilder() {
         },
         setCorrectOption(mIdx, qIdx, oIdx) {
             if (!this.canEditContent) return;
-            this.models[mIdx].questions[qIdx].options.forEach((opt, i) => opt.is_correct = (i === oIndex));
+            this.models[mIdx].questions[qIdx].options.forEach((opt, i) => opt.is_correct = (i === oIdx));
         },
         handleSubmit(event) {
             if (!this.canEditContent) return true;
