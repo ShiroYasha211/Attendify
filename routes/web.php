@@ -178,6 +178,12 @@ Route::prefix('admin')
             Route::post('/grant', [App\Http\Controllers\Admin\StarController::class, 'grant'])->name('grant');
             Route::post('/search-students', [App\Http\Controllers\Admin\StarController::class, 'searchStudents'])->name('search-students');
         });
+
+        Route::prefix('tree-farm-rewards')->name('tree-farm-rewards.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'index'])->name('index');
+            Route::post('{reward}/approve', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'approve'])->name('approve');
+            Route::post('{reward}/reject', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'reject'])->name('reject');
+        });
     });
 
 Route::prefix('doctor')

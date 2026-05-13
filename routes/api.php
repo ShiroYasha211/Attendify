@@ -685,6 +685,20 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('stars/search-users', [\App\Http\Controllers\Api\Student\StarController::class, 'searchUsers']);
     Route::post('stars/gift', [\App\Http\Controllers\Api\Student\StarController::class, 'gift']);
 
+    // Tree Farm
+    Route::prefix('tree-farm')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'index']);
+        Route::get('leaderboard', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'leaderboard']);
+        Route::patch('profile', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'updateProfile']);
+        Route::post('sessions/start', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'start']);
+        Route::post('sessions/{session}/heartbeat', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'heartbeat']);
+        Route::post('sessions/{session}/grace', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'grace']);
+        Route::post('sessions/{session}/finish', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'finish']);
+        Route::post('offline-sync', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'offlineSync']);
+        Route::post('thoughts', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'storeThought']);
+        Route::post('reward-requests', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'rewardRequest']);
+    });
+
     // ─── QR Attendance (Student Scan) ───
     Route::post('qr-attendance/scan', [\App\Http\Controllers\Api\QrAttendanceController::class, 'scan']);
 
