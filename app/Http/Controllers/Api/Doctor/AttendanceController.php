@@ -27,13 +27,13 @@ class AttendanceController extends DoctorApiController
             ->orderByDesc('date')
             ->get();
 
-        return $this->success($sessions, 'طھظ… ط¬ظ„ط¨ ط¬ظ„ط³ط§طھ ط§ظ„ط­ط¶ظˆط± ط¨ظ†ط¬ط§ط­');
+        return $this->success($sessions, 'تم جلب جلسات الحضور بنجاح');
     }
 
     public function create(Request $request, Subject $subject)
     {
         if ($subject->doctor_id !== $request->user()->id) {
-            return $this->error('ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ظˆطµظˆظ„ ظ„ظ‡ط°ط§ ط§ظ„ظ…ظ‚ط±ط±.', 403);
+            return $this->error('غير مصرح لك بالوصول لهذا المقرر.', 403);
         }
 
         $date = $request->input('date') ?? now()->format('Y-m-d');
@@ -109,7 +109,7 @@ class AttendanceController extends DoctorApiController
             ->first();
 
         if (!$subject) {
-            return $this->error('ط§ظ„ظ…ط§ط¯ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط© ط£ظˆ ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ.', 403);
+            return $this->error('المادة غير موجودة أو غير مصرح لك.', 403);
         }
 
         return $this->persist($request, $subject);
@@ -118,7 +118,7 @@ class AttendanceController extends DoctorApiController
     public function storeForSubject(Request $request, Subject $subject)
     {
         if ($subject->doctor_id !== $request->user()->id) {
-            return $this->error('ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ظˆطµظˆظ„ ظ„ظ‡ط°ط§ ط§ظ„ظ…ظ‚ط±ط±.', 403);
+            return $this->error('غير مصرح لك بالوصول لهذا المقرر.', 403);
         }
 
         return $this->persist($request, $subject);
@@ -132,7 +132,7 @@ class AttendanceController extends DoctorApiController
             ->first();
 
         if (!$subject) {
-            return $this->error('ط§ظ„ظ…ط§ط¯ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط© ط£ظˆ ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ', 403);
+            return $this->error('المادة غير موجودة أو غير مصرح لك', 403);
         }
 
         $records = Attendance::where('lecture_id', $lectureId)
@@ -140,7 +140,7 @@ class AttendanceController extends DoctorApiController
             ->get();
 
         if ($records->isEmpty()) {
-            return $this->error('ظ„ط§ طھظˆط¬ط¯ ط³ط¬ظ„ط§طھ ظ„ظ‡ط°ظ‡ ط§ظ„ط¬ظ„ط³ط©', 404);
+            return $this->error('لا توجد سجلات لهذه الجلسة', 404);
         }
 
         return $this->success([
@@ -154,13 +154,13 @@ class AttendanceController extends DoctorApiController
                 'end_time' => $lecture->end_time,
             ],
             'records' => $records,
-        ], 'طھظ… ط¬ظ„ط¨ طھظپط§طµظٹظ„ ط¬ظ„ط³ط© ط§ظ„ط­ط¶ظˆط± ط¨ظ†ط¬ط§ط­');
+        ], 'تم جلب تفاصيل جلسة الحضور بنجاح');
     }
 
     public function toggleDelegate(Request $request, Subject $subject)
     {
         if ($subject->doctor_id !== $request->user()->id) {
-            return $this->error('ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ظˆطµظˆظ„ ظ„ظ‡ط°ط§ ط§ظ„ظ…ظ‚ط±ط±.', 403);
+            return $this->error('غير مصرح لك بالوصول لهذا المقرر.', 403);
         }
 
         $subject->allow_delegate_attendance = !$subject->allow_delegate_attendance;
@@ -169,7 +169,7 @@ class AttendanceController extends DoctorApiController
         return $this->success([
             'subject_id' => $subject->id,
             'allow_delegate_attendance' => (bool) $subject->allow_delegate_attendance,
-        ], $subject->allow_delegate_attendance ? 'طھظ… طھظپط¹ظٹظ„ طµظ„ط§ط­ظٹط© طھط­ط¶ظٹط± ط§ظ„ظ…ظ†ط¯ظˆط¨.' : 'طھظ… ط¥ظٹظ‚ط§ظپ طµظ„ط§ط­ظٹط© طھط­ط¶ظٹط± ط§ظ„ظ…ظ†ط¯ظˆط¨.');
+        ], $subject->allow_delegate_attendance ? 'تم تفعيل صلاحية تحضير المندوب.' : 'تم إيقاف صلاحية تحضير المندوب.');
     }
 
     public function report(Request $request, int $subjectId, string $date)
@@ -267,7 +267,7 @@ class AttendanceController extends DoctorApiController
         ]);
 
         if ($validator->fails()) {
-            return $this->error('ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©', 422, $validator->errors());
+            return $this->error('بيانات غير صالحة', 422, $validator->errors());
         }
 
         $students = collect($request->input('students', []));
@@ -278,7 +278,7 @@ class AttendanceController extends DoctorApiController
         }
 
         if ($students->isEmpty()) {
-            return $this->error('ظٹط¬ط¨ ط¥ط±ط³ط§ظ„ ط¨ظٹط§ظ†ط§طھ ط§ظ„ط­ط¶ظˆط± ظ„ظ„ط·ظ„ط§ط¨.', 422);
+            return $this->error('يجب إرسال بيانات الحضور للطلاب.', 422);
         }
 
         $lectureKey = [
@@ -366,10 +366,10 @@ class AttendanceController extends DoctorApiController
                 'merge_mode' => true,
                 'gender_filter' => $genderFilter,
                 'updated_students_count' => $students->count(),
-            ], 'طھظ… ط­ظپط¸ ط³ط¬ظ„ ط§ظ„ط­ط¶ظˆط± ظˆط§ظ„ط؛ظٹط§ط¨ ط¨ظ†ط¬ط§ط­', 201);
+            ], 'تم حفظ سجل الحضور والغياب بنجاح', 201);
         } catch (\Throwable $exception) {
             DB::rollBack();
-            return $this->error('ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط±طµط¯ ط§ظ„ط­ط¶ظˆط±: ' . $exception->getMessage(), 500);
+            return $this->error('حدث خطأ أثناء رصد الحضور: ' . $exception->getMessage(), 500);
         }
     }
 

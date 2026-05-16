@@ -89,7 +89,7 @@
             </svg>
             تأكيد ونقل العهدة فوراً
         </button>
-        <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">بمجرد الضغط، ستحدث التغييرات في قاعدة البيانات ولن يمكن التراجع عنها تلقائياً.</p>
+        <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">بمجرد الضغء ستحدث التغييرات في قاعدة البيانات ولن يمكن التراجع عنها تلقائياً.</p>
     </div>
 </form>
 @endsection

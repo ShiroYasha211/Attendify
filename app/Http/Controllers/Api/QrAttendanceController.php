@@ -318,11 +318,11 @@ class QrAttendanceController extends DelegateApiController
         $user = $request->user();
 
         if ((int) $session->delegate_id !== (int) $user->id) {
-            return response()->json(['message' => 'ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ.'], 403);
+            return response()->json(['message' => 'غير مصرح لك.'], 403);
         }
 
         if ($session->status === 'finalized') {
-            return response()->json(['message' => 'ط§ظ„ط¬ظ„ط³ط© ظ…ظ†طھظ‡ظٹط© ط¨ط§ظ„ظپط¹ظ„.'], 410);
+            return response()->json(['message' => 'الجلسة منتهية بالفعل.'], 410);
         }
 
         Attendance::where('qr_attendance_session_id', $session->id)->delete();
@@ -336,7 +336,7 @@ class QrAttendanceController extends DelegateApiController
         return $this->success([
             'session_id' => $session->id,
             'status' => $session->status,
-        ], 'طھظ… ط¥ظ„ط؛ط§ط، ط¬ظ„ط³ط© QR.');
+        ], 'تم إلغاء جلسة QR.');
     }
 
     public function active(Request $request)
@@ -356,7 +356,7 @@ class QrAttendanceController extends DelegateApiController
             ->first();
 
         if (!$session) {
-            return $this->success(['session' => null], 'ظ„ط§ طھظˆط¬ط¯ ط¬ظ„ط³ط© ظ…ط·ط§ط¨ظ‚ط©.');
+            return $this->success(['session' => null], 'لا توجد جلسة مطابقة.');
         }
 
         return $this->success([
@@ -368,6 +368,6 @@ class QrAttendanceController extends DelegateApiController
                 'title' => $session->title,
                 'lecture_number' => $session->lecture_number,
             ],
-        ], 'طھظ… ط¬ظ„ط¨ ط­ط§ظ„ط© ط§ظ„ط¬ظ„ط³ط©.');
+        ], 'تم جلب حالة الجلسة.');
     }
 }

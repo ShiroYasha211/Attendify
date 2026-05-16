@@ -26,7 +26,7 @@ class AdministrativeApiController extends BaseController
         $college = $this->administrative()->college;
 
         if (!$college) {
-            $this->forbid('ط­ط³ط§ط¨ظƒ ط؛ظٹط± ظ…ط±طھط¨ط· ط¨ظƒظ„ظٹط©.');
+            $this->forbid('حسابك غير مرتبط بكلية.');
         }
 
         return $college;
@@ -40,13 +40,13 @@ class AdministrativeApiController extends BaseController
     protected function ensureCollegeUser(User $user, array $roles = []): void
     {
         if ($user->college_id !== $this->college()->id) {
-            $this->forbid('ط§ظ„ظ…ط³طھط®ط¯ظ… ظ„ط§ ظٹظ†طھظ…ظٹ ط¥ظ„ظ‰ ظƒظ„ظٹطھظƒ.');
+            $this->forbid('المستخدم لا ينتمي إلى كليتك.');
         }
 
         if ($roles !== []) {
             $roleValue = $user->role?->value ?? $user->role;
             if (!in_array($roleValue, $roles, true)) {
-                $this->forbid('ط§ظ„ظ…ط³طھط®ط¯ظ… ظ„ط§ ظٹظ†طھظ…ظٹ ط¥ظ„ظ‰ ط§ظ„ظپط¦ط© ط§ظ„ظ…ط·ظ„ظˆط¨ط©.', 422);
+                $this->forbid('المستخدم لا ينتمي إلى الفئة المطلظˆبة.', 422);
             }
         }
     }
@@ -54,30 +54,30 @@ class AdministrativeApiController extends BaseController
     protected function ensureCollegeMajor(Major $major): void
     {
         if ($major->college_id !== $this->college()->id) {
-            $this->forbid('ط§ظ„طھط®طµطµ ظ„ط§ ظٹظ†طھظ…ظٹ ط¥ظ„ظ‰ ظƒظ„ظٹطھظƒ.');
+            $this->forbid('التخصص لا ينتمي إلى كليتك.');
         }
     }
 
     protected function ensureCollegeLevel(Level $level): void
     {
         if ($level->major?->college_id !== $this->college()->id) {
-            $this->forbid('ط§ظ„ظ…ط³طھظˆظ‰ ظ„ط§ ظٹظ†طھظ…ظٹ ط¥ظ„ظ‰ ظƒظ„ظٹطھظƒ.');
+            $this->forbid('المستوى لا ينتمي إلى كليتك.');
         }
     }
 
     protected function ensureCollegeSubject(Subject $subject): void
     {
         if (!in_array($subject->major_id, $this->collegeMajorIds()->all(), true)) {
-            $this->forbid('ط§ظ„ظ…ط§ط¯ط© ظ„ط§ طھظ†طھظ…ظٹ ط¥ظ„ظ‰ ظƒظ„ظٹطھظƒ.');
+            $this->forbid('المادة لا تنتمي إلى كليتك.');
         }
     }
 
-    protected function forbid(string $message = 'ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ظˆطµظˆظ„ ط¥ظ„ظ‰ ظ‡ط°ط§ ط§ظ„ظ…ظˆط±ط¯.', int $code = 403): never
+    protected function forbid(string $message = 'غير مصرح لك بالوصول إلى هذا المورد.', int $code = 403): never
     {
         throw new HttpResponseException($this->error($message, $code));
     }
 
-    protected function paginated(LengthAwarePaginator $paginator, string $message = 'طھظ… ط¬ظ„ط¨ ط§ظ„ط¨ظٹط§ظ†ط§طھ ط¨ظ†ط¬ط§ط­'): JsonResponse
+    protected function paginated(LengthAwarePaginator $paginator, string $message = 'تم جلب البيانات بنجاح'): JsonResponse
     {
         return response()->json([
             'success' => true,

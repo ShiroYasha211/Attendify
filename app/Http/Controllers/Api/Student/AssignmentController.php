@@ -105,7 +105,7 @@ class AssignmentController extends StudentApiController
             ['priority' => $request->priority]
         );
 
-        return $this->success([], 'طھظ… طھط­ط¯ظٹط« ط§ظ„ط£ظˆظ„ظˆظٹط© ط¨ظ†ط¬ط§ط­.');
+        return $this->success([], 'تم تحديث الأولوية بنجاح.');
     }
 
     /**
@@ -119,7 +119,7 @@ class AssignmentController extends StudentApiController
 
         $request->user()->update(['assignment_sort_by' => $request->sort_by]);
 
-        return $this->success([], 'طھظ… ط­ظپط¸ طھظپط¶ظٹظ„ط§طھ ط§ظ„ظپط±ط².');
+        return $this->success([], 'تم حفظ تفضيلات الفرز.');
     }
 
     /**
@@ -246,7 +246,7 @@ class AssignmentController extends StudentApiController
 
         return $this->success(
             $this->serializeSubmission($submission),
-            'طھظ… طھط³ظ„ظٹظ… ط§ظ„طھظƒظ„ظٹظپ ط¨ظ†ط¬ط§ط­.',
+            'تم تسليم التكليف بنجاح.',
             201
         );
     }

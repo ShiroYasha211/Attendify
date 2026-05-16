@@ -127,7 +127,7 @@
     <div class="form-header-banner">
         <i class="fa-solid fa-address-book"></i>
         <h2 class="fw-900 mb-2">{{ isset($volunteer) ? 'تعديل بيانات المتطوع' : 'إضافة متطوع جديد' }}</h2>
-        <p class="opacity-75 fw-600 mb-0">بيانات هذا السجل مشفرة وخاصة بك فقط، لا تظهر للطلاب أو الإدارة.</p>
+        <p class="opacity-75 fw-600 mb-0">بيانات هذا السجل مشفرة وخاصة بك فقء لا تظهر للطلاب أو الإدارة.</p>
     </div>
 
     <div class="form-body-content">

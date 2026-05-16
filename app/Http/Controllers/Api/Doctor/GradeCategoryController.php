@@ -114,7 +114,7 @@ class GradeCategoryController extends DoctorApiController
         return $this->success([
             'permission' => $permission->load('authorizedUser:id,name,student_number'),
             'effect' => 'The selected user can now enter grades for this category. Submitted grades will remain pending doctor review.',
-        ], '?? ????? ?????? ?????.', 201);
+        ], 'تم إضافة التفويض بنجاح.', 201);
 
     }
     public function revoke(Request $request, int $categoryId)

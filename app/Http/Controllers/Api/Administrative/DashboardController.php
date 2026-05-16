@@ -61,6 +61,6 @@ class DashboardController extends AdministrativeApiController
             'id' => $college->id,
             'absence_deprivation_percentage' => $college->absence_deprivation_percentage,
             'excuses_deadline_days' => $college->excuses_deadline_days,
-        ], 'طھظ… طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظƒظ„ظٹط© ط¨ظ†ط¬ط§ط­');
+        ], 'تم تحديث إعدادات الكلية بنجاح');
     }
 }
