@@ -89,6 +89,9 @@ class ExcuseController extends DoctorApiController
                     ->map(fn ($value) => ['value' => $value, 'label' => ExcuseWorkflow::resolutionLabel($value)])
                     ->values(),
             ],
+            'subjects' => Subject::whereIn('id', $subjectIds)
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'excuses' => $items,
             'pagination' => [
                 'current_page' => $excuses->currentPage(),

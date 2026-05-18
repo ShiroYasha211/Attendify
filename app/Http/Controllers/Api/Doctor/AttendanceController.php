@@ -18,7 +18,11 @@ class AttendanceController extends DoctorApiController
 {
     public function index(Request $request)
     {
-        $subjectIds = Subject::where('doctor_id', $request->user()->id)->pluck('id');
+        $subjects = Subject::where('doctor_id', $request->user()->id)
+            ->with(['major:id,name', 'level:id,name'])
+            ->orderBy('name')
+            ->get();
+        $subjectIds = $subjects->pluck('id');
 
         $sessions = Attendance::selectRaw('subject_id, date, lecture_id, recorded_by, attendance_method, count(*) as total_records')
             ->whereIn('subject_id', $subjectIds)
@@ -27,7 +31,10 @@ class AttendanceController extends DoctorApiController
             ->orderByDesc('date')
             ->get();
 
-        return $this->success($sessions, 'تم جلب جلسات الحضور بنجاح');
+        return $this->success([
+            'subjects' => $subjects,
+            'sessions' => $sessions,
+        ], 'تم جلب جلسات الحضور بنجاح');
     }
 
     public function create(Request $request, Subject $subject)
@@ -398,4 +405,3 @@ class AttendanceController extends DoctorApiController
         }
     }
 }
-

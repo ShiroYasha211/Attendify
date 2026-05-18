@@ -11,8 +11,10 @@ use App\Models\Attendance;
 use App\Models\Excuse;
 use App\Models\Inquiry;
 use App\Models\Grade;
+use App\Models\StudentNotification;
 use App\Enums\UserRole;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class DashboardController extends DoctorApiController
 {
@@ -64,13 +66,84 @@ class DashboardController extends DoctorApiController
             $chart['absent'][] = $dayData->where('status', 'absent')->sum('count');
         }
 
-        // Subjects with stats
-        $subjectsData = $subjects->map(fn($s) => [
-            'id' => $s->id,
-            'name' => $s->name,
-            'major' => $s->major?->name,
-            'level' => $s->level?->name,
-        ]);
+        $studentsCountPerSubject = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+            ->whereIn('major_id', $subjects->pluck('major_id')->unique())
+            ->whereIn('level_id', $subjects->pluck('level_id')->unique())
+            ->select('major_id', 'level_id', DB::raw('count(*) as count'))
+            ->groupBy('major_id', 'level_id')
+            ->get()
+            ->keyBy(fn ($item) => $item->major_id . '_' . $item->level_id);
+
+        $attendanceStats = Attendance::whereIn('subject_id', $subjectIds)
+            ->select(
+                'subject_id',
+                DB::raw('count(*) as total'),
+                DB::raw("SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count")
+            )
+            ->groupBy('subject_id')
+            ->get()
+            ->keyBy('subject_id');
+
+        $subjectsData = $subjects->map(function ($subject) use ($studentsCountPerSubject, $attendanceStats) {
+            $key = $subject->major_id . '_' . $subject->level_id;
+            $stats = $attendanceStats->get($subject->id);
+            $totalAttendances = $stats ? (int) $stats->total : 0;
+            $presentAttendances = $stats ? (int) $stats->present_count : 0;
+
+            return [
+                'id' => $subject->id,
+                'name' => $subject->name,
+                'major' => $subject->major?->name,
+                'level' => $subject->level?->name,
+                'students_count' => $studentsCountPerSubject->get($key)?->count ?? 0,
+                'attendance_rate' => $totalAttendances > 0
+                    ? round(($presentAttendances / $totalAttendances) * 100)
+                    : 0,
+            ];
+        });
+
+        $recentExcuses = Excuse::whereHas('attendance', fn ($q) => $q->whereIn('subject_id', $subjectIds))
+            ->with(['student', 'attendance.subject'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(fn ($excuse) => [
+                'type' => 'excuse',
+                'title' => 'عذر جديد من ' . ($excuse->student->name ?? 'طالب'),
+                'subtitle' => $excuse->attendance->subject->name ?? '',
+                'status' => $excuse->status,
+                'date' => $excuse->created_at,
+            ]);
+
+        $recentInquiries = Inquiry::whereIn('subject_id', $subjectIds)
+            ->with(['student', 'subject'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(fn ($inquiry) => [
+                'type' => 'inquiry',
+                'title' => 'استفسار من ' . ($inquiry->student->name ?? 'طالب'),
+                'subtitle' => $inquiry->subject->name ?? '',
+                'status' => $inquiry->status,
+                'date' => $inquiry->created_at,
+            ]);
+
+        $recentActivities = $recentExcuses
+            ->concat($recentInquiries)
+            ->sortByDesc('date')
+            ->take(5)
+            ->values();
+
+        $adminAnnouncements = StudentNotification::with('sender:id,name,role')
+            ->where('user_id', $doctor->id)
+            ->whereNotNull('batch_id')
+            ->whereIn('type', ['announcement', 'exam', 'assignment', 'attendance', 'poll'])
+            ->latest()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn (Collection $group) => $group->first())
+            ->take(5)
+            ->values();
 
         return $this->success([
             'subjects_count' => $subjects->count(),
@@ -81,6 +154,8 @@ class DashboardController extends DoctorApiController
             'grades_entered' => $gradesCount,
             'attendance_chart' => $chart,
             'subjects' => $subjectsData,
+            'recent_activities' => $recentActivities,
+            'admin_announcements' => $adminAnnouncements,
         ]);
     }
 }

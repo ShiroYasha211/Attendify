@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Administrative;
 
+use App\Enums\UserRole;
 use App\Models\Card;
 use App\Models\Package;
 use App\Models\Subscription;
@@ -13,13 +14,22 @@ class SubscriptionController extends AdministrativeApiController
     public function index(Request $request)
     {
         $user = $request->user();
+        $roleValue = $user->role instanceof UserRole ? $user->role->value : $user->role;
+        $packages = Package::where('is_active', true)
+            ->get()
+            ->map(function (Package $package) use ($roleValue) {
+                $package->effective_price = $package->getPriceForRole($roleValue);
+                $package->effective_role = $roleValue;
+
+                return $package;
+            });
 
         return $this->success([
             'user_balance' => $user->balance,
             'is_subscribed' => $user->isSubscribed(),
             'subscribed_until' => $user->subscribed_until?->format('Y-m-d H:i:s'),
             'auto_renew' => (bool) $user->auto_renew,
-            'packages' => Package::where('is_active', true)->get(),
+            'packages' => $packages,
         ]);
     }
 

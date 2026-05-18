@@ -757,6 +757,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::post('logout', [DoctorAuthController::class, 'logout']);
     Route::get('me', [DoctorAuthController::class, 'me']);
     Route::post('change-password', [DoctorAuthController::class, 'changePassword']);
+    Route::patch('profile/email', [DoctorAuthController::class, 'updateEmail']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
     Route::get('devices/status', [\App\Http\Controllers\Api\DeviceTokenController::class, 'status']);
