@@ -13,6 +13,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use App\Support\ExcuseWorkflow;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\ViewErrorBag;
 
 class AttendanceController extends DoctorApiController
 {
@@ -252,6 +255,67 @@ class AttendanceController extends DoctorApiController
                 'gender_filter' => $genderFilter,
                 'available_gender_filters' => ['all', 'male', 'female'],
             ],
+        ]);
+    }
+
+    public function reportPdf(Request $request, int $subjectId, string $date)
+    {
+        $subject = Subject::where('id', $subjectId)
+            ->where('doctor_id', $request->user()->id)
+            ->firstOrFail();
+
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
+            ->where('major_id', $subject->major_id)
+            ->where('level_id', $subject->level_id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'student_number', 'gender']);
+
+        $lecture = null;
+        if ($request->filled('lecture_id')) {
+            $lecture = Lecture::where('id', $request->input('lecture_id'))
+                ->where('subject_id', $subject->id)
+                ->first();
+        }
+        if (!$lecture) {
+            $lecture = Lecture::where('subject_id', $subject->id)
+                ->where('date', $date)
+                ->latest()
+                ->first();
+        }
+
+        $attendanceQuery = Attendance::where('subject_id', $subject->id)
+            ->where('date', $date);
+        if ($lecture) {
+            $attendanceQuery->where('lecture_id', $lecture->id);
+        }
+
+        $attendanceRecords = $attendanceQuery
+            ->with('recorder:id,name')
+            ->get()
+            ->keyBy('student_id');
+
+        $data = [
+            'subject' => $subject,
+            'students' => $students,
+            'attendanceRecords' => $attendanceRecords,
+            'date' => $date,
+            'genderFilter' => 'all',
+            'lecture' => $lecture,
+            'delegate' => $request->user(),
+            'isUnofficial' => false,
+            'errors' => new ViewErrorBag(),
+            'pdfMode' => true,
+        ];
+
+        Auth::setUser($request->user());
+        $pdf = Pdf::loadView('delegate.attendance.report-app-pdf', $data);
+        $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+        $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+        $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="attendance_report.pdf"',
         ]);
     }
 

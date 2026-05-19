@@ -777,6 +777,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::patch('attendance-records/{attendance}', [\App\Http\Controllers\Doctor\ApiAttendanceRecordController::class, 'update']);
     Route::post('attendance/{subject}/toggle-delegate', [DoctorAttendanceController::class, 'toggleDelegate']);
     Route::get('attendance/{subject}/{date}/report', [DoctorAttendanceController::class, 'report']);
+    Route::get('attendance/{subject}/{date}/report-pdf', [DoctorAttendanceController::class, 'reportPdf']);
 
     // Excuses
     Route::get('excuses', [DoctorExcuseController::class, 'index']);
@@ -869,9 +870,11 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     });
     Route::prefix('qr-attendance')->group(function () {
         Route::post('start', [QrAttendanceController::class, 'startSession']);
+        Route::get('active', [QrAttendanceController::class, 'active']);
         Route::get('{session}/token', [QrAttendanceController::class, 'rotateToken']);
         Route::get('{session}/status', [QrAttendanceController::class, 'getStatus']);
         Route::post('{session}/finalize', [QrAttendanceController::class, 'finalize']);
+        Route::post('{session}/cancel', [QrAttendanceController::class, 'cancel']);
     });
 
     // Clinical Section
