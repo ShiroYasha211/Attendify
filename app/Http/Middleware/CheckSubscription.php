@@ -59,6 +59,14 @@ class CheckSubscription
 
         // 3. Check Subscription
         if (!$user->isSubscribed()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'يجب الاشتراك للوصول إلى هذه الميزة.',
+                    'code' => 'subscription_required',
+                ], 403);
+            }
+
             $roleValue = $user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role;
             
             // Map roles to their subscription route prefixes

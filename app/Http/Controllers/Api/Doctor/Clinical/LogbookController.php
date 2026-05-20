@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\Doctor\Clinical;
 
 use App\Http\Controllers\Api\Doctor\DoctorApiController;
+use App\Models\Academic\Subject;
 use App\Models\Clinical\StudentDailyLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +23,9 @@ class LogbookController extends DoctorApiController
             'doctor',
             'activities.bodySystem',
             'activities.confirmedBy',
-        ])->where('qr_token', $request->qr_token)->first();
+        ])->where('qr_token', $request->qr_token)
+            ->where('doctor_id', Auth::id())
+            ->first();
 
         if (!$log) {
             return $this->error('Invalid QR token.', 404);
@@ -54,7 +58,9 @@ class LogbookController extends DoctorApiController
             'confirmations.round.diagnosis' => 'nullable|string|max:1000',
         ]);
 
-        $log = StudentDailyLog::with('activities')->findOrFail($validated['log_id']);
+        $log = StudentDailyLog::with('activities')
+            ->where('doctor_id', Auth::id())
+            ->findOrFail($validated['log_id']);
 
         if (!in_array($log->status, ['pending', 'partially_confirmed'], true)) {
             return $this->error('This log has already been processed.', 422);
@@ -138,7 +144,7 @@ class LogbookController extends DoctorApiController
             'confirmedBy:id,name',
             'activities.bodySystem',
             'activities.confirmedBy:id,name',
-        ]);
+        ])->where('doctor_id', Auth::id());
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -158,6 +164,29 @@ class LogbookController extends DoctorApiController
             'department_id' => 'required|exists:clinical_departments,id',
             'doctor_notes' => 'nullable|string|max:1000',
         ]);
+
+        $doctorScopes = Subject::where('doctor_id', Auth::id())
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+
+        $studentQuery = User::whereKey($request->student_id)
+            ->whereIn('role', ['student', 'delegate', 'practical_delegate']);
+
+        if ($doctorScopes->isEmpty()) {
+            $studentQuery->whereRaw('1 = 0');
+        } else {
+            $studentQuery->where(function ($query) use ($doctorScopes) {
+                foreach ($doctorScopes as $scope) {
+                    $query->orWhere(function ($inner) use ($scope) {
+                        $inner->where('major_id', $scope->major_id)
+                            ->where('level_id', $scope->level_id);
+                    });
+                }
+            });
+        }
+
+        $studentQuery->firstOrFail();
 
         $log = StudentDailyLog::create([
             'student_id' => $request->student_id,

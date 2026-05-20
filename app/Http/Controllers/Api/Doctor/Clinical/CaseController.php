@@ -15,7 +15,8 @@ class CaseController extends DoctorApiController
     /** GET /api/doctor/clinical/cases */
     public function index(Request $request)
     {
-        $query = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor']);
+        $query = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])
+            ->where('doctor_id', Auth::id());
 
         if ($request->filled('patient_name')) {
             $query->where('patient_name', 'like', "%{$request->patient_name}%");
@@ -58,6 +59,7 @@ class CaseController extends DoctorApiController
     public function show($id)
     {
         $case = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])
+            ->where('doctor_id', Auth::id())
             ->findOrFail($id);
         return $this->success($case);
     }
@@ -65,7 +67,7 @@ class CaseController extends DoctorApiController
     /** PUT /api/doctor/clinical/cases/{id} */
     public function update(Request $request, $id)
     {
-        $case = ClinicalCase::findOrFail($id);
+        $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
         $validated = $request->validate([
             'patient_name' => 'required|string|max:255',
             'age' => 'nullable|integer|min:0|max:150',
@@ -83,7 +85,7 @@ class CaseController extends DoctorApiController
     /** DELETE /api/doctor/clinical/cases/{id} */
     public function destroy($id)
     {
-        $case = ClinicalCase::findOrFail($id);
+        $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
         $case->delete();
         return $this->success(null, 'تم مسح الحالة بنجاح.');
     }

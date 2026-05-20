@@ -68,7 +68,14 @@ class GradeController extends DoctorApiController
         $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
-            ->with(['grades' => fn ($query) => $query->where('subject_id', $subject->id)])
+            ->with([
+                'grades' => fn ($query) => $query->where('subject_id', $subject->id),
+                'studentNotes' => fn ($query) => $query
+                    ->where('subject_id', $subject->id)
+                    ->where('doctor_id', Auth::id())
+                    ->latest()
+                    ->limit(3),
+            ])
             ->orderBy('name')
             ->get()
             ->map(function ($student) {
@@ -94,13 +101,36 @@ class GradeController extends DoctorApiController
                             'score' => $grade->score,
                             'status' => $grade->status,
                         ]),
+                    'notes' => $student->studentNotes
+                        ->map(fn ($note) => [
+                            'id' => $note->id,
+                            'note' => $note->note,
+                            'created_at' => $note->created_at,
+                        ])
+                        ->values(),
                 ];
             });
+
+        $totals = $students->pluck('total')->filter(fn ($value) => $value > 0);
+        $pendingCount = Grade::where('subject_id', $subject->id)
+            ->where('status', 'pending')
+            ->count();
 
         return $this->success([
             'subject' => ['id' => $subject->id, 'name' => $subject->name],
             'categories' => $subject->gradeCategories,
             'students' => $students,
+            'pending_count' => $pendingCount,
+            'stats' => [
+                'total_students' => $students->count(),
+                'graded' => $totals->count(),
+                'average' => $totals->count() > 0 ? round($totals->avg(), 1) : 0,
+                'highest' => $totals->max() ?? 0,
+                'lowest' => $totals->min() ?? 0,
+                'pass_rate' => $totals->count() > 0
+                    ? round($totals->filter(fn ($value) => $value >= 50)->count() / $totals->count() * 100)
+                    : 0,
+            ],
         ]);
     }
 

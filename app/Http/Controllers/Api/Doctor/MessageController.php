@@ -11,6 +11,27 @@ use App\Models\Academic\Subject;
 
 class MessageController extends DoctorApiController
 {
+    protected function eligibleDelegatesQuery()
+    {
+        $doctor = Auth::user();
+        $subjectScopes = Subject::where('doctor_id', $doctor->id)
+            ->get(['major_id', 'level_id']);
+
+        if ($subjectScopes->isEmpty()) {
+            return User::whereRaw('1 = 0');
+        }
+
+        return User::whereIn('role', ['delegate', 'practical_delegate'])
+            ->where(function ($query) use ($subjectScopes) {
+                foreach ($subjectScopes as $scope) {
+                    $query->orWhere(function ($inner) use ($scope) {
+                        $inner->where('major_id', $scope->major_id)
+                            ->where('level_id', $scope->level_id);
+                    });
+                }
+            });
+    }
+
     /** GET /api/doctor/messages */
     public function index()
     {
@@ -27,6 +48,23 @@ class MessageController extends DoctorApiController
             ]);
 
         return $this->success($conversations);
+    }
+
+    /** GET /api/doctor/messages/delegates */
+    public function delegates(Request $request)
+    {
+        $delegates = $this->eligibleDelegatesQuery()
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = $request->search;
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('student_number', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'student_number', 'role']);
+
+        return $this->success($delegates);
     }
 
     /** GET /api/doctor/messages/{conversation} */
@@ -59,6 +97,14 @@ class MessageController extends DoctorApiController
     public function store(Request $request)
     {
         $request->validate(['delegate_id' => 'required|exists:users,id']);
+
+        $delegate = $this->eligibleDelegatesQuery()
+            ->whereKey($request->delegate_id)
+            ->first();
+
+        if (! $delegate) {
+            return $this->error('المندوب المحدد خارج نطاق موادك.', 403);
+        }
 
         $conversation = DoctorConversation::getOrCreate($request->delegate_id, Auth::id());
 

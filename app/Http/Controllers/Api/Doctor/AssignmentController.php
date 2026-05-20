@@ -15,7 +15,14 @@ class AssignmentController extends DoctorApiController
     {
         $subjectIds = Subject::where('doctor_id', Auth::id())->pluck('id');
 
-        $query = Assignment::with(['subject:id,name', 'submissions'])->whereIn('subject_id', $subjectIds);
+        $subjects = Subject::where('doctor_id', Auth::id())
+            ->with(['major:id,name', 'level:id,name'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'major_id', 'level_id']);
+
+        $query = Assignment::with(['subject:id,name'])
+            ->withCount('submissions')
+            ->whereIn('subject_id', $subjectIds);
 
         if ($request->filled('subject_id')) {
             $query->where('subject_id', $request->subject_id);
@@ -32,10 +39,14 @@ class AssignmentController extends DoctorApiController
             'total' => Assignment::whereIn('subject_id', $subjectIds)->count(),
             'upcoming' => Assignment::whereIn('subject_id', $subjectIds)->where('due_date', '>=', now())->count(),
             'overdue' => Assignment::whereIn('subject_id', $subjectIds)->where('due_date', '<', now())->count(),
+            'submissions' => AssignmentSubmission::whereHas('assignment', fn ($query) => $query->whereIn('subject_id', $subjectIds))->count(),
         ];
 
         return $this->success([
             'stats' => $stats,
+            'filters' => [
+                'subjects' => $subjects,
+            ],
             'assignments' => $assignments->items(),
             'pagination' => [
                 'current_page' => $assignments->currentPage(),

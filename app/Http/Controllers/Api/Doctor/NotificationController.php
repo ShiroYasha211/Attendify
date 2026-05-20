@@ -15,6 +15,8 @@ class NotificationController extends DoctorApiController
             ->latest()
             ->paginate(20);
 
+        $notifications->getCollection()->each->append('attachment_url');
+
         $unreadCount = StudentNotification::where('user_id', Auth::id())->unread()->count();
 
         return $this->success([

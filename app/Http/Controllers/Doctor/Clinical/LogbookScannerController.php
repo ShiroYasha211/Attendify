@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Doctor\Clinical;
 
 use App\Http\Controllers\Controller;
+use App\Models\Academic\Subject;
 use App\Models\Clinical\StudentDailyLog;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -27,7 +28,9 @@ class LogbookScannerController extends Controller
             'doctor',
             'activities.bodySystem',
             'activities.confirmedBy',
-        ])->where('qr_token', $request->qr_token)->first();
+        ])->where('qr_token', $request->qr_token)
+            ->where('doctor_id', Auth::id())
+            ->first();
 
         if (!$log) {
             return response()->json(['success' => false, 'message' => 'رمز QR غير صالح.']);
@@ -67,7 +70,9 @@ class LogbookScannerController extends Controller
             'confirmations.round.diagnosis' => 'nullable|string|max:1000',
         ]);
 
-        $log = StudentDailyLog::with('activities')->findOrFail($validated['log_id']);
+        $log = StudentDailyLog::with('activities')
+            ->where('doctor_id', Auth::id())
+            ->findOrFail($validated['log_id']);
 
         if (!in_array($log->status, ['pending', 'partially_confirmed'], true)) {
             return response()->json(['success' => false, 'message' => 'تمت معالجة هذا السجل مسبقًا.']);
@@ -146,7 +151,7 @@ class LogbookScannerController extends Controller
 
     public function manualAttendance()
     {
-        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
+        $doctorSubjects = Subject::where('doctor_id', Auth::id())
             ->select('major_id', 'level_id')
             ->distinct()
             ->get();
@@ -181,6 +186,29 @@ class LogbookScannerController extends Controller
             'doctor_notes' => 'nullable|string|max:1000',
         ]);
 
+        $doctorSubjects = Subject::where('doctor_id', Auth::id())
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+
+        $studentQuery = User::whereKey($request->student_id)
+            ->whereIn('role', ['student', 'delegate', 'practical_delegate']);
+
+        if ($doctorSubjects->isEmpty()) {
+            $studentQuery->whereRaw('1 = 0');
+        } else {
+            $studentQuery->where(function ($query) use ($doctorSubjects) {
+                foreach ($doctorSubjects as $subject) {
+                    $query->orWhere(function ($inner) use ($subject) {
+                        $inner->where('major_id', $subject->major_id)
+                            ->where('level_id', $subject->level_id);
+                    });
+                }
+            });
+        }
+
+        $studentQuery->firstOrFail();
+
         StudentDailyLog::create([
             'student_id' => $request->student_id,
             'training_center_id' => $request->training_center_id,
@@ -207,7 +235,7 @@ class LogbookScannerController extends Controller
             'confirmedBy',
             'activities.bodySystem',
             'activities.confirmedBy',
-        ]);
+        ])->where('doctor_id', Auth::id());
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);

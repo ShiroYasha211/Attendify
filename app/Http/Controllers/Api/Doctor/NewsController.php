@@ -22,7 +22,7 @@ class NewsController extends DoctorApiController
             ->get()
             ->groupBy('batch_id')
             ->map(function ($group) {
-                return $group->first();
+                return $group->first()->append('attachment_url');
             })
             ->values();
 
@@ -55,6 +55,8 @@ class NewsController extends DoctorApiController
 
         $item = $notifications->first();
         $item->markAsRead();
+        $notifications->each->append('attachment_url');
+        $item->append('attachment_url');
 
         $data = [
             'item' => $item,

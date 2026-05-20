@@ -34,7 +34,27 @@ class QuizController extends DoctorApiController
 
         $quizzes = $query->latest()->paginate($request->integer('per_page', 12));
 
-        return $this->success($quizzes);
+        return $this->success([
+            'quizzes' => $quizzes->items(),
+            'filters' => [
+                'subjects' => Subject::where('doctor_id', Auth::id())
+                    ->orderBy('name')
+                    ->get(['id', 'name']),
+            ],
+            'pagination' => [
+                'current_page' => $quizzes->currentPage(),
+                'last_page' => $quizzes->lastPage(),
+                'per_page' => $quizzes->perPage(),
+                'total' => $quizzes->total(),
+            ],
+            'stats' => [
+                'total' => Quiz::forDoctor(Auth::id())->count(),
+                'draft' => Quiz::forDoctor(Auth::id())->where('status', 'draft')->count(),
+                'published' => Quiz::forDoctor(Auth::id())->where('status', 'published')->count(),
+                'scheduled' => Quiz::forDoctor(Auth::id())->where('status', 'scheduled')->count(),
+                'closed' => Quiz::forDoctor(Auth::id())->where('status', 'closed')->count(),
+            ],
+        ]);
     }
 
     public function store(Request $request)

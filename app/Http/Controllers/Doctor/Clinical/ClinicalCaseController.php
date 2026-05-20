@@ -17,7 +17,8 @@ class ClinicalCaseController extends Controller
     {
         $query = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor', 'assignments'])
             ->withCount('assignments')
-            ->where('approval_status', 'approved');
+            ->where('approval_status', 'approved')
+            ->where('doctor_id', Auth::id());
 
         // Filters
         if ($request->filled('patient_name')) {
@@ -77,6 +78,7 @@ class ClinicalCaseController extends Controller
     {
         $case = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])
             ->withCount('assignments')
+            ->where('doctor_id', Auth::id())
             ->findOrFail($id);
 
         return view('doctor.clinical.cases.show', compact('case'));
@@ -84,7 +86,7 @@ class ClinicalCaseController extends Controller
 
     public function edit(string $id)
     {
-        $case = ClinicalCase::findOrFail($id);
+        $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
         $centers = TrainingCenter::all();
         $departments = ClinicalDepartment::all();
         $systems = BodySystem::all();
@@ -94,7 +96,7 @@ class ClinicalCaseController extends Controller
 
     public function update(Request $request, string $id)
     {
-        $case = ClinicalCase::findOrFail($id);
+        $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
         $validated = $request->validate([
             'patient_name' => 'required|string|max:255',
             'age' => 'nullable|integer|min:0|max:150',
@@ -114,7 +116,7 @@ class ClinicalCaseController extends Controller
 
     public function destroy(string $id)
     {
-        $case = ClinicalCase::findOrFail($id);
+        $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
         $case->delete();
 
         return redirect()->route('doctor.clinical.cases.index')

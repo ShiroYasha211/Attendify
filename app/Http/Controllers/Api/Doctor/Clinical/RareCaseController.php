@@ -10,6 +10,7 @@ use App\Notifications\Clinical\RareCaseAnnounced;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 
 class RareCaseController extends DoctorApiController
 {
@@ -18,6 +19,10 @@ class RareCaseController extends DoctorApiController
         $cases = RareCase::where('doctor_id', Auth::id())
             ->latest()
             ->paginate(15);
+
+        $cases->getCollection()->transform(
+            fn (RareCase $case) => $this->serializeCase($case)
+        );
 
         return $this->success($cases, 'تم جلب الحالات النادرة بنجاح');
     }
@@ -48,7 +53,7 @@ class RareCaseController extends DoctorApiController
         $students = User::whereIn('major_id', $clinicalMajorIds)->where('status', 'active')->get();
         Notification::send($students, new RareCaseAnnounced($rareCase));
 
-        return $this->success($rareCase, 'تم نشر الحالة بنجاح.', 201);
+        return $this->success($this->serializeCase($rareCase), 'تم نشر الحالة بنجاح.', 201);
     }
 
     public function toggleStatus($id)
@@ -60,5 +65,37 @@ class RareCaseController extends DoctorApiController
             'id' => $case->id,
             'is_active' => (bool) $case->is_active,
         ], 'تم تحديث حالة الإعلان.');
+    }
+
+    public function destroy($id)
+    {
+        $case = RareCase::where('doctor_id', Auth::id())->findOrFail($id);
+
+        if ($case->attachment_path) {
+            Storage::disk('public')->delete($case->attachment_path);
+        }
+
+        $case->delete();
+
+        return $this->success(null, 'تم حذف إعلان الحالة النادرة.');
+    }
+
+    protected function serializeCase(RareCase $case): array
+    {
+        return [
+            'id' => $case->id,
+            'doctor_id' => $case->doctor_id,
+            'patient_name' => $case->patient_name,
+            'hospital' => $case->hospital,
+            'department' => $case->department,
+            'room_number' => $case->room_number,
+            'diagnosis' => $case->diagnosis,
+            'clinical_signs' => $case->clinical_signs,
+            'attachment_path' => $case->attachment_path,
+            'attachment_url' => $case->attachment_path ? asset('storage/' . $case->attachment_path) : null,
+            'is_active' => (bool) $case->is_active,
+            'created_at' => optional($case->created_at)->toISOString(),
+            'updated_at' => optional($case->updated_at)->toISOString(),
+        ];
     }
 }

@@ -16,7 +16,7 @@ class SubjectController extends AdministrativeApiController
         $majorIds = $this->collegeMajorIds();
 
         $query = Subject::whereIn('major_id', $majorIds)
-            ->with(['major:id,name', 'level:id,name', 'term:id,name,level_id', 'doctor:id,name']);
+            ->with(['major:id,name', 'level:id,name', 'term:id,name,level_id', 'semester:id,name,term_id', 'doctor:id,name']);
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -37,7 +37,7 @@ class SubjectController extends AdministrativeApiController
 
         $terms = Term::whereIn('level_id', function ($query) use ($majorIds) {
             $query->select('id')->from('levels')->whereIn('major_id', $majorIds);
-        })->with('level.major')->get();
+        })->with(['level.major', 'semesters:id,name,term_id'])->get();
 
         $doctors = User::where('college_id', $this->college()->id)
             ->where('role', UserRole::DOCTOR)
@@ -97,13 +97,13 @@ class SubjectController extends AdministrativeApiController
             'doctor_id' => $validated['doctor_id'] ?? null,
         ]);
 
-        return $this->success($subject->load(['major:id,name', 'level:id,name', 'term:id,name', 'doctor:id,name']), 'تم إضافة المادة بنجاح', 201);
+        return $this->success($subject->load(['major:id,name', 'level:id,name', 'term:id,name', 'semester:id,name,term_id', 'doctor:id,name']), 'تم إضافة المادة بنجاح', 201);
     }
 
     public function show(Subject $subject)
     {
         $this->ensureCollegeSubject($subject);
-        return $this->success($subject->load(['major:id,name', 'level:id,name', 'term:id,name', 'doctor:id,name']));
+        return $this->success($subject->load(['major:id,name', 'level:id,name', 'term:id,name', 'semester:id,name,term_id', 'doctor:id,name']));
     }
 
     public function update(Request $request, Subject $subject)
@@ -152,7 +152,7 @@ class SubjectController extends AdministrativeApiController
 
         $subject->update($updateData);
 
-        return $this->success($subject->fresh()->load(['major:id,name', 'level:id,name', 'term:id,name', 'doctor:id,name']), 'تم تحديث المادة بنجاح');
+        return $this->success($subject->fresh()->load(['major:id,name', 'level:id,name', 'term:id,name', 'semester:id,name,term_id', 'doctor:id,name']), 'تم تحديث المادة بنجاح');
     }
 
     public function destroy(Subject $subject)

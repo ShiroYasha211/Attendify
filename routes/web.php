@@ -359,12 +359,6 @@ Route::prefix('doctor')
         Route::post('subscription/subscribe', [App\Http\Controllers\Student\SubscriptionController::class, 'subscribe'])->name('subscription.subscribe');
         Route::post('subscription/auto-renew', [App\Http\Controllers\Student\SubscriptionController::class, 'toggleAutoRenew'])->name('subscription.toggleAutoRenew');
 
-        // Card Generation (Balance-based)
-        Route::middleware('permission:generate_cards')->group(function () {
-            Route::get('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'index'])->name('cards.generate.index');
-            Route::post('cards-generate', [App\Http\Controllers\Student\CardGenerationController::class, 'generate'])->name('cards.generate.store');
-        });
-
         // Shared Study Library (Unified)
         Route::get('library', [App\Http\Controllers\Student\LibraryController::class, 'index'])->name('library.index');
         Route::get('library/create', [App\Http\Controllers\Student\LibraryController::class, 'create'])->name('library.create');

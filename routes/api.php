@@ -453,8 +453,6 @@ Route::prefix('administrative')->middleware(['auth:sanctum', 'administrative', '
     Route::post('devices/test-push', [\App\Http\Controllers\Api\DeviceTokenController::class, 'test']);
 
     Route::get('dashboard', [\App\Http\Controllers\Api\Administrative\DashboardController::class, 'index']);
-    Route::get('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'show']);
-    Route::put('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'update']);
 
     Route::get('subscription', [\App\Http\Controllers\Api\Administrative\SubscriptionController::class, 'index']);
     Route::post('subscription/redeem', [\App\Http\Controllers\Api\Administrative\SubscriptionController::class, 'redeem']);
@@ -464,42 +462,47 @@ Route::prefix('administrative')->middleware(['auth:sanctum', 'administrative', '
     Route::get('ledger', [\App\Http\Controllers\Api\Administrative\FinancialController::class, 'ledger']);
     Route::get('ledger/export', [\App\Http\Controllers\Api\Administrative\FinancialController::class, 'exportPdf']);
 
-    Route::get('delegates', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'index']);
-    Route::patch('delegates/{user}/role', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'updateRole']);
-    Route::post('delegates/{user}/permissions', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'updatePermissions']);
+    Route::middleware('subscribed')->group(function () {
+        Route::get('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'show']);
+        Route::put('settings', [\App\Http\Controllers\Administrative\ApiCollegeSettingsController::class, 'update']);
 
-    Route::get('majors/{major}/levels', [\App\Http\Controllers\Api\Administrative\MajorController::class, 'getLevels']);
+        Route::get('delegates', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'index']);
+        Route::patch('delegates/{user}/role', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'updateRole']);
+        Route::post('delegates/{user}/permissions', [\App\Http\Controllers\Api\Administrative\DelegateController::class, 'updatePermissions']);
 
-    Route::get('notifications/create-data', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'createData']);
-    Route::get('notifications', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'index']);
-    Route::post('notifications', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'store']);
-    Route::get('notifications/{batchId}', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'show']);
-    Route::delete('notifications/{batchId}', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'destroy']);
+        Route::get('majors/{major}/levels', [\App\Http\Controllers\Api\Administrative\MajorController::class, 'getLevels']);
 
-    Route::get('excuses', [\App\Http\Controllers\Administrative\ApiExcuseManagementController::class, 'index']);
-    Route::patch('excuses/{excuse}', [\App\Http\Controllers\Administrative\ApiExcuseManagementController::class, 'update']);
-    Route::patch('attendance/{attendance}', [\App\Http\Controllers\Administrative\ApiAttendanceController::class, 'update']);
+        Route::get('notifications/create-data', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'createData']);
+        Route::get('notifications', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'index']);
+        Route::post('notifications', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'store']);
+        Route::get('notifications/{batchId}', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'show']);
+        Route::delete('notifications/{batchId}', [\App\Http\Controllers\Api\Administrative\NotificationController::class, 'destroy']);
 
-    Route::get('reports', [\App\Http\Controllers\Administrative\ApiReportController::class, 'index']);
-    Route::get('reports/attendance', [\App\Http\Controllers\Administrative\ApiReportController::class, 'attendance']);
-    Route::get('reports/subject', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'subjectReport']);
-    Route::get('reports/threshold', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'thresholdReport']);
-    Route::get('reports/level-summary', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'levelSummary']);
-    Route::get('reports/doctor-performance', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'doctorPerformance']);
+        Route::get('excuses', [\App\Http\Controllers\Administrative\ApiExcuseManagementController::class, 'index']);
+        Route::patch('excuses/{excuse}', [\App\Http\Controllers\Administrative\ApiExcuseManagementController::class, 'update']);
+        Route::patch('attendance/{attendance}', [\App\Http\Controllers\Administrative\ApiAttendanceController::class, 'update']);
 
-    Route::apiResource('students', \App\Http\Controllers\Api\Administrative\StudentController::class);
-    Route::apiResource('doctors', \App\Http\Controllers\Api\Administrative\DoctorController::class);
-    Route::apiResource('majors', \App\Http\Controllers\Api\Administrative\MajorController::class)->except(['create', 'edit']);
-    Route::apiResource('subjects', \App\Http\Controllers\Api\Administrative\SubjectController::class)->except(['create', 'edit']);
+        Route::get('reports', [\App\Http\Controllers\Administrative\ApiReportController::class, 'index']);
+        Route::get('reports/attendance', [\App\Http\Controllers\Administrative\ApiReportController::class, 'attendance']);
+        Route::get('reports/subject', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'subjectReport']);
+        Route::get('reports/threshold', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'thresholdReport']);
+        Route::get('reports/level-summary', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'levelSummary']);
+        Route::get('reports/doctor-performance', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'doctorPerformance']);
 
-    Route::get('exams/create-data', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'createData']);
-    Route::get('exams/helper/levels/{major}', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'getLevels']);
-    Route::get('exams/helper/subjects/{level}', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'getSubjects']);
-    Route::apiResource('exams', \App\Http\Controllers\Api\Administrative\ExamScheduleController::class)->except(['create', 'edit']);
+        Route::apiResource('students', \App\Http\Controllers\Api\Administrative\StudentController::class);
+        Route::apiResource('doctors', \App\Http\Controllers\Api\Administrative\DoctorController::class);
+        Route::apiResource('majors', \App\Http\Controllers\Api\Administrative\MajorController::class)->except(['create', 'edit']);
+        Route::apiResource('subjects', \App\Http\Controllers\Api\Administrative\SubjectController::class)->except(['create', 'edit']);
 
-    Route::get('schedules/create-data', [\App\Http\Controllers\Api\Administrative\AcademicScheduleController::class, 'createData']);
-    Route::get('schedules/helper/subjects/{level}', [\App\Http\Controllers\Api\Administrative\AcademicScheduleController::class, 'getSubjectsWithDoctors']);
-    Route::apiResource('schedules', \App\Http\Controllers\Api\Administrative\AcademicScheduleController::class)->except(['create', 'edit']);
+        Route::get('exams/create-data', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'createData']);
+        Route::get('exams/helper/levels/{major}', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'getLevels']);
+        Route::get('exams/helper/subjects/{level}', [\App\Http\Controllers\Api\Administrative\ExamScheduleController::class, 'getSubjects']);
+        Route::apiResource('exams', \App\Http\Controllers\Api\Administrative\ExamScheduleController::class)->except(['create', 'edit']);
+
+        Route::get('schedules/create-data', [\App\Http\Controllers\Api\Administrative\AcademicScheduleController::class, 'createData']);
+        Route::get('schedules/helper/subjects/{level}', [\App\Http\Controllers\Api\Administrative\AcademicScheduleController::class, 'getSubjectsWithDoctors']);
+        Route::apiResource('schedules', \App\Http\Controllers\Api\Administrative\AcademicScheduleController::class)->except(['create', 'edit']);
+    });
 });
 
 Route::prefix('student')->group(function () {
@@ -728,9 +731,9 @@ use App\Http\Controllers\Api\Doctor\NewsController as DoctorNewsController;
 use App\Http\Controllers\Api\Doctor\NotificationController as DoctorNotificationController;
 use App\Http\Controllers\Api\Doctor\SubscriptionController as DoctorSubscriptionController;
 use App\Http\Controllers\Api\Doctor\FinancialController as DoctorFinancialController;
-use App\Http\Controllers\Api\Doctor\CardGenerationController as DoctorCardGenerationController;
 use App\Http\Controllers\Api\Doctor\LibraryController as DoctorLibraryController;
 use App\Http\Controllers\Api\Doctor\QuizController as DoctorQuizController;
+use App\Http\Controllers\Api\Doctor\SubjectOptionController as DoctorSubjectOptionController;
 use App\Http\Controllers\Api\Doctor\StarController as DoctorStarApiController;
 use App\Http\Controllers\Api\Doctor\Clinical\ClinicalController as DoctorClinicalController;
 use App\Http\Controllers\Api\Doctor\Clinical\TrainingCenterController as DoctorTrainingCenterController;
@@ -762,10 +765,21 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
     Route::get('devices/status', [\App\Http\Controllers\Api\DeviceTokenController::class, 'status']);
     Route::post('devices/test-push', [\App\Http\Controllers\Api\DeviceTokenController::class, 'test']);
-    Route::post('desktop/pairing-code', [\App\Http\Controllers\DesktopPairingCodeController::class, 'issueForDoctor']);
 
     // Dashboard
     Route::get('dashboard', [DoctorDashboardController::class, 'index']);
+
+    // Financial & Subscription
+    Route::get('ledger', [DoctorFinancialController::class, 'ledger']);
+    Route::get('ledger/export', [DoctorFinancialController::class, 'exportPdf']);
+    Route::get('subscription', [DoctorSubscriptionController::class, 'index']);
+    Route::post('subscription/redeem', [DoctorSubscriptionController::class, 'redeem']);
+    Route::post('subscription/subscribe', [DoctorSubscriptionController::class, 'subscribe']);
+    Route::post('subscription/auto-renew', [DoctorSubscriptionController::class, 'toggleAutoRenew']);
+
+    Route::middleware('subscribed')->group(function () {
+    Route::post('desktop/pairing-code', [\App\Http\Controllers\DesktopPairingCodeController::class, 'issueForDoctor']);
+    Route::get('subjects/options', [DoctorSubjectOptionController::class, 'index']);
 
     // Attendance
     Route::get('attendances', [DoctorAttendanceController::class, 'index']);
@@ -820,6 +834,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
 
     // Messages
     Route::get('messages', [DoctorMessageController::class, 'index']);
+    Route::get('messages/delegates', [DoctorMessageController::class, 'delegates']);
     Route::get('messages/{conversation}', [DoctorMessageController::class, 'show']);
     Route::post('messages', [DoctorMessageController::class, 'store']);
     Route::post('messages/start', [DoctorMessageController::class, 'store']);
@@ -834,14 +849,6 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::get('notifications', [DoctorNotificationController::class, 'index']);
     Route::post('notifications/{id}/read', [DoctorNotificationController::class, 'markAsRead']);
     Route::post('notifications/mark-all-read', [DoctorNotificationController::class, 'markAllAsRead']);
-
-    // Financial & Subscription
-    Route::get('ledger', [DoctorFinancialController::class, 'ledger']);
-    Route::get('ledger/export', [DoctorFinancialController::class, 'exportPdf']);
-    Route::get('subscription', [DoctorSubscriptionController::class, 'index']);
-    Route::post('subscription/redeem', [DoctorSubscriptionController::class, 'redeem']);
-    Route::post('subscription/subscribe', [DoctorSubscriptionController::class, 'subscribe']);
-    Route::post('subscription/auto-renew', [DoctorSubscriptionController::class, 'toggleAutoRenew']);
 
     // Content & Interaction
     Route::get('announcements', [DoctorAnnouncementApiController::class, 'index']);
@@ -864,10 +871,6 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::get('library', [DoctorLibraryController::class, 'index']);
     Route::post('library/upload', [DoctorLibraryController::class, 'store']);
     Route::get('library/{resource}/download', [DoctorLibraryController::class, 'incrementDownload']);
-    Route::middleware('permission:generate_cards')->group(function () {
-        Route::get('cards-generate', [DoctorCardGenerationController::class, 'index']);
-        Route::post('cards-generate', [DoctorCardGenerationController::class, 'generate']);
-    });
     Route::prefix('qr-attendance')->group(function () {
         Route::post('start', [QrAttendanceController::class, 'startSession']);
         Route::get('active', [QrAttendanceController::class, 'active']);
@@ -936,10 +939,12 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         Route::get('rare-cases', [DoctorRareCaseController::class, 'index']);
         Route::post('rare-cases', [DoctorRareCaseController::class, 'store']);
         Route::patch('rare-cases/{id}/toggle', [DoctorRareCaseController::class, 'toggleStatus']);
+        Route::delete('rare-cases/{id}', [DoctorRareCaseController::class, 'destroy']);
 
         // Volunteers Registry
         Route::get('volunteers', [DoctorVolunteerController::class, 'index']);
         Route::post('volunteers', [DoctorVolunteerController::class, 'store']);
+        Route::put('volunteers/{id}', [DoctorVolunteerController::class, 'update']);
         Route::patch('volunteers/{id}/toggle', [DoctorVolunteerController::class, 'toggleStatus']);
         Route::delete('volunteers/{id}', [DoctorVolunteerController::class, 'destroy']);
 
@@ -949,5 +954,6 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         Route::get('announcements/{id}', [DoctorAnnouncementApiController::class, 'show']);
         Route::put('announcements/{id}', [DoctorAnnouncementApiController::class, 'update']);
         Route::delete('announcements/{id}', [DoctorAnnouncementApiController::class, 'destroy']);
+    });
     });
 });
