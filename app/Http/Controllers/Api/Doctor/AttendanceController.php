@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use App\Support\ExcuseWorkflow;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ViewErrorBag;
 
@@ -32,7 +33,13 @@ class AttendanceController extends DoctorApiController
             ->with(['subject:id,name,code', 'recorder:id,name,role', 'lecture:id,title,lecture_number,start_time,end_time,lecture_type'])
             ->groupBy('subject_id', 'date', 'lecture_id', 'recorded_by', 'attendance_method')
             ->orderByDesc('date')
-            ->get();
+            ->get()
+            ->map(function ($session) {
+                $date = $this->normalizeReportDate($session->date);
+                $session->date = $date;
+                $session->display_date = $this->displayReportDate($date);
+                return $session;
+            });
 
         return $this->success([
             'subjects' => $subjects,
@@ -184,6 +191,7 @@ class AttendanceController extends DoctorApiController
 
     public function report(Request $request, int $subjectId, string $date)
     {
+        $date = $this->normalizeReportDate($date);
         $subject = Subject::where('id', $subjectId)
             ->where('doctor_id', $request->user()->id)
             ->firstOrFail();
@@ -221,9 +229,35 @@ class AttendanceController extends DoctorApiController
 
         $attendanceRecords = $attendanceQuery->get()->keyBy('student_id');
 
+        $appStudents = $students->map(function ($student) use ($attendanceRecords) {
+            $record = $attendanceRecords->get($student->id);
+            $status = $record?->status;
+
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'student_number' => $student->student_number,
+                'gender' => $student->gender,
+                'status' => $status,
+                'status_label' => $status ? ExcuseWorkflow::attendanceStatusLabel($status) : null,
+                'attendance_method' => $record?->attendance_method,
+                'recorder_name' => $record?->recorder?->name,
+                'recorded_at' => $record?->created_at,
+                'record' => $record ? [
+                    'id' => $record->id,
+                    'status' => $record->status,
+                    'attendance_method' => $record->attendance_method,
+                    'recorded_by' => $record->recorded_by,
+                    'recorded_by_name' => $record->recorder?->name,
+                    'recorded_by_role' => $record->recorder?->role,
+                ] : null,
+            ];
+        });
+
         return $this->success([
             'subject' => $subject->only(['id', 'name']),
             'date' => $date,
+            'date_display' => $this->displayReportDate($date),
             'lecture' => $lecture ? [
                 'id' => $lecture->id,
                 'title' => $lecture->title,
@@ -232,25 +266,17 @@ class AttendanceController extends DoctorApiController
                 'start_time' => $lecture->start_time,
                 'end_time' => $lecture->end_time,
             ] : null,
-            'students' => $students->map(function ($student) use ($attendanceRecords) {
-                $record = $attendanceRecords->get($student->id);
-
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'student_number' => $student->student_number,
-                    'gender' => $student->gender,
-                    'status' => $record?->status,
-                    'record' => $record ? [
-                        'id' => $record->id,
-                        'status' => $record->status,
-                        'attendance_method' => $record->attendance_method,
-                        'recorded_by' => $record->recorded_by,
-                        'recorded_by_name' => $record->recorder?->name,
-                        'recorded_by_role' => $record->recorder?->role,
-                    ] : null,
-                ];
-            }),
+            'students' => $appStudents,
+            'summary' => [
+                'total' => $appStudents->count(),
+                'present' => $attendanceRecords->where('status', Attendance::STATUS_PRESENT)->count(),
+                'absent' => $attendanceRecords->where('status', Attendance::STATUS_ABSENT)->count(),
+                'late' => $attendanceRecords->where('status', Attendance::STATUS_LATE)->count(),
+                'excused' => $attendanceRecords->where('status', Attendance::STATUS_EXCUSED)->count(),
+                'permitted' => $attendanceRecords->where('status', Attendance::STATUS_PERMITTED)->count(),
+                'exempted' => $attendanceRecords->where('status', Attendance::STATUS_EXEMPTED)->count(),
+                'unrecorded' => $appStudents->whereNull('status')->count(),
+            ],
             'filters' => [
                 'gender_filter' => $genderFilter,
                 'available_gender_filters' => ['all', 'male', 'female'],
@@ -260,6 +286,7 @@ class AttendanceController extends DoctorApiController
 
     public function reportPdf(Request $request, int $subjectId, string $date)
     {
+        $date = $this->normalizeReportDate($date);
         $subject = Subject::where('id', $subjectId)
             ->where('doctor_id', $request->user()->id)
             ->firstOrFail();
@@ -299,6 +326,7 @@ class AttendanceController extends DoctorApiController
             'students' => $students,
             'attendanceRecords' => $attendanceRecords,
             'date' => $date,
+            'dateDisplay' => $this->displayReportDate($date),
             'genderFilter' => 'all',
             'lecture' => $lecture,
             'delegate' => $request->user(),
@@ -317,6 +345,33 @@ class AttendanceController extends DoctorApiController
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="attendance_report.pdf"',
         ]);
+    }
+
+    protected function normalizeReportDate($value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value)->format('Y-m-d');
+        }
+
+        $value = (string) $value;
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $value, $matches)) {
+            return $matches[0];
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    protected function displayReportDate($value): string
+    {
+        try {
+            return Carbon::parse($value)->locale('ar')->translatedFormat('d M Y');
+        } catch (\Throwable) {
+            return (string) $value;
+        }
     }
 
     protected function persist(Request $request, Subject $subject)

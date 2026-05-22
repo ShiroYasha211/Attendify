@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Doctor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\Academic\Schedule;
 use App\Models\Academic\Subject;
 use App\Models\User;
 use App\Models\Attendance;
@@ -145,6 +146,26 @@ class DashboardController extends DoctorApiController
             ->take(5)
             ->values();
 
+        $todayDayOfWeek = Carbon::now()->dayOfWeekIso;
+        $todaySchedule = Schedule::where('day_of_week', $todayDayOfWeek)
+            ->whereHas('subject', fn ($query) => $query->where('doctor_id', $doctor->id))
+            ->with(['subject:id,name,code,major_id,level_id', 'subject.major:id,name', 'subject.level:id,name'])
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn ($schedule) => [
+                'id' => $schedule->id,
+                'subject_id' => $schedule->subject_id,
+                'subject_name' => $schedule->subject?->name,
+                'subject_code' => $schedule->subject?->code,
+                'major' => $schedule->subject?->major?->name,
+                'level' => $schedule->subject?->level?->name,
+                'start_time' => $schedule->start_time,
+                'end_time' => $schedule->end_time,
+                'start_time_label' => $this->formatScheduleTime($schedule->start_time),
+                'end_time_label' => $this->formatScheduleTime($schedule->end_time),
+                'hall_name' => $schedule->hall_name,
+            ]);
+
         return $this->success([
             'subjects_count' => $subjects->count(),
             'students_count' => $studentsCount,
@@ -154,8 +175,22 @@ class DashboardController extends DoctorApiController
             'grades_entered' => $gradesCount,
             'attendance_chart' => $chart,
             'subjects' => $subjectsData,
+            'today_schedule' => $todaySchedule,
             'recent_activities' => $recentActivities,
             'admin_announcements' => $adminAnnouncements,
         ]);
+    }
+
+    private function formatScheduleTime($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->format('H:i');
+        } catch (\Throwable) {
+            return (string) $value;
+        }
     }
 }

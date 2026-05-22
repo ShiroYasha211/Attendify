@@ -211,6 +211,7 @@
     $absentCount = $attendanceRecords->where('status', 'absent')->count();
     $lateCount = $attendanceRecords->where('status', 'late')->count();
     $excusedCount = $attendanceRecords->where('status', 'excused')->count();
+    $reportDateDisplay = $dateDisplay ?? $date;
 @endphp
 
 <div class="sheet">
@@ -230,12 +231,12 @@
             </td>
             <td class="header-side rtl-text" style="text-align: right;">
                 <div>{{ $ar('تاريخ التقرير') }}: <span class="ltr">{{ now()->format('Y/m/d') }}</span></div>
-                <div>{{ $ar('تاريخ المحاضرة') }}: <span class="ltr">{{ $date }}</span></div>
+                <div>{{ $ar('تاريخ المحاضرة') }}: <span class="ltr">{{ $reportDateDisplay }}</span></div>
             </td>
         </tr>
     </table>
 
-    <div class="title rtl-text">{{ $ar('كشف حضور محاضرة') }} (<span class="ltr">{{ $date }}</span>)</div>
+    <div class="title rtl-text">{{ $ar('كشف حضور محاضرة') }} (<span class="ltr">{{ $reportDateDisplay }}</span>)</div>
 
     <table class="meta-table">
         <tr>
