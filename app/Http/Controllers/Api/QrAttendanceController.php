@@ -33,6 +33,7 @@ class QrAttendanceController extends DelegateApiController
                 'title' => 'required|string|max:255',
                 'lecture_number' => 'nullable|string|max:50',
             ]);
+            $validated['date'] = $this->normalizeDateInput($validated['date']);
 
             $subject = Subject::findOrFail($validated['subject_id']);
 
@@ -41,18 +42,26 @@ class QrAttendanceController extends DelegateApiController
             }
 
             $existing = QrAttendanceSession::where('subject_id', $validated['subject_id'])
-                ->where('date', $validated['date'])
+                ->whereDate('date', $validated['date'])
                 ->where('title', $validated['title'])
                 ->first();
 
             if ($existing) {
+                if ((int) $existing->delegate_id !== (int) $user->id && $existing->status === 'active') {
+                    return response()->json([
+                        'message' => 'توجد جلسة QR نشطة لهذه المحاضرة بواسطة مستخدم آخر. أنهِ الجلسة الحالية أولًا ثم حاول مرة أخرى.',
+                    ], 409);
+                }
+
                 if (in_array($existing->status, ['finalized', 'cancelled'], true)) {
                     Attendance::where('qr_attendance_session_id', $existing->id)->delete();
                     $existing->verifications()->delete();
                     $existing->status = 'active';
-                    $existing->save();
                 }
 
+                $existing->delegate_id = $user->id;
+                $existing->lecture_number = $validated['lecture_number'] ?? null;
+                $existing->save();
                 $existing->rotateToken();
 
                 return $this->success([
@@ -78,15 +87,22 @@ class QrAttendanceController extends DelegateApiController
                 ]);
             } catch (\Illuminate\Database\QueryException $exception) {
                 $session = QrAttendanceSession::where('subject_id', $validated['subject_id'])
-                    ->where('date', $validated['date'])
+                    ->whereDate('date', $validated['date'])
+                    ->where('title', $validated['title'])
                     ->first();
 
                 if (!$session) {
                     throw $exception;
                 }
 
+                if ((int) $session->delegate_id !== (int) $user->id && $session->status === 'active') {
+                    return response()->json([
+                        'message' => 'توجد جلسة QR نشطة لهذه المحاضرة بواسطة مستخدم آخر. أنهِ الجلسة الحالية أولًا ثم حاول مرة أخرى.',
+                    ], 409);
+                }
+
                 $session->update([
-                    'title' => $validated['title'],
+                    'delegate_id' => $user->id,
                     'lecture_number' => $validated['lecture_number'] ?? null,
                     'current_token' => $firstToken,
                     'token_expires_at' => Carbon::now()->addSeconds(max(5, (int) ($subject->major?->college?->qr_rotation_seconds ?? 30))),
@@ -100,10 +116,13 @@ class QrAttendanceController extends DelegateApiController
                 'expires_at' => $session->token_expires_at->toIso8601String(),
                 'rotation_seconds' => $session->rotationSeconds(),
             ], 'تم بدء جلسة الحضور بنجاح.', 201);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            return response()->json([
+                'message' => 'تعذر بدء جلسة QR لهذه المحاضرة. توجد جلسة مطابقة محفوظة مسبقًا، حدّث الصفحة ثم حاول مرة أخرى.',
+            ], 409);
         } catch (\Exception $exception) {
             return response()->json([
-                'message' => 'Server Error: ' . $exception->getMessage(),
-                'trace' => $exception->getTraceAsString(),
+                'message' => 'حدث خطأ أثناء بدء جلسة QR. حاول مرة أخرى.',
             ], 500);
         }
     }
@@ -346,12 +365,21 @@ class QrAttendanceController extends DelegateApiController
             'subject_id' => 'required|integer|exists:subjects,id',
             'date' => 'required|date',
             'title' => 'required|string|max:255',
+            'lecture_number' => 'nullable|string|max:50',
         ]);
+        $validated['date'] = $this->normalizeDateInput($validated['date']);
 
         $session = QrAttendanceSession::where('delegate_id', $user->id)
             ->where('subject_id', $validated['subject_id'])
             ->whereDate('date', $validated['date'])
             ->where('title', $validated['title'])
+            ->when(array_key_exists('lecture_number', $validated), function ($query) use ($validated) {
+                $lectureNumber = trim((string) ($validated['lecture_number'] ?? ''));
+                return $lectureNumber === ''
+                    ? $query->whereNull('lecture_number')
+                    : $query->where('lecture_number', $lectureNumber);
+            })
+            ->where('status', 'active')
             ->latest('id')
             ->first();
 
@@ -369,5 +397,24 @@ class QrAttendanceController extends DelegateApiController
                 'lecture_number' => $session->lecture_number,
             ],
         ], 'تم جلب حالة الجلسة.');
+    }
+
+    protected function normalizeDateInput($value): string
+    {
+        $value = trim((string) $value);
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $value, $matches)) {
+            return $matches[0];
+        }
+
+        foreach (['d-m-Y', 'd/m/Y'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->format('Y-m-d');
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        return Carbon::parse($value)->format('Y-m-d');
     }
 }

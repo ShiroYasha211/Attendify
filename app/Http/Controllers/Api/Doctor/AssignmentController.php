@@ -82,6 +82,21 @@ class AssignmentController extends DoctorApiController
         return $this->success($assignment, 'تم إضافة التكليف بنجاح.', 201);
     }
 
+    /** GET /api/doctor/assignments/{id} */
+    public function show(Assignment $assignment)
+    {
+        if ($assignment->subject->doctor_id !== Auth::id()) {
+            return $this->error('غير مصرح لك.', 403);
+        }
+
+        $assignment->load(['subject:id,name,major_id,level_id', 'subject.major:id,name', 'subject.level:id,name'])
+            ->loadCount('submissions');
+
+        return $this->success([
+            'assignment' => $assignment,
+        ]);
+    }
+
     /** PUT /api/doctor/assignments/{id} */
     public function update(Request $request, Assignment $assignment)
     {
@@ -124,7 +139,12 @@ class AssignmentController extends DoctorApiController
             return $this->error('غير مصرح لك.', 403);
         }
 
-        $submissions = $assignment->submissions()->with('student:id,name,student_number')->latest()->get();
+        $submissions = $assignment->submissions()
+            ->with(['student:id,name,student_number,email', 'assignment:id,due_date'])
+            ->latest()
+            ->get()
+            ->map(fn (AssignmentSubmission $submission) => $this->submissionPayload($submission));
+
         return $this->success($submissions);
     }
 
@@ -180,5 +200,31 @@ class AssignmentController extends DoctorApiController
         ]);
 
         return $this->success($submission, 'تم تقييم التسليم بنجاح.');
+    }
+
+    protected function submissionPayload(AssignmentSubmission $submission): array
+    {
+        $filePath = $submission->file_path ? ltrim($submission->file_path, '/') : null;
+
+        return [
+            'id' => $submission->id,
+            'assignment_id' => $submission->assignment_id,
+            'student_id' => $submission->student_id,
+            'student' => $submission->student,
+            'file_path' => $submission->file_path,
+            'file_url' => $filePath ? asset('storage/' . $filePath) : null,
+            'file_name' => $submission->file_name ?: ($filePath ? basename($filePath) : null),
+            'file_type' => $submission->file_type,
+            'file_size' => $submission->file_size,
+            'formatted_file_size' => $submission->formatted_file_size,
+            'notes' => $submission->notes,
+            'status' => $submission->status,
+            'feedback' => $submission->feedback,
+            'grade' => $submission->grade,
+            'submitted_at' => $submission->submitted_at?->toIso8601String(),
+            'is_late' => $submission->submitted_at && $submission->assignment
+                ? $submission->isLate()
+                : false,
+        ];
     }
 }

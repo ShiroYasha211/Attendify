@@ -804,6 +804,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     // Assignments
     Route::get('assignments', [DoctorAssignmentController::class, 'index']);
     Route::post('assignments', [DoctorAssignmentController::class, 'store']);
+    Route::get('assignments/{assignment}', [DoctorAssignmentController::class, 'show']);
     Route::put('assignments/{assignment}', [DoctorAssignmentController::class, 'update']);
     Route::delete('assignments/{assignment}', [DoctorAssignmentController::class, 'destroy']);
     Route::get('assignments/{assignment}/submissions', [DoctorAssignmentController::class, 'submissions']);
