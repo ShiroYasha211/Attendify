@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Models\DoctorMessage;
 use App\Models\StudentNotification;
-use App\Models\DoctorConversation;
 
 class DoctorMessageObserver
 {
@@ -14,9 +13,10 @@ class DoctorMessageObserver
     public function created(DoctorMessage $message): void
     {
         $conversation = $message->conversation;
-        if (!$conversation) return;
+        if (!$conversation) {
+            return;
+        }
 
-        // If the sender is the doctor, notify the delegate
         if ($message->sender_id === $conversation->doctor_id) {
             StudentNotification::create([
                 'user_id' => $conversation->delegate_id,
@@ -28,6 +28,18 @@ class DoctorMessageObserver
                     'doctor_id'              => $message->sender_id,
                 ],
             ]);
+            return;
         }
+
+        StudentNotification::create([
+            'user_id' => $conversation->doctor_id,
+            'type'    => 'message',
+            'title'   => 'رسالة جديدة من المندوب',
+            'message' => "لديك رسالة جديدة من المندوب {$conversation->delegate->name}.",
+            'data'    => [
+                'doctor_conversation_id' => $conversation->id,
+                'delegate_id'            => $message->sender_id,
+            ],
+        ]);
     }
 }

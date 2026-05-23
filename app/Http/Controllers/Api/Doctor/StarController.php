@@ -33,10 +33,11 @@ class StarController extends DoctorApiController
     public function index(Request $request)
     {
         $subjects = Subject::where('doctor_id', Auth::id())
-            ->with('level:id,name')
+            ->with(['major:id,name', 'level:id,name'])
             ->get(['id', 'name', 'level_id', 'major_id']);
 
         $students = $this->eligibleStudentsQuery()
+            ->with(['major:id,name', 'level:id,name'])
             ->when($request->filled('subject_id'), function ($query) use ($request, $subjects) {
                 $subject = $subjects->firstWhere('id', (int) $request->subject_id);
                 if ($subject) {
@@ -44,6 +45,8 @@ class StarController extends DoctorApiController
                         ->where('level_id', $subject->level_id);
                 }
             })
+            ->when($request->filled('major_id'), fn ($query) => $query->where('major_id', $request->integer('major_id')))
+            ->when($request->filled('level_id'), fn ($query) => $query->where('level_id', $request->integer('level_id')))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->search;
                 $query->where(function ($inner) use ($search) {
@@ -56,6 +59,8 @@ class StarController extends DoctorApiController
 
         return $this->success([
             'subjects' => $subjects,
+            'majors' => $subjects->pluck('major')->filter()->unique('id')->values(),
+            'levels' => $subjects->pluck('level')->filter()->unique('id')->values(),
             'students' => $students,
         ]);
     }
