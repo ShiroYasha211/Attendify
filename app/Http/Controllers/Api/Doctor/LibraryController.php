@@ -11,15 +11,22 @@ class LibraryController extends DoctorApiController
     public function index(Request $request)
     {
         $doctor = $request->user();
+        $collegeId = $doctor->college_id;
 
-        $subjects = Subject::where('doctor_id', $doctor->id)
+        $uploadSubjects = Subject::where('doctor_id', $doctor->id)
             ->orderBy('name')
-            ->select('id', 'name', 'level_id')
+            ->select('id', 'name', 'level_id', 'major_id')
+            ->get();
+
+        $subjects = Subject::whereHas('major', fn ($query) => $query->where('college_id', $collegeId))
+            ->with(['major:id,name,college_id', 'level:id,name'])
+            ->orderBy('name')
+            ->select('id', 'name', 'level_id', 'major_id')
             ->get();
 
         $uniqueMetadata = CourseResource::select('semester_info', 'lecturer_name')
-            ->whereHas('subject', function ($query) use ($doctor) {
-                $query->where('doctor_id', $doctor->id);
+            ->whereHas('subject.major', function ($query) use ($collegeId) {
+                $query->where('college_id', $collegeId);
             })
             ->get();
 
@@ -35,24 +42,61 @@ class LibraryController extends DoctorApiController
             'file_type',
             'uploader_role',
         ]);
-        $filters['major_id'] = $doctor->major_id;
+        $doctorSubjectIds = $uploadSubjects->pluck('id');
 
-        $query = CourseResource::with(['subject:id,name,doctor_id', 'uploader:id,name,role'])
+        $query = CourseResource::with([
+                'subject:id,name,doctor_id,major_id,level_id',
+                'subject.major:id,name,college_id',
+                'subject.level:id,name',
+                'uploader:id,name,role',
+            ])
             ->filter($filters)
-            ->where(function ($builder) use ($doctor) {
+            ->where(function ($builder) use ($doctor, $collegeId, $doctorSubjectIds) {
                 $builder->where('visibility', 'everyone')
-                    ->orWhere('created_by', $doctor->id);
+                    ->orWhere('created_by', $doctor->id)
+                    ->orWhere(function ($query) use ($collegeId) {
+                        $query->where('visibility', 'college')
+                            ->whereHas('subject.major', fn ($subjectQuery) => $subjectQuery->where('college_id', $collegeId));
+                    })
+                    ->orWhere(function ($query) use ($doctorSubjectIds) {
+                        $query->where('visibility', 'batch')
+                            ->whereIn('subject_id', $doctorSubjectIds);
+                    });
             });
 
         if ($request->boolean('my_uploads')) {
             $query->where('created_by', $doctor->id);
         }
 
-        $resources = $query->latest()->paginate($request->integer('per_page', 15));
+        $resources = $query->latest()->paginate($request->boolean('grouped') ? $request->integer('per_page', 100) : $request->integer('per_page', 15));
+        $groups = collect();
+
+        if ($request->boolean('grouped')) {
+            $groups = $resources->getCollection()
+                ->groupBy('subject_id')
+                ->map(function ($items) {
+                    $first = $items->first();
+                    $subject = $first?->subject;
+
+                    return [
+                        'subject' => $subject ? [
+                            'id' => $subject->id,
+                            'name' => $subject->name,
+                            'major' => $subject->major?->name,
+                            'level' => $subject->level?->name,
+                        ] : null,
+                        'count' => $items->count(),
+                        'resources' => $items->values(),
+                    ];
+                })
+                ->sortBy(fn ($group) => $group['subject']['name'] ?? '')
+                ->values();
+        }
 
         return $this->success([
             'filters' => [
                 'subjects' => $subjects,
+                'upload_subjects' => $uploadSubjects,
                 'semesters' => $uniqueMetadata->pluck('semester_info')->filter()->unique()->values(),
                 'lecturers' => $uniqueMetadata->pluck('lecturer_name')->filter()->unique()->values(),
                 'years' => CourseResource::selectRaw('YEAR(created_at) as year')
@@ -61,6 +105,7 @@ class LibraryController extends DoctorApiController
                     ->pluck('year'),
             ],
             'resources' => $resources,
+            'groups' => $groups,
         ]);
     }
 
@@ -111,7 +156,12 @@ class LibraryController extends DoctorApiController
     public function incrementDownload(Request $request, CourseResource $resource)
     {
         $doctor = $request->user();
-        $visible = $resource->visibility === 'everyone' || $resource->created_by === $doctor->id;
+        $resource->loadMissing('subject.major');
+        $doctorSubjectIds = Subject::where('doctor_id', $doctor->id)->pluck('id');
+        $visible = $resource->visibility === 'everyone'
+            || $resource->created_by === $doctor->id
+            || ($resource->visibility === 'college' && $resource->subject?->major?->college_id === $doctor->college_id)
+            || ($resource->visibility === 'batch' && $doctorSubjectIds->contains($resource->subject_id));
 
         if (!$visible) {
             return $this->error('ليس لديك صلاحية للوصول لهذا الملف.', 403);

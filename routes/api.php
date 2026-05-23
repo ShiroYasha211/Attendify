@@ -799,6 +799,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
 
     // Reports
     Route::get('reports', [\App\Http\Controllers\Doctor\ApiReportController::class, 'index']);
+    Route::get('reports/{subject}/pdf', [\App\Http\Controllers\Doctor\ApiReportController::class, 'pdf']);
     Route::get('reports/{subject}', [\App\Http\Controllers\Doctor\ApiReportController::class, 'show']);
 
     // Assignments

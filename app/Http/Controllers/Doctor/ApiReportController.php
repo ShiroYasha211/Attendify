@@ -8,6 +8,7 @@ use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\User;
 use App\Support\ExcuseWorkflow;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -98,6 +99,53 @@ class ApiReportController extends DoctorApiController
         return $this->success([
             'subject' => ['id' => $subject->id, 'name' => $subject->name],
             'students' => $students,
+        ]);
+    }
+
+    public function pdf(Subject $subject)
+    {
+        if ($subject->doctor_id !== Auth::id()) {
+            return $this->error('Unauthorized.', 403);
+        }
+
+        $subject->loadMissing(['major.college.university', 'level', 'term']);
+
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+            ->where('major_id', $subject->major_id)
+            ->where('level_id', $subject->level_id)
+            ->with(['attendances' => fn ($query) => $query->where('subject_id', $subject->id)])
+            ->orderBy('name')
+            ->get()
+            ->map(function ($student) {
+                $attendances = $student->attendances;
+                $total = $attendances->count();
+                $present = $attendances->where('status', 'present')->count();
+                $absent = $attendances->where('status', 'absent')->count();
+                $excused = $attendances->whereIn('status', ExcuseWorkflow::countedAsExcusedStatuses())->count();
+
+                return [
+                    'name' => $student->name,
+                    'student_number' => $student->student_number,
+                    'total' => $total,
+                    'present' => $present,
+                    'absent' => $absent,
+                    'excused' => $excused,
+                    'attendance_rate' => $total > 0 ? round((($present + $excused) / $total) * 100) : 0,
+                ];
+            });
+
+        $pdf = Pdf::loadView('doctor.reports.subject_report_app_pdf', [
+            'subject' => $subject,
+            'students' => $students,
+            'generatedAt' => now()->format('Y-m-d H:i'),
+        ]);
+        $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+        $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+        $pdf->getDomPDF()->set_option('defaultFont', 'DejaVu Sans');
+
+        return response($pdf->setPaper('a4', 'portrait')->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="doctor_subject_report_' . $subject->id . '_' . now()->format('Y-m-d_His') . '.pdf"',
         ]);
     }
 }
