@@ -39,7 +39,10 @@ class ExcuseController extends DoctorApiController
                 ->orWhere('student_number', 'like', "%{$request->search}%"));
         }
 
-        $excuses = $query->latest()->paginate(15);
+        $all = $request->boolean('all');
+        $excuses = $all
+            ? $query->latest()->get()
+            : $query->latest()->paginate(15);
 
         $statsRaw = Excuse::where(function ($query) {
                 $query->where('receiver_type', ExcuseWorkflow::RECEIVER_DOCTOR)
@@ -58,7 +61,8 @@ class ExcuseController extends DoctorApiController
             ")
             ->first();
 
-        $items = collect($excuses->items())->map(function ($excuse) {
+        $excuseItems = $all ? $excuses : collect($excuses->items());
+        $items = collect($excuseItems)->map(function ($excuse) {
             return [
                 'id' => $excuse->id,
                 'status' => $excuse->status,
@@ -94,10 +98,10 @@ class ExcuseController extends DoctorApiController
                 ->get(['id', 'name']),
             'excuses' => $items,
             'pagination' => [
-                'current_page' => $excuses->currentPage(),
-                'last_page' => $excuses->lastPage(),
-                'per_page' => $excuses->perPage(),
-                'total' => $excuses->total(),
+                'current_page' => $all ? 1 : $excuses->currentPage(),
+                'last_page' => $all ? 1 : $excuses->lastPage(),
+                'per_page' => $all ? $items->count() : $excuses->perPage(),
+                'total' => $all ? $items->count() : $excuses->total(),
             ],
         ]);
     }

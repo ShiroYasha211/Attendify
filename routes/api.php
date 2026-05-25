@@ -822,11 +822,14 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     // Grades
     Route::get('grades', [DoctorGradeController::class, 'index']);
     Route::get('grades/{subject}', [DoctorGradeController::class, 'show']);
+    Route::put('grades/{subject}/settings', [DoctorGradeController::class, 'updateSettings']);
     Route::post('grades/{subject}', [DoctorGradeController::class, 'store']);
     Route::get('grades/{subject}/report', [DoctorGradeController::class, 'report']);
+    Route::get('grades/{subject}/report/pdf', [DoctorGradeController::class, 'reportPdf']);
     Route::post('grades/{subject}/note/{student}', [DoctorGradeController::class, 'storeNote']);
     Route::get('grades/{subject}/categories', [DoctorGradeCategoryController::class, 'index']);
     Route::post('grades/{subject}/categories', [DoctorGradeCategoryController::class, 'store']);
+    Route::put('grades/categories/{category}', [DoctorGradeCategoryController::class, 'update']);
     Route::delete('grades/categories/{category}', [DoctorGradeCategoryController::class, 'destroy']);
     Route::get('grades/{subject}/delegations', [DoctorGradeCategoryController::class, 'delegations']);
     Route::post('grades/categories/{category}/delegate', [DoctorGradeCategoryController::class, 'delegate']);

@@ -33,7 +33,10 @@ class AssignmentController extends DoctorApiController
             $query->where('due_date', '<', now());
         }
 
-        $assignments = $query->latest()->paginate(15);
+        $all = $request->boolean('all');
+        $assignments = $all
+            ? $query->latest()->get()
+            : $query->latest()->paginate(15);
 
         $stats = [
             'total' => Assignment::whereIn('subject_id', $subjectIds)->count(),
@@ -47,12 +50,12 @@ class AssignmentController extends DoctorApiController
             'filters' => [
                 'subjects' => $subjects,
             ],
-            'assignments' => $assignments->items(),
+            'assignments' => $all ? $assignments->values() : $assignments->items(),
             'pagination' => [
-                'current_page' => $assignments->currentPage(),
-                'last_page' => $assignments->lastPage(),
-                'per_page' => $assignments->perPage(),
-                'total' => $assignments->total(),
+                'current_page' => $all ? 1 : $assignments->currentPage(),
+                'last_page' => $all ? 1 : $assignments->lastPage(),
+                'per_page' => $all ? $assignments->count() : $assignments->perPage(),
+                'total' => $all ? $assignments->count() : $assignments->total(),
             ],
         ]);
     }

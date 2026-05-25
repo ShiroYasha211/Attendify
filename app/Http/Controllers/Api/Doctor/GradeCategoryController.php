@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Doctor;
 
 use App\Enums\UserRole;
 use App\Models\Academic\Subject;
+use App\Models\Grade;
 use App\Models\GradeCategory;
 use App\Models\GradePermission;
 use App\Models\User;
@@ -18,11 +19,14 @@ class GradeCategoryController extends DoctorApiController
         $subject = Subject::where('doctor_id', Auth::id())->findOrFail($subjectId);
         $categories = GradeCategory::where('subject_id', $subjectId)
             ->withCount('grades')
-            ->with(['permissions.authorizedUser:id,name,student_number'])
+            ->with(['permissions.authorizedUser:id,name,student_number,role'])
             ->get();
 
         return $this->success([
-            'subject' => $subject->only(['id', 'name', 'major_id', 'level_id']),
+            'subject' => array_merge(
+                $subject->only(['id', 'name', 'major_id', 'level_id']),
+                ['grade_settings' => $subject->gradeSettingsPayload()]
+            ),
             'categories' => $categories,
             'total_max_score' => $categories->sum('max_score'),
         ]);
@@ -30,16 +34,17 @@ class GradeCategoryController extends DoctorApiController
 
     public function store(Request $request, int $subjectId)
     {
-        Subject::where('doctor_id', Auth::id())->findOrFail($subjectId);
+        $subject = Subject::where('doctor_id', Auth::id())->findOrFail($subjectId);
+        $continuousMaxScore = $subject->gradeContinuousMaxScore();
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'max_score' => 'required|numeric|min:0.5|max:40',
+            'max_score' => 'required|numeric|min:0.5|max:' . $continuousMaxScore,
         ]);
 
         $currentTotal = GradeCategory::where('subject_id', $subjectId)->sum('max_score');
-        if (($currentTotal + $validated['max_score']) > 40.01) {
-            return $this->error('إجمالي درجات أعمال السنة لا يمكن أن يتجاوز 40 درجة.', 422);
+        if (($currentTotal + $validated['max_score']) > ($continuousMaxScore + 0.01)) {
+            return $this->error('إجمالي درجات أعمال السنة لا يمكن أن يتجاوز الحد المحدد للمادة.', 422);
         }
 
         $category = GradeCategory::create([
@@ -52,6 +57,61 @@ class GradeCategoryController extends DoctorApiController
         return $this->success($category, 'تم إضافة تصنيف الدرجات بنجاح.', 201);
     }
 
+    public function update(Request $request, int $categoryId)
+    {
+        $category = GradeCategory::where('doctor_id', Auth::id())->findOrFail($categoryId);
+        $continuousMaxScore = $category->subject->gradeContinuousMaxScore();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'max_score' => 'required|numeric|min:0.5|max:' . $continuousMaxScore,
+        ]);
+
+        $currentTotal = GradeCategory::where('subject_id', $category->subject_id)
+            ->whereKeyNot($category->id)
+            ->sum('max_score');
+
+        if (($currentTotal + $validated['max_score']) > ($continuousMaxScore + 0.01)) {
+            return $this->error('إجمالي درجات أعمال السنة لا يمكن أن يتجاوز الحد المحدد للمادة.', 422);
+        }
+
+        $invalidStudents = Grade::where('category_id', $category->id)
+            ->where('score', '>', $validated['max_score'])
+            ->with('student:id,name,student_number')
+            ->orderByDesc('score')
+            ->get()
+            ->map(fn ($grade) => [
+                'student_id' => $grade->student_id,
+                'name' => $grade->student?->name,
+                'student_number' => $grade->student?->student_number,
+                'score' => $grade->score,
+            ])
+            ->values();
+
+        if ($invalidStudents->isNotEmpty()) {
+            return $this->error(
+                'لا يمكن تخفيض درجة التصنيف لأن هناك طلابًا لديهم درجات أعلى من الحد الجديد.',
+                422,
+                ['invalid_students' => $invalidStudents]
+            );
+        }
+
+        $category->update([
+            'name' => $validated['name'],
+            'max_score' => $validated['max_score'],
+        ]);
+
+        Grade::where('category_id', $category->id)->update([
+            'category' => $validated['name'],
+            'max_score' => $validated['max_score'],
+        ]);
+
+        return $this->success(
+            $category->loadCount('grades')->load('permissions.authorizedUser:id,name,student_number,role'),
+            'تم تحديث تصنيف الدرجات بنجاح.'
+        );
+    }
+
     public function delegations(int $subjectId)
     {
         $subject = Subject::where('doctor_id', Auth::id())->findOrFail($subjectId);
@@ -62,7 +122,7 @@ class GradeCategoryController extends DoctorApiController
 
         $students = $this->eligibleUsersQuery($subject)
             ->orderBy('name')
-            ->get(['id', 'name', 'student_number']);
+            ->get(['id', 'name', 'student_number', 'role']);
 
         return $this->success([
             'module' => [
