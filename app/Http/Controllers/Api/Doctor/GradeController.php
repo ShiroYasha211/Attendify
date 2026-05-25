@@ -344,18 +344,29 @@ class GradeController extends DoctorApiController
         $students = collect($data['students']);
         $generatedAt = now()->format('Y-m-d H:i');
 
-        $rows = $students->map(function ($student) {
-            $statusColor = $student['status'] === 'passed' ? '#047857' : '#b91c1c';
-            $statusLabel = $student['status'] === 'passed' ? 'ناجح' : 'راسب';
+        // تعريف دالة الاختصار لمعالجة وتشكيل النصوص العربية للـ PDF
+        $ar = fn($text) => \App\Helpers\ArabicHelper::fixArabic((string) $text, true);
+
+        // بناء صفوف الجدول مع تشكيل النصوص
+        $rows = $students->map(function ($student) use ($ar) {
+            $isPassed = $student['status'] === 'passed';
+            $statusBg = $isPassed ? '#e6f4ea' : '#fce8e6';
+            $statusColor = $isPassed ? '#137333' : '#c5221f';
+            $statusLabel = $isPassed ? 'ناجح' : 'راسب';
+            
             return '<tr>'
-                . '<td>' . e($student['rank']) . '</td>'
-                . '<td>' . e($student['name']) . '</td>'
-                . '<td>' . e($student['student_number']) . '</td>'
-                . '<td>' . e($student['continuous']) . '</td>'
-                . '<td>' . e($student['final'] ?? '-') . '</td>'
-                . '<td><strong>' . e($student['total']) . '</strong></td>'
-                . '<td>' . e($student['grade_label']) . '</td>'
-                . '<td style="color:' . $statusColor . ';font-weight:700">' . $statusLabel . '</td>'
+                . '<td style="text-align: center;">' . e($student['rank']) . '</td>'
+                . '<td style="text-align: right; font-weight: bold;">' . e($ar($student['name'])) . '</td>'
+                . '<td style="text-align: center; color: #475569;">' . e($student['student_number']) . '</td>'
+                . '<td style="text-align: center;">' . e($student['continuous']) . '</td>'
+                . '<td style="text-align: center;">' . e($student['final'] ?? '-') . '</td>'
+                . '<td style="text-align: center; font-size: 13px; color: #163f8f;"><strong>' . e($student['total']) . '</strong></td>'
+                . '<td style="text-align: center;">' . e($ar($student['grade_label'])) . '</td>'
+                . '<td style="text-align: center;">'
+                . '<span style="background-color:' . $statusBg . '; color:' . $statusColor . '; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 10px; display: inline-block;">' 
+                . e($ar($statusLabel)) 
+                . '</span>'
+                . '</td>'
                 . '</tr>';
         })->implode('');
 
@@ -365,53 +376,189 @@ class GradeController extends DoctorApiController
 <head>
 <meta charset="utf-8">
 <style>
-body { direction: rtl; font-family: DejaVu Sans, sans-serif; color: #0f172a; font-size: 12px; }
-.hero { background: #163f8f; color: #fff; padding: 18px 22px; border-radius: 16px; margin-bottom: 18px; }
-h1 { margin: 0 0 6px; font-size: 22px; }
-.muted { color: #64748b; }
-.hero .muted { color: #dbeafe; }
-.stats { width: 100%; border-collapse: separate; border-spacing: 8px; margin-bottom: 16px; }
-.stats td { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; }
-.label { color: #64748b; font-size: 10px; }
-.value { font-size: 16px; font-weight: 800; margin-top: 3px; }
-table.data { width: 100%; border-collapse: collapse; }
-table.data th { background: #eef2ff; color: #1e3a8a; padding: 9px 7px; text-align: right; }
-table.data td { border-bottom: 1px solid #e5e7eb; padding: 8px 7px; }
-table.data tr:nth-child(even) td { background: #f8fafc; }
+@page {
+    margin: 30px 35px;
+}
+body { 
+    direction: rtl; 
+    font-family: DejaVu Sans, sans-serif; 
+    color: #0f172a; 
+    font-size: 11px; 
+    line-height: 1.4;
+}
+.header {
+    border-bottom: 2px double #163f8f;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+}
+.header-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.header-table td {
+    border: none;
+    padding: 0;
+}
+.header-right {
+    text-align: right;
+}
+.header-left {
+    text-align: left;
+    color: #475569;
+}
+h1 { 
+    margin: 0 0 6px; 
+    font-size: 20px; 
+    color: #163f8f;
+}
+.subtitle {
+    font-size: 12px;
+    color: #475569;
+}
+.stats { 
+    width: 100%; 
+    border-collapse: separate; 
+    border-spacing: 10px; 
+    margin-bottom: 22px; 
+}
+.stats td { 
+    background: #f8fafc; 
+    border: 1px solid #e2e8f0; 
+    border-radius: 12px; 
+    padding: 12px; 
+    text-align: center;
+    width: 33.33%;
+}
+.label { 
+    color: #64748b; 
+    font-size: 10px; 
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.value { 
+    font-size: 16px; 
+    font-weight: 800; 
+    color: #0f172a;
+}
+.value-highlight {
+    color: #163f8f;
+}
+table.data { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-bottom: 30px;
+}
+table.data th { 
+    background: #f1f5f9; 
+    color: #1e293b; 
+    padding: 10px 8px; 
+    font-weight: bold;
+    border-bottom: 2px solid #cbd5e1;
+    font-size: 11px;
+}
+table.data td { 
+    border-bottom: 1px solid #e2e8f0; 
+    padding: 9px 8px; 
+    vertical-align: middle;
+}
+table.data tr:nth-child(even) td { 
+    background: #f8fafc; 
+}
+.footer {
+    margin-top: 40px;
+    padding-top: 15px;
+}
+.signature-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+.signature-table td {
+    border: none;
+    width: 50%;
+    color: #334155;
+    font-size: 11px;
+}
 </style>
 </head>
 <body>
-  <div class="hero">
-    <h1>تقرير درجات {$subject['name']}</h1>
-    <div class="muted">{$subject['major']} - {$subject['level']} | تاريخ التصدير: {$generatedAt}</div>
+  <div class="header">
+    <table class="header-table">
+      <tr>
+        <td class="header-right">
+          <h1>{$ar('تقرير رصد درجات الطلاب')}</h1>
+          <div class="subtitle"><strong>{$ar('المادة:')}</strong> {$ar($subject['name'])}</div>
+        </td>
+        <td class="header-left">
+          <div><strong>{$ar('القسم / المستوى:')}</strong> {$ar($subject['major'])} - {$ar($subject['level'])}</div>
+          <div style="margin-top: 4px;"><strong>{$ar('تاريخ التصدير:')}</strong> {$generatedAt}</div>
+        </td>
+      </tr>
+    </table>
   </div>
+
   <table class="stats">
     <tr>
-      <td><div class="label">عدد الطلاب</div><div class="value">{$stats['students_count']}</div></td>
-      <td><div class="label">المتوسط</div><div class="value">{$stats['average']}</div></td>
-      <td><div class="label">نسبة النجاح</div><div class="value">{$stats['pass_rate']}%</div></td>
+      <td>
+        <div class="label">{$ar('إجمالي الطلاب')}</div>
+        <div class="value">{$stats['students_count']}</div>
+      </td>
+      <td>
+        <div class="label">{$ar('المتوسط العام')}</div>
+        <div class="value value-highlight">{$stats['average']}</div>
+      </td>
+      <td>
+        <div class="label">{$ar('نسبة النجاح')}</div>
+        <div class="value" style="color: #137333;">{$stats['pass_rate']}%</div>
+      </td>
     </tr>
     <tr>
-      <td><div class="label">الأعلى</div><div class="value">{$stats['highest']}</div></td>
-      <td><div class="label">الأدنى</div><div class="value">{$stats['lowest']}</div></td>
-      <td><div class="label">ناجح / راسب</div><div class="value">{$stats['passed']} / {$stats['failed']}</div></td>
+      <td>
+        <div class="label">{$ar('الدرجة الأعلى')}</div>
+        <div class="value" style="color: #137333;">{$stats['highest']}</div>
+      </td>
+      <td>
+        <div class="label">{$ar('الدرجة الأدنى')}</div>
+        <div class="value" style="color: #c5221f;">{$stats['lowest']}</div>
+      </td>
+      <td>
+        <div class="label">{$ar('ناجح / راسب')}</div>
+        <div class="value">{$stats['passed']} / {$stats['failed']}</div>
+      </td>
     </tr>
   </table>
+
   <table class="data">
     <thead>
       <tr>
-        <th>الترتيب</th>
-        <th>الطالب</th>
-        <th>رقم القيد</th>
-        <th>أعمال السنة</th>
-        <th>النهائي</th>
-        <th>المجموع</th>
-        <th>التقدير</th>
-        <th>الحالة</th>
+        <th style="width: 8%; text-align: center;">{$ar('الترتيب')}</th>
+        <th style="width: 32%; text-align: right;">{$ar('اسم الطالب')}</th>
+        <th style="width: 15%; text-align: center;">{$ar('رقم القيد')}</th>
+        <th style="width: 12%; text-align: center;">{$ar('أعمال السنة')}</th>
+        <th style="width: 11%; text-align: center;">{$ar('النهائي')}</th>
+        <th style="width: 11%; text-align: center;">{$ar('المجموع')}</th>
+        <th style="width: 11%; text-align: center;">{$ar('التقدير')}</th>
+        <th style="width: 10%; text-align: center;">{$ar('الحالة')}</th>
       </tr>
     </thead>
     <tbody>{$rows}</tbody>
   </table>
+
+  <div class="footer">
+    <table class="signature-table">
+      <tr>
+        <td style="text-align: right;">
+          <strong>{$ar('توقيع أستاذ المادة:')}</strong> _______________________
+        </td>
+        <td style="text-align: left;">
+          <strong>{$ar('اعتماد رئيس القسم:')}</strong> _______________________
+        </td>
+      </tr>
+    </table>
+    <div style="text-align: center; margin-top: 35px; color: #94a3b8; font-size: 9px;">
+      {$ar('تم توليد هذا التقرير آلياً بواسطة نظام معين لإدارة الكليات والدرجات')}
+    </div>
+  </div>
 </body>
 </html>
 HTML;
