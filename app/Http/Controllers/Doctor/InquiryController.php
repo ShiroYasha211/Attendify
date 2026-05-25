@@ -27,6 +27,22 @@ class InquiryController extends Controller
             $query->where('status', $status);
         }
 
+        if ($request->filled('subject_id')) {
+            $query->where('subject_id', $request->subject_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->trim()->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('question', 'like', "%{$search}%")
+                  ->orWhereHas('student', function ($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%")
+                        ->orWhere('student_number', 'like', "%{$search}%");
+                  });
+            });
+        }
+
         $inquiries = $query->paginate(15);
 
         $statsRaw = Inquiry::visibleToDoctor($user->id)

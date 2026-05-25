@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Administrative;
 
 use App\Http\Controllers\Api\Administrative\AdministrativeApiController;
+use App\Support\ExcuseWorkflow;
 use Illuminate\Http\Request;
 
 class ApiCollegeSettingsController extends AdministrativeApiController
@@ -32,6 +33,11 @@ class ApiCollegeSettingsController extends AdministrativeApiController
 
         $college = $this->college();
         $college->update($validated);
+        $transferredExcuses = 0;
+
+        if (ExcuseWorkflow::normalizeReceiver($college->excuse_receiver) === ExcuseWorkflow::RECEIVER_DOCTOR) {
+            $transferredExcuses = ExcuseWorkflow::transferPendingAdministrativeExcusesToDoctors($college);
+        }
 
         return $this->success([
             'id' => $college->id,
@@ -39,6 +45,7 @@ class ApiCollegeSettingsController extends AdministrativeApiController
             'excuses_deadline_days' => $college->excuses_deadline_days,
             'excuse_receiver' => $college->excuse_receiver,
             'qr_rotation_seconds' => $college->qr_rotation_seconds,
+            'transferred_pending_excuses' => $transferredExcuses,
         ], 'College settings updated successfully.');
     }
 }

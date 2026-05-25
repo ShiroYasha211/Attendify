@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Academic\College;
 use App\Models\Attendance;
+use App\Models\Excuse;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -90,6 +91,50 @@ class ExcuseWorkflow
             'receiver_id' => $receiverId,
             'receiver_label' => self::receiverLabel($receiverType),
         ];
+    }
+
+    public static function scopeDoctorQueue($query, int $doctorId)
+    {
+        return $query
+            ->where(function ($query) {
+                $query->where('receiver_type', self::RECEIVER_DOCTOR)
+                    ->orWhereNull('receiver_type');
+            })
+            ->where(function ($query) use ($doctorId) {
+                $query->whereNull('receiver_id')
+                    ->orWhere('receiver_id', $doctorId);
+            })
+            ->whereHas('attendance.subject', fn ($query) => $query->where('doctor_id', $doctorId));
+    }
+
+    public static function transferPendingAdministrativeExcusesToDoctors(College $college): int
+    {
+        $transferred = 0;
+
+        Excuse::query()
+            ->where('status', 'pending')
+            ->where('receiver_type', self::RECEIVER_ADMINISTRATIVE)
+            ->whereHas('student', fn ($query) => $query->where('college_id', $college->id))
+            ->whereHas('attendance.subject', fn ($query) => $query->whereNotNull('doctor_id'))
+            ->with('attendance.subject:id,doctor_id')
+            ->chunkById(100, function ($excuses) use (&$transferred) {
+                foreach ($excuses as $excuse) {
+                    $doctorId = $excuse->attendance?->subject?->doctor_id;
+
+                    if (!$doctorId) {
+                        continue;
+                    }
+
+                    $excuse->update([
+                        'receiver_type' => self::RECEIVER_DOCTOR,
+                        'receiver_id' => $doctorId,
+                    ]);
+
+                    $transferred++;
+                }
+            });
+
+        return $transferred;
     }
 
     public static function receiverLabel(?string $receiver): string

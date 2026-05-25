@@ -11,6 +11,7 @@ use App\Models\Academic\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class QuizController extends StudentApiController
 {
@@ -198,15 +199,29 @@ class QuizController extends StudentApiController
             $attempt = $existingAttempt;
             $quizModel = $attempt->quizModel;
         } else {
-            $quizModel = $quiz->models()->inRandomOrder()->first();
+            $requiresAccessCode = $quiz->models()
+                ->whereNotNull('access_code')
+                ->where('access_code', '!=', '')
+                ->exists();
+
+            if ($requiresAccessCode) {
+                $accessCode = $this->normalizeAccessCode($request->get('access_code'));
+
+                if (!$accessCode) {
+                    return $this->error('رمز الدخول مطلوب', 403, ['requires_access_code' => true]);
+                }
+
+                $quizModel = $quiz->models()->where('access_code', $accessCode)->first();
+
+                if (!$quizModel) {
+                    return $this->error('رمز الدخول غير صحيح', 403, ['requires_access_code' => true]);
+                }
+            } else {
+                $quizModel = $quiz->models()->inRandomOrder()->first();
+            }
 
             if (!$quizModel) {
                 return $this->error('لا توجد نماذج متاحة لهذا الكويز', 404);
-            }
-
-            // Handle access code
-            if ($quizModel->access_code && $request->get('access_code') !== $quizModel->access_code) {
-                return $this->error('رمز الدخول غير صحيح', 403, ['requires_access_code' => true]);
             }
 
             // Create attempt
@@ -321,5 +336,12 @@ class QuizController extends StudentApiController
                 'unanswered_answers_count' => $attempt->answers()->where('answer_status', 'unanswered')->count(),
             ]),
         ], 'تم جلب النتيجة بنجاح');
+    }
+
+    protected function normalizeAccessCode(?string $code): ?string
+    {
+        $code = trim((string) $code);
+
+        return $code === '' ? null : Str::upper($code);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Administrative;
 
 use App\Http\Controllers\Controller;
+use App\Support\ExcuseWorkflow;
 use Illuminate\Http\Request;
 
 class CollegeSettingsController extends Controller
@@ -26,7 +27,17 @@ class CollegeSettingsController extends Controller
         ]);
 
         $college->update($validated);
+        $transferredExcuses = 0;
 
-        return back()->with('success', 'College settings updated successfully.');
+        if (ExcuseWorkflow::normalizeReceiver($college->excuse_receiver) === ExcuseWorkflow::RECEIVER_DOCTOR) {
+            $transferredExcuses = ExcuseWorkflow::transferPendingAdministrativeExcusesToDoctors($college);
+        }
+
+        $message = 'College settings updated successfully.';
+        if ($transferredExcuses > 0) {
+            $message .= " {$transferredExcuses} pending excuses were routed to subject doctors.";
+        }
+
+        return back()->with('success', $message);
     }
 }

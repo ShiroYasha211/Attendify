@@ -14,20 +14,11 @@ class ExcuseController extends Controller
 {
     public function index(Request $request)
     {
-        $subjectIds = Subject::where('doctor_id', Auth::id())->pluck('id');
+        $doctorId = Auth::id();
+        $subjectIds = Subject::where('doctor_id', $doctorId)->pluck('id');
         $status = $request->get('status', 'pending');
 
-        $query = Excuse::where(function ($query) {
-                $query->where('receiver_type', ExcuseWorkflow::RECEIVER_DOCTOR)
-                    ->orWhereNull('receiver_type');
-            })
-            ->where(function ($query) {
-                $query->whereNull('receiver_id')
-                    ->orWhere('receiver_id', Auth::id());
-            })
-            ->whereHas('attendance', function ($query) use ($subjectIds) {
-                $query->whereIn('subject_id', $subjectIds);
-            })
+        $query = ExcuseWorkflow::scopeDoctorQueue(Excuse::query(), $doctorId)
             ->with(['student', 'attendance.subject', 'reviewer', 'attachments']);
 
         if ($status && $status !== 'all') {
@@ -49,15 +40,7 @@ class ExcuseController extends Controller
 
         $excuses = $query->latest()->paginate(15)->withQueryString();
 
-        $statsRaw = Excuse::where(function ($query) {
-                $query->where('receiver_type', ExcuseWorkflow::RECEIVER_DOCTOR)
-                    ->orWhereNull('receiver_type');
-            })
-            ->where(function ($query) {
-                $query->whereNull('receiver_id')
-                    ->orWhere('receiver_id', Auth::id());
-            })
-            ->whereHas('attendance', fn ($query) => $query->whereIn('subject_id', $subjectIds))
+        $statsRaw = ExcuseWorkflow::scopeDoctorQueue(Excuse::query(), $doctorId)
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,

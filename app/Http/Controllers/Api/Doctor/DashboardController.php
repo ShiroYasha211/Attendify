@@ -14,6 +14,7 @@ use App\Models\Inquiry;
 use App\Models\Grade;
 use App\Models\StudentNotification;
 use App\Enums\UserRole;
+use App\Support\ExcuseWorkflow;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -37,8 +38,9 @@ class DashboardController extends DoctorApiController
             })->count();
 
         // Pending excuses
-        $pendingExcuses = Excuse::whereHas('attendance', fn($q) => $q->whereIn('subject_id', $subjectIds))
-            ->where('status', 'pending')->count();
+        $pendingExcuses = ExcuseWorkflow::scopeDoctorQueue(Excuse::query(), $doctor->id)
+            ->where('status', 'pending')
+            ->count();
 
         // Pending inquiries
         $pendingInquiries = Inquiry::whereIn('subject_id', $subjectIds)->where('status', 'forwarded')->count();
@@ -103,7 +105,7 @@ class DashboardController extends DoctorApiController
             ];
         });
 
-        $recentExcuses = Excuse::whereHas('attendance', fn ($q) => $q->whereIn('subject_id', $subjectIds))
+        $recentExcuses = ExcuseWorkflow::scopeDoctorQueue(Excuse::query(), $doctor->id)
             ->with(['student', 'attendance.subject'])
             ->latest()
             ->take(5)

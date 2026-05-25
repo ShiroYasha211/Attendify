@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class QuizController extends DoctorApiController
 {
@@ -78,6 +79,12 @@ class QuizController extends DoctorApiController
             'closes_at' => 'nullable|date|after:scheduled_at',
             'models' => 'required|array|min:1',
             'models.*.name' => 'required|string|max:100',
+            'models.*.access_code' => [
+                'nullable',
+                Rule::requiredIf(fn () => $request->boolean('use_access_code')),
+                'string',
+                'max:50',
+            ],
             'models.*.questions' => 'required|array|min:1',
             'models.*.questions.*.question_text' => 'required|string',
             'models.*.questions.*.question_type' => 'required|in:multiple_choice,true_false',
@@ -184,6 +191,12 @@ class QuizController extends DoctorApiController
             $rules += [
                 'models' => 'required|array|min:1',
                 'models.*.name' => 'required|string|max:100',
+                'models.*.access_code' => [
+                    'nullable',
+                    Rule::requiredIf(fn () => $request->boolean('use_access_code')),
+                    'string',
+                    'max:50',
+                ],
                 'models.*.questions' => 'required|array|min:1',
                 'models.*.questions.*.question_text' => 'required|string',
                 'models.*.questions.*.question_type' => 'required|in:multiple_choice,true_false',
@@ -251,6 +264,8 @@ class QuizController extends DoctorApiController
     public function results(Quiz $quiz)
     {
         [$quiz, $attempts] = $this->quizResultsData($quiz);
+        $formattedAttempts = $attempts->map(fn (QuizAttempt $attempt) => $this->formatResultAttempt($attempt))->values();
+        $percentages = $formattedAttempts->pluck('percentage')->filter(fn ($value) => $value !== null);
 
         return $this->success([
             'quiz' => [
@@ -262,7 +277,13 @@ class QuizController extends DoctorApiController
                 'major_name' => $quiz->subject?->major?->name,
                 'level_name' => $quiz->subject?->level?->name,
             ],
-            'attempts' => $attempts,
+            'stats' => [
+                'total_attempts' => $formattedAttempts->count(),
+                'avg_score' => $percentages->isEmpty() ? 0 : round($percentages->avg(), 1),
+                'highest_score' => $percentages->isEmpty() ? 0 : round($percentages->max(), 1),
+                'lowest_score' => $percentages->isEmpty() ? 0 : round($percentages->min(), 1),
+            ],
+            'attempts' => $formattedAttempts,
         ]);
     }
 
@@ -357,10 +378,14 @@ class QuizController extends DoctorApiController
     ): void
     {
         foreach ($models as $modelData) {
+            $accessCode = $useAccessCode
+                ? $this->normalizeAccessCode($modelData['access_code'] ?? null)
+                : null;
+
             $quizModel = QuizModel::create([
                 'quiz_id' => $quiz->id,
                 'name' => $modelData['name'],
-                'access_code' => $useAccessCode ? strtoupper(Str::random(6)) : null,
+                'access_code' => $accessCode,
             ]);
 
             foreach ($modelData['questions'] as $qIndex => $questionData) {
@@ -385,6 +410,41 @@ class QuizController extends DoctorApiController
                 }
             }
         }
+    }
+
+    protected function normalizeAccessCode(?string $code): ?string
+    {
+        $code = trim((string) $code);
+
+        return $code === '' ? null : Str::upper($code);
+    }
+
+    protected function formatResultAttempt(QuizAttempt $attempt): array
+    {
+        return [
+            'id' => $attempt->id,
+            'quiz_id' => $attempt->quiz_id,
+            'student' => $attempt->student ? [
+                'id' => $attempt->student->id,
+                'name' => $attempt->student->name,
+                'student_number' => $attempt->student->student_number,
+            ] : null,
+            'quiz_model' => $attempt->quizModel ? [
+                'id' => $attempt->quizModel->id,
+                'name' => $attempt->quizModel->name,
+            ] : null,
+            'score' => (float) ($attempt->score ?? 0),
+            'max_score' => (float) ($attempt->max_score ?? 0),
+            'percentage' => (float) $attempt->percentage,
+            'correct_count' => (int) $attempt->correct_count,
+            'wrong_count' => (int) $attempt->wrong_count,
+            'duration' => $attempt->duration,
+            'status' => $attempt->status,
+            'status_label' => $attempt->status_label,
+            'submitted_at' => $attempt->submitted_at?->toIso8601String(),
+            'submitted_at_label' => $attempt->submitted_at?->format('Y-m-d H:i'),
+            'started_at' => $attempt->started_at?->toIso8601String(),
+        ];
     }
 
     protected function quizResultsData(Quiz $quiz): array
