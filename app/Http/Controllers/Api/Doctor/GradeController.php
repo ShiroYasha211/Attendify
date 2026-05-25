@@ -347,7 +347,7 @@ class GradeController extends DoctorApiController
         // تعريف دالة الاختصار لمعالجة وتشكيل النصوص العربية للـ PDF
         $ar = fn($text) => \App\Helpers\ArabicHelper::fixArabic((string) $text, true);
 
-        // بناء صفوف الجدول مع تشكيل النصوص
+        // بناء صفوف الجدول مع تشكيل النصوص (معكوسة الترتيب برمجياً لتظهر من اليمين لليسار)
         $rows = $students->map(function ($student) use ($ar) {
             $isPassed = $student['status'] === 'passed';
             $statusBg = $isPassed ? '#e6f4ea' : '#fce8e6';
@@ -355,24 +355,24 @@ class GradeController extends DoctorApiController
             $statusLabel = $isPassed ? 'ناجح' : 'راسب';
             
             return '<tr>'
-                . '<td style="text-align: center;">' . e($student['rank']) . '</td>'
-                . '<td style="text-align: right; font-weight: bold;">' . e($ar($student['name'])) . '</td>'
-                . '<td style="text-align: center; color: #475569;">' . e($student['student_number']) . '</td>'
-                . '<td style="text-align: center;">' . e($student['continuous']) . '</td>'
-                . '<td style="text-align: center;">' . e($student['final'] ?? '-') . '</td>'
-                . '<td style="text-align: center; font-size: 13px; color: #163f8f;"><strong>' . e($student['total']) . '</strong></td>'
-                . '<td style="text-align: center;">' . e($ar($student['grade_label'])) . '</td>'
                 . '<td style="text-align: center;">'
                 . '<span style="background-color:' . $statusBg . '; color:' . $statusColor . '; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 10px; display: inline-block;">' 
                 . e($ar($statusLabel)) 
                 . '</span>'
                 . '</td>'
+                . '<td style="text-align: center;">' . e($ar($student['grade_label'])) . '</td>'
+                . '<td style="text-align: center; font-size: 13px; color: #163f8f;"><strong>' . e($student['total']) . '</strong></td>'
+                . '<td style="text-align: center;">' . e($student['final'] ?? '-') . '</td>'
+                . '<td style="text-align: center;">' . e($student['continuous']) . '</td>'
+                . '<td style="text-align: center; color: #475569;">' . e($student['student_number']) . '</td>'
+                . '<td style="text-align: right; font-weight: bold;">' . e($ar($student['name'])) . '</td>'
+                . '<td style="text-align: center;">' . e($student['rank']) . '</td>'
                 . '</tr>';
         })->implode('');
 
         $html = <<<HTML
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
 <meta charset="utf-8">
 <style>
@@ -380,16 +380,18 @@ class GradeController extends DoctorApiController
     margin: 30px 35px;
 }
 body { 
-    direction: rtl; 
+    direction: ltr; 
     font-family: DejaVu Sans, sans-serif; 
     color: #0f172a; 
     font-size: 11px; 
     line-height: 1.4;
+    text-align: right;
 }
 .header {
     border-bottom: 2px double #163f8f;
     padding-bottom: 12px;
     margin-bottom: 20px;
+    direction: ltr;
 }
 .header-table {
     width: 100%;
@@ -398,6 +400,7 @@ body {
 .header-table td {
     border: none;
     padding: 0;
+    vertical-align: top;
 }
 .header-right {
     text-align: right;
@@ -420,6 +423,7 @@ h1 {
     border-collapse: separate; 
     border-spacing: 10px; 
     margin-bottom: 22px; 
+    direction: ltr;
 }
 .stats td { 
     background: #f8fafc; 
@@ -447,6 +451,7 @@ table.data {
     width: 100%; 
     border-collapse: collapse; 
     margin-bottom: 30px;
+    direction: ltr;
 }
 table.data th { 
     background: #f1f5f9; 
@@ -467,6 +472,7 @@ table.data tr:nth-child(even) td {
 .footer {
     margin-top: 40px;
     padding-top: 15px;
+    direction: ltr;
 }
 .signature-table {
     width: 100%;
@@ -485,13 +491,15 @@ table.data tr:nth-child(even) td {
   <div class="header">
     <table class="header-table">
       <tr>
-        <td class="header-right">
-          <h1>{$ar('تقرير رصد درجات الطلاب')}</h1>
-          <div class="subtitle"><strong>{$ar('المادة:')}</strong> {$ar($subject['name'])}</div>
-        </td>
+        <!-- معلومات المستوى والقسم تظهر لليسار بصرياً فتوضع أولاً في كود الـ LTR -->
         <td class="header-left">
           <div><strong>{$ar('القسم / المستوى:')}</strong> {$ar($subject['major'])} - {$ar($subject['level'])}</div>
           <div style="margin-top: 4px;"><strong>{$ar('تاريخ التصدير:')}</strong> {$generatedAt}</div>
+        </td>
+        <!-- عنوان المادة والتقرير يظهر لليمين بصرياً فيوضع ثانياً في كود الـ LTR -->
+        <td class="header-right">
+          <h1>{$ar('تقرير رصد درجات الطلاب')}</h1>
+          <div class="subtitle"><strong>{$ar('المادة:')}</strong> {$ar($subject['name'])}</div>
         </td>
       </tr>
     </table>
@@ -530,15 +538,16 @@ table.data tr:nth-child(even) td {
 
   <table class="data">
     <thead>
+      <!-- ترتيب عناوين الأعمدة معكوس برمجياً لتظهر من اليمين لليسار بصرياً -->
       <tr>
-        <th style="width: 8%; text-align: center;">{$ar('الترتيب')}</th>
-        <th style="width: 32%; text-align: right;">{$ar('اسم الطالب')}</th>
-        <th style="width: 15%; text-align: center;">{$ar('رقم القيد')}</th>
-        <th style="width: 12%; text-align: center;">{$ar('أعمال السنة')}</th>
-        <th style="width: 11%; text-align: center;">{$ar('النهائي')}</th>
-        <th style="width: 11%; text-align: center;">{$ar('المجموع')}</th>
-        <th style="width: 11%; text-align: center;">{$ar('التقدير')}</th>
         <th style="width: 10%; text-align: center;">{$ar('الحالة')}</th>
+        <th style="width: 11%; text-align: center;">{$ar('التقدير')}</th>
+        <th style="width: 11%; text-align: center;">{$ar('المجموع')}</th>
+        <th style="width: 11%; text-align: center;">{$ar('النهائي')}</th>
+        <th style="width: 12%; text-align: center;">{$ar('أعمال السنة')}</th>
+        <th style="width: 15%; text-align: center;">{$ar('رقم القيد')}</th>
+        <th style="width: 32%; text-align: right;">{$ar('اسم الطالب')}</th>
+        <th style="width: 8%; text-align: center;">{$ar('الترتيب')}</th>
       </tr>
     </thead>
     <tbody>{$rows}</tbody>
@@ -547,11 +556,13 @@ table.data tr:nth-child(even) td {
   <div class="footer">
     <table class="signature-table">
       <tr>
-        <td style="text-align: right;">
-          <strong>{$ar('توقيع أستاذ المادة:')}</strong> _______________________
-        </td>
-        <td style="text-align: left;">
+        <!-- توقيع رئيس القسم يظهر يساراً فيوضع أولاً في كود الـ LTR -->
+        <td class="header-left" style="text-align: left;">
           <strong>{$ar('اعتماد رئيس القسم:')}</strong> _______________________
+        </td>
+        <!-- توقيع أستاذ المادة يظهر يميناً فيوضع ثانياً في كود الـ LTR -->
+        <td class="header-right" style="text-align: right;">
+          <strong>{$ar('توقيع أستاذ المادة:')}</strong> _______________________
         </td>
       </tr>
     </table>
