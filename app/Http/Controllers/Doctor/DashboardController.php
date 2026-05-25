@@ -11,6 +11,7 @@ use App\Models\Excuse;
 use App\Models\Inquiry;
 use App\Models\DoctorConversation;
 use App\Models\Grade;
+use App\Models\QrAttendanceSession;
 use App\Models\StudentNotification;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
@@ -198,7 +199,7 @@ class DashboardController extends Controller
         }
 
         // Fetch students for this subject (same logic: match major/level)
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['attendances' => function ($query) use ($subject) {

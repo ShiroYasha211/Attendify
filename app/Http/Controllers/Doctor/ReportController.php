@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Doctor;
 use App\Http\Controllers\Controller;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
+use App\Models\QrAttendanceSession;
 use App\Models\User;
-use App\Enums\UserRole;
 use App\Support\ExcuseWorkflow;
 use Illuminate\Support\Facades\Auth;
 
@@ -19,7 +19,7 @@ class ReportController extends Controller
             ->get();
 
         // Students count per subject (by major/level)
-        $studentsCountPerSubject = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $studentsCountPerSubject = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', \Illuminate\Support\Facades\DB::raw('count(*) as count'))

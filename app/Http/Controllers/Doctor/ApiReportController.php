@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Doctor;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Api\Doctor\DoctorApiController;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
+use App\Models\QrAttendanceSession;
 use App\Models\User;
 use App\Support\ExcuseWorkflow;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -30,7 +30,7 @@ class ApiReportController extends DoctorApiController
                 DB::raw('COUNT(DISTINCT date) as lectures_count')
             )->groupBy('subject_id')->get()->keyBy('subject_id');
 
-        $studentsCountPerSubject = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $studentsCountPerSubject = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->whereIn('major_id', $subjects->pluck('major_id')->unique())
             ->whereIn('level_id', $subjects->pluck('level_id')->unique())
             ->select('major_id', 'level_id', DB::raw('count(*) as count'))
@@ -68,7 +68,7 @@ class ApiReportController extends DoctorApiController
             return $this->error('Unauthorized.', 403);
         }
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['attendances' => fn ($query) => $query->where('subject_id', $subject->id)])
@@ -110,7 +110,7 @@ class ApiReportController extends DoctorApiController
 
         $subject->loadMissing(['major.college.university', 'level', 'term']);
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', QrAttendanceSession::PARTICIPANT_ROLES)
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id)
             ->with(['attendances' => fn ($query) => $query->where('subject_id', $subject->id)])
