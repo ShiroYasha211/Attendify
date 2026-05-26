@@ -13,6 +13,7 @@ use App\Models\Excuse;
 use App\Models\Inquiry;
 use App\Models\Grade;
 use App\Models\StudentNotification;
+use App\Models\DoctorMessage;
 use App\Enums\UserRole;
 use App\Support\ExcuseWorkflow;
 use Carbon\Carbon;
@@ -180,6 +181,28 @@ class DashboardController extends DoctorApiController
             'today_schedule' => $todaySchedule,
             'recent_activities' => $recentActivities,
             'admin_announcements' => $adminAnnouncements,
+        ]);
+    }
+
+    public function badges()
+    {
+        $doctor = Auth::user();
+        $subjectIds = Subject::where('doctor_id', $doctor->id)->pluck('id');
+
+        return $this->success([
+            'notifications_unread' => StudentNotification::where('user_id', $doctor->id)
+                ->unread()
+                ->count(),
+            'messages_unread' => DoctorMessage::whereHas(
+                    'conversation',
+                    fn ($query) => $query->where('doctor_id', $doctor->id)
+                )
+                ->where('sender_id', '!=', $doctor->id)
+                ->whereNull('read_at')
+                ->count(),
+            'inquiries_pending' => Inquiry::whereIn('subject_id', $subjectIds)
+                ->where('status', 'forwarded')
+                ->count(),
         ]);
     }
 

@@ -96,11 +96,11 @@ class CourseResource extends Model
             $q->where('lecturer_name', $name);
         })->when($filters['file_type'] ?? null, function ($q, $type) {
             if ($type === 'pdf') $q->where('file_type', 'pdf');
-            elseif ($type === 'powerpoint') $q->whereIn('file_type', ['ppt', 'pptx']);
-            elseif ($type === 'word') $q->whereIn('file_type', ['doc', 'docx']);
-            elseif ($type === 'excel') $q->whereIn('file_type', ['xls', 'xlsx']);
-            elseif ($type === 'images') $q->whereIn('file_type', ['jpg', 'jpeg', 'png']);
-            elseif ($type === 'compressed') $q->whereIn('file_type', ['zip', 'rar']);
+            elseif (in_array($type, ['powerpoint', 'ppt', 'pptx'], true)) $q->whereIn('file_type', ['ppt', 'pptx']);
+            elseif (in_array($type, ['word', 'doc', 'docx'], true)) $q->whereIn('file_type', ['doc', 'docx']);
+            elseif (in_array($type, ['excel', 'xls', 'xlsx'], true)) $q->whereIn('file_type', ['xls', 'xlsx']);
+            elseif (in_array($type, ['images', 'jpg', 'jpeg', 'png'], true)) $q->whereIn('file_type', ['jpg', 'jpeg', 'png']);
+            elseif (in_array($type, ['compressed', 'zip', 'rar'], true)) $q->whereIn('file_type', ['zip', 'rar']);
         })->when($filters['uploader_role'] ?? null, function ($q, $role) {
             $q->whereHas('uploader', fn($u) => $u->where('role', $role));
         })->when($filters['year'] ?? null, function ($q, $year) {

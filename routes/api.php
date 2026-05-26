@@ -768,6 +768,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
 
     // Dashboard
     Route::get('dashboard', [DoctorDashboardController::class, 'index']);
+    Route::get('badges', [DoctorDashboardController::class, 'badges']);
 
     // Financial & Subscription
     Route::get('ledger', [DoctorFinancialController::class, 'ledger']);

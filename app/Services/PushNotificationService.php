@@ -178,6 +178,7 @@ class PushNotificationService
             'attendance', 'absence_warning', 'lecture_report' => 'attendance',
             'resource' => 'resources',
             'library' => 'library',
+            'rare_case', 'rare_cases' => 'rare_case',
             'exam', 'announcement', 'poll', 'alert' => $workspace === 'doctor' || $workspace === 'delegate' ? 'news' : 'news_hub',
             default => 'notifications',
         };

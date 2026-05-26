@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Api\Doctor\Clinical;
 
 use App\Http\Controllers\Api\Doctor\DoctorApiController;
-use App\Models\Academic\Major;
 use App\Models\Clinical\RareCase;
+use App\Models\StudentNotification;
 use App\Models\User;
-use App\Notifications\Clinical\RareCaseAnnounced;
+use App\Enums\UserRole;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class RareCaseController extends DoctorApiController
 {
@@ -49,11 +51,12 @@ class RareCaseController extends DoctorApiController
 
         $rareCase = RareCase::create($data);
 
-        $clinicalMajorIds = Major::where('has_clinical', true)->pluck('id');
-        $students = User::whereIn('major_id', $clinicalMajorIds)->where('status', 'active')->get();
-        Notification::send($students, new RareCaseAnnounced($rareCase));
+        $recipientsCount = $this->notifyCollegeStudents($rareCase);
 
-        return $this->success($this->serializeCase($rareCase), 'تم نشر الحالة بنجاح.', 201);
+        return $this->success([
+            'case' => $this->serializeCase($rareCase),
+            'recipients_count' => $recipientsCount,
+        ], 'تم نشر الحالة وإرسال الإشعار للطلاب بنجاح.', 201);
     }
 
     public function toggleStatus($id)
@@ -97,5 +100,70 @@ class RareCaseController extends DoctorApiController
             'created_at' => optional($case->created_at)->toISOString(),
             'updated_at' => optional($case->updated_at)->toISOString(),
         ];
+    }
+
+    protected function notifyCollegeStudents(RareCase $rareCase): int
+    {
+        $doctor = Auth::user();
+        $collegeId = $doctor->college_id;
+
+        if (! $collegeId) {
+            return 0;
+        }
+
+        $students = User::query()
+            ->where('college_id', $collegeId)
+            ->where('status', 'active')
+            ->whereIn('role', [
+                UserRole::STUDENT->value,
+                UserRole::DELEGATE->value,
+                UserRole::PRACTICAL_DELEGATE->value,
+            ])
+            ->get(['id']);
+
+        if ($students->isEmpty()) {
+            return 0;
+        }
+
+        $batchId = 'rare-case-' . $rareCase->id . '-' . Str::uuid();
+        $now = now();
+        $title = 'إعلان حالة نادرة';
+        $message = 'تم نشر حالة نادرة جديدة: ' . $rareCase->diagnosis;
+
+        $rows = $students->map(fn (User $student) => [
+            'user_id' => $student->id,
+            'college_id' => $collegeId,
+            'sender_id' => $doctor->id,
+            'batch_id' => $batchId,
+            'type' => 'rare_case',
+            'title' => $title,
+            'message' => $message,
+            'attachment_path' => $rareCase->attachment_path,
+            'attachment_name' => $rareCase->attachment_path ? basename($rareCase->attachment_path) : null,
+            'data' => json_encode([
+                'rare_case_id' => $rareCase->id,
+                'doctor_id' => $doctor->id,
+                'screen' => 'rare_case',
+                'target_screen' => 'rare_case',
+            ], JSON_UNESCAPED_UNICODE),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            StudentNotification::insert($chunk);
+        }
+
+        try {
+            app(PushNotificationService::class)->sendBatchByBatchId($batchId);
+        } catch (\Throwable $exception) {
+            Log::warning('Rare case push notification failed.', [
+                'rare_case_id' => $rareCase->id,
+                'batch_id' => $batchId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        return $students->count();
     }
 }
