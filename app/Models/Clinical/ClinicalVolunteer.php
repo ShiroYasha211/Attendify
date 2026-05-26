@@ -20,10 +20,15 @@ class ClinicalVolunteer extends Model
         'diagnosis',
         'clinical_signs',
         'is_available',
+        'follow_up_status',
+        'preferred_contact_method',
+        'last_contacted_at',
+        'internal_notes',
     ];
 
     protected $casts = [
         'is_available' => 'boolean',
+        'last_contacted_at' => 'datetime',
     ];
 
     /**
@@ -32,5 +37,10 @@ class ClinicalVolunteer extends Model
     public function doctor()
     {
         return $this->belongsTo(User::class, 'doctor_id');
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(ClinicalVolunteerLog::class, 'clinical_volunteer_id');
     }
 }

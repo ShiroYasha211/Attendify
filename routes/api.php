@@ -944,6 +944,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         // Rare Clinical Cases
         Route::get('rare-cases', [DoctorRareCaseController::class, 'index']);
         Route::post('rare-cases', [DoctorRareCaseController::class, 'store']);
+        Route::put('rare-cases/{id}', [DoctorRareCaseController::class, 'update']);
         Route::patch('rare-cases/{id}/toggle', [DoctorRareCaseController::class, 'toggleStatus']);
         Route::delete('rare-cases/{id}', [DoctorRareCaseController::class, 'destroy']);
 
@@ -951,6 +952,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         Route::get('volunteers', [DoctorVolunteerController::class, 'index']);
         Route::post('volunteers', [DoctorVolunteerController::class, 'store']);
         Route::put('volunteers/{id}', [DoctorVolunteerController::class, 'update']);
+        Route::post('volunteers/{id}/follow-up', [DoctorVolunteerController::class, 'followUp']);
         Route::patch('volunteers/{id}/toggle', [DoctorVolunteerController::class, 'toggleStatus']);
         Route::delete('volunteers/{id}', [DoctorVolunteerController::class, 'destroy']);
 

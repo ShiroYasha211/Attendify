@@ -22,10 +22,15 @@ class RareCase extends Model
         'clinical_signs',
         'attachment_path',
         'is_active',
+        'status',
+        'expires_at',
+        'internal_notes',
+        'views_count',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'expires_at' => 'datetime',
     ];
 
     public function doctor()

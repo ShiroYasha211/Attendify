@@ -15,6 +15,12 @@ class RareCaseController extends Controller
     {
         $cases = RareCase::with('doctor:id,name')
             ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('status')->orWhere('status', 'published');
+            })
+            ->where(function ($query) {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
             ->latest()
             ->paginate(15);
         $cases->getCollection()->transform(fn ($case) => $this->serializeCase($case));
@@ -32,12 +38,19 @@ class RareCaseController extends Controller
     {
         $case = RareCase::with('doctor:id,name')->find($id);
 
-        if (!$case || !$case->is_active) {
+        if (
+            !$case ||
+            !$case->is_active ||
+            ($case->status && $case->status !== 'published') ||
+            ($case->expires_at && $case->expires_at->isPast())
+        ) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'الحالة غير متاحة حالياً.'
             ], 404);
         }
+
+        $case->increment('views_count');
 
         return response()->json([
             'status' => 'success',
