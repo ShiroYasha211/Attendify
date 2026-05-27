@@ -15,6 +15,8 @@ class CaseController extends DoctorApiController
     /** GET /api/doctor/clinical/cases */
     public function index(Request $request)
     {
+        $perPage = min(max((int) $request->integer('per_page', 100), 1), 200);
+
         $query = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])
             ->where('doctor_id', Auth::id());
 
@@ -34,7 +36,12 @@ class CaseController extends DoctorApiController
             $query->where('status', $request->status);
         }
 
-        return $this->paginated($query->latest()->paginate(15));
+        $cases = $query->latest()->paginate($perPage);
+        $cases->getCollection()->transform(
+            fn (ClinicalCase $case) => $this->serializeCase($case)
+        );
+
+        return $this->paginated($cases);
     }
 
     /** POST /api/doctor/clinical/cases */
@@ -51,8 +58,15 @@ class CaseController extends DoctorApiController
             'status' => 'required|in:active,discharged,transferred',
         ]);
         $validated['doctor_id'] = Auth::id();
+        $validated['approval_status'] = 'approved';
+
         $case = ClinicalCase::create($validated);
-        return $this->success($case->load(['trainingCenter', 'clinicalDepartment', 'bodySystem']), 'تم إدراج الحالة بنجاح.', 201);
+
+        return $this->success(
+            $this->serializeCase($case->load(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])),
+            'تم إدراج الحالة بنجاح.',
+            201
+        );
     }
 
     /** GET /api/doctor/clinical/cases/{id} */
@@ -61,7 +75,7 @@ class CaseController extends DoctorApiController
         $case = ClinicalCase::with(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])
             ->where('doctor_id', Auth::id())
             ->findOrFail($id);
-        return $this->success($case);
+        return $this->success($this->serializeCase($case));
     }
 
     /** PUT /api/doctor/clinical/cases/{id} */
@@ -79,7 +93,11 @@ class CaseController extends DoctorApiController
             'status' => 'required|in:active,discharged,transferred',
         ]);
         $case->update($validated);
-        return $this->success($case->load(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor']), 'تم تحديث الحالة بنجاح.');
+
+        return $this->success(
+            $this->serializeCase($case->load(['trainingCenter', 'clinicalDepartment', 'bodySystem', 'doctor'])),
+            'تم تحديث الحالة بنجاح.'
+        );
     }
 
     /** DELETE /api/doctor/clinical/cases/{id} */
@@ -88,5 +106,48 @@ class CaseController extends DoctorApiController
         $case = ClinicalCase::where('doctor_id', Auth::id())->findOrFail($id);
         $case->delete();
         return $this->success(null, 'تم مسح الحالة بنجاح.');
+    }
+
+    protected function serializeCase(ClinicalCase $case): array
+    {
+        return [
+            'id' => $case->id,
+            'patient_name' => $case->patient_name,
+            'age' => $case->age,
+            'gender' => $case->gender,
+            'training_center_id' => $case->training_center_id,
+            'clinical_department_id' => $case->clinical_department_id,
+            'body_system_id' => $case->body_system_id,
+            'doctor_id' => $case->doctor_id,
+            'diagnosis_or_description' => $case->diagnosis_or_description,
+            'status' => $case->status,
+            'status_label' => $this->statusLabel($case->status),
+            'approval_status' => $case->approval_status,
+            'approval_status_label' => $this->approvalStatusLabel($case->approval_status),
+            'training_center' => $case->trainingCenter,
+            'clinical_department' => $case->clinicalDepartment,
+            'body_system' => $case->bodySystem,
+            'doctor' => $case->doctor,
+            'created_at' => optional($case->created_at)->toISOString(),
+            'updated_at' => optional($case->updated_at)->toISOString(),
+        ];
+    }
+
+    protected function statusLabel(?string $status): string
+    {
+        return match ($status) {
+            'discharged' => 'تم الخروج',
+            'transferred' => 'تم التحويل',
+            default => 'حالة نشطة',
+        };
+    }
+
+    protected function approvalStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            'pending' => 'بانتظار الاعتماد',
+            'rejected' => 'مرفوضة',
+            default => 'معتمدة',
+        };
     }
 }
