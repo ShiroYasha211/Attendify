@@ -13,18 +13,24 @@ class CaseAssignment extends Model
         'assigned_by',
         'task_type',
         'instructions',
+        'due_at',
+        'attachment_path',
+        'attachment_name',
+        'attachment_type',
         'status',
         'student_completion_message',
         'submitted_at',
         'reviewed_at',
         'reviewed_by',
         'review_notes',
+        'review_rating',
         'is_completed',
         'completed_at',
     ];
 
     protected $casts = [
         'is_completed' => 'boolean',
+        'due_at' => 'datetime',
         'completed_at' => 'datetime',
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
@@ -52,6 +58,10 @@ class CaseAssignment extends Model
 
     public function getStatusLabelAttribute(): string
     {
+        if ($this->is_overdue) {
+            return 'متأخر';
+        }
+
         return match ($this->status ?: ($this->is_completed ? 'approved' : 'assigned')) {
             'assigned' => 'مكلف',
             'submitted_for_review' => 'قيد المراجعة',
@@ -69,5 +79,22 @@ class CaseAssignment extends Model
             'follow_up' => 'متابعة ومرور',
             default => $this->task_type,
         };
+    }
+
+    public function getReviewRatingLabelAttribute(): ?string
+    {
+        return match ($this->review_rating) {
+            'excellent' => 'ممتاز',
+            'good' => 'جيد',
+            'needs_improvement' => 'يحتاج تحسين',
+            default => null,
+        };
+    }
+
+    public function getIsOverdueAttribute(): bool
+    {
+        return $this->due_at !== null
+            && $this->due_at->isPast()
+            && ! in_array($this->status, ['approved', 'rejected'], true);
     }
 }

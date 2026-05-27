@@ -179,6 +179,7 @@ class PushNotificationService
             'resource' => 'resources',
             'library' => 'library',
             'rare_case', 'rare_cases' => 'rare_case',
+            'clinical_assignment' => 'clinical',
             'exam', 'announcement', 'poll', 'alert' => $workspace === 'doctor' || $workspace === 'delegate' ? 'news' : 'news_hub',
             default => 'notifications',
         };

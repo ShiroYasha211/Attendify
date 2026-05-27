@@ -261,14 +261,15 @@ class EvaluationController extends DoctorApiController
         $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', $doctorId)
             ->select('major_id', 'level_id')->distinct()->get();
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::with(['major:id,name', 'level:id,name'])
+            ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where(function ($q) use ($doctorSubjects) {
                 foreach ($doctorSubjects as $ds) {
                     $q->orWhere(function ($sq) use ($ds) {
                         $sq->where('major_id', $ds->major_id)->where('level_id', $ds->level_id);
                     });
                 }
-            })->orderBy('name')->get(['id', 'name', 'student_number']);
+            })->orderBy('name')->get(['id', 'name', 'student_number', 'major_id', 'level_id']);
 
         $bodySystems = BodySystem::all(['id', 'name']);
 
