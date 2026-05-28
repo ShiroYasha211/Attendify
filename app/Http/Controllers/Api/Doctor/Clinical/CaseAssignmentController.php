@@ -271,12 +271,19 @@ class CaseAssignmentController extends DoctorApiController
                             'label' => $group['label'],
                             'count' => $items->count(),
                             'confirmed' => $items->isNotEmpty() && $items->every(fn ($item) => (bool) $item->is_confirmed),
+                            'approved_count' => $items->filter(fn ($item) => $item->is_confirmed || $item->review_status === 'approved')->count(),
+                            'rejected_count' => $items->where('review_status', 'rejected')->count(),
+                            'pending_count' => $items->where('review_status', 'pending')->count(),
+                            'has_rejected' => $items->contains(fn ($item) => $item->review_status === 'rejected'),
                             'items' => $items->map(fn ($item) => [
                                 'id' => $item->id,
                                 'activity_type' => $item->activity_type,
                                 'body_system' => $item->bodySystem,
                                 'case_name' => $item->case_name,
                                 'is_confirmed' => (bool) $item->is_confirmed,
+                                'review_status' => $item->is_confirmed ? 'approved' : ($item->review_status ?: 'pending'),
+                                'review_status_label' => $item->review_status_label,
+                                'review_notes' => $item->review_notes,
                                 'diagnosis' => $item->diagnosis,
                             ])->values(),
                         ];
@@ -320,8 +327,8 @@ class CaseAssignmentController extends DoctorApiController
             'data' => [
                 'assignment_id' => $assignment->id,
                 'clinical_case_id' => $assignment->clinical_case_id,
-                'screen' => 'clinical',
-                'target_screen' => 'clinical',
+                'screen' => 'clinical_assignment',
+                'target_screen' => 'clinical_assignment',
             ],
         ]);
 

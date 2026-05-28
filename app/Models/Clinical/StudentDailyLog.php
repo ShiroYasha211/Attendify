@@ -133,7 +133,6 @@ class StudentDailyLog extends Model
 
         return array_filter($groups, fn ($group) => $group['items']->isNotEmpty());
     }
-
     public function syncApprovalStatus(): string
     {
         $activities = $this->activities;
@@ -142,7 +141,9 @@ class StudentDailyLog extends Model
         }
 
         $confirmedCount = $activities->where('is_confirmed', true)->count();
+        $rejectedCount = $activities->where('review_status', 'rejected')->count();
         $newStatus = match (true) {
+            $confirmedCount === 0 && $rejectedCount > 0 => 'rejected',
             $confirmedCount === 0 => 'pending',
             $confirmedCount === $activities->count() => 'confirmed',
             default => 'partially_confirmed',

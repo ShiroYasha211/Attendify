@@ -102,9 +102,7 @@ class LogbookController extends Controller
 
         $assignment = $this->resolveAssignmentForAttempt($student->id, $request->input('case_assignment_id'));
 
-        if ($assignment && $assignment->dailyLogs()
-            ->whereIn('status', ['pending', 'partially_confirmed'])
-            ->exists()) {
+        if ($assignment && $this->hasBlockingAttempt($assignment)) {
             return response()->json([
                 'success' => false,
                 'message' => 'يوجد سجل عملي مرتبط بهذا التكليف بانتظار مراجعة الدكتور. لا تحتاج إلى إرسال رسالة منفصلة.',
@@ -434,8 +432,23 @@ class LogbookController extends Controller
             'attempts' => $logs,
             'latest_attempt' => $logs->first(),
             'can_start_attempt' => in_array($assignment->status, ['assigned', 'rejected', 'submitted_for_review'], true)
-                && ! $assignment->dailyLogs->whereIn('status', ['pending', 'partially_confirmed'])->count(),
+                && ! $this->hasBlockingAttempt($assignment),
         ]);
+    }
+
+    protected function hasBlockingAttempt(CaseAssignment $assignment): bool
+    {
+        return $assignment->dailyLogs()
+            ->where(function ($query) {
+                $query->where('status', 'pending')
+                    ->orWhere(function ($query) {
+                        $query->where('status', 'partially_confirmed')
+                            ->whereDoesntHave('activities', function ($query) {
+                                $query->where('review_status', 'rejected');
+                            });
+                    });
+            })
+            ->exists();
     }
 
     protected function serializeLog(StudentDailyLog $log): array
@@ -450,6 +463,9 @@ class LogbookController extends Controller
                     'body_system' => $item->bodySystem,
                     'case_name' => $item->case_name,
                     'is_confirmed' => (bool) $item->is_confirmed,
+                    'review_status' => $item->is_confirmed ? 'approved' : ($item->review_status ?: 'pending'),
+                    'review_status_label' => $item->review_status_label,
+                    'review_notes' => $item->review_notes,
                     'diagnosis' => $item->diagnosis,
                     'confirmed_by' => $item->confirmedBy,
                     'confirmed_at' => $item->confirmed_at,
@@ -461,6 +477,10 @@ class LogbookController extends Controller
                 'label' => $group['label'],
                 'activity_type' => $group['activity_type'],
                 'all_confirmed' => $items->isNotEmpty() && $items->every(fn ($item) => $item['is_confirmed']),
+                'approved_count' => $items->where('review_status', 'approved')->count(),
+                'rejected_count' => $items->where('review_status', 'rejected')->count(),
+                'pending_count' => $items->where('review_status', 'pending')->count(),
+                'has_rejected' => $items->contains(fn ($item) => $item['review_status'] === 'rejected'),
                 'diagnosis' => $items->pluck('diagnosis')->filter()->first(),
                 'items' => $items,
             ];

@@ -14,7 +14,9 @@ class DailyLogActivity extends Model
         'case_name',
         'notes',
         'is_confirmed',
+        'review_status',
         'diagnosis',
+        'review_notes',
         'confirmed_by',
         'confirmed_at',
     ];
@@ -23,6 +25,15 @@ class DailyLogActivity extends Model
         'is_confirmed' => 'boolean',
         'confirmed_at' => 'datetime',
     ];
+
+    public function getReviewStatusLabelAttribute(): string
+    {
+        return match ($this->review_status) {
+            'approved' => 'معتمد',
+            'rejected' => 'مرفوض',
+            default => 'بانتظار المراجعة',
+        };
+    }
 
     public function dailyLog()
     {
@@ -43,8 +54,8 @@ class DailyLogActivity extends Model
     {
         return match ($this->activity_type) {
             'history_taking' => 'history',
-            'clinical_examination' => 'exam',
-            'round' => 'round',
+            'clinical_examination' => 'فحص سريري',
+            'round' => 'مرور',
             default => $this->activity_type,
         };
     }

@@ -57,10 +57,13 @@ class LogbookController extends DoctorApiController
             'doctor_notes' => 'nullable|string|max:1000',
             'confirmations' => 'nullable|array',
             'confirmations.history.confirm' => 'nullable|boolean',
+            'confirmations.history.status' => 'nullable|in:pending,approved,rejected',
             'confirmations.history.diagnosis' => 'nullable|string|max:1000',
             'confirmations.exam.confirm' => 'nullable|boolean',
+            'confirmations.exam.status' => 'nullable|in:pending,approved,rejected',
             'confirmations.exam.diagnosis' => 'nullable|string|max:1000',
             'confirmations.round.confirm' => 'nullable|boolean',
+            'confirmations.round.status' => 'nullable|in:pending,approved,rejected',
             'confirmations.round.diagnosis' => 'nullable|string|max:1000',
         ]);
 
@@ -75,6 +78,8 @@ class LogbookController extends DoctorApiController
         if ($validated['action'] === 'reject') {
             $log->activities()->update([
                 'is_confirmed' => false,
+                'review_status' => 'rejected',
+                'review_notes' => $validated['doctor_notes'] ?? null,
                 'diagnosis' => null,
                 'confirmed_by' => null,
                 'confirmed_at' => null,
@@ -100,19 +105,26 @@ class LogbookController extends DoctorApiController
 
         DB::transaction(function () use ($log, $groups, $confirmations, &$selectedAny, $validated) {
             foreach ($groups as $key => $group) {
-                $selection = (bool) data_get($confirmations, $key . '.confirm', false);
-                if (!$selection) {
+                $status = data_get($confirmations, $key . '.status');
+                if (! $status) {
+                    $status = (bool) data_get($confirmations, $key . '.confirm', false) ? 'approved' : 'pending';
+                }
+
+                if ($status === 'pending') {
                     continue;
                 }
 
                 $selectedAny = true;
                 $diagnosis = trim((string) data_get($confirmations, $key . '.diagnosis', ''));
+                $approved = $status === 'approved';
 
                 $log->activities()
                     ->where('activity_type', $group['activity_type'])
                     ->update([
-                        'is_confirmed' => true,
-                        'diagnosis' => $diagnosis !== '' ? $diagnosis : null,
+                        'is_confirmed' => $approved,
+                        'review_status' => $status,
+                        'diagnosis' => $approved && $diagnosis !== '' ? $diagnosis : null,
+                        'review_notes' => ! $approved ? ($validated['doctor_notes'] ?? null) : null,
                         'confirmed_by' => Auth::id(),
                         'confirmed_at' => now(),
                     ]);
@@ -245,6 +257,10 @@ class LogbookController extends DoctorApiController
                 'label' => $group['label'],
                 'count' => $items->count(),
                 'confirmed' => $items->every(fn ($item) => (bool) $item->is_confirmed),
+                'approved_count' => $items->filter(fn ($item) => $item->is_confirmed || $item->review_status === 'approved')->count(),
+                'rejected_count' => $items->where('review_status', 'rejected')->count(),
+                'pending_count' => $items->where('review_status', 'pending')->count(),
+                'has_rejected' => $items->contains(fn ($item) => $item->review_status === 'rejected'),
                 'diagnosis' => $items->pluck('diagnosis')->filter()->first(),
                 'items' => $items->map(function ($item) {
                     return [
@@ -253,6 +269,9 @@ class LogbookController extends DoctorApiController
                             ? ($item->case_name ?: 'Round case')
                             : ($item->bodySystem->name ?? '-'),
                         'is_confirmed' => (bool) $item->is_confirmed,
+                        'review_status' => $item->is_confirmed ? 'approved' : ($item->review_status ?: 'pending'),
+                        'review_status_label' => $item->review_status_label,
+                        'review_notes' => $item->review_notes,
                         'diagnosis' => $item->diagnosis,
                         'confirmed_at' => optional($item->confirmed_at)?->toIso8601String(),
                     ];
@@ -367,8 +386,8 @@ class LogbookController extends DoctorApiController
             'data' => [
                 'assignment_id' => $assignment->id,
                 'clinical_case_id' => $assignment->clinical_case_id,
-                'screen' => 'clinical',
-                'target_screen' => 'clinical',
+                'screen' => 'clinical_assignment',
+                'target_screen' => 'clinical_assignment',
             ],
         ]);
 
