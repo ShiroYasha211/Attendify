@@ -7,6 +7,7 @@ use App\Models\Clinical\CaseAssignment;
 use App\Models\Clinical\ClinicalCase;
 use App\Models\StudentNotification;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -126,6 +127,7 @@ class CaseAssignmentController extends DoctorApiController
                 'is_completed' => true,
                 'completed_at' => $now,
             ]);
+            $this->notifyStudent($assignment->fresh($this->assignmentRelations()), 'approved');
 
             return $this->success(
                 $this->serializeAssignment($assignment->fresh($this->assignmentRelations())),
@@ -142,6 +144,7 @@ class CaseAssignmentController extends DoctorApiController
             'is_completed' => false,
             'completed_at' => null,
         ]);
+        $this->notifyStudent($assignment->fresh($this->assignmentRelations()), 'rejected');
 
         return $this->success(
             $this->serializeAssignment($assignment->fresh($this->assignmentRelations())),
@@ -159,6 +162,12 @@ class CaseAssignmentController extends DoctorApiController
             'clinicalCase.clinicalDepartment:id,name',
             'clinicalCase.bodySystem:id,name',
             'reviewer:id,name',
+            'dailyLogs.trainingCenter',
+            'dailyLogs.department',
+            'dailyLogs.doctor',
+            'dailyLogs.confirmedBy',
+            'dailyLogs.activities.bodySystem',
+            'dailyLogs.activities.confirmedBy',
         ];
     }
 
@@ -244,6 +253,36 @@ class CaseAssignmentController extends DoctorApiController
                 'id' => $assignment->reviewer->id,
                 'name' => $assignment->reviewer->name,
             ] : null,
+            'attempts' => $assignment->dailyLogs
+                ? $assignment->dailyLogs->map(fn ($log) => [
+                    'id' => $log->id,
+                    'status' => $log->status,
+                    'status_label' => $log->status_label,
+                    'doctor_notes' => $log->doctor_notes,
+                    'log_date' => optional($log->log_date)->format('Y-m-d'),
+                    'log_time' => $log->log_time,
+                    'training_center' => $log->trainingCenter,
+                    'department' => $log->department,
+                    'confirmed_by' => $log->confirmedBy,
+                    'groups' => collect($log->groupedActivities())->map(function ($group, $key) {
+                        $items = $group['items'];
+                        return [
+                            'key' => $key,
+                            'label' => $group['label'],
+                            'count' => $items->count(),
+                            'confirmed' => $items->isNotEmpty() && $items->every(fn ($item) => (bool) $item->is_confirmed),
+                            'items' => $items->map(fn ($item) => [
+                                'id' => $item->id,
+                                'activity_type' => $item->activity_type,
+                                'body_system' => $item->bodySystem,
+                                'case_name' => $item->case_name,
+                                'is_confirmed' => (bool) $item->is_confirmed,
+                                'diagnosis' => $item->diagnosis,
+                            ])->values(),
+                        ];
+                    })->values(),
+                ])->values()
+                : [],
         ];
     }
 
@@ -255,16 +294,27 @@ class CaseAssignmentController extends DoctorApiController
         if (! $student) {
             return;
         }
+        $title = match ($event) {
+            'updated' => 'تم تحديث تكليف سريري',
+            'approved' => 'تم اعتماد تكليفك السريري',
+            'rejected' => 'تم رفض محاولة التكليف السريري',
+            default => 'تكليف سريري جديد',
+        };
 
-        StudentNotification::create([
+        $message = match ($event) {
+            'approved' => 'تم اعتماد التكليف السريري بنجاح.',
+            'rejected' => 'تم رفض المحاولة. راجع ملاحظات الدكتور ثم نفذ محاولة جديدة.',
+            'updated' => 'تم تحديث تفاصيل تكليفك السريري.',
+            default => 'تم تكليفك بحالة سريرية: ' . ($case?->patient_name ?: 'حالة سريرية'),
+        };
+
+        $notification = StudentNotification::create([
             'user_id' => $student->id,
             'college_id' => $student->college_id,
             'sender_id' => Auth::id(),
             'type' => 'clinical_assignment',
-            'title' => $event === 'updated'
-                ? 'تم تحديث تكليف سريري'
-                : 'تكليف سريري جديد',
-            'message' => 'تم تكليفك بحالة سريرية: ' . ($case?->patient_name ?: 'حالة سريرية'),
+            'title' => $title,
+            'message' => $message,
             'attachment_path' => $assignment->attachment_path,
             'attachment_name' => $assignment->attachment_name,
             'data' => [
@@ -274,5 +324,7 @@ class CaseAssignmentController extends DoctorApiController
                 'target_screen' => 'clinical',
             ],
         ]);
+
+        app(PushNotificationService::class)->sendStudentNotification($notification);
     }
 }

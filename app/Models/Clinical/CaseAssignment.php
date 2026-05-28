@@ -56,6 +56,11 @@ class CaseAssignment extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function dailyLogs()
+    {
+        return $this->hasMany(StudentDailyLog::class, 'case_assignment_id')->latest();
+    }
+
     public function getStatusLabelAttribute(): string
     {
         if ($this->is_overdue) {

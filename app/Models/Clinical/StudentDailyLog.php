@@ -10,6 +10,7 @@ class StudentDailyLog extends Model
 {
     protected $fillable = [
         'student_id',
+        'case_assignment_id',
         'training_center_id',
         'department_id',
         'doctor_id',
@@ -37,6 +38,11 @@ class StudentDailyLog extends Model
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
+    }
+
+    public function caseAssignment()
+    {
+        return $this->belongsTo(CaseAssignment::class, 'case_assignment_id');
     }
 
     public function doctor()

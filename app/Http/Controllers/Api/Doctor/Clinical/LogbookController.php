@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\Doctor\Clinical;
 use App\Http\Controllers\Api\Doctor\DoctorApiController;
 use App\Models\Academic\Subject;
 use App\Models\Clinical\StudentDailyLog;
+use App\Models\StudentNotification;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +23,10 @@ class LogbookController extends DoctorApiController
             'trainingCenter',
             'department',
             'doctor',
+            'caseAssignment.clinicalCase.trainingCenter',
+            'caseAssignment.clinicalCase.clinicalDepartment',
+            'caseAssignment.clinicalCase.bodySystem',
+            'caseAssignment.reviewer',
             'activities.bodySystem',
             'activities.confirmedBy',
         ])->where('qr_token', $request->qr_token)
@@ -58,7 +64,7 @@ class LogbookController extends DoctorApiController
             'confirmations.round.diagnosis' => 'nullable|string|max:1000',
         ]);
 
-        $log = StudentDailyLog::with('activities')
+        $log = StudentDailyLog::with(['activities', 'caseAssignment.student', 'caseAssignment.clinicalCase'])
             ->where('doctor_id', Auth::id())
             ->findOrFail($validated['log_id']);
 
@@ -80,6 +86,8 @@ class LogbookController extends DoctorApiController
                 'confirmed_at' => now(),
                 'doctor_notes' => $validated['doctor_notes'] ?? null,
             ]);
+
+            $this->syncLinkedAssignment($log->fresh(['caseAssignment.student', 'caseAssignment.clinicalCase']), 'rejected', $validated['doctor_notes'] ?? null);
 
             return $this->success([
                 'status' => $log->status,
@@ -128,10 +136,23 @@ class LogbookController extends DoctorApiController
         }
 
         $log->refresh();
+        $this->syncLinkedAssignment($log->load(['caseAssignment.student', 'caseAssignment.clinicalCase']), $log->status, $validated['doctor_notes'] ?? null);
+
         return $this->success([
             'status' => $log->status,
             'status_label' => $log->status_label,
-            'log' => $this->serializeLog($log->load(['student', 'trainingCenter', 'department', 'doctor', 'activities.bodySystem', 'activities.confirmedBy'])),
+            'log' => $this->serializeLog($log->load([
+                'student',
+                'trainingCenter',
+                'department',
+                'doctor',
+                'caseAssignment.clinicalCase.trainingCenter',
+                'caseAssignment.clinicalCase.clinicalDepartment',
+                'caseAssignment.clinicalCase.bodySystem',
+                'caseAssignment.reviewer',
+                'activities.bodySystem',
+                'activities.confirmedBy',
+            ])),
         ], $log->status === 'confirmed' ? 'All sections were confirmed.' : 'The log was partially confirmed.');
     }
 
@@ -142,6 +163,10 @@ class LogbookController extends DoctorApiController
             'trainingCenter',
             'department',
             'confirmedBy:id,name',
+            'caseAssignment.clinicalCase.trainingCenter',
+            'caseAssignment.clinicalCase.clinicalDepartment',
+            'caseAssignment.clinicalCase.bodySystem',
+            'caseAssignment.reviewer',
             'activities.bodySystem',
             'activities.confirmedBy:id,name',
         ])->where('doctor_id', Auth::id());
@@ -153,7 +178,12 @@ class LogbookController extends DoctorApiController
             $query->whereDate('log_date', $request->date);
         }
 
-        return $this->paginated($query->latest()->paginate(20));
+        $paginator = $query->latest()->paginate(20);
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (StudentDailyLog $log) => $this->serializeLog($log))
+        );
+
+        return $this->paginated($paginator);
     }
 
     public function manualAttendance(Request $request)
@@ -237,6 +267,17 @@ class LogbookController extends DoctorApiController
             'training_center' => $log->trainingCenter?->name,
             'department' => $log->department?->name,
             'doctor_name' => $log->doctor?->name,
+            'case_assignment' => $log->caseAssignment ? [
+                'id' => $log->caseAssignment->id,
+                'status' => $log->caseAssignment->status,
+                'status_label' => $log->caseAssignment->status_label,
+                'task_type' => $log->caseAssignment->task_type,
+                'task_type_label' => $log->caseAssignment->task_type_label,
+                'instructions' => $log->caseAssignment->instructions,
+                'review_notes' => $log->caseAssignment->review_notes,
+                'review_rating_label' => $log->caseAssignment->review_rating_label,
+                'clinical_case' => $log->caseAssignment->clinicalCase,
+            ] : null,
             'log_date' => $log->log_date?->format('Y-m-d'),
             'log_time' => $log->log_time,
             'status' => $log->status,
@@ -244,5 +285,93 @@ class LogbookController extends DoctorApiController
             'doctor_notes' => $log->doctor_notes,
             'groups' => $groups,
         ];
+    }
+
+    protected function syncLinkedAssignment(StudentDailyLog $log, string $logStatus, ?string $notes): void
+    {
+        $assignment = $log->caseAssignment;
+        if (! $assignment) {
+            return;
+        }
+
+        $now = now();
+        if ($logStatus === 'confirmed') {
+            $assignment->update([
+                'status' => 'approved',
+                'reviewed_at' => $now,
+                'reviewed_by' => Auth::id(),
+                'review_notes' => trim((string) $notes) ?: 'تم اعتماد التكليف بنجاح.',
+                'review_rating' => $assignment->review_rating ?: 'good',
+                'is_completed' => true,
+                'completed_at' => $now,
+            ]);
+            $this->notifyAssignmentStudent($assignment->fresh(['student', 'clinicalCase']), 'approved');
+            return;
+        }
+
+        if ($logStatus === 'rejected') {
+            $assignment->update([
+                'status' => 'rejected',
+                'reviewed_at' => $now,
+                'reviewed_by' => Auth::id(),
+                'review_notes' => trim((string) $notes) ?: 'تم رفض المحاولة. يجب تنفيذ محاولة جديدة بعد مراجعة ملاحظات الدكتور.',
+                'review_rating' => null,
+                'is_completed' => false,
+                'completed_at' => null,
+            ]);
+            $this->notifyAssignmentStudent($assignment->fresh(['student', 'clinicalCase']), 'rejected');
+            return;
+        }
+
+        if ($logStatus === 'partially_confirmed') {
+            $assignment->update([
+                'status' => 'submitted_for_review',
+                'reviewed_at' => $now,
+                'reviewed_by' => Auth::id(),
+                'review_notes' => trim((string) $notes) ?: 'تم اعتماد جزء من المحاولة، وما زالت هناك عناصر تحتاج إكمالًا.',
+                'is_completed' => false,
+                'completed_at' => null,
+            ]);
+            $this->notifyAssignmentStudent($assignment->fresh(['student', 'clinicalCase']), 'partially_confirmed');
+        }
+    }
+
+    protected function notifyAssignmentStudent($assignment, string $event): void
+    {
+        $student = $assignment->student;
+        if (! $student) {
+            return;
+        }
+
+        $title = match ($event) {
+            'approved' => 'تم اعتماد تكليفك السريري',
+            'rejected' => 'تم رفض محاولة التكليف السريري',
+            'partially_confirmed' => 'تم اعتماد جزء من التكليف السريري',
+            default => 'تحديث على تكليفك السريري',
+        };
+
+        $message = match ($event) {
+            'approved' => 'تم اعتماد التكليف بنجاح.',
+            'rejected' => 'تم رفض المحاولة. يمكنك تنفيذ محاولة جديدة بعد مراجعة ملاحظات الدكتور.',
+            'partially_confirmed' => 'تم اعتماد بعض العناصر، وما زالت هناك عناصر تحتاج إكمالًا.',
+            default => 'يوجد تحديث جديد على تكليفك السريري.',
+        };
+
+        $notification = StudentNotification::create([
+            'user_id' => $student->id,
+            'college_id' => $student->college_id,
+            'sender_id' => Auth::id(),
+            'type' => 'clinical_assignment',
+            'title' => $title,
+            'message' => $message,
+            'data' => [
+                'assignment_id' => $assignment->id,
+                'clinical_case_id' => $assignment->clinical_case_id,
+                'screen' => 'clinical',
+                'target_screen' => 'clinical',
+            ],
+        ]);
+
+        app(PushNotificationService::class)->sendStudentNotification($notification);
     }
 }

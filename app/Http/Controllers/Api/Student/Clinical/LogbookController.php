@@ -23,6 +23,10 @@ class LogbookController extends Controller
             'trainingCenter',
             'department',
             'doctor',
+            'caseAssignment.clinicalCase.trainingCenter',
+            'caseAssignment.clinicalCase.clinicalDepartment',
+            'caseAssignment.clinicalCase.bodySystem',
+            'caseAssignment.reviewer',
             'confirmedBy',
             'activities.bodySystem',
             'activities.confirmedBy',
@@ -39,6 +43,12 @@ class LogbookController extends Controller
             'clinicalCase.bodySystem',
             'assigner',
             'reviewer',
+            'dailyLogs.trainingCenter',
+            'dailyLogs.department',
+            'dailyLogs.doctor',
+            'dailyLogs.confirmedBy',
+            'dailyLogs.activities.bodySystem',
+            'dailyLogs.activities.confirmedBy',
         ])->where('student_id', $student->id)
             ->latest()
             ->get();
@@ -64,7 +74,7 @@ class LogbookController extends Controller
                     'confirmed_logs' => $confirmedCount,
                     'pending_logs' => $pendingCount,
                 ],
-                'assignments' => $assignments,
+                'assignments' => $assignments->map(fn (CaseAssignment $assignment) => $this->serializeAssignment($assignment))->values(),
                 'logs' => $logs->map(fn ($log) => $this->serializeLog($log))->values(),
                 'form_options' => $options,
             ],
@@ -76,6 +86,7 @@ class LogbookController extends Controller
         $student = $request->user();
 
         $request->validate([
+            'case_assignment_id' => 'nullable|exists:case_assignments,id',
             'training_center_id' => 'required|exists:training_centers,id',
             'department_id' => 'required|exists:clinical_departments,id',
             'doctor_id' => ['required', Rule::exists('users', 'id')->where('role', 'doctor')],
@@ -89,17 +100,35 @@ class LogbookController extends Controller
             'round_notes' => 'nullable|string',
         ]);
 
-        $doctor = User::where('role', 'doctor')
-            ->whereHas('subjects', function ($query) use ($student) {
-                $query->where('major_id', $student->major_id)
-                    ->where('level_id', $student->level_id);
-            })
-            ->findOrFail($request->doctor_id);
+        $assignment = $this->resolveAssignmentForAttempt($student->id, $request->input('case_assignment_id'));
+
+        if ($assignment && $assignment->dailyLogs()
+            ->whereIn('status', ['pending', 'partially_confirmed'])
+            ->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يوجد سجل عملي مرتبط بهذا التكليف بانتظار مراجعة الدكتور. لا تحتاج إلى إرسال رسالة منفصلة.',
+            ], 422);
+        }
+
+        $doctor = $assignment?->assigner;
+        if (! $doctor) {
+            $doctor = User::where('role', 'doctor')
+                ->whereHas('subjects', function ($query) use ($student) {
+                    $query->where('major_id', $student->major_id)
+                        ->where('level_id', $student->level_id);
+                })
+                ->findOrFail($request->doctor_id);
+        }
+
+        $trainingCenterId = $assignment?->clinicalCase?->training_center_id ?: $request->training_center_id;
+        $departmentId = $assignment?->clinicalCase?->clinical_department_id ?: $request->department_id;
 
         $dailyLog = StudentDailyLog::create([
             'student_id' => $student->id,
-            'training_center_id' => $request->training_center_id,
-            'department_id' => $request->department_id,
+            'case_assignment_id' => $assignment?->id,
+            'training_center_id' => $trainingCenterId,
+            'department_id' => $departmentId,
             'doctor_id' => $doctor->id,
             'history_count' => count($request->histories ?? []),
             'exam_count' => count($request->exams ?? []),
@@ -111,6 +140,20 @@ class LogbookController extends Controller
             'log_date' => now()->toDateString(),
             'log_time' => now()->toTimeString(),
         ]);
+
+        if ($assignment) {
+            $assignment->update([
+                'status' => 'submitted_for_review',
+                'student_completion_message' => trim((string) ($request->round_notes ?: 'تم إنشاء محاولة عملية مرتبطة بالتكليف.')),
+                'submitted_at' => now(),
+                'reviewed_at' => null,
+                'reviewed_by' => null,
+                'review_notes' => null,
+                'review_rating' => null,
+                'is_completed' => false,
+                'completed_at' => null,
+            ]);
+        }
 
         foreach ($request->histories ?? [] as $history) {
             DailyLogActivity::create([
@@ -138,7 +181,18 @@ class LogbookController extends Controller
             }
         }
 
-        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem', 'activities.confirmedBy']);
+        $dailyLog->load([
+            'trainingCenter',
+            'department',
+            'doctor',
+            'caseAssignment.clinicalCase.trainingCenter',
+            'caseAssignment.clinicalCase.clinicalDepartment',
+            'caseAssignment.clinicalCase.bodySystem',
+            'caseAssignment.reviewer',
+            'confirmedBy',
+            'activities.bodySystem',
+            'activities.confirmedBy',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -216,7 +270,18 @@ class LogbookController extends Controller
             }
         }
 
-        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem', 'activities.confirmedBy']);
+        $dailyLog->load([
+            'trainingCenter',
+            'department',
+            'doctor',
+            'caseAssignment.clinicalCase.trainingCenter',
+            'caseAssignment.clinicalCase.clinicalDepartment',
+            'caseAssignment.clinicalCase.bodySystem',
+            'caseAssignment.reviewer',
+            'confirmedBy',
+            'activities.bodySystem',
+            'activities.confirmedBy',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -257,7 +322,18 @@ class LogbookController extends Controller
             'qr_generated_at' => now(),
         ]);
 
-        $dailyLog->load(['trainingCenter', 'department', 'doctor', 'confirmedBy', 'activities.bodySystem', 'activities.confirmedBy']);
+        $dailyLog->load([
+            'trainingCenter',
+            'department',
+            'doctor',
+            'caseAssignment.clinicalCase.trainingCenter',
+            'caseAssignment.clinicalCase.clinicalDepartment',
+            'caseAssignment.clinicalCase.bodySystem',
+            'caseAssignment.reviewer',
+            'confirmedBy',
+            'activities.bodySystem',
+            'activities.confirmedBy',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -269,12 +345,23 @@ class LogbookController extends Controller
     public function submitAssignment(Request $request, $assignmentId)
     {
         $student = $request->user();
-        $assignment = CaseAssignment::where('student_id', $student->id)->findOrFail($assignmentId);
+        $assignment = CaseAssignment::with([
+            'dailyLogs.activities',
+        ])->where('student_id', $student->id)->findOrFail($assignmentId);
+
+        if ($assignment->dailyLogs()
+            ->whereIn('status', ['pending', 'partially_confirmed'])
+            ->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'يوجد سجل عملي مرتبط بهذا التكليف بانتظار مراجعة الدكتور. لا تحتاج إلى إرسال رسالة منفصلة.',
+            ], 422);
+        }
 
         if (!in_array($assignment->status, ['assigned', 'rejected'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'This assignment cannot be submitted right now.',
+                'message' => 'لا يمكن إرسال إنجاز لهذا التكليف في حالته الحالية.',
             ], 422);
         }
 
@@ -311,6 +398,46 @@ class LogbookController extends Controller
         ]);
     }
 
+    protected function resolveAssignmentForAttempt(int $studentId, mixed $assignmentId): ?CaseAssignment
+    {
+        if (! $assignmentId) {
+            return null;
+        }
+
+        $assignment = CaseAssignment::with([
+            'clinicalCase',
+            'assigner',
+            'dailyLogs',
+        ])->where('student_id', $studentId)->findOrFail($assignmentId);
+
+        if (! in_array($assignment->status, ['assigned', 'rejected', 'submitted_for_review'], true)) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                'success' => false,
+                'message' => 'لا يمكن إنشاء محاولة جديدة لهذا التكليف في حالته الحالية.',
+            ], 422));
+        }
+
+        return $assignment;
+    }
+
+    protected function serializeAssignment(CaseAssignment $assignment): array
+    {
+        $logs = $assignment->dailyLogs
+            ? $assignment->dailyLogs->map(fn (StudentDailyLog $log) => $this->serializeLog($log))->values()
+            : collect();
+
+        return array_merge($assignment->toArray(), [
+            'status_label' => $assignment->status_label,
+            'task_type_label' => $assignment->task_type_label,
+            'review_rating_label' => $assignment->review_rating_label,
+            'is_overdue' => $assignment->is_overdue,
+            'attempts' => $logs,
+            'latest_attempt' => $logs->first(),
+            'can_start_attempt' => in_array($assignment->status, ['assigned', 'rejected', 'submitted_for_review'], true)
+                && ! $assignment->dailyLogs->whereIn('status', ['pending', 'partially_confirmed'])->count(),
+        ]);
+    }
+
     protected function serializeLog(StudentDailyLog $log): array
     {
         $generatedAt = $log->qr_generated_at ?? $log->created_at;
@@ -341,6 +468,17 @@ class LogbookController extends Controller
 
         return array_merge($log->toArray(), [
             'status_label' => $log->status_label,
+            'case_assignment' => $log->caseAssignment ? [
+                'id' => $log->caseAssignment->id,
+                'status' => $log->caseAssignment->status,
+                'status_label' => $log->caseAssignment->status_label,
+                'task_type' => $log->caseAssignment->task_type,
+                'task_type_label' => $log->caseAssignment->task_type_label,
+                'instructions' => $log->caseAssignment->instructions,
+                'review_notes' => $log->caseAssignment->review_notes,
+                'review_rating_label' => $log->caseAssignment->review_rating_label,
+                'clinical_case' => $log->caseAssignment->clinicalCase,
+            ] : null,
             'qr_generated_at' => $generatedAt?->toIso8601String(),
             'qr_expires_at' => $expiresAt?->toIso8601String(),
             'is_qr_expired' => $expiresAt ? now()->greaterThanOrEqualTo($expiresAt) : false,
