@@ -11,7 +11,11 @@ class TrainingCenterController extends DoctorApiController
     /** GET /api/doctor/clinical/training-centers */
     public function index(Request $request)
     {
-        $query = TrainingCenter::latest();
+        $query = TrainingCenter::withCount('cases')
+            ->with([
+                'cases:id,training_center_id,patient_name,diagnosis_or_description,status',
+            ])
+            ->latest();
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
         }
@@ -28,6 +32,9 @@ class TrainingCenterController extends DoctorApiController
             'description' => 'nullable|string|max:1000',
         ]);
         $center = TrainingCenter::create($validated);
+        $center->loadCount('cases')->load([
+            'cases:id,training_center_id,patient_name,diagnosis_or_description,status',
+        ]);
         return $this->success($center, 'تم إضافة المركز التدريبي بنجاح.', 201);
     }
 
@@ -41,6 +48,9 @@ class TrainingCenterController extends DoctorApiController
             'description' => 'nullable|string|max:1000',
         ]);
         $center->update($validated);
+        $center->loadCount('cases')->load([
+            'cases:id,training_center_id,patient_name,diagnosis_or_description,status',
+        ]);
         return $this->success($center, 'تم تحديث المركز التدريبي بنجاح.');
     }
 

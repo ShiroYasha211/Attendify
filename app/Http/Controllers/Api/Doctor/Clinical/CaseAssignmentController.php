@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers\Api\Doctor\Clinical;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Api\Doctor\DoctorApiController;
-use App\Models\Academic\Subject;
 use App\Models\Clinical\CaseAssignment;
 use App\Models\Clinical\ClinicalCase;
 use App\Models\StudentNotification;
@@ -166,30 +164,9 @@ class CaseAssignmentController extends DoctorApiController
 
     private function studentBelongsToDoctorScope(int $studentId): bool
     {
-        $doctorSubjects = Subject::where('doctor_id', Auth::id())
-            ->select('major_id', 'level_id')
-            ->distinct()
-            ->get();
-
-        if ($doctorSubjects->isEmpty()) {
-            return false;
-        }
-
         return User::query()
             ->where('id', $studentId)
-            ->whereIn('role', [
-                UserRole::STUDENT->value,
-                UserRole::DELEGATE->value,
-                UserRole::PRACTICAL_DELEGATE->value,
-            ])
-            ->where(function ($query) use ($doctorSubjects) {
-                foreach ($doctorSubjects as $subject) {
-                    $query->orWhere(function ($scope) use ($subject) {
-                        $scope->where('major_id', $subject->major_id)
-                            ->where('level_id', $subject->level_id);
-                    });
-                }
-            })
+            ->inDoctorClinicalScope(Auth::id())
             ->exists();
     }
 

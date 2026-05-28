@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Doctor\Clinical;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Clinical\CaseAssignment;
 use App\Models\Clinical\ClinicalCase;
@@ -20,25 +19,9 @@ class AssignmentController extends Controller
             ->where('status', 'active')
             ->get();
 
-        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', $doctor->id)
-            ->select('major_id', 'level_id')
-            ->distinct()
+        $students = User::inDoctorClinicalScope($doctor->id)
+            ->orderBy('name')
             ->get();
-
-        $studentsQuery = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE]);
-        if ($doctorSubjects->isNotEmpty()) {
-            $studentsQuery->where(function ($query) use ($doctorSubjects) {
-                foreach ($doctorSubjects as $subject) {
-                    $query->orWhere(function ($subQuery) use ($subject) {
-                        $subQuery->where('major_id', $subject->major_id)
-                            ->where('level_id', $subject->level_id);
-                    });
-                }
-            });
-        } else {
-            $studentsQuery->whereRaw('1 = 0');
-        }
-        $students = $studentsQuery->orderBy('name')->get();
 
         $query = CaseAssignment::with(['student', 'clinicalCase.trainingCenter', 'reviewer'])
             ->where('assigned_by', $doctor->id);
@@ -72,6 +55,26 @@ class AssignmentController extends Controller
 
         $validated['assigned_by'] = Auth::id();
         $validated['status'] = 'assigned';
+
+        $case = ClinicalCase::where('doctor_id', Auth::id())
+            ->where('status', 'active')
+            ->find($validated['clinical_case_id']);
+
+        if (!$case) {
+            return back()
+                ->withErrors(['clinical_case_id' => 'الحالة السريرية غير متاحة للتكليف.'])
+                ->withInput();
+        }
+
+        $studentInScope = User::where('id', $validated['student_id'])
+            ->inDoctorClinicalScope(Auth::id())
+            ->exists();
+
+        if (!$studentInScope) {
+            return back()
+                ->withErrors(['student_id' => 'الطالب أو المندوب العملي خارج نطاق موادك السريرية.'])
+                ->withInput();
+        }
 
         $exists = CaseAssignment::where('student_id', $validated['student_id'])
             ->where('clinical_case_id', $validated['clinical_case_id'])

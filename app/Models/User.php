@@ -246,6 +246,62 @@ class User extends Authenticatable
     }
 
     /**
+     * Students and delegates that belong to a doctor's clinical teaching scope.
+     *
+     * Regular students/delegates are matched by the doctor's subject major+level.
+     * Practical delegates are major-scoped, including legacy rows in
+     * clinical_delegates, so they must not be lost when their level differs.
+     */
+    public function scopeInDoctorClinicalScope($query, int $doctorId)
+    {
+        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', $doctorId)
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+
+        if ($doctorSubjects->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $majorIds = $doctorSubjects
+            ->pluck('major_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return $query->where(function ($outer) use ($doctorSubjects, $majorIds) {
+            $outer->where(function ($scope) use ($doctorSubjects) {
+                $scope->whereIn('role', [
+                    UserRole::STUDENT,
+                    UserRole::DELEGATE,
+                    UserRole::PRACTICAL_DELEGATE,
+                ])->where(function ($academicScope) use ($doctorSubjects) {
+                    foreach ($doctorSubjects as $subject) {
+                        $academicScope->orWhere(function ($query) use ($subject) {
+                            $query->where('major_id', $subject->major_id)
+                                ->where('level_id', $subject->level_id);
+                        });
+                    }
+                });
+            });
+
+            if (!empty($majorIds)) {
+                $outer->orWhere(function ($delegateScope) use ($majorIds) {
+                    $delegateScope
+                        ->where(function ($query) use ($majorIds) {
+                            $query->where('role', UserRole::PRACTICAL_DELEGATE)
+                                ->whereIn('major_id', $majorIds);
+                        })
+                        ->orWhereHas('clinicalDelegateAssignment', function ($query) use ($majorIds) {
+                            $query->whereIn('major_id', $majorIds);
+                        });
+                });
+            }
+        });
+    }
+
+    /**
      * Get the attendances for the student.
      */
     public function attendances()

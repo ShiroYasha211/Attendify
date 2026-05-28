@@ -288,25 +288,9 @@ class EvaluationController extends Controller
             ->latest()
             ->get();
 
-        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
-            ->select('major_id', 'level_id')
-            ->distinct()
+        $students = User::inDoctorClinicalScope(Auth::id())
+            ->orderBy('name')
             ->get();
-
-        $studentsQuery = User::whereIn('role', ['student', 'delegate']);
-        if ($doctorSubjects->isNotEmpty()) {
-            $studentsQuery->where(function ($query) use ($doctorSubjects) {
-                foreach ($doctorSubjects as $subject) {
-                    $query->orWhere(function ($q) use ($subject) {
-                        $q->where('major_id', $subject->major_id)
-                            ->where('level_id', $subject->level_id);
-                    });
-                }
-            });
-        } else {
-            $studentsQuery->whereRaw('1 = 0');
-        }
-        $students = $studentsQuery->orderBy('name')->get();
 
         $cases = ClinicalCase::where('doctor_id', Auth::id())->where('status', 'active')->get();
 
@@ -430,25 +414,9 @@ class EvaluationController extends Controller
 
         $evaluations = $query->latest()->paginate(20)->withQueryString();
 
-        $doctorSubjects = \App\Models\Academic\Subject::where('doctor_id', Auth::id())
-            ->select('major_id', 'level_id')
-            ->distinct()
+        $students = User::inDoctorClinicalScope(Auth::id())
+            ->orderBy('name')
             ->get();
-
-        $studentsQuery = User::whereIn('role', ['student', 'delegate']);
-        if ($doctorSubjects->isNotEmpty()) {
-            $studentsQuery->where(function ($query) use ($doctorSubjects) {
-                foreach ($doctorSubjects as $subject) {
-                    $query->orWhere(function ($q) use ($subject) {
-                        $q->where('major_id', $subject->major_id)
-                            ->where('level_id', $subject->level_id);
-                    });
-                }
-            });
-        } else {
-            $studentsQuery->whereRaw('1 = 0');
-        }
-        $students = $studentsQuery->orderBy('name')->get();
 
         return view('doctor.clinical.evaluations.results', compact('evaluations', 'students'));
     }
