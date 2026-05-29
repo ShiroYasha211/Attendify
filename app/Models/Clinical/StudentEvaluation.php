@@ -4,6 +4,7 @@ namespace App\Models\Clinical;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use App\Models\Clinical\BodySystem;
 
 class StudentEvaluation extends Model
 {
@@ -12,6 +13,9 @@ class StudentEvaluation extends Model
         'doctor_id',
         'checklist_id',
         'clinical_case_id',
+        'body_system_id',
+        'procedure_type',
+        'timer_type',
         'total_score',
         'max_score',
         'percentage',
@@ -38,6 +42,11 @@ class StudentEvaluation extends Model
     public function clinicalCase()
     {
         return $this->belongsTo(ClinicalCase::class, 'clinical_case_id');
+    }
+
+    public function bodySystem()
+    {
+        return $this->belongsTo(BodySystem::class, 'body_system_id');
     }
 
     public function scores()

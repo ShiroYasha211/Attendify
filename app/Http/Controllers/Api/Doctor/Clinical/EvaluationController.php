@@ -10,6 +10,9 @@ use App\Models\Clinical\ChecklistItem;
 use App\Models\Clinical\StudentEvaluation;
 use App\Models\Clinical\EvaluationScore;
 use App\Models\Clinical\BodySystem;
+use App\Models\Clinical\ClinicalCase;
+use App\Models\Academic\Major;
+use App\Models\Academic\Level;
 use App\Models\User;
 
 class EvaluationController extends DoctorApiController
@@ -321,14 +324,65 @@ class EvaluationController extends DoctorApiController
         $students = User::with(['major:id,name', 'level:id,name'])
             ->inDoctorClinicalScope($doctorId)
             ->orderBy('name')
-            ->get(['id', 'name', 'student_number', 'major_id', 'level_id']);
+            ->limit(25)
+            ->get(['id', 'name', 'student_number', 'major_id', 'level_id', 'role']);
 
         $bodySystems = BodySystem::all(['id', 'name']);
+        $cases = ClinicalCase::where('doctor_id', $doctorId)
+            ->where('status', 'active')
+            ->latest()
+            ->limit(50)
+            ->get(['id', 'patient_name', 'diagnosis', 'body_system_id']);
 
         return $this->success([
             'checklists' => $checklists,
             'students' => $students,
+            'majors' => Major::whereIn('id', $students->pluck('major_id')->filter()->unique())->orderBy('name')->get(['id', 'name']),
+            'levels' => Level::whereIn('id', $students->pluck('level_id')->filter()->unique())->orderBy('name')->get(['id', 'name']),
             'body_systems' => $bodySystems,
+            'cases' => $cases,
+        ]);
+    }
+
+    /** GET /api/doctor/clinical/evaluations/students */
+    public function students(Request $request)
+    {
+        $doctorId = Auth::id();
+        $query = User::with(['major:id,name', 'level:id,name'])
+            ->inDoctorClinicalScope($doctorId)
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->search;
+                $q->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('name', 'like', "%{$search}%")
+                        ->orWhere('student_number', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->filled('major_id'), fn ($q) => $q->where('major_id', $request->major_id))
+            ->when($request->filled('level_id'), fn ($q) => $q->where('level_id', $request->level_id))
+            ->orderBy('name');
+
+        $students = $query->paginate((int) $request->input('per_page', 25));
+
+        return $this->success([
+            'students' => $students->items(),
+            'pagination' => [
+                'current_page' => $students->currentPage(),
+                'last_page' => $students->lastPage(),
+                'per_page' => $students->perPage(),
+                'total' => $students->total(),
+            ],
+        ]);
+    }
+
+    /** GET /api/doctor/clinical/evaluations/checklists/{id}/take */
+    public function takeChecklist($id)
+    {
+        $checklist = $this->findAccessibleChecklist($id);
+
+        return $this->success([
+            'checklist' => $this->serializeChecklist($checklist->load('items.subItems')),
+            'items_tree' => $this->checklistItemsTree($checklist),
         ]);
     }
 
@@ -345,21 +399,36 @@ class EvaluationController extends DoctorApiController
             'time_taken_seconds' => 'nullable|integer|min:0',
             'scores' => 'required|array',
             'scores.*.score' => 'required|in:done,partial,not_done',
+            'scores.*.note' => 'nullable|string|max:1000',
             'doctor_feedback' => 'nullable|string',
         ]);
 
-        $checklist = EvaluationChecklist::with('items')->findOrFail($request->checklist_id);
+        $doctorId = Auth::id();
+        $checklist = $this->findAccessibleChecklist($request->checklist_id)->load('items.subItems');
+
+        $studentExists = User::inDoctorClinicalScope($doctorId)
+            ->where('id', $request->student_id)
+            ->exists();
+        if (!$studentExists) {
+            return $this->error('الطالب خارج نطاقك السريري ولا يمكن تقييمه.', 403);
+        }
+
+        if ($request->filled('clinical_case_id')) {
+            $caseExists = ClinicalCase::where('doctor_id', $doctorId)
+                ->where('status', 'active')
+                ->where('id', $request->clinical_case_id)
+                ->exists();
+            if (!$caseExists) {
+                return $this->error('الحالة السريرية غير متاحة لهذا التقييم.', 403);
+            }
+        }
 
         // Calculate total score
         $totalObtained = 0;
-        $totalMax = $checklist->total_marks;
+        $scoreableItems = $this->scoreableItems($checklist);
+        $totalMax = $scoreableItems->sum('marks');
 
-        foreach ($checklist->items as $item) {
-            // Skip parent items, score is derived
-            if ($item->subItems()->count() > 0) {
-                continue;
-            }
-
+        foreach ($scoreableItems as $item) {
             $scoreValue = $request->scores[$item->id]['score'] ?? 'not_done';
             $marks = match ($scoreValue) {
                 'done' => $item->marks,
@@ -387,19 +456,15 @@ class EvaluationController extends DoctorApiController
             'clinical_case_id' => $request->clinical_case_id,
             'timer_type' => $request->timer_type ?? 'fixed',
             'time_taken_seconds' => $request->time_taken_seconds ?? 0,
-            'total_marks' => $totalMax,
-            'obtained_marks' => $totalObtained,
+            'max_score' => $totalMax,
+            'total_score' => $totalObtained,
             'percentage' => $percentage,
             'grade' => $grade,
             'doctor_feedback' => $request->doctor_feedback,
         ]);
 
         // Save individual scores
-        foreach ($checklist->items as $item) {
-            if ($item->subItems()->count() > 0) {
-                continue;
-            }
-
+        foreach ($scoreableItems as $item) {
             $scoreValue = $request->scores[$item->id]['score'] ?? 'not_done';
             $marks = match ($scoreValue) {
                 'done' => $item->marks,
@@ -412,6 +477,7 @@ class EvaluationController extends DoctorApiController
                 'checklist_item_id' => $item->id,
                 'score' => $scoreValue,
                 'marks_obtained' => $marks,
+                'note' => $request->scores[$item->id]['note'] ?? null,
             ]);
         }
 
@@ -453,6 +519,56 @@ class EvaluationController extends DoctorApiController
         ])->where('doctor_id', Auth::id())->findOrFail($id);
 
         return $this->success($evaluation);
+    }
+
+    private function findAccessibleChecklist($id): EvaluationChecklist
+    {
+        $user = Auth::user();
+        $hiddenIds = $user->hiddenChecklists()->pluck('evaluation_checklists.id')->toArray();
+
+        return EvaluationChecklist::with('items.subItems')
+            ->where('id', $id)
+            ->where('is_active', true)
+            ->where(function ($query) use ($user, $hiddenIds) {
+                $query->where(function ($standard) use ($hiddenIds) {
+                    $standard->whereNull('doctor_id');
+                    if (!empty($hiddenIds)) {
+                        $standard->whereNotIn('id', $hiddenIds);
+                    }
+                })->orWhere('doctor_id', $user->id);
+            })
+            ->firstOrFail();
+    }
+
+    private function scoreableItems(EvaluationChecklist $checklist)
+    {
+        $items = $checklist->items;
+        $leaves = $items->filter(fn ($item) => $item->subItems->isEmpty());
+
+        return $leaves->isNotEmpty() ? $leaves : $items;
+    }
+
+    private function checklistItemsTree(EvaluationChecklist $checklist): array
+    {
+        return $checklist->items
+            ->whereNull('parent_id')
+            ->values()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'description' => $item->description,
+                    'marks' => $item->marks,
+                    'sort_order' => $item->sort_order,
+                    'sub_items' => $item->subItems->values()->map(fn ($subItem) => [
+                        'id' => $subItem->id,
+                        'parent_id' => $subItem->parent_id,
+                        'description' => $subItem->description,
+                        'marks' => $subItem->marks,
+                        'sort_order' => $subItem->sort_order,
+                    ])->all(),
+                ];
+            })
+            ->all();
     }
 
     private function serializeChecklist(EvaluationChecklist $checklist, bool $isHidden = false): array

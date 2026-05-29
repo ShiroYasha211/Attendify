@@ -938,6 +938,8 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         Route::post('evaluations/checklists/{id}/restore', [DoctorEvaluationController::class, 'restoreChecklist']);
         Route::put('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'updateChecklist']);
         Route::delete('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'destroyChecklist']);
+        Route::get('evaluations/students', [DoctorEvaluationController::class, 'students']);
+        Route::get('evaluations/checklists/{id}/take', [DoctorEvaluationController::class, 'takeChecklist']);
         Route::get('evaluations/start-data', [DoctorEvaluationController::class, 'startData']);
         Route::post('evaluations/submit', [DoctorEvaluationController::class, 'submit']);
         Route::get('evaluations/results', [DoctorEvaluationController::class, 'results']);
