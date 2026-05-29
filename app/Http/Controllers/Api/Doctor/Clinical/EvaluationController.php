@@ -59,19 +59,19 @@ class EvaluationController extends DoctorApiController
 
         $query = $user->hiddenChecklists()
             ->with('items')
-            ->whereNull('doctor_id')
-            ->where('is_active', true)
+            ->whereNull('evaluation_checklists.doctor_id')
+            ->where('evaluation_checklists.is_active', true)
             ->orderBy('doctor_hidden_checklists.created_at', 'desc');
 
         if ($request->filled('skill_type')) {
-            $query->where('skill_type', $request->skill_type);
+            $query->where('evaluation_checklists.skill_type', $request->skill_type);
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                $q->where('evaluation_checklists.title', 'like', "%{$search}%")
+                    ->orWhere('evaluation_checklists.description', 'like', "%{$search}%");
             });
         }
 
@@ -288,7 +288,7 @@ class EvaluationController extends DoctorApiController
         $checklist = $user->hiddenChecklists()
             ->with('items')
             ->where('evaluation_checklists.id', $id)
-            ->whereNull('doctor_id')
+            ->whereNull('evaluation_checklists.doctor_id')
             ->first();
 
         if (!$checklist) {
