@@ -16,6 +16,7 @@ class StudentEvaluation extends Model
         'body_system_id',
         'procedure_type',
         'timer_type',
+        'time_limit_seconds',
         'total_score',
         'max_score',
         'percentage',

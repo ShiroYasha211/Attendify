@@ -13,6 +13,7 @@ use App\Models\Clinical\BodySystem;
 use App\Models\Clinical\ClinicalCase;
 use App\Models\Academic\Major;
 use App\Models\Academic\Level;
+use App\Models\Academic\Subject;
 use App\Models\User;
 
 class EvaluationController extends DoctorApiController
@@ -327,20 +328,37 @@ class EvaluationController extends DoctorApiController
             ->limit(25)
             ->get(['id', 'name', 'student_number', 'major_id', 'level_id', 'role']);
 
+        $doctorSubjects = Subject::where('doctor_id', $doctorId)
+            ->select('major_id', 'level_id')
+            ->distinct()
+            ->get();
+        $majorIds = $doctorSubjects->pluck('major_id')->filter()->unique()->values();
+        $levelIds = $doctorSubjects->pluck('level_id')->filter()->unique()->values();
+
         $bodySystems = BodySystem::all(['id', 'name']);
-        $cases = ClinicalCase::where('doctor_id', $doctorId)
+        $cases = ClinicalCase::with(['trainingCenter:id,name', 'clinicalDepartment:id,name', 'bodySystem:id,name'])
+            ->where('doctor_id', $doctorId)
             ->where('status', 'active')
             ->latest()
             ->limit(50)
-            ->get(['id', 'patient_name', 'diagnosis', 'body_system_id']);
+            ->get(['id', 'patient_name', 'diagnosis_or_description', 'training_center_id', 'clinical_department_id', 'body_system_id']);
 
         return $this->success([
             'checklists' => $checklists,
             'students' => $students,
-            'majors' => Major::whereIn('id', $students->pluck('major_id')->filter()->unique())->orderBy('name')->get(['id', 'name']),
-            'levels' => Level::whereIn('id', $students->pluck('level_id')->filter()->unique())->orderBy('name')->get(['id', 'name']),
+            'majors' => Major::whereIn('id', $majorIds)->orderBy('name')->get(['id', 'name']),
+            'levels' => Level::whereIn('id', $levelIds)->orderBy('name')->get(['id', 'name', 'major_id']),
             'body_systems' => $bodySystems,
-            'cases' => $cases,
+            'cases' => $cases->map(fn (ClinicalCase $case) => [
+                'id' => $case->id,
+                'patient_name' => $case->patient_name,
+                'diagnosis_or_description' => $case->diagnosis_or_description,
+                'diagnosis' => $case->diagnosis_or_description,
+                'body_system_id' => $case->body_system_id,
+                'training_center' => $case->trainingCenter,
+                'clinical_department' => $case->clinicalDepartment,
+                'body_system' => $case->bodySystem,
+            ])->values(),
         ]);
     }
 
@@ -395,7 +413,8 @@ class EvaluationController extends DoctorApiController
             'body_system_id' => 'nullable|exists:body_systems,id',
             'procedure_type' => 'nullable|string',
             'clinical_case_id' => 'nullable|exists:clinical_cases,id',
-            'timer_type' => 'nullable|in:fixed,open',
+            'timer_type' => 'nullable|in:fixed,open,custom',
+            'time_limit_seconds' => 'nullable|integer|min:0',
             'time_taken_seconds' => 'nullable|integer|min:0',
             'scores' => 'required|array',
             'scores.*.score' => 'required|in:done,partial,not_done',
@@ -441,9 +460,9 @@ class EvaluationController extends DoctorApiController
         $percentage = $totalMax > 0 ? round(($totalObtained / $totalMax) * 100) : 0;
         $grade = match (true) {
             $percentage >= 90 => 'excellent',
-            $percentage >= 75 => 'very_good',
-            $percentage >= 60 => 'good',
-            $percentage >= 50 => 'pass',
+            $percentage >= 75 => 'good',
+            $percentage >= 60 => 'acceptable',
+            $percentage >= 50 => 'weak',
             default => 'fail',
         };
 
@@ -455,6 +474,7 @@ class EvaluationController extends DoctorApiController
             'procedure_type' => $request->procedure_type,
             'clinical_case_id' => $request->clinical_case_id,
             'timer_type' => $request->timer_type ?? 'fixed',
+            'time_limit_seconds' => $request->time_limit_seconds,
             'time_taken_seconds' => $request->time_taken_seconds ?? 0,
             'max_score' => $totalMax,
             'total_score' => $totalObtained,
