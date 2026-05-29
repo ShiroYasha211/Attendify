@@ -20,25 +20,64 @@ class EvaluationController extends DoctorApiController
         $user = Auth::user();
         $hiddenIds = $user->hiddenChecklists()->pluck('evaluation_checklists.id')->toArray();
 
-        $query = EvaluationChecklist::with('items')->where(function ($q) use ($user, $hiddenIds) {
-            $q->whereNull('doctor_id');
-            if (!empty($hiddenIds)) {
-                $q->whereNotIn('id', $hiddenIds);
-            }
-        })->orWhere('doctor_id', $user->id);
+        $query = EvaluationChecklist::with('items')
+            ->where(function ($query) use ($user, $hiddenIds) {
+                $query->where(function ($q) use ($hiddenIds) {
+                    $q->whereNull('doctor_id');
+                    if (!empty($hiddenIds)) {
+                        $q->whereNotIn('id', $hiddenIds);
+                    }
+                })->orWhere('doctor_id', $user->id);
+            });
 
         if ($request->filled('skill_type')) {
             $query->where('skill_type', $request->skill_type);
         }
 
         $checklists = $query->latest()->paginate(15);
-        $checklists->getCollection()->transform(function ($checklist) {
-            $checklist->is_standard = is_null($checklist->doctor_id);
-            return $checklist;
-        });
+        $checklists->getCollection()->transform(fn ($checklist) => $this->serializeChecklist($checklist));
 
         return $this->success([
             'checklists' => $checklists->items(),
+            'hidden_count' => count($hiddenIds),
+            'pagination' => [
+                'current_page' => $checklists->currentPage(),
+                'last_page' => $checklists->lastPage(),
+                'per_page' => $checklists->perPage(),
+                'total' => $checklists->total(),
+            ],
+        ]);
+    }
+
+    /** GET /api/doctor/clinical/evaluations/checklists/hidden */
+    public function hiddenChecklists(Request $request)
+    {
+        $user = Auth::user();
+
+        $query = $user->hiddenChecklists()
+            ->with('items')
+            ->whereNull('doctor_id')
+            ->where('is_active', true)
+            ->orderBy('doctor_hidden_checklists.created_at', 'desc');
+
+        if ($request->filled('skill_type')) {
+            $query->where('skill_type', $request->skill_type);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $checklists = $query->paginate(15);
+        $checklists->getCollection()->transform(fn ($checklist) => $this->serializeChecklist($checklist, true));
+
+        return $this->success([
+            'checklists' => $checklists->items(),
+            'hidden_count' => $checklists->total(),
             'pagination' => [
                 'current_page' => $checklists->currentPage(),
                 'last_page' => $checklists->lastPage(),
@@ -239,6 +278,28 @@ class EvaluationController extends DoctorApiController
         return $this->success(null, 'تم استرداد قوائم التقييم الأساسية بنجاح.');
     }
 
+    /** POST /api/doctor/clinical/evaluations/checklists/{id}/restore */
+    public function restoreChecklist($id)
+    {
+        $user = Auth::user();
+        $checklist = $user->hiddenChecklists()
+            ->with('items')
+            ->where('evaluation_checklists.id', $id)
+            ->whereNull('doctor_id')
+            ->first();
+
+        if (!$checklist) {
+            return $this->error('قائمة التقييم غير مخفية أو لا يمكن استرجاعها.', 404);
+        }
+
+        $user->hiddenChecklists()->detach($checklist->id);
+
+        return $this->success(
+            $this->serializeChecklist($checklist),
+            'تم استرجاع قائمة التقييم بنجاح.'
+        );
+    }
+
     /** GET /api/doctor/clinical/evaluations/start-data */
     public function startData()
     {
@@ -392,5 +453,25 @@ class EvaluationController extends DoctorApiController
         ])->where('doctor_id', Auth::id())->findOrFail($id);
 
         return $this->success($evaluation);
+    }
+
+    private function serializeChecklist(EvaluationChecklist $checklist, bool $isHidden = false): array
+    {
+        return [
+            'id' => $checklist->id,
+            'title' => $checklist->title,
+            'description' => $checklist->description,
+            'doctor_id' => $checklist->doctor_id,
+            'skill_type' => $checklist->skill_type,
+            'time_limit_minutes' => $checklist->time_limit_minutes,
+            'is_practice_allowed' => (bool) $checklist->is_practice_allowed,
+            'total_marks' => $checklist->total_marks,
+            'is_active' => (bool) $checklist->is_active,
+            'is_standard' => is_null($checklist->doctor_id),
+            'is_hidden' => $isHidden,
+            'items' => $checklist->relationLoaded('items') ? $checklist->items : [],
+            'created_at' => $checklist->created_at,
+            'updated_at' => $checklist->updated_at,
+        ];
     }
 }

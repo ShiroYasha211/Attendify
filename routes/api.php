@@ -932,8 +932,10 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
 
         // Evaluations
         Route::post('evaluations/checklists/restore', [DoctorEvaluationController::class, 'restoreDefaults']);
+        Route::get('evaluations/checklists/hidden', [DoctorEvaluationController::class, 'hiddenChecklists']);
         Route::get('evaluations/checklists', [DoctorEvaluationController::class, 'checklists']);
         Route::post('evaluations/checklists', [DoctorEvaluationController::class, 'storeChecklist']);
+        Route::post('evaluations/checklists/{id}/restore', [DoctorEvaluationController::class, 'restoreChecklist']);
         Route::put('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'updateChecklist']);
         Route::delete('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'destroyChecklist']);
         Route::get('evaluations/start-data', [DoctorEvaluationController::class, 'startData']);
