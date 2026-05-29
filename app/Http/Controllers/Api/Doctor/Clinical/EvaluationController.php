@@ -91,6 +91,16 @@ class EvaluationController extends DoctorApiController
         ]);
     }
 
+    /** GET /api/doctor/clinical/evaluations/checklists/{id} */
+    public function showChecklist($id)
+    {
+        $checklist = $this->findAccessibleChecklist($id);
+        $data = $this->serializeChecklist($checklist);
+        $data['items'] = $this->checklistItemsTree($checklist);
+
+        return $this->success($data);
+    }
+
     /** POST /api/doctor/clinical/evaluations/checklists */
     public function storeChecklist(Request $request)
     {
@@ -513,6 +523,19 @@ class EvaluationController extends DoctorApiController
     /** GET /api/doctor/clinical/evaluations/results */
     public function results(Request $request)
     {
+        $baseQuery = StudentEvaluation::where('doctor_id', Auth::id());
+
+        $filters = [
+            'students' => User::query()
+                ->whereIn('id', (clone $baseQuery)->select('student_id'))
+                ->orderBy('name')
+                ->get(['id', 'name', 'student_number']),
+            'checklists' => EvaluationChecklist::query()
+                ->whereIn('id', (clone $baseQuery)->select('checklist_id'))
+                ->orderBy('title')
+                ->get(['id', 'title', 'skill_type']),
+        ];
+
         $query = StudentEvaluation::with(['student:id,name,student_number', 'checklist:id,title,skill_type'])
             ->where('doctor_id', Auth::id());
 
@@ -526,7 +549,39 @@ class EvaluationController extends DoctorApiController
             $query->where('grade', $request->grade);
         }
 
-        return $this->paginated($query->latest()->paginate(20));
+        $statsQuery = clone $query;
+        $count = (clone $statsQuery)->count();
+        $average = $count > 0 ? round((clone $statsQuery)->avg('percentage'), 1) : 0;
+        $passed = (clone $statsQuery)
+            ->whereIn('grade', ['excellent', 'good', 'acceptable'])
+            ->count();
+        $failed = max(0, $count - $passed);
+        $averageTime = $count > 0 ? round((clone $statsQuery)->avg('time_taken_seconds')) : 0;
+
+        $paginator = $query->latest()->paginate(20);
+        $items = collect($paginator->items())
+            ->map(fn ($evaluation) => $this->serializeEvaluationSummary($evaluation))
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم جلب نتائج التقييم بنجاح',
+            'data' => $items,
+            'stats' => [
+                'total' => $count,
+                'average_percentage' => $average,
+                'passed' => $passed,
+                'failed' => $failed,
+                'average_time_seconds' => $averageTime,
+            ],
+            'filters' => $filters,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
     }
 
     /** GET /api/doctor/clinical/evaluations/results/{id} */
@@ -534,11 +589,11 @@ class EvaluationController extends DoctorApiController
     {
         $evaluation = StudentEvaluation::with([
             'student:id,name,student_number',
-            'checklist:id,title,skill_type',
+            'checklist.items.subItems',
             'scores.checklistItem',
         ])->where('doctor_id', Auth::id())->findOrFail($id);
 
-        return $this->success($evaluation);
+        return $this->success($this->serializeEvaluationDetails($evaluation));
     }
 
     private function findAccessibleChecklist($id): EvaluationChecklist
@@ -589,6 +644,138 @@ class EvaluationController extends DoctorApiController
                 ];
             })
             ->all();
+    }
+
+    private function serializeEvaluationSummary(StudentEvaluation $evaluation): array
+    {
+        return [
+            'id' => $evaluation->id,
+            'student' => $evaluation->student,
+            'checklist' => $evaluation->checklist ? [
+                'id' => $evaluation->checklist->id,
+                'title' => $evaluation->checklist->title,
+                'skill_type' => $evaluation->checklist->skill_type,
+            ] : null,
+            'total_score' => $evaluation->total_score,
+            'max_score' => $evaluation->max_score,
+            'percentage' => (float) $evaluation->percentage,
+            'grade' => $evaluation->grade,
+            'grade_label' => $this->evaluationGradeLabel($evaluation->grade),
+            'grade_color' => $this->evaluationGradeColor($evaluation->grade),
+            'timer_type' => $evaluation->timer_type,
+            'time_limit_seconds' => $evaluation->time_limit_seconds,
+            'time_taken_seconds' => $evaluation->time_taken_seconds,
+            'formatted_time' => $this->formatSeconds($evaluation->time_taken_seconds),
+            'doctor_feedback' => $evaluation->doctor_feedback,
+            'created_at' => $evaluation->created_at,
+        ];
+    }
+
+    private function serializeEvaluationDetails(StudentEvaluation $evaluation): array
+    {
+        $scores = $evaluation->scores->mapWithKeys(function ($score) {
+            return [
+                $score->checklist_item_id => [
+                    'id' => $score->id,
+                    'checklist_item_id' => $score->checklist_item_id,
+                    'score' => $score->score,
+                    'score_label' => $this->scoreLabel($score->score),
+                    'marks_obtained' => $score->marks_obtained,
+                    'note' => $score->note,
+                    'checklist_item' => $score->checklistItem,
+                ],
+            ];
+        });
+
+        $done = $evaluation->scores->where('score', 'done')->count();
+        $partial = $evaluation->scores->where('score', 'partial')->count();
+        $notDone = $evaluation->scores->where('score', 'not_done')->count();
+        $weaknesses = $evaluation->scores
+            ->whereIn('score', ['partial', 'not_done'])
+            ->values()
+            ->map(fn ($score) => [
+                'description' => optional($score->checklistItem)->description,
+                'score' => $score->score,
+                'score_label' => $this->scoreLabel($score->score),
+                'marks_obtained' => $score->marks_obtained,
+                'max_marks' => optional($score->checklistItem)->marks,
+                'note' => $score->note,
+            ]);
+
+        $data = $this->serializeEvaluationSummary($evaluation);
+        $data['scores'] = $evaluation->scores->map(fn ($score) => [
+            'id' => $score->id,
+            'checklist_item_id' => $score->checklist_item_id,
+            'score' => $score->score,
+            'score_label' => $this->scoreLabel($score->score),
+            'marks_obtained' => $score->marks_obtained,
+            'note' => $score->note,
+            'checklist_item' => $score->checklistItem,
+        ])->values();
+        $data['scores_by_item'] = $scores;
+        $data['status_counts'] = [
+            'done' => $done,
+            'partial' => $partial,
+            'not_done' => $notDone,
+            'total' => $done + $partial + $notDone,
+        ];
+        $data['weaknesses'] = $weaknesses;
+        $data['checklist'] = $evaluation->checklist ? [
+            'id' => $evaluation->checklist->id,
+            'title' => $evaluation->checklist->title,
+            'description' => $evaluation->checklist->description,
+            'skill_type' => $evaluation->checklist->skill_type,
+            'time_limit_minutes' => $evaluation->checklist->time_limit_minutes,
+            'total_marks' => $evaluation->checklist->total_marks,
+            'items' => $this->checklistItemsTree($evaluation->checklist),
+        ] : null;
+
+        return $data;
+    }
+
+    private function evaluationGradeLabel(?string $grade): string
+    {
+        return match ($grade) {
+            'excellent' => 'ممتاز',
+            'good' => 'جيد جدا',
+            'acceptable' => 'مقبول',
+            'weak' => 'ضعيف',
+            'fail' => 'راسب',
+            default => '-',
+        };
+    }
+
+    private function evaluationGradeColor(?string $grade): string
+    {
+        return match ($grade) {
+            'excellent' => '#059669',
+            'good' => '#2563eb',
+            'acceptable' => '#d97706',
+            'weak' => '#dc2626',
+            'fail' => '#991b1b',
+            default => '#64748b',
+        };
+    }
+
+    private function scoreLabel(?string $score): string
+    {
+        return match ($score) {
+            'done' => 'تم بالكامل',
+            'partial' => 'تم جزئيا',
+            'not_done' => 'لم يتم',
+            default => '-',
+        };
+    }
+
+    private function formatSeconds(?int $seconds): string
+    {
+        if (!$seconds || $seconds < 1) {
+            return '-';
+        }
+        $minutes = floor($seconds / 60);
+        $remaining = $seconds % 60;
+
+        return sprintf('%d:%02d', $minutes, $remaining);
     }
 
     private function serializeChecklist(EvaluationChecklist $checklist, bool $isHidden = false): array
