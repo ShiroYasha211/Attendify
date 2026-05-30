@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Student\Clinical;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Clinical\StudentEvaluation;
 use App\Models\Clinical\EvaluationScore;
 
@@ -90,8 +89,56 @@ class EvaluationController extends Controller
                     'excellent_count' => $excellentCount,
                 ],
                 'radar_chart' => $radarData,
-                'evaluations' => $evaluations,
+                'evaluations' => $evaluations
+                    ->map(fn (StudentEvaluation $evaluation) => $this->serializeEvaluation($evaluation, true))
+                    ->values(),
             ]
         ], 200);
+    }
+
+    public function show(Request $request, StudentEvaluation $evaluation)
+    {
+        abort_unless((int) $evaluation->student_id === (int) $request->user()->id, 404);
+
+        $evaluation->load([
+            'checklist:id,title,description',
+            'doctor:id,name',
+            'clinicalCase:id,patient_name,diagnosis_or_description',
+            'bodySystem:id,name',
+            'scores.checklistItem',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'evaluation' => $this->serializeEvaluation($evaluation, true),
+            ],
+        ]);
+    }
+
+    protected function serializeEvaluation(StudentEvaluation $evaluation, bool $includeScores = false): array
+    {
+        $data = $evaluation->toArray();
+        $data['grade_label'] = $evaluation->grade_label;
+        $data['grade_color'] = $evaluation->grade_color;
+        $data['formatted_time'] = $evaluation->formatted_time;
+
+        if ($includeScores) {
+            $data['scores'] = $evaluation->scores->map(function (EvaluationScore $score) {
+                $item = $score->checklistItem;
+
+                return array_merge($score->toArray(), [
+                    'score_label' => $score->score_label,
+                    'checklist_item' => $item ? [
+                        'id' => $item->id,
+                        'description' => $item->description,
+                        'marks' => $item->marks,
+                        'parent_id' => $item->parent_id ?? null,
+                    ] : null,
+                ]);
+            })->values();
+        }
+
+        return $data;
     }
 }

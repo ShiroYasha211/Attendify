@@ -36,12 +36,17 @@ class MessageController extends DoctorApiController
     public function index()
     {
         $conversations = DoctorConversation::where('doctor_id', Auth::id())
-            ->with(['delegate:id,name', 'lastMessage'])
+            ->with(['delegate:id,name,student_number,role', 'lastMessage'])
             ->orderByDesc('last_message_at')
             ->get()
             ->map(fn($c) => [
                 'id' => $c->id,
-                'delegate' => $c->delegate ? ['id' => $c->delegate->id, 'name' => $c->delegate->name] : null,
+                'delegate' => $c->delegate ? [
+                    'id' => $c->delegate->id,
+                    'name' => $c->delegate->name,
+                    'student_number' => $c->delegate->student_number,
+                    'role' => $this->roleValue($c->delegate),
+                ] : null,
                 'last_message' => $c->lastMessage?->body,
                 'last_message_at' => $c->last_message_at,
                 'unread_count' => $c->messages()->where('sender_id', '!=', Auth::id())->whereNull('read_at')->count(),
@@ -71,7 +76,7 @@ class MessageController extends DoctorApiController
     public function show($id)
     {
         $conversation = DoctorConversation::where('doctor_id', Auth::id())
-            ->with('delegate:id,name')
+            ->with('delegate:id,name,student_number,role')
             ->findOrFail($id);
 
         $conversation->markAsReadFor(Auth::id());
@@ -87,7 +92,12 @@ class MessageController extends DoctorApiController
         return $this->success([
             'conversation' => [
                 'id' => $conversation->id,
-                'delegate' => $conversation->delegate ? ['id' => $conversation->delegate->id, 'name' => $conversation->delegate->name] : null,
+                'delegate' => $conversation->delegate ? [
+                    'id' => $conversation->delegate->id,
+                    'name' => $conversation->delegate->name,
+                    'student_number' => $conversation->delegate->student_number,
+                    'role' => $this->roleValue($conversation->delegate),
+                ] : null,
             ],
             'messages' => $messages,
         ]);
@@ -131,5 +141,12 @@ class MessageController extends DoctorApiController
             'body' => $message->body,
             'created_at' => $message->created_at,
         ], 'تم إرسال الرسالة.');
+    }
+
+    private function roleValue(User $user): string
+    {
+        return $user->role instanceof \BackedEnum
+            ? $user->role->value
+            : (string) $user->role;
     }
 }

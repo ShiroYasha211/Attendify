@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api\Doctor;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Enums\UserRole;
 use App\Models\Academic\Assignment;
+use App\Models\Academic\AssignmentDelegatePermission;
 use App\Models\Academic\Subject;
 use App\Models\AssignmentSubmission;
+use App\Models\User;
 
 class AssignmentController extends DoctorApiController
 {
@@ -98,6 +101,120 @@ class AssignmentController extends DoctorApiController
         return $this->success([
             'assignment' => $assignment,
         ]);
+    }
+
+    /** GET /api/doctor/assignments/delegate-permissions */
+    public function delegatePermissions(Request $request)
+    {
+        $doctor = $request->user();
+
+        $subjectsQuery = Subject::where('doctor_id', $doctor->id)
+            ->with(['major:id,name', 'level:id,name'])
+            ->orderBy('name');
+
+        if ($request->filled('subject_id')) {
+            $subjectsQuery->where('id', $request->integer('subject_id'));
+        }
+
+        $subjects = $subjectsQuery->get(['id', 'name', 'code', 'major_id', 'level_id', 'doctor_id']);
+        $delegates = $this->eligibleDelegatesForSubjects($doctor, $subjects);
+
+        $permissions = AssignmentDelegatePermission::where('doctor_id', $doctor->id)
+            ->whereIn('subject_id', $subjects->pluck('id'))
+            ->whereIn('delegate_id', $delegates->pluck('id'))
+            ->get()
+            ->keyBy(fn (AssignmentDelegatePermission $permission) => "{$permission->subject_id}:{$permission->delegate_id}");
+
+        return $this->success([
+            'subjects' => $subjects->map(function (Subject $subject) use ($delegates, $permissions) {
+                $subjectDelegates = $delegates
+                    ->where('major_id', $subject->major_id)
+                    ->where('level_id', $subject->level_id)
+                    ->values()
+                    ->map(function (User $delegate) use ($subject, $permissions) {
+                        $permission = $permissions->get("{$subject->id}:{$delegate->id}");
+
+                        return [
+                            'delegate' => [
+                                'id' => $delegate->id,
+                                'name' => $delegate->name,
+                                'student_number' => $delegate->student_number,
+                                'major' => $delegate->major,
+                                'level' => $delegate->level,
+                            ],
+                            'permissions' => $permission
+                                ? $permission->toFlags()
+                                : AssignmentDelegatePermission::emptyFlags(),
+                        ];
+                    });
+
+                return [
+                    'subject' => $subject,
+                    'delegates' => $subjectDelegates,
+                ];
+            })->values(),
+        ]);
+    }
+
+    /** PUT /api/doctor/assignments/delegate-permissions */
+    public function updateDelegatePermissions(Request $request)
+    {
+        $doctor = $request->user();
+
+        $validated = $request->validate([
+            'subject_id' => 'required|integer|exists:subjects,id',
+            'delegate_id' => 'required|integer|exists:users,id',
+            'can_create' => 'nullable|boolean',
+            'can_edit_own' => 'nullable|boolean',
+            'can_delete_own' => 'nullable|boolean',
+            'can_edit_doctor_assignments' => 'nullable|boolean',
+            'can_delete_doctor_assignments' => 'nullable|boolean',
+        ]);
+
+        $subject = Subject::where('doctor_id', $doctor->id)
+            ->findOrFail($validated['subject_id']);
+
+        $delegate = User::where('college_id', $doctor->college_id)
+            ->where('role', UserRole::DELEGATE)
+            ->where('major_id', $subject->major_id)
+            ->where('level_id', $subject->level_id)
+            ->findOrFail($validated['delegate_id']);
+
+        $flags = [
+            'can_create' => $request->boolean('can_create'),
+            'can_edit_own' => $request->boolean('can_edit_own'),
+            'can_delete_own' => $request->boolean('can_delete_own'),
+            'can_edit_doctor_assignments' => $request->boolean('can_edit_doctor_assignments'),
+            'can_delete_doctor_assignments' => $request->boolean('can_delete_doctor_assignments'),
+        ];
+
+        if (! in_array(true, $flags, true)) {
+            AssignmentDelegatePermission::where('doctor_id', $doctor->id)
+                ->where('delegate_id', $delegate->id)
+                ->where('subject_id', $subject->id)
+                ->delete();
+
+            return $this->success([
+                'subject_id' => $subject->id,
+                'delegate_id' => $delegate->id,
+                'permissions' => AssignmentDelegatePermission::emptyFlags(),
+            ], 'تم سحب صلاحيات التكليف من المندوب.');
+        }
+
+        $permission = AssignmentDelegatePermission::updateOrCreate(
+            [
+                'doctor_id' => $doctor->id,
+                'delegate_id' => $delegate->id,
+                'subject_id' => $subject->id,
+            ],
+            $flags
+        );
+
+        return $this->success([
+            'subject_id' => $subject->id,
+            'delegate_id' => $delegate->id,
+            'permissions' => $permission->toFlags(),
+        ], 'تم تحديث صلاحيات التكليف بنجاح.');
     }
 
     /** PUT /api/doctor/assignments/{id} */
@@ -229,5 +346,25 @@ class AssignmentController extends DoctorApiController
                 ? $submission->isLate()
                 : false,
         ];
+    }
+
+    private function eligibleDelegatesForSubjects(User $doctor, $subjects)
+    {
+        $query = User::where('college_id', $doctor->college_id)
+            ->where('role', UserRole::DELEGATE)
+            ->with(['major:id,name', 'level:id,name']);
+
+        $query->where(function ($scope) use ($subjects) {
+            foreach ($subjects as $subject) {
+                $scope->orWhere(function ($q) use ($subject) {
+                    $q->where('major_id', $subject->major_id)
+                        ->where('level_id', $subject->level_id);
+                });
+            }
+        });
+
+        return $subjects->isEmpty()
+            ? collect()
+            : $query->orderBy('name')->get(['id', 'name', 'student_number', 'major_id', 'level_id']);
     }
 }

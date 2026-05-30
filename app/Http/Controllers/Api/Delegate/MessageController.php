@@ -61,7 +61,10 @@ class MessageController extends DelegateApiController
 
         $conversation->markAsReadFor($delegate->id);
 
-        $messages = $conversation->messages()->with('sender:id,name,avatar,role')->get();
+        $messages = $conversation->messages()
+            ->with('sender:id,name,avatar,role')
+            ->get()
+            ->map(fn (Message $message) => $this->messagePayload($message, $delegate->id));
 
         return $this->success([
             'conversation' => $conversation,
@@ -123,7 +126,7 @@ class MessageController extends DelegateApiController
         $conversation->update(['last_message_at' => now()]);
 
         return $this->success(
-            $message->load('sender:id,name,avatar,role'),
+            $this->messagePayload($message->load('sender:id,name,avatar,role'), $delegate->id),
             'تم إرسال الرسالة بنجاح',
             201
         );
@@ -149,5 +152,23 @@ class MessageController extends DelegateApiController
             ->get();
 
         return $this->success($students, 'تم جلب قائمة الطلاب بنجاح');
+    }
+
+    private function messagePayload(Message $message, int $currentUserId): array
+    {
+        return [
+            'id' => $message->id,
+            'conversation_id' => $message->conversation_id,
+            'sender_id' => $message->sender_id,
+            'receiver_id' => $message->receiver_id,
+            'subject' => $message->subject,
+            'body' => $message->body,
+            'type' => $message->type,
+            'read_at' => $message->read_at,
+            'created_at' => $message->created_at,
+            'updated_at' => $message->updated_at,
+            'sender' => $message->sender,
+            'is_mine' => (int) $message->sender_id === $currentUserId,
+        ];
     }
 }

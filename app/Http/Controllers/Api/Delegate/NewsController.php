@@ -73,7 +73,7 @@ class NewsController extends DelegateApiController
         ];
 
         if ($notification->type === 'poll') {
-            $data['poll_options'] = PollOption::where('batch_id', $batchId)->get();
+            $data['poll_options'] = PollOption::where('batch_id', $batchId)->withCount('votes')->get();
 
             $userVote = PollVote::where('batch_id', $batchId)
                 ->where('student_id', $user->id)

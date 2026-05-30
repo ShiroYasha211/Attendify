@@ -55,7 +55,10 @@ class DoctorChatController extends DelegateApiController
         // Mark as read
         $conversation->markAsReadFor($delegate->id);
 
-        $messages = $conversation->messages()->with('sender:id,name,avatar,role')->get();
+        $messages = $conversation->messages()
+            ->with('sender:id,name,avatar,role')
+            ->get()
+            ->map(fn (DoctorMessage $message) => $this->messagePayload($message, $delegate->id));
 
         return $this->success([
             'conversation' => $conversation,
@@ -107,7 +110,7 @@ class DoctorChatController extends DelegateApiController
 
         $conversation->update(['last_message_at' => now()]);
 
-        return $this->success($message->load('sender:id,name,avatar,role'), 'تم إرسال الرسالة بنجاح', 201);
+        return $this->success($this->messagePayload($message->load('sender:id,name,avatar,role'), $delegate->id), 'تم إرسال الرسالة بنجاح', 201);
     }
 
     /**
@@ -130,5 +133,20 @@ class DoctorChatController extends DelegateApiController
             ->values();
 
         return $this->success($doctors, 'تم جلب قائمة الدكاترة بنجاح');
+    }
+
+    private function messagePayload(DoctorMessage $message, int $currentUserId): array
+    {
+        return [
+            'id' => $message->id,
+            'conversation_id' => $message->conversation_id,
+            'sender_id' => $message->sender_id,
+            'body' => $message->body,
+            'read_at' => $message->read_at,
+            'created_at' => $message->created_at,
+            'updated_at' => $message->updated_at,
+            'sender' => $message->sender,
+            'is_mine' => (int) $message->sender_id === $currentUserId,
+        ];
     }
 }

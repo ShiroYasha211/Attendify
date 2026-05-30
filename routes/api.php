@@ -303,6 +303,7 @@ Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
     
     Route::apiResource('schedules', DelegateScheduleController::class)->names('api.delegate.schedules');
     Route::apiResource('exam-schedules', DelegateExamScheduleController::class)->names('api.delegate.exam-schedules');
+    Route::get('assignments/permissions', [DelegateAssignmentController::class, 'permissions']);
     Route::apiResource('assignments', DelegateAssignmentController::class)->names('api.delegate.assignments');
     
     Route::get('resources/library/search', [DelegateResourceController::class, 'searchLibrary']);
@@ -657,6 +658,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
 
         // Evaluations (OSCE)
         Route::get('evaluations', [StudentEvaluationController::class, 'index']);
+        Route::get('evaluations/{evaluation}', [StudentEvaluationController::class, 'show']);
 
         // Mock Exams
         Route::get('mock-exams', [StudentMockExamController::class, 'index']);
@@ -806,6 +808,8 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     // Assignments
     Route::get('assignments', [DoctorAssignmentController::class, 'index']);
     Route::post('assignments', [DoctorAssignmentController::class, 'store']);
+    Route::get('assignments/delegate-permissions', [DoctorAssignmentController::class, 'delegatePermissions']);
+    Route::put('assignments/delegate-permissions', [DoctorAssignmentController::class, 'updateDelegatePermissions']);
     Route::get('assignments/{assignment}', [DoctorAssignmentController::class, 'show']);
     Route::put('assignments/{assignment}', [DoctorAssignmentController::class, 'update']);
     Route::delete('assignments/{assignment}', [DoctorAssignmentController::class, 'destroy']);
