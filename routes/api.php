@@ -485,10 +485,21 @@ Route::prefix('administrative')->middleware(['auth:sanctum', 'administrative', '
 
         Route::get('reports', [\App\Http\Controllers\Administrative\ApiReportController::class, 'index']);
         Route::get('reports/attendance', [\App\Http\Controllers\Administrative\ApiReportController::class, 'attendance']);
-        Route::get('reports/subject', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'subjectReport']);
-        Route::get('reports/threshold', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'thresholdReport']);
-        Route::get('reports/level-summary', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'levelSummary']);
-        Route::get('reports/doctor-performance', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'doctorPerformance']);
+          Route::get('reports/subject/pdf', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'subjectPdf']);
+          Route::get('reports/subject/excel', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'subjectExcel']);
+          Route::get('reports/subject', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'subjectReport']);
+          Route::get('reports/threshold/pdf', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'thresholdPdf']);
+          Route::get('reports/threshold/excel', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'thresholdExcel']);
+          Route::post('reports/threshold/notify', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'notifyThreshold']);
+          Route::get('reports/threshold', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'thresholdReport']);
+          Route::get('reports/level-summary/pdf', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'levelSummaryPdf']);
+          Route::get('reports/level-summary/excel', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'levelSummaryExcel']);
+          Route::get('reports/level-summary', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'levelSummary']);
+          Route::get('reports/doctor-performance/pdf', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'doctorPerformancePdf']);
+          Route::get('reports/doctor-performance/excel', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'doctorPerformanceExcel']);
+          Route::get('reports/doctor-performance', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'doctorPerformance']);
+          Route::get('reports/comparison/excel', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'comparisonExcel']);
+          Route::get('reports/comparison', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'comparison']);
 
         Route::apiResource('students', \App\Http\Controllers\Api\Administrative\StudentController::class);
         Route::apiResource('doctors', \App\Http\Controllers\Api\Administrative\DoctorController::class);
