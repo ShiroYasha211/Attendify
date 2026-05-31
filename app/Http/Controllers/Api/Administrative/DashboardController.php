@@ -23,7 +23,7 @@ class DashboardController extends AdministrativeApiController
             'stats' => [
                 'doctors_count' => User::where('college_id', $college->id)->where('role', UserRole::DOCTOR)->count(),
                 'delegates_count' => User::where('college_id', $college->id)->whereIn('role', [UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])->count(),
-                'students_count' => User::where('college_id', $college->id)->where('role', UserRole::STUDENT)->count(),
+                'students_count' => User::where('college_id', $college->id)->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])->count(),
             ],
             'quick_links' => [
                 'notifications' => url('/api/administrative/notifications'),

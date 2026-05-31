@@ -15,10 +15,30 @@ class ExamScheduleController extends AdministrativeApiController
 {
     public function index(Request $request)
     {
-        $schedules = ExamSchedule::whereHas('major', fn ($q) => $q->where('college_id', $this->college()->id))
-            ->with(['major:id,name', 'level:id,name', 'term:id,name', 'creator:id,name'])
-            ->latest()
-            ->paginate($request->integer('per_page', 15));
+        $query = ExamSchedule::whereHas('major', fn ($q) => $q->where('college_id', $this->college()->id))
+            ->with(['major:id,name', 'level:id,name', 'term:id,name', 'creator:id,name', 'items.subject:id,name']);
+
+        if ($request->filled('major_id')) {
+            $query->where('major_id', $request->integer('major_id'));
+        }
+
+        if ($request->filled('level_id')) {
+            $query->where('level_id', $request->integer('level_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('major', fn ($major) => $major->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('level', fn ($level) => $level->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('term', fn ($term) => $term->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('items.subject', fn ($subject) => $subject->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        $schedules = $query->latest()->paginate($request->integer('per_page', 15));
 
         return $this->success([
             'schedules' => $schedules->items(),
