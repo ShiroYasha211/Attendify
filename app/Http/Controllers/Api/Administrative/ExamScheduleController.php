@@ -54,7 +54,15 @@ class ExamScheduleController extends AdministrativeApiController
     public function createData()
     {
         return $this->success([
-            'majors' => Major::where('college_id', $this->college()->id)->with('levels:id,name,major_id')->get(['id', 'name']),
+            'majors' => Major::where('college_id', $this->college()->id)
+                ->with('levels:id,name,major_id')
+                ->select(['id', 'name'])
+                ->selectSub(
+                    ExamSchedule::selectRaw('count(*)')
+                        ->whereColumn('exam_schedules.major_id', 'majors.id'),
+                    'exam_schedules_count'
+                )
+                ->get(),
         ]);
     }
 

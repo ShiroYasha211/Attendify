@@ -12,10 +12,29 @@ class AcademicScheduleController extends AdministrativeApiController
 {
     public function index(Request $request)
     {
-        $schedules = Schedule::whereHas('subject.major', fn ($q) => $q->where('college_id', $this->college()->id))
-            ->with(['subject.major:id,name', 'subject.level:id,name', 'subject.doctor:id,name', 'creator:id,name'])
-            ->latest()
-            ->paginate($request->integer('per_page', 15));
+        $query = Schedule::whereHas('subject.major', fn ($q) => $q->where('college_id', $this->college()->id))
+            ->with(['subject.major:id,name', 'subject.level:id,name', 'subject.doctor:id,name', 'creator:id,name']);
+
+        if ($request->filled('major_id')) {
+            $query->whereHas('subject', fn ($q) => $q->where('major_id', $request->integer('major_id')));
+        }
+
+        if ($request->filled('level_id')) {
+            $query->whereHas('subject', fn ($q) => $q->where('level_id', $request->integer('level_id')));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('hall_name', 'like', "%{$search}%")
+                    ->orWhereHas('subject', fn ($subject) => $subject->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('subject.major', fn ($major) => $major->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('subject.level', fn ($level) => $level->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('subject.doctor', fn ($doctor) => $doctor->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        $schedules = $query->latest()->paginate($request->integer('per_page', 15));
 
         return $this->success([
             'schedules' => $schedules->items(),
@@ -31,7 +50,16 @@ class AcademicScheduleController extends AdministrativeApiController
     public function createData()
     {
         return $this->success([
-            'majors' => Major::where('college_id', $this->college()->id)->with('levels:id,name,major_id')->get(['id', 'name']),
+            'majors' => Major::where('college_id', $this->college()->id)
+                ->with('levels:id,name,major_id')
+                ->select(['id', 'name'])
+                ->selectSub(
+                    Schedule::selectRaw('count(*)')
+                        ->join('subjects', 'schedules.subject_id', '=', 'subjects.id')
+                        ->whereColumn('subjects.major_id', 'majors.id'),
+                    'lecture_schedules_count'
+                )
+                ->get(),
         ]);
     }
 

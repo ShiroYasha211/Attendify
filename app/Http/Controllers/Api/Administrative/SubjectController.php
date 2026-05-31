@@ -25,6 +25,17 @@ class SubjectController extends AdministrativeApiController
             });
         }
 
+        if ($request->filled('major_id')) {
+            $majorId = $request->integer('major_id');
+            if ($majorIds->contains($majorId)) {
+                $query->where('major_id', $majorId);
+            }
+        }
+
+        if ($request->filled('level_id')) {
+            $query->where('level_id', $request->integer('level_id'));
+        }
+
         if ($request->filled('term_id')) {
             $query->where('term_id', $request->integer('term_id'));
         }
