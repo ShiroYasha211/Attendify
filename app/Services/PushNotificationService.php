@@ -171,6 +171,7 @@ class PushNotificationService
             'inquiry', 'doctor_inquiry' => 'inquiries',
             'star', 'stars' => 'stars',
             'quiz', 'quizzes' => 'quizzes',
+            'grade_delegation' => 'authorized_grades',
             'assignment' => 'assignments',
             'study_reminder' => 'study_session',
             'schedule' => 'schedule',

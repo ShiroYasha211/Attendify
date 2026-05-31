@@ -74,11 +74,11 @@ class ExcuseController extends Controller
         }
 
         if (($excuse->receiver_type ?? ExcuseWorkflow::RECEIVER_DOCTOR) !== ExcuseWorkflow::RECEIVER_DOCTOR) {
-            return back()->with('error', 'This excuse is routed to the administrative queue.');
+            return back()->with('error', 'هذا العذر محول إلى قائمة المسؤول الإداري.');
         }
 
         if ($validated['status'] === 'accepted' && empty($validated['resolution'])) {
-            return back()->withErrors(['resolution' => 'Resolution is required when accepting an excuse.']);
+            return back()->withErrors(['resolution' => 'يجب اختيار الإجراء النهائي عند قبول العذر.']);
         }
 
         $excuse->update([

@@ -100,15 +100,15 @@ class ExcuseController extends DoctorApiController
         ]);
 
         if ($excuse->attendance->subject->doctor_id !== Auth::id()) {
-            return $this->error('Unauthorized.', 403);
+            return $this->error('غير مصرح لك بمراجعة هذا العذر.', 403);
         }
 
         if (($excuse->receiver_type ?? ExcuseWorkflow::RECEIVER_DOCTOR) !== ExcuseWorkflow::RECEIVER_DOCTOR) {
-            return $this->error('This excuse is routed to the administrative queue.', 403);
+            return $this->error('هذا العذر محول إلى قائمة المسؤول الإداري.', 403);
         }
 
         if ($validated['status'] === 'accepted' && empty($validated['resolution'])) {
-            return $this->error('Resolution is required when accepting an excuse.', 422);
+            return $this->error('يجب اختيار الإجراء النهائي عند قبول العذر.', 422);
         }
 
         $excuse->update([
@@ -125,21 +125,21 @@ class ExcuseController extends DoctorApiController
             ]);
         }
 
-        $subjectName = $excuse->attendance->subject->name ?? 'Unknown subject';
-        $statusLabel = $validated['status'] === 'accepted' ? 'accepted' : 'rejected';
+        $subjectName = $excuse->attendance->subject->name ?? 'مادة غير معروفة';
+        $statusLabel = $validated['status'] === 'accepted' ? 'مقبولًا' : 'مرفوضًا';
         $resolutionLabel = $validated['status'] === 'accepted'
-            ? (' Final action: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
+            ? (' الإجراء النهائي: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
             : '';
 
-        $message = "Your excuse for {$subjectName} on {$excuse->attendance->date->format('Y-m-d')} was {$statusLabel}.{$resolutionLabel}";
+        $message = "تم اعتبار عذرك المقدم لمادة {$subjectName} بتاريخ {$excuse->attendance->date->format('Y-m-d')} {$statusLabel} من قبل مدرس المادة.{$resolutionLabel}";
         if (!empty($validated['comment'])) {
-            $message .= "\nDoctor note: {$validated['comment']}";
+            $message .= "\nملاحظة المدرس: {$validated['comment']}";
         }
 
         StudentNotification::create([
             'user_id' => $excuse->student_id,
             'type' => 'excuse',
-            'title' => 'Excuse decision',
+            'title' => 'قرار بشأن العذر',
             'message' => $message,
             'data' => [
                 'excuse_id' => $excuse->id,
@@ -155,6 +155,6 @@ class ExcuseController extends DoctorApiController
             'resolution' => $excuse->resolution,
             'attendance_status' => $excuse->attendance->status,
             'comment' => $excuse->doctor_comment,
-        ], 'Excuse decision updated successfully.');
+        ], 'تم تحديث قرار العذر بنجاح.');
     }
 }

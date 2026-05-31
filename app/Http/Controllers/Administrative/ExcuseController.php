@@ -62,11 +62,11 @@ class ExcuseController extends Controller
         }
 
         if (!ExcuseWorkflow::canAdministrativeReview($college)) {
-            return back()->with('error', 'Excuses are currently routed to the subject doctor. Administrative review is read-only.');
+            return back()->with('error', 'الأعذار محولة حاليًا إلى دكتور المادة. مراجعة المسؤول الإداري للعرض فقط.');
         }
 
         if (($excuse->receiver_type ?? ExcuseWorkflow::RECEIVER_ADMINISTRATIVE) !== ExcuseWorkflow::RECEIVER_ADMINISTRATIVE) {
-            return back()->with('error', 'This excuse was routed to the subject doctor and cannot be decided from the administrative queue.');
+            return back()->with('error', 'هذا العذر محول إلى دكتور المادة ولا يمكن اتخاذ القرار من قائمة المسؤول الإداري.');
         }
 
         $validated = $request->validate([
@@ -76,7 +76,7 @@ class ExcuseController extends Controller
         ]);
 
         if ($validated['status'] === 'accepted' && empty($validated['resolution'])) {
-            return back()->withErrors(['resolution' => 'Resolution is required when accepting an excuse.']);
+            return back()->withErrors(['resolution' => 'يجب اختيار الإجراء النهائي عند قبول العذر.']);
         }
 
         $excuse->update([

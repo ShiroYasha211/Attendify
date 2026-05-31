@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Doctor;
 use App\Http\Controllers\Controller;
 use App\Models\GradeCategory;
 use App\Models\GradePermission;
+use App\Models\StudentNotification;
 use App\Models\Academic\Subject;
 use App\Models\User;
 use App\Enums\UserRole;
@@ -109,6 +110,8 @@ class GradeCategoryController extends Controller
             'authorized_user_id' => $authorizedUser->id,
         ]);
 
+        $this->notifyGradeDelegation($category, $authorizedUser, false);
+
         return back()->with('success', 'تم تفويض الطالب بنجاح.');
     }
 
@@ -122,10 +125,15 @@ class GradeCategoryController extends Controller
         ]);
 
         $category = GradeCategory::where('doctor_id', Auth::id())->findOrFail($categoryId);
+        $authorizedUser = User::findOrFail($request->authorized_user_id);
 
-        GradePermission::where('category_id', $categoryId)
+        $deleted = GradePermission::where('category_id', $categoryId)
             ->where('authorized_user_id', $request->authorized_user_id)
             ->delete();
+
+        if ($deleted > 0) {
+            $this->notifyGradeDelegation($category, $authorizedUser, true);
+        }
 
         return back()->with('success', 'تم سحب التفويض بنجاح.');
     }
@@ -153,5 +161,29 @@ class GradeCategoryController extends Controller
             ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->where('major_id', $subject->major_id)
             ->where('level_id', $subject->level_id);
+    }
+
+    protected function notifyGradeDelegation(GradeCategory $category, User $user, bool $revoked): void
+    {
+        $category->loadMissing('subject', 'doctor');
+
+        StudentNotification::create([
+            'user_id' => $user->id,
+            'college_id' => $user->college_id,
+            'sender_id' => Auth::id(),
+            'type' => 'grade_delegation',
+            'title' => $revoked ? 'تم سحب تفويض الدرجات' : 'تم تفويضك لرصد درجات',
+            'message' => $revoked
+                ? "تم سحب تفويض رصد درجات {$category->name} في مادة {$category->subject?->name}."
+                : "فوضك الدكتور لرصد درجات {$category->name} في مادة {$category->subject?->name}.",
+            'data' => [
+                'category_id' => $category->id,
+                'subject_id' => $category->subject_id,
+                'doctor_id' => $category->doctor_id,
+                'revoked' => $revoked,
+                'screen' => 'authorized_grades',
+                'target_screen' => 'authorized_grades',
+            ],
+        ]);
     }
 }

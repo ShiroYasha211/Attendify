@@ -65,15 +65,15 @@ class ApiExcuseManagementController extends AdministrativeApiController
     public function update(Request $request, Excuse $excuse)
     {
         if ($excuse->student->college_id !== $this->college()->id) {
-            return $this->error('The excuse does not belong to this college.', 403);
+            return $this->error('العذر لا ينتمي إلى هذه الكلية.', 403);
         }
 
         if (!ExcuseWorkflow::canAdministrativeReview($this->college())) {
-            return $this->error('Excuses are currently routed to the subject doctor. Administrative review is read-only.', 403);
+            return $this->error('الأعذار محولة حاليًا إلى دكتور المادة. مراجعة المسؤول الإداري للعرض فقط.', 403);
         }
 
         if (($excuse->receiver_type ?? ExcuseWorkflow::RECEIVER_ADMINISTRATIVE) !== ExcuseWorkflow::RECEIVER_ADMINISTRATIVE) {
-            return $this->error('This excuse was routed to the subject doctor and cannot be decided from the administrative queue.', 403);
+            return $this->error('هذا العذر محول إلى دكتور المادة ولا يمكن اتخاذ القرار من قائمة المسؤول الإداري.', 403);
         }
 
         $validated = $request->validate([
@@ -83,7 +83,7 @@ class ApiExcuseManagementController extends AdministrativeApiController
         ]);
 
         if ($validated['status'] === 'accepted' && empty($validated['resolution'])) {
-            return $this->error('Resolution is required when accepting an excuse.', 422);
+            return $this->error('يجب اختيار الإجراء النهائي عند قبول العذر.', 422);
         }
 
         $excuse->update([
@@ -100,22 +100,22 @@ class ApiExcuseManagementController extends AdministrativeApiController
             ]);
         }
 
-        $subjectName = $excuse->attendance->subject->name ?? 'Unknown subject';
+        $subjectName = $excuse->attendance->subject->name ?? 'مادة غير معروفة';
         $date = optional($excuse->attendance->date)->format('Y-m-d');
-        $statusLabel = $validated['status'] === 'accepted' ? 'accepted' : 'rejected';
+        $statusLabel = $validated['status'] === 'accepted' ? 'مقبولًا' : 'مرفوضًا';
         $resolutionLabel = $validated['status'] === 'accepted'
-            ? (' Final action: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
+            ? (' الإجراء النهائي: ' . ExcuseWorkflow::resolutionLabel($validated['resolution']) . '.')
             : '';
 
-        $message = "Your excuse for {$subjectName} on {$date} was {$statusLabel} by the college administration.{$resolutionLabel}";
+        $message = "تم اعتبار عذرك المقدم لمادة {$subjectName} بتاريخ {$date} {$statusLabel} من قبل إدارة الكلية.{$resolutionLabel}";
         if (!empty($validated['comment'])) {
-            $message .= "\nAdministrative note: {$validated['comment']}";
+            $message .= "\nملاحظة الإدارة: {$validated['comment']}";
         }
 
         StudentNotification::create([
             'user_id' => $excuse->student_id,
             'type' => 'excuse',
-            'title' => 'Excuse decision',
+            'title' => 'قرار بشأن العذر',
             'message' => $message,
             'data' => [
                 'excuse_id' => $excuse->id,
@@ -127,7 +127,7 @@ class ApiExcuseManagementController extends AdministrativeApiController
 
         return $this->success(
             $excuse->fresh()->load(['student:id,name,student_number', 'attendance.subject:id,name', 'reviewer:id,name']),
-            'Excuse decision updated successfully.'
+            'تم تحديث قرار العذر بنجاح.'
         );
     }
 }
