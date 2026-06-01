@@ -40,33 +40,17 @@ class FlashcardController extends StudentApiController
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'color' => 'nullable|string|max:7',
-            'display_mode' => 'required|in:flash_card,one_line,qa,mcq',
-            'notifications_enabled' => 'boolean',
-            'daily_notification_count' => 'integer|min:1|max:50',
-            'repeat_cycle' => 'required|in:daily,weekly,monthly',
-            'quiet_start' => 'nullable|date_format:H:i',
-            'quiet_end' => 'nullable|date_format:H:i',
-            'parent_pack_id' => 'nullable|integer',
-        ]);
+        $validated = $this->validatePackPayload($request, true);
 
         $parentPack = $this->resolveParentPack($validated['parent_pack_id'] ?? null, $request->user()->id);
 
-        $pack = $request->user()->flashcardPacks()->create([
+        $pack = $request->user()->flashcardPacks()->create(array_merge([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'color' => $validated['color'] ?? '#4f46e5',
             'display_mode' => $validated['display_mode'],
-            'notifications_enabled' => (bool) ($validated['notifications_enabled'] ?? false),
-            'daily_notification_count' => $validated['daily_notification_count'] ?? 5,
-            'repeat_cycle' => $validated['repeat_cycle'],
-            'quiet_start' => $validated['quiet_start'] ?? null,
-            'quiet_end' => $validated['quiet_end'] ?? null,
             'parent_pack_id' => $parentPack?->id,
-        ]);
+        ], $this->packScheduleData($validated)));
 
         return $this->success(['pack' => $pack], 'Pack created successfully.', 201);
     }
@@ -98,33 +82,17 @@ class FlashcardController extends StudentApiController
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'color' => 'nullable|string|max:7',
-            'display_mode' => 'required|in:flash_card,one_line,qa,mcq',
-            'notifications_enabled' => 'boolean',
-            'daily_notification_count' => 'integer|min:1|max:50',
-            'repeat_cycle' => 'required|in:daily,weekly,monthly',
-            'quiet_start' => 'nullable|date_format:H:i',
-            'quiet_end' => 'nullable|date_format:H:i',
-            'parent_pack_id' => 'nullable|integer',
-        ]);
+        $validated = $this->validatePackPayload($request, true);
 
         $parentPack = $this->resolveParentPack($validated['parent_pack_id'] ?? null, $request->user()->id, $pack);
 
-        $pack->update([
+        $pack->update(array_merge([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'color' => $validated['color'] ?? '#4f46e5',
             'display_mode' => $validated['display_mode'],
-            'notifications_enabled' => (bool) ($validated['notifications_enabled'] ?? false),
-            'daily_notification_count' => $validated['daily_notification_count'] ?? 5,
-            'repeat_cycle' => $validated['repeat_cycle'],
-            'quiet_start' => $validated['quiet_start'] ?? null,
-            'quiet_end' => $validated['quiet_end'] ?? null,
             'parent_pack_id' => $pack->is_assigned ? $pack->parent_pack_id : $parentPack?->id,
-        ]);
+        ], $this->packScheduleData($validated)));
 
         return $this->success(['pack' => $pack], 'Pack updated successfully.');
     }
@@ -157,25 +125,101 @@ class FlashcardController extends StudentApiController
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
-        $validated = $request->validate([
-            'notifications_enabled' => 'boolean',
-            'daily_notification_count' => 'integer|min:1|max:50',
-            'repeat_cycle' => 'required|in:daily,weekly,monthly',
-            'quiet_start' => 'nullable|date_format:H:i',
-            'quiet_end' => 'nullable|date_format:H:i',
-            'display_mode' => 'required|in:flash_card,one_line,qa,mcq',
-        ]);
+        $validated = $this->validatePackPayload($request, false);
 
-        $pack->update([
-            'notifications_enabled' => (bool) ($validated['notifications_enabled'] ?? false),
-            'daily_notification_count' => $validated['daily_notification_count'] ?? $pack->daily_notification_count,
-            'repeat_cycle' => $validated['repeat_cycle'],
-            'quiet_start' => $validated['quiet_start'] ?? null,
-            'quiet_end' => $validated['quiet_end'] ?? null,
+        $pack->update(array_merge($this->packScheduleData($validated, $pack), [
             'display_mode' => $validated['display_mode'],
-        ]);
+        ]));
 
         return $this->success(['pack' => $pack], 'Pack settings updated.');
+    }
+
+    private function validatePackPayload(Request $request, bool $withIdentity): array
+    {
+        $rules = [
+            'display_mode' => 'required|in:flash_card,one_line,qa,mcq',
+            'notifications_enabled' => 'boolean',
+            'smart_review_enabled' => 'boolean',
+            'daily_notification_count' => 'integer|min:1|max:50',
+            'daily_card_limit' => 'integer|min:1|max:50',
+            'repeat_cycle' => 'nullable|in:daily,weekly,monthly',
+            'schedule_mode' => 'nullable|in:daily,weekdays,weekly,monthly,manual',
+            'schedule_weekdays' => 'nullable|array',
+            'schedule_weekdays.*' => 'integer|min:0|max:6',
+            'active_from_time' => 'nullable|date_format:H:i',
+            'active_to_time' => 'nullable|date_format:H:i',
+            'quiet_start' => 'nullable|date_format:H:i',
+            'quiet_end' => 'nullable|date_format:H:i',
+            'pack_priority' => 'nullable|in:high,medium,low',
+            'smart_review_frequency_minutes' => 'integer|min:1|max:1440',
+            'restart_mode' => 'nullable|in:none,all,hard_only,wrong_only',
+        ];
+
+        if ($withIdentity) {
+            $rules = array_merge([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string|max:1000',
+                'color' => 'nullable|string|max:7',
+                'parent_pack_id' => 'nullable|integer',
+            ], $rules);
+        }
+
+        return $request->validate($rules);
+    }
+
+    private function packScheduleData(array $validated, ?FlashcardPack $current = null): array
+    {
+        $dailyLimit = $validated['daily_card_limit']
+            ?? $validated['daily_notification_count']
+            ?? $current?->daily_card_limit
+            ?? $current?->daily_notification_count
+            ?? 5;
+
+        $scheduleMode = $validated['schedule_mode']
+            ?? $this->legacyScheduleMode($validated['repeat_cycle'] ?? $current?->repeat_cycle ?? 'daily');
+
+        $smartReviewEnabled = array_key_exists('smart_review_enabled', $validated)
+            ? (bool) $validated['smart_review_enabled']
+            : (array_key_exists('notifications_enabled', $validated)
+                ? (bool) $validated['notifications_enabled']
+                : (bool) ($current?->smart_review_enabled ?? $current?->notifications_enabled ?? true));
+
+        return [
+            'notifications_enabled' => $smartReviewEnabled,
+            'smart_review_enabled' => $smartReviewEnabled,
+            'daily_notification_count' => $dailyLimit,
+            'daily_card_limit' => $dailyLimit,
+            'repeat_cycle' => $validated['repeat_cycle'] ?? $this->legacyRepeatCycle($scheduleMode),
+            'schedule_mode' => $scheduleMode,
+            'schedule_weekdays' => $validated['schedule_weekdays'] ?? $current?->schedule_weekdays,
+            'active_from_time' => $validated['active_from_time'] ?? null,
+            'active_to_time' => $validated['active_to_time'] ?? null,
+            'quiet_start' => $validated['quiet_start'] ?? null,
+            'quiet_end' => $validated['quiet_end'] ?? null,
+            'pack_priority' => $validated['pack_priority'] ?? $current?->pack_priority ?? 'medium',
+            'smart_review_frequency_minutes' => $validated['smart_review_frequency_minutes']
+                ?? $current?->smart_review_frequency_minutes
+                ?? 30,
+            'restart_mode' => $validated['restart_mode'] ?? $current?->restart_mode ?? 'none',
+        ];
+    }
+
+    private function legacyScheduleMode(string $repeatCycle): string
+    {
+        return match ($repeatCycle) {
+            'weekly' => 'weekly',
+            'monthly' => 'monthly',
+            default => 'daily',
+        };
+    }
+
+    private function legacyRepeatCycle(string $scheduleMode): string
+    {
+        return match ($scheduleMode) {
+            'weekly' => 'weekly',
+            'monthly' => 'monthly',
+            default => 'daily',
+        };
     }
 
     public function import(Request $request, $id)
@@ -445,13 +489,18 @@ class FlashcardController extends StudentApiController
         $packs = FlashcardPack::forUser($user->id)
             ->whereNull('parent_pack_id')
             ->active()
-            ->where('notifications_enabled', true)
-            ->get();
+            ->where('smart_review_enabled', true)
+            ->get()
+            ->sortBy(fn (FlashcardPack $pack) => $this->packPriorityWeight($pack));
 
         $queue = [];
         $reviewedToday = [];
 
         foreach ($packs as $pack) {
+            if (!$this->packIsScheduledForDate($pack, now())) {
+                continue;
+            }
+
             $items = $pack->effectiveItems()
                 ->with('pack:id,title,color,display_mode')
                 ->get();
@@ -505,20 +554,32 @@ class FlashcardController extends StudentApiController
                 })
                 ->values();
 
-            $selected = $dueItems->take($pack->daily_notification_count);
-            [$startHour, $endHour] = $this->resolveQueueHours($pack);
+            if ($dueItems->isEmpty() && $reviewedItems->isNotEmpty()) {
+                $dueItems = $this->restartItemsForPack($pack, $reviewedItems);
+            }
+
+            $selected = $dueItems->take($pack->daily_card_limit ?: $pack->daily_notification_count ?: 5);
+            $scheduleTimes = $this->resolveScheduledTimes($pack, $selected->count());
             $count = $selected->count();
-            $intervalMinutes = $count > 1 ? (($endHour - $startHour) * 60) / ($count - 1) : 0;
 
             foreach ($selected->values() as $index => $item) {
-                $minutesOffset = (int) round($index * $intervalMinutes);
-                $scheduledTime = now()->copy()->startOfDay()->addHours($startHour)->addMinutes($minutesOffset);
+                $scheduledTime = $scheduleTimes[$index] ?? now();
 
                 $queue[] = $this->dailyQueueItem($pack, $item, $scheduledTime->format('H:i'));
             }
         }
 
-        usort($queue, fn ($a, $b) => strcmp($a['scheduled_time'], $b['scheduled_time']));
+        usort($queue, function ($a, $b) {
+            return [
+                $a['pack_priority_weight'] ?? 1,
+                !($a['available_now'] ?? false),
+                $a['scheduled_time'] ?? '',
+            ] <=> [
+                $b['pack_priority_weight'] ?? 1,
+                !($b['available_now'] ?? false),
+                $b['scheduled_time'] ?? '',
+            ];
+        });
         usort($reviewedToday, fn ($a, $b) => strcmp($b['reviewed_at'] ?? '', $a['reviewed_at'] ?? ''));
 
         return $this->success([
@@ -545,6 +606,10 @@ class FlashcardController extends StudentApiController
             'pack_id' => $pack->id,
             'pack_title' => $pack->title,
             'pack_color' => $pack->color,
+            'pack_priority' => $pack->pack_priority ?? 'medium',
+            'pack_priority_weight' => $this->packPriorityWeight($pack),
+            'pack_frequency_minutes' => $pack->smart_review_frequency_minutes ?? 30,
+            'schedule_mode' => $pack->schedule_mode ?? $this->legacyScheduleMode($pack->repeat_cycle ?? 'daily'),
             'item_type' => $item->resolved_item_type,
             'item_color' => $item->resolved_color,
             'front_content' => $item->front_content,
@@ -553,6 +618,7 @@ class FlashcardController extends StudentApiController
             'correct_option' => $item->correct_option,
             'priority' => $item->priority,
             'scheduled_time' => $scheduledTime,
+            'available_now' => $this->timeStringIsNowOrPast($scheduledTime) && $this->packCanAppearNow($pack),
             'reviewed_today' => $reviewed,
             'reviewed_at' => $progress?->last_shown_at?->toIso8601String(),
             'reviewed_time' => $progress?->last_shown_at?->format('H:i'),
@@ -1109,6 +1175,162 @@ class FlashcardController extends StudentApiController
         }
 
         return $now->copy()->addDays((int) ceil($days));
+    }
+
+    private function packPriorityWeight(FlashcardPack $pack): int
+    {
+        return match ($pack->pack_priority ?? 'medium') {
+            'high' => 0,
+            'low' => 2,
+            default => 1,
+        };
+    }
+
+    private function packCanAppearNow(FlashcardPack $pack): bool
+    {
+        $now = now();
+        $mode = $pack->schedule_mode ?? $this->legacyScheduleMode($pack->repeat_cycle ?? 'daily');
+
+        if ($mode === 'manual') {
+            return false;
+        }
+
+        if (!$this->packIsScheduledForDate($pack, $now)) {
+            return false;
+        }
+
+        $currentMinute = ($now->hour * 60) + $now->minute;
+        $activeStart = $this->timeToMinute($pack->active_from_time);
+        $activeEnd = $this->timeToMinute($pack->active_to_time);
+
+        if (($activeStart !== null || $activeEnd !== null)
+            && !$this->minuteInWindow($currentMinute, $activeStart ?? 0, $activeEnd ?? 1439)) {
+            return false;
+        }
+
+        $quietStart = $this->timeToMinute($pack->quiet_start);
+        $quietEnd = $this->timeToMinute($pack->quiet_end);
+
+        return !($quietStart !== null
+            && $quietEnd !== null
+            && $this->minuteInWindow($currentMinute, $quietStart, $quietEnd));
+    }
+
+    private function packIsScheduledForDate(FlashcardPack $pack, Carbon $date): bool
+    {
+        $mode = $pack->schedule_mode ?? $this->legacyScheduleMode($pack->repeat_cycle ?? 'daily');
+        $weekdays = collect($pack->schedule_weekdays ?? [])
+            ->map(fn ($day) => (int) $day)
+            ->values();
+
+        return match ($mode) {
+            'manual' => false,
+            'weekdays' => $weekdays->isEmpty() || $weekdays->contains($date->dayOfWeek),
+            'weekly' => $weekdays->isNotEmpty()
+                ? $weekdays->contains($date->dayOfWeek)
+                : $date->dayOfWeek === $pack->created_at?->dayOfWeek,
+            'monthly' => $date->day === min((int) ($pack->created_at?->day ?? 1), $date->daysInMonth),
+            default => true,
+        };
+    }
+
+    private function restartItemsForPack(FlashcardPack $pack, Collection $reviewedItems): Collection
+    {
+        return match ($pack->restart_mode ?? 'none') {
+            'all' => $reviewedItems,
+            'hard_only',
+            'wrong_only' => $reviewedItems
+                ->filter(fn (FlashcardItem $item) => $item->user_progress?->last_response === 'hard')
+                ->values(),
+            default => collect(),
+        };
+    }
+
+    private function resolveScheduledTimes(FlashcardPack $pack, int $count): array
+    {
+        if ($count <= 0) {
+            return [];
+        }
+
+        $minutes = [];
+        $activeStart = $this->timeToMinute($pack->active_from_time) ?? 0;
+        $activeEnd = $this->timeToMinute($pack->active_to_time) ?? 1439;
+        $quietStart = $this->timeToMinute($pack->quiet_start);
+        $quietEnd = $this->timeToMinute($pack->quiet_end);
+
+        for ($minute = 0; $minute <= 1439; $minute++) {
+            if (!$this->minuteInWindow($minute, $activeStart, $activeEnd)) {
+                continue;
+            }
+
+            if ($quietStart !== null
+                && $quietEnd !== null
+                && $this->minuteInWindow($minute, $quietStart, $quietEnd)) {
+                continue;
+            }
+
+            $minutes[] = $minute;
+        }
+
+        if (empty($minutes)) {
+            $minutes[] = (now()->hour * 60) + now()->minute;
+        }
+
+        if ($count === 1) {
+            $selected = [$minutes[0]];
+        } else {
+            $lastIndex = count($minutes) - 1;
+            $selected = [];
+            for ($index = 0; $index < $count; $index++) {
+                $selected[] = $minutes[(int) round(($index * $lastIndex) / ($count - 1))];
+            }
+        }
+
+        return array_map(function (int $minute) {
+            return now()->copy()->startOfDay()->addMinutes($minute);
+        }, $selected);
+    }
+
+    private function timeStringIsNowOrPast(string $time): bool
+    {
+        $minute = $this->timeToMinute($time);
+        if ($minute === null) {
+            return true;
+        }
+
+        $nowMinute = (now()->hour * 60) + now()->minute;
+
+        return $minute <= $nowMinute;
+    }
+
+    private function timeToMinute(mixed $time): ?int
+    {
+        if (!$time) {
+            return null;
+        }
+
+        $value = (string) $time;
+        if (!preg_match('/^(\d{1,2}):(\d{2})/', $value, $matches)) {
+            return null;
+        }
+
+        $hour = max(0, min(23, (int) $matches[1]));
+        $minute = max(0, min(59, (int) $matches[2]));
+
+        return ($hour * 60) + $minute;
+    }
+
+    private function minuteInWindow(int $minute, int $start, int $end): bool
+    {
+        if ($start === $end) {
+            return true;
+        }
+
+        if ($start < $end) {
+            return $minute >= $start && $minute <= $end;
+        }
+
+        return $minute >= $start || $minute <= $end;
     }
 
     private function resolveQueueHours(FlashcardPack $pack): array

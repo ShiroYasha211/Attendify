@@ -19,6 +19,15 @@ class FlashcardPack extends Model
         'notifications_enabled',
         'daily_notification_count',
         'repeat_cycle',
+        'schedule_mode',
+        'schedule_weekdays',
+        'active_from_time',
+        'active_to_time',
+        'daily_card_limit',
+        'pack_priority',
+        'smart_review_enabled',
+        'smart_review_frequency_minutes',
+        'restart_mode',
         'quiet_start',
         'quiet_end',
         'is_active',
@@ -32,6 +41,10 @@ class FlashcardPack extends Model
         'is_active' => 'boolean',
         'is_public' => 'boolean',
         'daily_notification_count' => 'integer',
+        'schedule_weekdays' => 'array',
+        'daily_card_limit' => 'integer',
+        'smart_review_enabled' => 'boolean',
+        'smart_review_frequency_minutes' => 'integer',
     ];
 
     protected $appends = ['is_assigned'];
