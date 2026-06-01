@@ -632,6 +632,10 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
         Route::get('store', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'publicStore']);
         Route::post('clone/{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'clonePack']);
         Route::get('daily-queue', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'getDailyQueue']);
+        Route::get('upcoming', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'upcoming']);
+        Route::get('history', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'history']);
+        Route::get('difficulty', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'difficulty']);
+        Route::get('analytics', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'analytics']);
         Route::post('progress', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'recordProgress']);
         Route::get('{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'show']);
         Route::put('{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'update']);

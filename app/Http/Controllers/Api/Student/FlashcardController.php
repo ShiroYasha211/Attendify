@@ -6,6 +6,7 @@ use App\Models\FlashcardItem;
 use App\Models\FlashcardPack;
 use App\Models\FlashcardProgress;
 use App\Models\PublicPackStore;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -526,6 +527,339 @@ class FlashcardController extends StudentApiController
         ]);
     }
 
+    public function upcoming(Request $request)
+    {
+        $user = $request->user();
+        $packs = FlashcardPack::forUser($user->id)
+            ->whereNull('parent_pack_id')
+            ->active()
+            ->get();
+
+        $items = collect();
+
+        foreach ($packs as $pack) {
+            $packItems = $pack->effectiveItems()
+                ->with('pack:id,title,color,display_mode')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+
+            if ($packItems->isEmpty()) {
+                continue;
+            }
+
+            $progressMap = FlashcardProgress::where('user_id', $user->id)
+                ->whereIn('item_id', $packItems->pluck('id'))
+                ->get()
+                ->keyBy('item_id');
+
+            foreach ($packItems as $item) {
+                $progress = $progressMap->get($item->id);
+                $nextReviewAt = $progress?->next_review_at ?: now();
+
+                $items->push([
+                    'item_id' => $item->id,
+                    'pack_id' => $pack->id,
+                    'pack_title' => $pack->title,
+                    'pack_color' => $pack->color,
+                    'item_type' => $item->resolved_item_type,
+                    'item_color' => $item->resolved_color,
+                    'front_content' => $item->front_content,
+                    'back_content' => $item->back_content,
+                    'options' => $item->options,
+                    'correct_option' => $item->correct_option,
+                    'priority' => $item->priority,
+                    'next_review_at' => $nextReviewAt->toIso8601String(),
+                    'next_review_date' => $nextReviewAt->toDateString(),
+                    'next_review_time' => $nextReviewAt->format('H:i'),
+                    'last_response' => $progress?->last_response,
+                    'times_shown' => $progress?->times_shown ?? 0,
+                    'times_correct' => $progress?->times_correct ?? 0,
+                    'accuracy' => $progress?->accuracy ?? 0,
+                    'is_due' => !$progress || $progress->isDue(),
+                ]);
+            }
+        }
+
+        $items = $items
+            ->sortBy([
+                ['next_review_at', 'asc'],
+                ['priority', 'asc'],
+            ])
+            ->values();
+
+        $groups = [
+            'today' => [],
+            'tomorrow' => [],
+            'this_week' => [],
+            'later' => [],
+        ];
+
+        $now = now();
+        $endOfToday = $now->copy()->endOfDay();
+        $endOfTomorrow = $now->copy()->addDay()->endOfDay();
+        $endOfWeek = $now->copy()->endOfWeek();
+
+        foreach ($items as $item) {
+            $next = Carbon::parse($item['next_review_at']);
+            $key = match (true) {
+                $next->lessThanOrEqualTo($endOfToday) => 'today',
+                $next->lessThanOrEqualTo($endOfTomorrow) => 'tomorrow',
+                $next->lessThanOrEqualTo($endOfWeek) => 'this_week',
+                default => 'later',
+            };
+            $groups[$key][] = $item;
+        }
+
+        return $this->success([
+            'groups' => $groups,
+            'summary' => [
+                'total' => $items->count(),
+                'today' => count($groups['today']),
+                'tomorrow' => count($groups['tomorrow']),
+                'this_week' => count($groups['this_week']),
+                'later' => count($groups['later']),
+            ],
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function history(Request $request)
+    {
+        $user = $request->user();
+        $limit = min(200, max(20, (int) $request->input('limit', 100)));
+
+        $query = FlashcardProgress::where('user_id', $user->id)
+            ->whereNotNull('last_shown_at')
+            ->with('item.pack:id,title,color,display_mode')
+            ->latest('last_shown_at')
+            ->limit($limit);
+
+        if ($request->filled('response_level') && in_array($request->response_level, ['easy', 'medium', 'hard'], true)) {
+            $query->where('last_response', $request->response_level);
+        }
+
+        $records = $query->get()
+            ->filter(fn (FlashcardProgress $progress) => $progress->item !== null)
+            ->map(function (FlashcardProgress $progress) {
+                $item = $progress->item;
+                $pack = $item->pack;
+
+                return [
+                    'progress_id' => $progress->id,
+                    'item_id' => $item->id,
+                    'pack_id' => $pack?->id,
+                    'pack_title' => $pack?->title ?? 'حزمة مراجعة',
+                    'pack_color' => $pack?->color ?? '#4338ca',
+                    'item_type' => $item->resolved_item_type,
+                    'item_color' => $item->resolved_color,
+                    'front_content' => $item->front_content,
+                    'priority' => $item->priority,
+                    'last_response' => $progress->last_response,
+                    'last_response_label' => $this->responseLabel($progress->last_response),
+                    'last_shown_at' => $progress->last_shown_at?->toIso8601String(),
+                    'last_shown_date' => $progress->last_shown_at?->toDateString(),
+                    'last_shown_time' => $progress->last_shown_at?->format('H:i'),
+                    'next_review_at' => $progress->next_review_at?->toIso8601String(),
+                    'next_review_date' => $progress->next_review_at?->toDateString(),
+                    'next_review_time' => $progress->next_review_at?->format('H:i'),
+                    'times_shown' => $progress->times_shown,
+                    'times_correct' => $progress->times_correct,
+                    'accuracy' => $progress->accuracy,
+                ];
+            })
+            ->values();
+
+        $groups = [
+            'today' => [],
+            'yesterday' => [],
+            'this_week' => [],
+            'older' => [],
+        ];
+
+        $today = now()->toDateString();
+        $yesterday = now()->subDay()->toDateString();
+        $startOfWeek = now()->startOfWeek();
+
+        foreach ($records as $record) {
+            $date = Carbon::parse($record['last_shown_at']);
+            $key = match (true) {
+                $record['last_shown_date'] === $today => 'today',
+                $record['last_shown_date'] === $yesterday => 'yesterday',
+                $date->greaterThanOrEqualTo($startOfWeek) => 'this_week',
+                default => 'older',
+            };
+            $groups[$key][] = $record;
+        }
+
+        return $this->success([
+            'records' => $records,
+            'groups' => $groups,
+            'summary' => [
+                'total' => $records->count(),
+                'easy' => $records->where('last_response', 'easy')->count(),
+                'medium' => $records->where('last_response', 'medium')->count(),
+                'hard' => $records->where('last_response', 'hard')->count(),
+                'average_accuracy' => round($records->avg('accuracy') ?? 0, 1),
+            ],
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function difficulty(Request $request)
+    {
+        $user = $request->user();
+        $packs = FlashcardPack::forUser($user->id)
+            ->whereNull('parent_pack_id')
+            ->active()
+            ->get();
+
+        $groups = [
+            'hard' => [],
+            'medium' => [],
+            'easy' => [],
+            'unreviewed' => [],
+        ];
+
+        foreach ($packs as $pack) {
+            $items = $pack->effectiveItems()
+                ->with('pack:id,title,color,display_mode')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+
+            if ($items->isEmpty()) {
+                continue;
+            }
+
+            $progressMap = FlashcardProgress::where('user_id', $user->id)
+                ->whereIn('item_id', $items->pluck('id'))
+                ->get()
+                ->keyBy('item_id');
+
+            foreach ($items as $item) {
+                $progress = $progressMap->get($item->id);
+                $key = $progress?->last_response ?: 'unreviewed';
+                if (!in_array($key, ['easy', 'medium', 'hard'], true)) {
+                    $key = 'unreviewed';
+                }
+
+                $groups[$key][] = [
+                    'item_id' => $item->id,
+                    'pack_id' => $pack->id,
+                    'pack_title' => $pack->title,
+                    'pack_color' => $pack->color,
+                    'item_type' => $item->resolved_item_type,
+                    'item_color' => $item->resolved_color,
+                    'front_content' => $item->front_content,
+                    'priority' => $item->priority,
+                    'last_response' => $progress?->last_response,
+                    'last_response_label' => $this->responseLabel($progress?->last_response),
+                    'last_shown_at' => $progress?->last_shown_at?->toIso8601String(),
+                    'last_shown_date' => $progress?->last_shown_at?->toDateString(),
+                    'next_review_at' => $progress?->next_review_at?->toIso8601String(),
+                    'next_review_date' => $progress?->next_review_at?->toDateString(),
+                    'times_shown' => $progress?->times_shown ?? 0,
+                    'times_correct' => $progress?->times_correct ?? 0,
+                    'accuracy' => $progress?->accuracy ?? 0,
+                ];
+            }
+        }
+
+        return $this->success([
+            'groups' => $groups,
+            'summary' => [
+                'total' => collect($groups)->flatten(1)->count(),
+                'hard' => count($groups['hard']),
+                'medium' => count($groups['medium']),
+                'easy' => count($groups['easy']),
+                'unreviewed' => count($groups['unreviewed']),
+            ],
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function analytics(Request $request)
+    {
+        $user = $request->user();
+        $packs = FlashcardPack::forUser($user->id)
+            ->whereNull('parent_pack_id')
+            ->active()
+            ->get();
+
+        $packRows = collect();
+        $allProgress = collect();
+        $totalCards = 0;
+
+        foreach ($packs as $pack) {
+            $items = $pack->effectiveItems()->with('pack:id,title,color,display_mode')->get();
+            $itemIds = $items->pluck('id');
+            $progress = FlashcardProgress::where('user_id', $user->id)
+                ->whereIn('item_id', $itemIds)
+                ->get();
+
+            $cardsCount = $items->count();
+            $reviewedCount = $progress->whereNotNull('last_shown_at')->count();
+            $accuracy = round($progress->avg('accuracy') ?? 0, 1);
+            $hardCount = $progress->where('last_response', 'hard')->count();
+            $lastActivity = $progress->max('last_shown_at');
+            $totalCards += $cardsCount;
+            $allProgress = $allProgress->merge($progress);
+
+            $packRows->push([
+                'pack_id' => $pack->id,
+                'pack_title' => $pack->title,
+                'pack_color' => $pack->color,
+                'display_mode' => $pack->display_mode,
+                'cards_count' => $cardsCount,
+                'reviewed_count' => $reviewedCount,
+                'pending_count' => max(0, $cardsCount - $reviewedCount),
+                'accuracy' => $accuracy,
+                'hard_count' => $hardCount,
+                'last_activity_at' => $lastActivity?->toIso8601String(),
+                'last_activity_date' => $lastActivity?->toDateString(),
+            ]);
+        }
+
+        $reviewed = $allProgress->whereNotNull('last_shown_at');
+        $averageAccuracy = round($reviewed->avg('accuracy') ?? 0, 1);
+        $responseDistribution = [
+            'easy' => $reviewed->where('last_response', 'easy')->count(),
+            'medium' => $reviewed->where('last_response', 'medium')->count(),
+            'hard' => $reviewed->where('last_response', 'hard')->count(),
+        ];
+
+        $bestPack = $packRows
+            ->where('reviewed_count', '>', 0)
+            ->sortByDesc('accuracy')
+            ->first();
+
+        $focusPack = $packRows
+            ->where('reviewed_count', '>', 0)
+            ->sortByDesc('hard_count')
+            ->first();
+
+        $lastActivity = $reviewed->max('last_shown_at');
+
+        return $this->success([
+            'summary' => [
+                'total_packs' => $packs->count(),
+                'total_cards' => $totalCards,
+                'reviewed_cards' => $reviewed->count(),
+                'pending_cards' => max(0, $totalCards - $reviewed->count()),
+                'average_accuracy' => $averageAccuracy,
+                'completion_rate' => $totalCards > 0 ? round(($reviewed->count() / $totalCards) * 100, 1) : 0,
+                'last_activity_at' => $lastActivity?->toIso8601String(),
+                'last_activity_date' => $lastActivity?->toDateString(),
+            ],
+            'response_distribution' => $responseDistribution,
+            'best_pack' => $bestPack,
+            'focus_pack' => $focusPack,
+            'packs' => $packRows->sortByDesc('reviewed_count')->values(),
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
     private function resolveParentPack(?int $parentPackId, int $userId, ?FlashcardPack $currentPack = null): ?FlashcardPack
     {
         if (!$parentPackId) {
@@ -697,6 +1031,16 @@ class FlashcardController extends StudentApiController
     private function mapLegacyResponse(bool $isCorrect): string
     {
         return $isCorrect ? 'easy' : 'hard';
+    }
+
+    private function responseLabel(?string $response): string
+    {
+        return match ($response) {
+            'easy' => 'سهل',
+            'medium' => 'متوسط',
+            'hard' => 'صعب',
+            default => 'لم تُراجع',
+        };
     }
 
     private function calculateNextReview(FlashcardPack $pack, FlashcardProgress $progress, string $responseLevel)
