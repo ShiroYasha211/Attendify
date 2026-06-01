@@ -441,6 +441,7 @@ class FlashcardController extends StudentApiController
     public function getDailyQueue(Request $request)
     {
         $user = $request->user();
+        $today = now()->toDateString();
         $packs = FlashcardPack::forUser($user->id)
             ->whereNull('parent_pack_id')
             ->active()
@@ -448,6 +449,7 @@ class FlashcardController extends StudentApiController
             ->get();
 
         $queue = [];
+        $reviewedToday = [];
 
         foreach ($packs as $pack) {
             $items = $pack->effectiveItems()
@@ -463,13 +465,33 @@ class FlashcardController extends StudentApiController
                 ->get()
                 ->keyBy('item_id');
 
+            $reviewedItems = $items
+                ->map(function (FlashcardItem $item) use ($progressMap) {
+                    $item->user_progress = $progressMap->get($item->id);
+
+                    return $item;
+                })
+                ->filter(fn (FlashcardItem $item) => $item->user_progress?->last_shown_at?->toDateString() === now()->toDateString())
+                ->sortByDesc(fn (FlashcardItem $item) => $item->user_progress?->last_shown_at?->timestamp ?? 0)
+                ->values();
+
+            foreach ($reviewedItems as $item) {
+                $reviewedToday[] = $this->dailyQueueItem(
+                    $pack,
+                    $item,
+                    $item->user_progress?->last_shown_at?->format('H:i') ?? '--:--',
+                    true
+                );
+            }
+
             $dueItems = $items
                 ->map(function (FlashcardItem $item) use ($progressMap) {
                     $item->user_progress = $progressMap->get($item->id);
 
                     return $item;
                 })
-                ->filter(fn (FlashcardItem $item) => !$item->user_progress || $item->user_progress->isDue())
+                ->filter(fn (FlashcardItem $item) => (!$item->user_progress || $item->user_progress->isDue())
+                    && $item->user_progress?->last_shown_at?->toDateString() !== now()->toDateString())
                 ->sortBy(function (FlashcardItem $item) {
                     return [
                         -1 * ($item->user_progress?->review_weight ?? 2),
@@ -483,10 +505,6 @@ class FlashcardController extends StudentApiController
                 })
                 ->values();
 
-            if ($dueItems->isEmpty()) {
-                $dueItems = $items->sortBy('sort_order')->values();
-            }
-
             $selected = $dueItems->take($pack->daily_notification_count);
             [$startHour, $endHour] = $this->resolveQueueHours($pack);
             $count = $selected->count();
@@ -496,35 +514,62 @@ class FlashcardController extends StudentApiController
                 $minutesOffset = (int) round($index * $intervalMinutes);
                 $scheduledTime = now()->copy()->startOfDay()->addHours($startHour)->addMinutes($minutesOffset);
 
-                $queue[] = [
-                    'item_id' => $item->id,
-                    'pack_id' => $pack->id,
-                    'pack_title' => $pack->title,
-                    'pack_color' => $pack->color,
-                    'item_type' => $item->resolved_item_type,
-                    'item_color' => $item->resolved_color,
-                    'front_content' => $item->front_content,
-                    'back_content' => $item->back_content,
-                    'options' => $item->options,
-                    'correct_option' => $item->correct_option,
-                    'priority' => $item->priority,
-                    'scheduled_time' => $scheduledTime->format('H:i'),
-                    'response_actions' => [
-                        ['key' => 'easy', 'label' => 'سهل', 'effect' => 'less_frequent'],
-                        ['key' => 'medium', 'label' => 'متوسط', 'effect' => 'balanced'],
-                        ['key' => 'hard', 'label' => 'صعب', 'effect' => 'high_priority'],
-                    ],
-                ];
+                $queue[] = $this->dailyQueueItem($pack, $item, $scheduledTime->format('H:i'));
             }
         }
 
         usort($queue, fn ($a, $b) => strcmp($a['scheduled_time'], $b['scheduled_time']));
+        usort($reviewedToday, fn ($a, $b) => strcmp($b['reviewed_at'] ?? '', $a['reviewed_at'] ?? ''));
 
         return $this->success([
             'queue' => $queue,
+            'pending' => $queue,
+            'reviewed_today' => $reviewedToday,
             'total' => count($queue),
-            'date' => now()->toDateString(),
+            'reviewed_total' => count($reviewedToday),
+            'completed_today' => count($queue) === 0 && count($reviewedToday) > 0,
+            'date' => $today,
         ]);
+    }
+
+    private function dailyQueueItem(
+        FlashcardPack $pack,
+        FlashcardItem $item,
+        string $scheduledTime,
+        bool $reviewed = false
+    ): array {
+        $progress = $item->user_progress ?? null;
+
+        return [
+            'item_id' => $item->id,
+            'pack_id' => $pack->id,
+            'pack_title' => $pack->title,
+            'pack_color' => $pack->color,
+            'item_type' => $item->resolved_item_type,
+            'item_color' => $item->resolved_color,
+            'front_content' => $item->front_content,
+            'back_content' => $item->back_content,
+            'options' => $item->options,
+            'correct_option' => $item->correct_option,
+            'priority' => $item->priority,
+            'scheduled_time' => $scheduledTime,
+            'reviewed_today' => $reviewed,
+            'reviewed_at' => $progress?->last_shown_at?->toIso8601String(),
+            'reviewed_time' => $progress?->last_shown_at?->format('H:i'),
+            'last_response' => $progress?->last_response,
+            'last_response_label' => $this->responseLabel($progress?->last_response),
+            'next_review_at' => $progress?->next_review_at?->toIso8601String(),
+            'next_review_date' => $progress?->next_review_at?->toDateString(),
+            'next_review_time' => $progress?->next_review_at?->format('H:i'),
+            'times_shown' => $progress?->times_shown ?? 0,
+            'times_correct' => $progress?->times_correct ?? 0,
+            'accuracy' => $progress?->accuracy ?? 0,
+            'response_actions' => [
+                ['key' => 'easy', 'label' => 'سهل', 'effect' => 'less_frequent'],
+                ['key' => 'medium', 'label' => 'متوسط', 'effect' => 'balanced'],
+                ['key' => 'hard', 'label' => 'صعب', 'effect' => 'high_priority'],
+            ],
+        ];
     }
 
     public function upcoming(Request $request)
