@@ -21,6 +21,8 @@ class TreeFarmController extends Controller
     private const CONVERSION_RATE = 100;
 
     private const PLANTS = [
+        ['code' => 'clover', 'name' => 'نبتة البرسيم', 'required_seconds' => 300, 'coins' => 5, 'rarity' => 'common'],
+        ['code' => 'tulip', 'name' => 'زهرة التوليب', 'required_seconds' => 600, 'coins' => 10, 'rarity' => 'common'],
         ['code' => 'rose', 'name' => 'وردة التركيز', 'required_seconds' => 900, 'coins' => 15, 'rarity' => 'common'],
         ['code' => 'apple_tree', 'name' => 'شجرة التفاح', 'required_seconds' => 1800, 'coins' => 35, 'rarity' => 'uncommon'],
         ['code' => 'palm', 'name' => 'نخلة الإنجاز', 'required_seconds' => 2700, 'coins' => 55, 'rarity' => 'rare'],
