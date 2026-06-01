@@ -328,6 +328,57 @@ class TreeFarmController extends Controller
         ], 201);
     }
 
+    public function logSession(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'farm_scope'      => ['required', Rule::in(['private', 'public'])],
+            'focused_seconds' => ['required', 'integer', 'min:0', 'max:14400'],
+            'started_at'      => ['required', 'date'],
+            'ended_at'        => ['required', 'date'],
+            'client_uuid'     => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $user    = $request->user();
+        $profile = $this->profileFor($user);
+
+        // منع التكرار بـ client_uuid
+        if (!empty($data['client_uuid'])) {
+            $exists = TreeFarmSession::where('client_uuid', $data['client_uuid'])->exists();
+            if ($exists) {
+                return response()->json(['message' => 'تم تسجيل هذه الجلسة مسبقاً']);
+            }
+        }
+
+        $result = DB::transaction(function () use ($data, $user, $profile) {
+            $focusedSeconds = (int) $data['focused_seconds'];
+
+            $session = TreeFarmSession::create([
+                'user_id'          => $user->id,
+                'client_uuid'      => $data['client_uuid'] ?? null,
+                'farm_scope'       => $data['farm_scope'],
+                'source'           => 'local',
+                'status'           => 'completed',
+                'started_at'       => Carbon::parse($data['started_at']),
+                'ended_at'         => Carbon::parse($data['ended_at']),
+                'planned_seconds'  => $focusedSeconds,
+                'focused_seconds'  => $focusedSeconds,
+                'heartbeat_count'  => 0,
+                'grace_seconds_used' => 0,
+                'synced_at'        => now(),
+            ]);
+
+            return $this->completeSession($session, $profile, $focusedSeconds, 'completed');
+        });
+
+        return response()->json([
+            'message' => $result['plant']
+                ? 'تم تسجيل الجلسة وإضافة الشجرة'
+                : 'تم تسجيل الجلسة',
+            'plant'   => $result['plant'],
+            'profile' => $this->formatProfile($profile->fresh(), $user),
+        ], 201);
+    }
+
     private function completeSession(TreeFarmSession $session, TreeFarmProfile $profile, int $focusedSeconds, string $successStatus): array
     {
         $plantDefinition = $this->plantForSeconds($focusedSeconds);

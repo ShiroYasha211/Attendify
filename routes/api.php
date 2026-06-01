@@ -720,6 +720,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
         Route::post('sessions/{session}/grace', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'grace']);
         Route::post('sessions/{session}/finish', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'finish']);
         Route::post('offline-sync', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'offlineSync']);
+        Route::post('log', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'logSession']);
         Route::post('thoughts', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'storeThought']);
         Route::post('reward-requests', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'rewardRequest']);
     });
