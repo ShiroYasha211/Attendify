@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Student;
 use App\Models\FlashcardItem;
 use App\Models\FlashcardPack;
 use App\Models\FlashcardProgress;
+use App\Models\FlashcardUserSetting;
 use App\Models\PublicPackStore;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class FlashcardController extends StudentApiController
     public function index(Request $request)
     {
         $user = $request->user();
+        $settings = $this->flashcardSettings($user->id);
 
         $packs = FlashcardPack::forUser($user->id)
             ->whereNull('parent_pack_id')
@@ -30,12 +32,43 @@ class FlashcardController extends StudentApiController
 
         return $this->success([
             'packs' => $packs,
+            'settings' => $settings,
             'stats' => [
                 'total_packs' => $packs->count(),
                 'active_packs' => $packs->where('is_active', true)->count(),
                 'total_cards' => $packs->sum('items_count'),
             ],
         ]);
+    }
+
+    public function settings(Request $request)
+    {
+        return $this->success([
+            'settings' => $this->flashcardSettings($request->user()->id),
+        ]);
+    }
+
+    public function updateUserSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'smart_review_enabled' => 'boolean',
+            'active_from_time' => 'nullable|date_format:H:i',
+            'active_to_time' => 'nullable|date_format:H:i',
+            'quiet_start' => 'nullable|date_format:H:i',
+            'quiet_end' => 'nullable|date_format:H:i',
+            'daily_card_limit' => 'integer|min:1|max:100',
+            'smart_review_frequency_minutes' => 'integer|min:1|max:1440',
+            'auto_restart_enabled' => 'boolean',
+            'prompt_mode' => 'nullable|in:app_and_notification,app_only,notification_only',
+        ]);
+
+        $settings = FlashcardUserSetting::firstOrCreate(
+            ['user_id' => $request->user()->id],
+            $this->defaultSettings()
+        );
+        $settings->fill($validated)->save();
+
+        return $this->success(['settings' => $settings], 'Flashcard settings updated.');
     }
 
     public function store(Request $request)
@@ -48,7 +81,7 @@ class FlashcardController extends StudentApiController
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'color' => $validated['color'] ?? '#4f46e5',
-            'display_mode' => $validated['display_mode'],
+            'display_mode' => $validated['display_mode'] ?? 'one_line',
             'parent_pack_id' => $parentPack?->id,
         ], $this->packScheduleData($validated)));
 
@@ -90,7 +123,7 @@ class FlashcardController extends StudentApiController
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'color' => $validated['color'] ?? '#4f46e5',
-            'display_mode' => $validated['display_mode'],
+            'display_mode' => $validated['display_mode'] ?? $pack->display_mode,
             'parent_pack_id' => $pack->is_assigned ? $pack->parent_pack_id : $parentPack?->id,
         ], $this->packScheduleData($validated)));
 
@@ -128,7 +161,7 @@ class FlashcardController extends StudentApiController
         $validated = $this->validatePackPayload($request, false);
 
         $pack->update(array_merge($this->packScheduleData($validated, $pack), [
-            'display_mode' => $validated['display_mode'],
+            'display_mode' => $validated['display_mode'] ?? $pack->display_mode,
         ]));
 
         return $this->success(['pack' => $pack], 'Pack settings updated.');
@@ -137,7 +170,7 @@ class FlashcardController extends StudentApiController
     private function validatePackPayload(Request $request, bool $withIdentity): array
     {
         $rules = [
-            'display_mode' => 'required|in:flash_card,one_line,qa,mcq',
+            'display_mode' => 'nullable|in:flash_card,one_line,qa,mcq',
             'notifications_enabled' => 'boolean',
             'smart_review_enabled' => 'boolean',
             'daily_notification_count' => 'integer|min:1|max:50',
@@ -486,6 +519,7 @@ class FlashcardController extends StudentApiController
     {
         $user = $request->user();
         $today = now()->toDateString();
+        $settings = $this->flashcardSettings($user->id);
         $packs = FlashcardPack::forUser($user->id)
             ->whereNull('parent_pack_id')
             ->active()
@@ -493,7 +527,7 @@ class FlashcardController extends StudentApiController
             ->get()
             ->sortBy(fn (FlashcardPack $pack) => $this->packPriorityWeight($pack));
 
-        $queue = [];
+        $candidates = collect();
         $reviewedToday = [];
 
         foreach ($packs as $pack) {
@@ -529,7 +563,8 @@ class FlashcardController extends StudentApiController
                     $pack,
                     $item,
                     $item->user_progress?->last_shown_at?->format('H:i') ?? '--:--',
-                    true
+                    true,
+                    $settings
                 );
             }
 
@@ -558,16 +593,42 @@ class FlashcardController extends StudentApiController
                 $dueItems = $this->restartItemsForPack($pack, $reviewedItems);
             }
 
-            $selected = $dueItems->take($pack->daily_card_limit ?: $pack->daily_notification_count ?: 5);
-            $scheduleTimes = $this->resolveScheduledTimes($pack, $selected->count());
-            $count = $selected->count();
-
-            foreach ($selected->values() as $index => $item) {
-                $scheduledTime = $scheduleTimes[$index] ?? now();
-
-                $queue[] = $this->dailyQueueItem($pack, $item, $scheduledTime->format('H:i'));
-            }
+            $dueItems->each(function (FlashcardItem $item) use ($pack, $candidates) {
+                $candidates->push(['pack' => $pack, 'item' => $item]);
+            });
         }
+
+        $selected = $candidates
+            ->sortBy(function (array $entry) {
+                /** @var FlashcardPack $pack */
+                $pack = $entry['pack'];
+                /** @var FlashcardItem $item */
+                $item = $entry['item'];
+
+                return [
+                    $this->packPriorityWeight($pack),
+                    -1 * ($item->user_progress?->review_weight ?? 2),
+                    match ($item->priority) {
+                        'critical' => 0,
+                        'high' => 1,
+                        default => 2,
+                    },
+                    $item->sort_order,
+                ];
+            })
+            ->take((int) ($settings->daily_card_limit ?? 5))
+            ->values();
+
+        $scheduleTimes = $this->resolveScheduledTimes($settings, $selected->count());
+        $queue = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $settings) {
+            /** @var FlashcardPack $pack */
+            $pack = $entry['pack'];
+            /** @var FlashcardItem $item */
+            $item = $entry['item'];
+            $scheduledTime = $scheduleTimes[$index] ?? now();
+
+            return $this->dailyQueueItem($pack, $item, $scheduledTime->format('H:i'), false, $settings);
+        })->all();
 
         usort($queue, function ($a, $b) {
             return [
@@ -590,6 +651,7 @@ class FlashcardController extends StudentApiController
             'reviewed_total' => count($reviewedToday),
             'completed_today' => count($queue) === 0 && count($reviewedToday) > 0,
             'date' => $today,
+            'settings' => $settings,
         ]);
     }
 
@@ -597,9 +659,11 @@ class FlashcardController extends StudentApiController
         FlashcardPack $pack,
         FlashcardItem $item,
         string $scheduledTime,
-        bool $reviewed = false
+        bool $reviewed = false,
+        ?FlashcardUserSetting $settings = null
     ): array {
         $progress = $item->user_progress ?? null;
+        $settings ??= $this->defaultSettingsObject($pack->user_id);
 
         return [
             'item_id' => $item->id,
@@ -608,7 +672,7 @@ class FlashcardController extends StudentApiController
             'pack_color' => $pack->color,
             'pack_priority' => $pack->pack_priority ?? 'medium',
             'pack_priority_weight' => $this->packPriorityWeight($pack),
-            'pack_frequency_minutes' => $pack->smart_review_frequency_minutes ?? 30,
+            'pack_frequency_minutes' => $settings->smart_review_frequency_minutes ?? 30,
             'schedule_mode' => $pack->schedule_mode ?? $this->legacyScheduleMode($pack->repeat_cycle ?? 'daily'),
             'item_type' => $item->resolved_item_type,
             'item_color' => $item->resolved_color,
@@ -618,7 +682,7 @@ class FlashcardController extends StudentApiController
             'correct_option' => $item->correct_option,
             'priority' => $item->priority,
             'scheduled_time' => $scheduledTime,
-            'available_now' => $this->timeStringIsNowOrPast($scheduledTime) && $this->packCanAppearNow($pack),
+            'available_now' => $this->timeStringIsNowOrPast($scheduledTime) && $this->globalSettingsAllowNow($settings),
             'reviewed_today' => $reviewed,
             'reviewed_at' => $progress?->last_shown_at?->toIso8601String(),
             'reviewed_time' => $progress?->last_shown_at?->format('H:i'),
@@ -1177,6 +1241,37 @@ class FlashcardController extends StudentApiController
         return $now->copy()->addDays((int) ceil($days));
     }
 
+    private function flashcardSettings(int $userId): FlashcardUserSetting
+    {
+        return FlashcardUserSetting::firstOrCreate(
+            ['user_id' => $userId],
+            $this->defaultSettings()
+        );
+    }
+
+    private function defaultSettingsObject(int $userId): FlashcardUserSetting
+    {
+        $settings = new FlashcardUserSetting($this->defaultSettings());
+        $settings->user_id = $userId;
+
+        return $settings;
+    }
+
+    private function defaultSettings(): array
+    {
+        return [
+            'smart_review_enabled' => true,
+            'active_from_time' => null,
+            'active_to_time' => null,
+            'quiet_start' => null,
+            'quiet_end' => null,
+            'daily_card_limit' => 5,
+            'smart_review_frequency_minutes' => 30,
+            'auto_restart_enabled' => false,
+            'prompt_mode' => 'app_and_notification',
+        ];
+    }
+
     private function packPriorityWeight(FlashcardPack $pack): int
     {
         return match ($pack->pack_priority ?? 'medium') {
@@ -1186,30 +1281,21 @@ class FlashcardController extends StudentApiController
         };
     }
 
-    private function packCanAppearNow(FlashcardPack $pack): bool
+    private function globalSettingsAllowNow(FlashcardUserSetting $settings): bool
     {
         $now = now();
-        $mode = $pack->schedule_mode ?? $this->legacyScheduleMode($pack->repeat_cycle ?? 'daily');
-
-        if ($mode === 'manual') {
-            return false;
-        }
-
-        if (!$this->packIsScheduledForDate($pack, $now)) {
-            return false;
-        }
 
         $currentMinute = ($now->hour * 60) + $now->minute;
-        $activeStart = $this->timeToMinute($pack->active_from_time);
-        $activeEnd = $this->timeToMinute($pack->active_to_time);
+        $activeStart = $this->timeToMinute($settings->active_from_time);
+        $activeEnd = $this->timeToMinute($settings->active_to_time);
 
         if (($activeStart !== null || $activeEnd !== null)
             && !$this->minuteInWindow($currentMinute, $activeStart ?? 0, $activeEnd ?? 1439)) {
             return false;
         }
 
-        $quietStart = $this->timeToMinute($pack->quiet_start);
-        $quietEnd = $this->timeToMinute($pack->quiet_end);
+        $quietStart = $this->timeToMinute($settings->quiet_start);
+        $quietEnd = $this->timeToMinute($settings->quiet_end);
 
         return !($quietStart !== null
             && $quietEnd !== null
@@ -1246,17 +1332,17 @@ class FlashcardController extends StudentApiController
         };
     }
 
-    private function resolveScheduledTimes(FlashcardPack $pack, int $count): array
+    private function resolveScheduledTimes(FlashcardUserSetting $settings, int $count): array
     {
         if ($count <= 0) {
             return [];
         }
 
         $minutes = [];
-        $activeStart = $this->timeToMinute($pack->active_from_time) ?? 0;
-        $activeEnd = $this->timeToMinute($pack->active_to_time) ?? 1439;
-        $quietStart = $this->timeToMinute($pack->quiet_start);
-        $quietEnd = $this->timeToMinute($pack->quiet_end);
+        $activeStart = $this->timeToMinute($settings->active_from_time) ?? 0;
+        $activeEnd = $this->timeToMinute($settings->active_to_time) ?? 1439;
+        $quietStart = $this->timeToMinute($settings->quiet_start);
+        $quietEnd = $this->timeToMinute($settings->quiet_end);
 
         for ($minute = 0; $minute <= 1439; $minute++) {
             if (!$this->minuteInWindow($minute, $activeStart, $activeEnd)) {

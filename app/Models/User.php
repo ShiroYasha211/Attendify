@@ -83,6 +83,11 @@ class User extends Authenticatable
         return $this->hasMany(Card::class, 'used_by_id');
     }
 
+    public function flashcardUserSetting()
+    {
+        return $this->hasOne(FlashcardUserSetting::class);
+    }
+
     /**
      * Check if the user has a given role.
      */
