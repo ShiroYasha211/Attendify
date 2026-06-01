@@ -62,11 +62,12 @@ class FlashcardController extends StudentApiController
             'prompt_mode' => 'nullable|in:app_and_notification,app_only,notification_only',
         ]);
 
-        $settings = FlashcardUserSetting::firstOrCreate(
-            ['user_id' => $request->user()->id],
-            $this->defaultSettings()
-        );
+        $settings = FlashcardUserSetting::firstOrNew(['user_id' => $request->user()->id]);
+        if (!$settings->exists) {
+            $settings->fill($this->defaultSettings());
+        }
         $settings->fill($validated)->save();
+        $settings = $settings->fresh();
 
         return $this->success(['settings' => $settings], 'Flashcard settings updated.');
     }
@@ -562,7 +563,7 @@ class FlashcardController extends StudentApiController
                 $reviewedToday[] = $this->dailyQueueItem(
                     $pack,
                     $item,
-                    $item->user_progress?->last_shown_at?->format('H:i') ?? '--:--',
+                    $item->user_progress?->last_shown_at ?? now(),
                     true,
                     $settings
                 );
@@ -627,7 +628,7 @@ class FlashcardController extends StudentApiController
             $item = $entry['item'];
             $scheduledTime = $scheduleTimes[$index] ?? now();
 
-            return $this->dailyQueueItem($pack, $item, $scheduledTime->format('H:i'), false, $settings);
+            return $this->dailyQueueItem($pack, $item, $scheduledTime, false, $settings);
         })->all();
 
         usort($queue, function ($a, $b) {
@@ -658,12 +659,15 @@ class FlashcardController extends StudentApiController
     private function dailyQueueItem(
         FlashcardPack $pack,
         FlashcardItem $item,
-        string $scheduledTime,
+        Carbon|string $scheduledTime,
         bool $reviewed = false,
         ?FlashcardUserSetting $settings = null
     ): array {
         $progress = $item->user_progress ?? null;
         $settings ??= $this->defaultSettingsObject($pack->user_id);
+        $scheduledAt = $scheduledTime instanceof Carbon
+            ? $scheduledTime->copy()
+            : now()->copy()->startOfDay()->addMinutes($this->timeToMinute($scheduledTime) ?? ((now()->hour * 60) + now()->minute));
 
         return [
             'item_id' => $item->id,
@@ -681,16 +685,20 @@ class FlashcardController extends StudentApiController
             'options' => $item->options,
             'correct_option' => $item->correct_option,
             'priority' => $item->priority,
-            'scheduled_time' => $scheduledTime,
-            'available_now' => $this->timeStringIsNowOrPast($scheduledTime) && $this->globalSettingsAllowNow($settings),
+            'scheduled_at' => $scheduledAt->toIso8601String(),
+            'scheduled_time' => $scheduledAt->format('H:i'),
+            'scheduled_time_label' => $this->formatTimeLabel($scheduledAt),
+            'available_now' => $scheduledAt->lessThanOrEqualTo(now()) && $this->globalSettingsAllowNow($settings),
             'reviewed_today' => $reviewed,
             'reviewed_at' => $progress?->last_shown_at?->toIso8601String(),
             'reviewed_time' => $progress?->last_shown_at?->format('H:i'),
+            'reviewed_time_label' => $this->formatTimeLabel($progress?->last_shown_at),
             'last_response' => $progress?->last_response,
             'last_response_label' => $this->responseLabel($progress?->last_response),
             'next_review_at' => $progress?->next_review_at?->toIso8601String(),
             'next_review_date' => $progress?->next_review_at?->toDateString(),
             'next_review_time' => $progress?->next_review_at?->format('H:i'),
+            'next_review_time_label' => $this->formatTimeLabel($progress?->next_review_at),
             'times_shown' => $progress?->times_shown ?? 0,
             'times_correct' => $progress?->times_correct ?? 0,
             'accuracy' => $progress?->accuracy ?? 0,
@@ -747,6 +755,7 @@ class FlashcardController extends StudentApiController
                     'next_review_at' => $nextReviewAt->toIso8601String(),
                     'next_review_date' => $nextReviewAt->toDateString(),
                     'next_review_time' => $nextReviewAt->format('H:i'),
+                    'next_review_time_label' => $this->formatTimeLabel($nextReviewAt),
                     'last_response' => $progress?->last_response,
                     'times_shown' => $progress?->times_shown ?? 0,
                     'times_correct' => $progress?->times_correct ?? 0,
@@ -835,9 +844,11 @@ class FlashcardController extends StudentApiController
                     'last_shown_at' => $progress->last_shown_at?->toIso8601String(),
                     'last_shown_date' => $progress->last_shown_at?->toDateString(),
                     'last_shown_time' => $progress->last_shown_at?->format('H:i'),
+                    'last_shown_time_label' => $this->formatTimeLabel($progress->last_shown_at),
                     'next_review_at' => $progress->next_review_at?->toIso8601String(),
                     'next_review_date' => $progress->next_review_at?->toDateString(),
                     'next_review_time' => $progress->next_review_at?->format('H:i'),
+                    'next_review_time_label' => $this->formatTimeLabel($progress->next_review_at),
                     'times_shown' => $progress->times_shown,
                     'times_correct' => $progress->times_correct,
                     'accuracy' => $progress->accuracy,
@@ -1338,43 +1349,59 @@ class FlashcardController extends StudentApiController
             return [];
         }
 
-        $minutes = [];
-        $activeStart = $this->timeToMinute($settings->active_from_time) ?? 0;
-        $activeEnd = $this->timeToMinute($settings->active_to_time) ?? 1439;
+        $frequency = max(1, (int) ($settings->smart_review_frequency_minutes ?? 30));
+        $cursor = now()->copy()->seconds(0);
+        $selected = [];
+        $guard = 0;
+
+        while (count($selected) < $count && $guard < 2880) {
+            if ($this->settingsAllowDateTime($settings, $cursor)) {
+                $selected[] = $cursor->copy();
+                $cursor->addMinutes($frequency);
+                continue;
+            }
+
+            $cursor->addMinute();
+            $guard++;
+        }
+
+        if (empty($selected)) {
+            $selected[] = now()->copy()->seconds(0);
+        }
+
+        while (count($selected) < $count) {
+            $selected[] = end($selected)->copy()->addMinutes($frequency);
+        }
+
+        return $selected;
+    }
+
+    private function settingsAllowDateTime(FlashcardUserSetting $settings, Carbon $dateTime): bool
+    {
+        $minute = ($dateTime->hour * 60) + $dateTime->minute;
+        $activeStart = $this->timeToMinute($settings->active_from_time);
+        $activeEnd = $this->timeToMinute($settings->active_to_time);
+
+        if (($activeStart !== null || $activeEnd !== null)
+            && !$this->minuteInWindow($minute, $activeStart ?? 0, $activeEnd ?? 1439)) {
+            return false;
+        }
+
         $quietStart = $this->timeToMinute($settings->quiet_start);
         $quietEnd = $this->timeToMinute($settings->quiet_end);
 
-        for ($minute = 0; $minute <= 1439; $minute++) {
-            if (!$this->minuteInWindow($minute, $activeStart, $activeEnd)) {
-                continue;
-            }
+        return !($quietStart !== null
+            && $quietEnd !== null
+            && $this->minuteInWindow($minute, $quietStart, $quietEnd));
+    }
 
-            if ($quietStart !== null
-                && $quietEnd !== null
-                && $this->minuteInWindow($minute, $quietStart, $quietEnd)) {
-                continue;
-            }
-
-            $minutes[] = $minute;
+    private function formatTimeLabel(?Carbon $dateTime): ?string
+    {
+        if (!$dateTime) {
+            return null;
         }
 
-        if (empty($minutes)) {
-            $minutes[] = (now()->hour * 60) + now()->minute;
-        }
-
-        if ($count === 1) {
-            $selected = [$minutes[0]];
-        } else {
-            $lastIndex = count($minutes) - 1;
-            $selected = [];
-            for ($index = 0; $index < $count; $index++) {
-                $selected[] = $minutes[(int) round(($index * $lastIndex) / ($count - 1))];
-            }
-        }
-
-        return array_map(function (int $minute) {
-            return now()->copy()->startOfDay()->addMinutes($minute);
-        }, $selected);
+        return str_replace(['AM', 'PM'], ['ص', 'م'], $dateTime->format('g:i A'));
     }
 
     private function timeStringIsNowOrPast(string $time): bool
