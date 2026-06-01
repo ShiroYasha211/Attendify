@@ -358,7 +358,7 @@ class TreeFarmController extends Controller
                 'user_id'          => $user->id,
                 'client_uuid'      => $data['client_uuid'] ?? null,
                 'farm_scope'       => $data['farm_scope'],
-                'source'           => 'local',
+                'source'           => 'offline',
                 'status'           => 'completed',
                 'started_at'       => Carbon::parse($data['started_at']),
                 'ended_at'         => Carbon::parse($data['ended_at']),
