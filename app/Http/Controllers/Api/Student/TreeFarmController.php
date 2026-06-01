@@ -18,7 +18,7 @@ class TreeFarmController extends Controller
 {
     private const HEARTBEAT_SECONDS = 30;
     private const OFFLINE_WINDOW_HOURS = 24;
-    private const CONVERSION_RATE = 100;
+    private const CONVERSION_RATE = 25;
 
     private const PLANTS = [
         ['code' => 'clover', 'name' => 'نبتة البرسيم', 'required_seconds' => 300, 'coins' => 5, 'rarity' => 'common'],
@@ -313,7 +313,7 @@ class TreeFarmController extends Controller
 
         $stars = intdiv((int) $data['coins_amount'], self::CONVERSION_RATE);
         if ($stars < 1) {
-            return response()->json(['message' => 'أقل طلب مكافأة هو 100 عملة'], 422);
+            return response()->json(['message' => 'أقل طلب مكافأة هو ' . self::CONVERSION_RATE . ' عملة'], 422);
         }
 
         $reward = TreeFarmRewardRequest::create([
@@ -495,7 +495,7 @@ class TreeFarmController extends Controller
             ->whereHas('user', function ($query) use ($user) {
                 $query->where('major_id', $user->major_id)->where('level_id', $user->level_id);
             })
-            ->orderByDesc('total_public_focus_seconds')
+            ->orderByDesc('total_focus_seconds')
             ->limit(30)
             ->get()
             ->values()
@@ -503,7 +503,7 @@ class TreeFarmController extends Controller
                 return [
                     'rank' => $index + 1,
                     'name' => $profile->use_alias && $profile->public_name ? $profile->public_name : $profile->user?->name,
-                    'focus_seconds' => (int) $profile->total_public_focus_seconds,
+                    'focus_seconds' => (int) $profile->total_focus_seconds,
                     'coins' => (int) $profile->coins_balance,
                 ];
             });
