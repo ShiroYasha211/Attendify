@@ -84,7 +84,7 @@ class TreeFarmRewardController extends Controller
         $exchangeRate = Setting::get('tree_farm_exchange_rate', 25);
         $weeklyStarLimit = Setting::get('tree_farm_weekly_star_limit', 5);
 
-        $allTreeFarmStudents = User::whereHas('treeFarmProfile')
+        $allTreeFarmStudents = User::whereIn('id', TreeFarmProfile::select('user_id'))
             ->select('id', 'name', 'student_number')
             ->orderBy('name')
             ->get();
