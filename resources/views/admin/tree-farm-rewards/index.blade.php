@@ -105,6 +105,34 @@
     .btn-premium:hover {
         transform: translateY(-1px);
     }
+
+    .border-inline-start-md {
+        border-inline-start: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .scroll-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    .scroll-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    .scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .5; }
+    }
 </style>
 
 <div class="container-fluid py-4 tree-farm-admin-container" dir="rtl">
@@ -121,6 +149,31 @@
         </div>
         <a href="{{ route('admin.dashboard') }}" class="btn btn-light border btn-premium px-4 py-2"><i class="fa-solid fa-arrow-left me-2"></i> العودة للرئيسية</a>
     </div>
+
+    <!-- Alert Feedback -->
+    @if(session('success'))
+        <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4 p-3 d-flex align-items-center gap-2" role="alert">
+            <i class="fa-solid fa-circle-check text-success fa-lg"></i>
+            <div class="fw-bold">{{ session('success') }}</div>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 p-3 d-flex align-items-center gap-2" role="alert">
+            <i class="fa-solid fa-circle-exclamation text-danger fa-lg"></i>
+            <div class="fw-bold">{{ session('error') }}</div>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 p-3" role="alert">
+            <ul class="mb-0 fw-bold">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     <!-- Overview Stats Cards -->
     <div class="row g-4 mb-4">
@@ -185,6 +238,230 @@
                     <div class="header-icon-box bg-primary-light">
                         <i class="fa-solid fa-user-graduate fa-lg text-primary"></i>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Analytics & Reporting Section -->
+    <div class="row g-4 mb-4">
+        <!-- Subject Focus Insights & Withered tree analytics -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-chart-pie me-2"></i> تحليلات التركيز والمواد الدراسية</h2>
+                    <span class="badge badge-soft-success">تحديث مباشر</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Withered Tree Analytics (Success Rate) -->
+                        <div class="col-md-5 mb-4 mb-md-0">
+                            <h5 class="fw-bold mb-3 small text-muted text-uppercase">معدل نجاح الجلسات (الأشجار الجافة)</h5>
+                            
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100 py-3">
+                                <!-- Circular progress / visual representation -->
+                                <div class="position-relative mb-3 d-flex align-items-center justify-content-center" style="width: 140px; height: 140px;">
+                                    <svg width="140" height="140" viewBox="0 0 140 140" style="transform: rotate(-90deg);">
+                                        <circle cx="70" cy="70" r="60" fill="transparent" stroke="#f3f4f6" stroke-width="12"></circle>
+                                        <circle cx="70" cy="70" r="60" fill="transparent" stroke="#2d6a4f" stroke-width="12" 
+                                                stroke-dasharray="377" stroke-dashoffset="{{ 377 - (377 * $successRate) / 100 }}"
+                                                stroke-linecap="round" style="transition: stroke-dashoffset 1s ease-out;"></circle>
+                                    </svg>
+                                    <div class="position-absolute text-center">
+                                        <div class="h3 fw-bold mb-0 text-success">{{ $successRate }}%</div>
+                                        <span class="text-muted small" style="font-size: 0.75rem;">نسبة النجاح</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="w-100 px-3 mt-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small text-muted"><i class="fa-solid fa-tree text-success me-1"></i> جلسات ناجحة:</span>
+                                        <span class="fw-bold text-success">{{ $successSessions }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small text-muted"><i class="fa-solid fa-fire text-danger me-1"></i> جلسات جافة (فشل):</span>
+                                        <span class="fw-bold text-danger">{{ $failedSessions }} ({{ $failRate }}%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Subject Focus Breakdown -->
+                        <div class="col-md-7 border-inline-start-md">
+                            <h5 class="fw-bold mb-3 small text-muted text-uppercase">توزيع وقت التركيز حسب المواد الدراسية</h5>
+                            @if(count($subjectInsights) > 0)
+                                <div class="scroll-container" style="max-height: 250px; overflow-y: auto; padding-inline-start: 4px;">
+                                    <table class="table table-sm align-middle table-hover mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>المادة الدراسية</th>
+                                                <th class="text-center">الجلسات</th>
+                                                <th class="text-start">مدة التركيز</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($subjectInsights as $insight)
+                                                @php
+                                                    $subHours = floor($insight->total_focused_seconds / 3600);
+                                                    $subMinutes = floor(($insight->total_focused_seconds % 3600) / 60);
+                                                @endphp
+                                                <tr>
+                                                    <td>
+                                                        <span class="fw-bold text-dark">{{ $insight->subject_name }}</span>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge badge-soft-secondary">{{ $insight->total_sessions }}</span>
+                                                    </td>
+                                                    <td class="text-start fw-bold text-success">
+                                                        @if($subHours > 0)
+                                                            {{ $subHours }} س و {{ $subMinutes }} د
+                                                        @else
+                                                            {{ $subMinutes }} د
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <div class="text-center text-muted py-5">
+                                    <i class="fa-solid fa-chart-bar fa-2xl text-light mb-3 d-block"></i>
+                                    لا توجد بيانات جلسات تركيز مصنفة حسب المواد بعد.
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Early Warning Card (At-Risk Students) -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100 rounded-4 border-start border-danger border-4">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h2 class="h5 fw-bold mb-0 text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i> نظام الإنذار المبكر (التعثر الدراسي)</h2>
+                    <span class="badge badge-soft-danger animate-pulse">تنبيه حرج</span>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <p class="text-muted small mb-3">الطلاب الذين واجهوا نسبة جفاف/تشتت بلغت 50% أو أكثر من إجمالي 3 جلسات على الأقل. يوصى بتواصل المرشد الأكاديمي معهم لمساعدتهم.</p>
+                    
+                    <div class="flex-grow-1 scroll-container" style="max-height: 250px; overflow-y: auto; padding-inline-start: 4px;">
+                        @forelse($atRiskStudents as $atRisk)
+                            <div class="p-3 mb-3 bg-light rounded-3 d-flex justify-content-between align-items-center border-start border-danger border-3">
+                                <div style="min-width: 0; flex: 1;" class="pe-2">
+                                    <div class="fw-bold text-dark text-truncate">{{ $atRisk->user?->name ?? 'طالب محذوف' }}</div>
+                                    <div class="small text-muted text-truncate">رقم القيد: {{ $atRisk->user?->student_number ?? '-' }}</div>
+                                    <div class="small text-muted" style="font-size: 0.8rem;">إجمالي الجلسات: {{ $atRisk->total_sessions }} | الجافة: {{ $atRisk->burned_sessions }}</div>
+                                </div>
+                                <div class="text-end" style="flex-shrink: 0;">
+                                    <span class="badge badge-soft-danger mb-2 d-block text-center">{{ $atRisk->failure_rate }}% جفاف 🥀</span>
+                                    <a href="mailto:{{ $atRisk->user?->email }}?subject=متابعة أكاديمية - منصة معين&body=مرحباً {{ $atRisk->user?->name }}،%0d%0aنود التواصل معك بخصوص تقدمك الدراسي..." class="btn btn-sm btn-outline-danger btn-premium py-1 px-3.5 w-100" style="font-size: 0.8rem;">
+                                        <i class="fa-solid fa-envelope me-1"></i> تواصل
+                                    </a>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center text-muted py-5 my-auto">
+                                <i class="fa-solid fa-circle-check fa-2xl text-success mb-3 d-block"></i>
+                                لا يوجد طلاب يواجهون تعثراً دراسياً حالياً. كل الطلاب ملتزمون!
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control & Moderation Tools Section -->
+    <div class="row g-4 mb-4">
+        <!-- Settings & Exchange Rate Management -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-sliders me-2"></i> إعدادات شروط التبديل والحدود</h2>
+                </div>
+                <div class="card-body">
+                    <form action="{{ route('admin.tree-farm-rewards.update-settings') }}" method="POST">
+                        @csrf
+                        <div class="mb-3">
+                            <label for="tree_farm_exchange_rate" class="form-label fw-bold small text-muted">سعر الصرف (كم عملة تساوي النجمة الواجهة)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-coins"></i></span>
+                                <input type="number" name="tree_farm_exchange_rate" id="tree_farm_exchange_rate" class="form-control" value="{{ $exchangeRate }}" min="1" required>
+                                <span class="input-group-text bg-light fw-bold text-success">عملة = 1 نجمة ⭐</span>
+                            </div>
+                            <div class="form-text text-muted small">تحديد عدد العملات التي يحتاج الطالب لجمعها لطلب استبدالها بنجمة واحدة. القيمة الافتراضية هي 25 عملة.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="tree_farm_weekly_star_limit" class="form-label fw-bold small text-muted">الحد الأقصى الأسبوعي لاستبدال النجوم</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-shield-halved"></i></span>
+                                <input type="number" name="tree_farm_weekly_star_limit" id="tree_farm_weekly_star_limit" class="form-control" value="{{ $weeklyStarLimit }}" min="0" required>
+                                <span class="input-group-text bg-light fw-bold text-danger">نجوم / أسبوع</span>
+                            </div>
+                            <div class="form-text text-muted small">الحد الأقصى للنجوم التي يمكن للطالب طلبها أسبوعياً من المزرعة لمنع الاحتيال والغش (ضع 0 لتعطيل الحد الأسبوعي).</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-premium w-100 py-2"><i class="fa-solid fa-floppy-disk me-1"></i> حفظ إعدادات الرقابة والصرف</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Balance/Stars Adjustments -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-user-pen me-2"></i> التعديل اليدوي للأرصدة (عملات / نجوم)</h2>
+                </div>
+                <div class="card-body">
+                    <form action="{{ route('admin.tree-farm-rewards.adjust-balance') }}" method="POST" onsubmit="return confirm('هل أنت متأكد من رغبتك في تعديل رصيد الطالب المحدد؟')">
+                        @csrf
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-12">
+                                <label for="user_id" class="form-label fw-bold small text-muted">اختر الطالب</label>
+                                <select name="user_id" id="user_id" class="form-select" required>
+                                    <option value="">-- اختر الطالب المعني --</option>
+                                    @foreach($allTreeFarmStudents as $std)
+                                        <option value="{{ $std->id }}">{{ $std->name }} (رقم القيد: {{ $std->student_number ?? 'لا يوجد' }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="adjustment_type" class="form-label fw-bold small text-muted">نوع العملة</label>
+                                <select name="adjustment_type" id="adjustment_type" class="form-select" required>
+                                    <option value="coins">عملات المزرعة 🪙</option>
+                                    <option value="stars">النجوم الأكاديمية ⭐</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="action" class="form-label fw-bold small text-muted">الإجراء</label>
+                                <select name="action" id="action" class="form-select" required>
+                                    <option value="add">إضافة (منح مكافأة) ➕</option>
+                                    <option value="deduct">خصم (عقوبة/تراجع) ➖</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-12">
+                                <label for="amount" class="form-label fw-bold small text-muted">الكمية</label>
+                                <input type="number" name="amount" id="amount" class="form-control" placeholder="أدخل عدد العملات أو النجوم..." min="1" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-bold small text-muted">السبب / الملاحظة (لأغراض التدقيق)</label>
+                            <input type="text" name="description" id="description" class="form-control" placeholder="مثال: الفوز بمسابقة التركيز الأسبوعية، أو تلاعب بالوقت..." required>
+                        </div>
+
+                        <button type="submit" class="btn btn-warning btn-premium text-dark w-100 py-2"><i class="fa-solid fa-circle-check me-1"></i> تنفيذ التعديل المالي</button>
+                    </form>
                 </div>
             </div>
         </div>

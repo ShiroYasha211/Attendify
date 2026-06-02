@@ -187,6 +187,8 @@ Route::prefix('admin')
             Route::get('/', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'index'])->name('index');
             Route::post('{reward}/approve', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'approve'])->name('approve');
             Route::post('{reward}/reject', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'reject'])->name('reject');
+            Route::post('settings', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'updateSettings'])->name('update-settings');
+            Route::post('adjust-balance', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'adjustBalance'])->name('adjust-balance');
         });
     });
 

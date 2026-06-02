@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Student\TreeFarmProfile;
 use App\Models\Student\TreeFarmRewardRequest;
+use App\Models\Student\TreeFarmSession;
+use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,11 +44,66 @@ class TreeFarmRewardController extends Controller
 
         $students = $studentsQuery->paginate(15, ['*'], 'students_page');
 
+        // Advanced Analytics
+        $subjectInsights = TreeFarmSession::query()
+            ->select('subject_name', 
+                DB::raw('count(*) as total_sessions'),
+                DB::raw('sum(focused_seconds) as total_focused_seconds')
+            )
+            ->whereNotNull('subject_name')
+            ->where('subject_name', '!=', '')
+            ->groupBy('subject_name')
+            ->orderByDesc('total_focused_seconds')
+            ->get();
+
+        $totalSessions = TreeFarmSession::count();
+        $failedSessions = TreeFarmSession::where('awarded_plant_code', 'burned_tree')->count();
+        $successSessions = $totalSessions - $failedSessions;
+
+        $successRate = $totalSessions > 0 ? round(($successSessions / $totalSessions) * 100, 1) : 100;
+        $failRate = $totalSessions > 0 ? round(($failedSessions / $totalSessions) * 100, 1) : 0;
+
+        $atRiskStudents = TreeFarmSession::query()
+            ->select('user_id',
+                DB::raw('count(*) as total_sessions'),
+                DB::raw('sum(case when awarded_plant_code = "burned_tree" then 1 else 0 end) as burned_sessions')
+            )
+            ->with('user:id,name,email,student_number')
+            ->groupBy('user_id')
+            ->having('total_sessions', '>=', 3)
+            ->get()
+            ->map(function ($row) {
+                $row->failure_rate = $row->total_sessions > 0 ? round(($row->burned_sessions / $row->total_sessions) * 100, 1) : 0;
+                return $row;
+            })
+            ->filter(function ($row) {
+                return $row->failure_rate >= 50.0;
+            })
+            ->sortByDesc('failure_rate');
+
+        $exchangeRate = Setting::get('tree_farm_exchange_rate', 25);
+        $weeklyStarLimit = Setting::get('tree_farm_weekly_star_limit', 5);
+
+        $allTreeFarmStudents = User::whereHas('treeFarmProfile')
+            ->select('id', 'name', 'student_number')
+            ->orderBy('name')
+            ->get();
+
         return view('admin.tree-farm-rewards.index', compact(
             'pendingRequests', 
             'recentRequests', 
             'students',
-            'sortBy'
+            'sortBy',
+            'subjectInsights',
+            'totalSessions',
+            'successSessions',
+            'failedSessions',
+            'successRate',
+            'failRate',
+            'atRiskStudents',
+            'exchangeRate',
+            'weeklyStarLimit',
+            'allTreeFarmStudents'
         ));
     }
 
@@ -107,5 +165,54 @@ class TreeFarmRewardController extends Controller
         ]);
 
         return back()->with('success', 'تم رفض طلب المكافأة.');
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'tree_farm_exchange_rate' => ['required', 'integer', 'min:1'],
+            'tree_farm_weekly_star_limit' => ['required', 'integer', 'min:0'],
+        ]);
+
+        Setting::set('tree_farm_exchange_rate', $data['tree_farm_exchange_rate']);
+        Setting::set('tree_farm_weekly_star_limit', $data['tree_farm_weekly_star_limit']);
+
+        return back()->with('success', 'تم تحديث شروط تبديل المكافآت والحدود بنجاح.');
+    }
+
+    public function adjustBalance(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'adjustment_type' => ['required', 'in:coins,stars'],
+            'action' => ['required', 'in:add,deduct'],
+            'amount' => ['required', 'integer', 'min:1'],
+            'description' => ['required', 'string', 'max:500'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            $user = User::findOrFail($data['user_id']);
+            $profile = TreeFarmProfile::firstOrCreate(['user_id' => $user->id]);
+            $amount = (int)$data['amount'];
+
+            if ($data['adjustment_type'] === 'coins') {
+                if ($data['action'] === 'add') {
+                    $profile->increment('coins_balance', $amount);
+                } else {
+                    $profile->decrement('coins_balance', min($amount, $profile->coins_balance));
+                }
+            } else {
+                // Adjust stars
+                if ($data['action'] === 'add') {
+                    $user->addStars($amount, 'admin_grant', auth()->id(), $data['description']);
+                } else {
+                    $user->deductStars($amount, 'admin_deduction', auth()->id(), $data['description']);
+                }
+            }
+        });
+
+        $adjTypeLabel = $data['adjustment_type'] === 'coins' ? 'عملات' : 'نجوم';
+        $actionLabel = $data['action'] === 'add' ? 'إضافة' : 'خصم';
+        return back()->with('success', "تمت عملية {$actionLabel} {$data['amount']} {$adjTypeLabel} للطالب بنجاح.");
     }
 }

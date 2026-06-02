@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\Student\TreeFarmPlant;
 use App\Models\Student\TreeFarmProfile;
 use App\Models\Student\TreeFarmRewardRequest;
@@ -303,8 +304,10 @@ class TreeFarmController extends Controller
 
     public function rewardRequest(Request $request): JsonResponse
     {
+        $conversionRate = Setting::get('tree_farm_exchange_rate', 25);
+
         $data = $request->validate([
-            'coins_amount' => ['required', 'integer', 'min:' . self::CONVERSION_RATE],
+            'coins_amount' => ['required', 'integer', 'min:' . $conversionRate],
         ]);
 
         $profile = $this->profileFor($request->user());
@@ -318,16 +321,33 @@ class TreeFarmController extends Controller
             return response()->json(['message' => 'رصيد العملات المتاح لا يكفي لهذا الطلب'], 422);
         }
 
-        $stars = intdiv((int) $data['coins_amount'], self::CONVERSION_RATE);
+        $stars = intdiv((int) $data['coins_amount'], $conversionRate);
         if ($stars < 1) {
-            return response()->json(['message' => 'أقل طلب مكافأة هو ' . self::CONVERSION_RATE . ' عملة'], 422);
+            return response()->json(['message' => 'أقل طلب مكافأة هو ' . $conversionRate . ' عملة'], 422);
+        }
+
+        $weeklyLimit = Setting::get('tree_farm_weekly_star_limit', 5);
+        if ($weeklyLimit > 0) {
+            $startOfWeek = now()->startOfWeek();
+            $starsThisWeek = TreeFarmRewardRequest::query()
+                ->where('user_id', $request->user()->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->where('created_at', '>=', $startOfWeek)
+                ->sum('stars_amount');
+
+            if (($starsThisWeek + $stars) > $weeklyLimit) {
+                $remaining = max(0, $weeklyLimit - $starsThisWeek);
+                return response()->json([
+                    'message' => "لقد تجاوزت الحد الأقصى الأسبوعي لاستبدال النجوم ({$weeklyLimit} نجوم). المتبقي المتاح لك هذا الأسبوع: {$remaining} نجوم."
+                ], 422);
+            }
         }
 
         $reward = TreeFarmRewardRequest::create([
             'user_id' => $request->user()->id,
             'coins_amount' => $data['coins_amount'],
             'stars_amount' => $stars,
-            'conversion_rate' => self::CONVERSION_RATE,
+            'conversion_rate' => $conversionRate,
             'status' => 'pending',
         ]);
 
@@ -493,13 +513,27 @@ class TreeFarmController extends Controller
 
     private function summary($user, TreeFarmProfile $profile): array
     {
+        $conversionRate = Setting::get('tree_farm_exchange_rate', 25);
+        $weeklyLimit = Setting::get('tree_farm_weekly_star_limit', 5);
+
+        $startOfWeek = now()->startOfWeek();
+        $starsThisWeek = TreeFarmRewardRequest::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('created_at', '>=', $startOfWeek)
+            ->sum('stars_amount');
+
+        $weeklyStarsRemaining = $weeklyLimit > 0 ? max(0, $weeklyLimit - $starsThisWeek) : null;
+
         return [
             'settings' => [
                 'heartbeat_seconds' => self::HEARTBEAT_SECONDS,
                 'offline_window_hours' => self::OFFLINE_WINDOW_HOURS,
-                'conversion_rate' => self::CONVERSION_RATE,
+                'conversion_rate' => $conversionRate,
                 'grace_min_seconds' => 60,
                 'grace_max_seconds' => 180,
+                'weekly_limit' => $weeklyLimit,
+                'weekly_stars_remaining' => $weeklyStarsRemaining,
             ],
             'plant_catalog' => self::PLANTS,
             'profile' => $this->formatProfile($profile, $user),
