@@ -12,22 +12,41 @@ use Illuminate\View\View;
 
 class TreeFarmRewardController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $sortBy = $request->query('sort_by', 'focus'); // 'focus' or 'coins'
+
         $pendingRequests = TreeFarmRewardRequest::query()
             ->with(['user:id,name,email,student_number', 'reviewer:id,name'])
             ->where('status', 'pending')
             ->latest()
-            ->paginate(20, ['*'], 'pending_page');
+            ->paginate(10, ['*'], 'pending_page');
 
         $recentRequests = TreeFarmRewardRequest::query()
             ->with(['user:id,name,email,student_number', 'reviewer:id,name'])
             ->whereIn('status', ['approved', 'rejected'])
             ->latest('reviewed_at')
-            ->limit(30)
+            ->limit(10)
             ->get();
 
-        return view('admin.tree-farm-rewards.index', compact('pendingRequests', 'recentRequests'));
+        // Query students who have started in the tree farm
+        $studentsQuery = TreeFarmProfile::query()
+            ->with(['user:id,name,email,student_number']);
+
+        if ($sortBy === 'coins') {
+            $studentsQuery->orderByDesc('coins_balance');
+        } else {
+            $studentsQuery->orderByDesc('total_focus_seconds');
+        }
+
+        $students = $studentsQuery->paginate(15, ['*'], 'students_page');
+
+        return view('admin.tree-farm-rewards.index', compact(
+            'pendingRequests', 
+            'recentRequests', 
+            'students',
+            'sortBy'
+        ));
     }
 
     public function approve(TreeFarmRewardRequest $reward): RedirectResponse

@@ -77,6 +77,96 @@
         @endif
     </div>
 
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h2 class="h5 fw-bold mb-0">قائمة ترتيب طلاب مزرعة الأشجار</h2>
+            <div class="d-flex gap-2 align-items-center">
+                <span class="small text-muted fw-bold">ترتيب حسب:</span>
+                <a href="{{ route('admin.tree-farm-rewards.index', ['sort_by' => 'focus']) }}" class="btn btn-sm {{ $sortBy === 'focus' ? 'btn-success text-white' : 'btn-light border' }}">مدة التركيز</a>
+                <a href="{{ route('admin.tree-farm-rewards.index', ['sort_by' => 'coins']) }}" class="btn btn-sm {{ $sortBy === 'coins' ? 'btn-success text-white' : 'btn-light border' }}">رصيد العملات</a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 80px;" class="text-center">الترتيب</th>
+                            <th>الطالب</th>
+                            <th>الاسم المستعار</th>
+                            <th>رقم القيد</th>
+                            <th class="text-center">إجمالي التركيز</th>
+                            <th class="text-center">العملات المتبقية</th>
+                            <th class="text-center">لوحة المتصدرين</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($students as $index => $profile)
+                            @php
+                                $rank = $students->firstItem() + $index;
+                            @endphp
+                            <tr>
+                                <td class="text-center">
+                                    @if($rank === 1)
+                                        <span class="badge bg-warning text-dark px-3 py-2 fw-bold" style="font-size: 0.9rem;">🥇 1</span>
+                                    @elseif($rank === 2)
+                                        <span class="badge bg-secondary text-white px-3 py-2 fw-bold" style="font-size: 0.85rem;">🥈 2</span>
+                                    @elseif($rank === 3)
+                                        <span class="badge px-3 py-2 fw-bold text-white" style="font-size: 0.8rem; background-color: #cd7f32 !important;">🥉 3</span>
+                                    @else
+                                        <span class="fw-bold text-muted">{{ $rank }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ $profile->user?->name ?? 'طالب محذوف' }}</div>
+                                    <div class="small text-muted">{{ $profile->user?->email }}</div>
+                                </td>
+                                <td>
+                                    @if($profile->use_alias && $profile->public_name)
+                                        <span class="badge bg-info text-dark">{{ $profile->public_name }}</span>
+                                    @else
+                                        <span class="text-muted small">الاسم الحقيقي فقط</span>
+                                    @endif
+                                </td>
+                                <td>{{ $profile->user?->student_number ?? '-' }}</td>
+                                <td class="text-center fw-bold text-success">
+                                    @php
+                                        $hours = floor($profile->total_focus_seconds / 3600);
+                                        $minutes = floor(($profile->total_focus_seconds % 3600) / 60);
+                                    @endphp
+                                    @if($hours > 0)
+                                        {{ $hours }} س و {{ $minutes }} د
+                                    @else
+                                        {{ $minutes }} د
+                                    @endif
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning text-dark px-2 py-1.5 fw-bold"><i class="fa-solid fa-coins me-1"></i> {{ number_format($profile->coins_balance) }}</span>
+                                </td>
+                                <td class="text-center">
+                                    @if($profile->is_public)
+                                        <span class="badge bg-success px-2 py-1 text-white">عام</span>
+                                    @else
+                                        <span class="badge bg-light text-muted border px-2 py-1">خاص</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-5">لا توجد بيانات طلاب مشاركين في المزرعة بعد.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @if($students->hasPages())
+            <div class="card-footer bg-white">
+                {{ $students->appends(['sort_by' => $sortBy])->links() }}
+            </div>
+        @endif
+    </div>
+
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white border-0 py-3">
             <h2 class="h5 fw-bold mb-0">آخر الطلبات التي تمت مراجعتها</h2>

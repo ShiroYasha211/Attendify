@@ -608,6 +608,7 @@ class TreeFarmController extends Controller
             'body' => $thought->body,
             'reminder_at' => optional($thought->reminder_at)->toIso8601String(),
             'synced_at' => optional($thought->synced_at)->toIso8601String(),
+            'created_at' => optional($thought->created_at)->toIso8601String(),
         ];
     }
 
