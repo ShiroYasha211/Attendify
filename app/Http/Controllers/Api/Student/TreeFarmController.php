@@ -21,12 +21,15 @@ class TreeFarmController extends Controller
     private const CONVERSION_RATE = 25;
 
     private const PLANTS = [
-        ['code' => 'clover', 'name' => 'نبتة البرسيم', 'required_seconds' => 300, 'coins' => 5, 'rarity' => 'common'],
-        ['code' => 'tulip', 'name' => 'زهرة التوليب', 'required_seconds' => 600, 'coins' => 10, 'rarity' => 'common'],
-        ['code' => 'rose', 'name' => 'وردة التركيز', 'required_seconds' => 900, 'coins' => 15, 'rarity' => 'common'],
-        ['code' => 'apple_tree', 'name' => 'شجرة التفاح', 'required_seconds' => 1800, 'coins' => 35, 'rarity' => 'uncommon'],
-        ['code' => 'palm', 'name' => 'نخلة الإنجاز', 'required_seconds' => 2700, 'coins' => 55, 'rarity' => 'rare'],
-        ['code' => 'golden_tree', 'name' => 'الشجرة الذهبية', 'required_seconds' => 3600, 'coins' => 80, 'rarity' => 'epic'],
+        ['code' => 'grass', 'name' => 'عشب البداية', 'required_seconds' => 600, 'coins' => 8, 'rarity' => 'common'],
+        ['code' => 'red_flower', 'name' => 'زهرة حمراء', 'required_seconds' => 900, 'coins' => 15, 'rarity' => 'common'],
+        ['code' => 'blue_flower', 'name' => 'زهرة زرقاء', 'required_seconds' => 1200, 'coins' => 20, 'rarity' => 'common'],
+        ['code' => 'blue_bud', 'name' => 'برعم أزرق', 'required_seconds' => 1500, 'coins' => 25, 'rarity' => 'uncommon'],
+        ['code' => 'purple_flower', 'name' => 'زهرة بنفسجية', 'required_seconds' => 1800, 'coins' => 35, 'rarity' => 'uncommon'],
+        ['code' => 'pine_small', 'name' => 'صنوبرة صغيرة', 'required_seconds' => 2700, 'coins' => 55, 'rarity' => 'rare'],
+        ['code' => 'pine_tall', 'name' => 'صنوبرة شامخة', 'required_seconds' => 3600, 'coins' => 80, 'rarity' => 'rare'],
+        ['code' => 'orange_tree', 'name' => 'شجرة برتقالية', 'required_seconds' => 5400, 'coins' => 120, 'rarity' => 'epic'],
+        ['code' => 'orange_cypress', 'name' => 'سرو برتقالي', 'required_seconds' => 7200, 'coins' => 170, 'rarity' => 'legendary'],
     ];
 
     public function index(Request $request): JsonResponse
@@ -65,7 +68,7 @@ class TreeFarmController extends Controller
     {
         $data = $request->validate([
             'farm_scope' => ['required', Rule::in(['private', 'public'])],
-            'planned_minutes' => ['required', 'integer', 'min:15', 'max:240'],
+            'planned_minutes' => ['required', 'integer', 'min:10', 'max:240'],
             'client_uuid' => ['nullable', 'string', 'max:80'],
         ]);
 
