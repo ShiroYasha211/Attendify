@@ -92,7 +92,10 @@ class FlashcardController extends StudentApiController
     public function show(Request $request, $id)
     {
         $pack = FlashcardPack::where('id', $id)
-            ->where('user_id', $request->user()->id)
+            ->where(function ($query) use ($request) {
+                $query->where('user_id', $request->user()->id)
+                      ->orWhere('is_public', true);
+            })
             ->with('childPacks:id,user_id,parent_pack_id,title,color,display_mode,is_active,source_pack_id')
             ->firstOrFail();
 
