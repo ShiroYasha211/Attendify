@@ -395,44 +395,55 @@ class TreeFarmController extends Controller
     private function completeSession(TreeFarmSession $session, TreeFarmProfile $profile, int $focusedSeconds, string $successStatus): array
     {
         $plantDefinition = $this->plantForSeconds($focusedSeconds);
-        $endedStatus = $plantDefinition ? $successStatus : 'burned';
+        
+        if (!$plantDefinition) {
+            $plantDefinition = [
+                'code' => 'burned_tree',
+                'name' => 'شجرة ذابلة',
+                'required_seconds' => $focusedSeconds,
+                'coins' => 0,
+                'rarity' => 'common',
+            ];
+            $endedStatus = 'burned';
+        } else {
+            $endedStatus = $successStatus;
+        }
 
         $session->update([
             'status' => $endedStatus,
             'ended_at' => $session->ended_at ?: now(),
             'focused_seconds' => $focusedSeconds,
-            'awarded_plant_code' => $plantDefinition['code'] ?? null,
-            'awarded_coins' => $plantDefinition['coins'] ?? 0,
+            'awarded_plant_code' => $plantDefinition['code'],
+            'awarded_coins' => $plantDefinition['coins'],
             'synced_at' => now(),
         ]);
 
-        $plant = null;
-        if ($plantDefinition) {
-            $plant = TreeFarmPlant::create([
-                'user_id' => $session->user_id,
-                'subject_id' => $session->subject_id,
-                'subject_name' => $session->subject_name,
-                'tree_farm_session_id' => $session->id,
-                'farm_scope' => $session->farm_scope,
-                'plant_code' => $plantDefinition['code'],
-                'name' => $plantDefinition['name'],
-                'rarity' => $plantDefinition['rarity'],
-                'required_seconds' => $plantDefinition['required_seconds'],
-                'coins_awarded' => $plantDefinition['coins'],
-                'status' => 'synced',
-                'planted_at' => now(),
-            ]);
+        $plant = TreeFarmPlant::create([
+            'user_id' => $session->user_id,
+            'subject_id' => $session->subject_id,
+            'subject_name' => $session->subject_name,
+            'tree_farm_session_id' => $session->id,
+            'farm_scope' => $session->farm_scope,
+            'plant_code' => $plantDefinition['code'],
+            'name' => $plantDefinition['name'],
+            'rarity' => $plantDefinition['rarity'],
+            'required_seconds' => $plantDefinition['required_seconds'],
+            'coins_awarded' => $plantDefinition['coins'],
+            'status' => 'synced',
+            'planted_at' => now(),
+        ]);
 
+        if ($plantDefinition['coins'] > 0) {
             $profile->increment('coins_balance', $plantDefinition['coins']);
-            $profile->increment('total_focus_seconds', $focusedSeconds);
-            if ($session->farm_scope === 'public') {
-                $profile->increment('total_public_focus_seconds', $focusedSeconds);
-            }
+        }
+        $profile->increment('total_focus_seconds', $focusedSeconds);
+        if ($session->farm_scope === 'public') {
+            $profile->increment('total_public_focus_seconds', $focusedSeconds);
         }
 
         return [
             'session' => $this->formatSession($session->fresh()),
-            'plant' => $plant ? $this->formatPlant($plant) : null,
+            'plant' => $this->formatPlant($plant),
         ];
     }
 
