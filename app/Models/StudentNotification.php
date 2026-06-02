@@ -112,6 +112,7 @@ class StudentNotification extends Model
         return match ($this->type) {
             'exam' => 'calendar-check',
             'assignment' => 'file-text',
+            'flashcard_assignment' => 'bolt',
             'grade_delegation' => 'user-check',
             'resource' => 'folder',
             'announcement' => 'megaphone',
@@ -128,6 +129,7 @@ class StudentNotification extends Model
         return match ($this->type) {
             'exam' => '#ef4444',
             'assignment' => '#f59e0b',
+            'flashcard_assignment' => '#4f46e5',
             'grade_delegation' => '#2563eb',
             'resource' => '#3b82f6',
             'announcement' => '#10b981',

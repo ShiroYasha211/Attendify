@@ -18,15 +18,6 @@
 
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                    <label class="form-label fw-black text-secondary small mb-2">النوع الافتراضي للعناصر الجديدة <span class="text-danger">*</span></label>
-                    <select name="display_mode" required class="form-select border-2 bg-light rounded-4 fw-bold shadow-none p-3">
-                        <option value="flash_card" {{ old('display_mode', $flashcard->display_mode ?? 'flash_card') == 'flash_card' ? 'selected' : '' }}>بطاقة تعليمية</option>
-                        <option value="one_line" {{ old('display_mode', $flashcard->display_mode ?? '') == 'one_line' ? 'selected' : '' }}>نص واحد</option>
-                        <option value="qa" {{ old('display_mode', $flashcard->display_mode ?? '') == 'qa' ? 'selected' : '' }}>سؤال وجواب</option>
-                        <option value="mcq" {{ old('display_mode', $flashcard->display_mode ?? '') == 'mcq' ? 'selected' : '' }}>اختيارات</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
                     <label class="form-label fw-black text-secondary small mb-2">الحزمة الأب</label>
                     <select name="parent_pack_id" class="form-select border-2 bg-light rounded-4 fw-bold shadow-none p-3">
                         <option value="">بدون حزمة أب</option>
@@ -36,13 +27,6 @@
                             </option>
                         @endforeach
                     </select>
-                </div>
-            </div>
-
-            <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                    <label class="form-label fw-black text-secondary small mb-2">عدد الإشعارات في اليوم</label>
-                    <input type="number" name="daily_notification_count" value="{{ old('daily_notification_count', $flashcard->daily_notification_count ?? 5) }}" min="1" max="50" class="form-control border-2 bg-light rounded-4 fw-bold shadow-none p-3">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-black text-secondary small mb-2">تصنيف المتجر</label>
@@ -63,32 +47,13 @@
     <div class="col-lg-4">
         <div class="d-flex flex-column gap-4 h-100">
             <div class="premium-card p-4">
-                <h4 class="h6 fw-black text-dark mb-2">فترة الصمت</h4>
-                <p class="text-secondary small fw-bold mb-4">توزيع الإشعارات يتجنب هذه الفترة.</p>
-                <div class="mb-3">
-                    <label class="form-label fw-bold text-secondary small mb-1">من</label>
-                    <input type="time" name="quiet_start" value="{{ old('quiet_start', $flashcard->quiet_start ?? '23:00') }}" class="form-control border-2 bg-light rounded-3 fw-bold shadow-none p-2 px-3">
-                </div>
-                <div class="mb-0">
-                    <label class="form-label fw-bold text-secondary small mb-1">إلى</label>
-                    <input type="time" name="quiet_end" value="{{ old('quiet_end', $flashcard->quiet_end ?? '07:00') }}" class="form-control border-2 bg-light rounded-3 fw-bold shadow-none p-2 px-3">
-                </div>
+                <h4 class="h6 fw-black text-dark mb-2">نظام العرض الحالي</h4>
+                <p class="text-secondary small fw-bold mb-0">
+                    الحزمة تحتوي كروتًا متعددة الأنواع. إعدادات وقت الظهور، حد المراجعة اليومي، وفترة الهدوء يديرها الطالب من التطبيق على مستوى One Line Shot بالكامل.
+                </p>
             </div>
 
             <div class="premium-card p-4">
-                <div class="mb-3">
-                    <label class="form-label fw-bold text-secondary small mb-1">دورة التكرار</label>
-                    <select name="repeat_cycle" required class="form-select border-2 bg-light rounded-3 fw-bold shadow-none p-2 px-3">
-                        <option value="daily" {{ old('repeat_cycle', $flashcard->repeat_cycle ?? 'daily') == 'daily' ? 'selected' : '' }}>يومي</option>
-                        <option value="weekly" {{ old('repeat_cycle', $flashcard->repeat_cycle ?? '') == 'weekly' ? 'selected' : '' }}>أسبوعي</option>
-                        <option value="monthly" {{ old('repeat_cycle', $flashcard->repeat_cycle ?? '') == 'monthly' ? 'selected' : '' }}>شهري</option>
-                    </select>
-                </div>
-                <div class="form-check form-switch p-0 d-flex align-items-center justify-content-between mb-3">
-                    <label class="form-check-label fw-black text-dark" for="notifySwitch">تفعيل الإشعارات</label>
-                    <input type="hidden" name="notifications_enabled" value="0">
-                    <input class="form-check-input ms-0 border-0 shadow-none bg-secondary" type="checkbox" role="switch" id="notifySwitch" name="notifications_enabled" value="1" {{ old('notifications_enabled', $flashcard->notifications_enabled ?? 1) ? 'checked' : '' }} style="width: 45px; height: 24px;">
-                </div>
                 <div class="form-check form-switch p-0 d-flex align-items-center justify-content-between">
                     <label class="form-check-label fw-black text-dark" for="activeSwitch">الحزمة نشطة</label>
                     <input type="hidden" name="is_active" value="0">

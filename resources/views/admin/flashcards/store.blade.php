@@ -134,7 +134,9 @@
                                 <div class="d-flex gap-2">
                                     <small class="text-secondary">{{ $pack->items_count }} بطاقة</small>
                                     <small class="text-muted">•</small>
-                                    <small class="text-secondary">{{ $pack->getDisplayModeTextAttribute() }}</small>
+                                    <small class="text-secondary">
+                                        {{ count($pack->item_type_summary ?? []) > 1 ? 'محتوى متنوع' : $pack->getDisplayModeTextAttribute() }}
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -157,6 +159,12 @@
                             <a href="{{ route('admin.flashcards.show', $pack) }}" class="btn btn-sm btn-light border rounded-3 p-2" title="تعديل المحتوى">
                                 <i class="fa-solid fa-edit text-primary"></i>
                             </a>
+                            <form action="{{ route('admin.flashcards.toggle-featured', $pack) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-light border rounded-3 p-2" title="{{ $item->is_featured ? 'إلغاء التمييز' : 'تمييز في المتجر' }}">
+                                    <i class="fa-solid fa-star {{ $item->is_featured ? 'text-warning' : 'text-secondary' }}"></i>
+                                </button>
+                            </form>
                             <form action="{{ route('admin.flashcards.toggle-visibility', $pack) }}" method="POST">
                                 @csrf
                                 <button type="submit" class="btn btn-sm btn-light border rounded-3 p-2" title="إزالة من المتجر" onclick="return confirm('هل تريد إزالة هذه الحزمة من المتجر العام؟ ستبقى متاحة في قائمة حزمك.')">

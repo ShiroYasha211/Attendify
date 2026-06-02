@@ -226,6 +226,7 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
         Route::put('{id}', [AdminFlashcardController::class, 'update']);
         Route::delete('{id}', [AdminFlashcardController::class, 'destroy']);
         Route::post('{id}/publish', [AdminFlashcardController::class, 'publishToStore']);
+        Route::post('{id}/toggle-featured', [AdminFlashcardController::class, 'toggleFeatured']);
         Route::post('{id}/assign', [AdminFlashcardController::class, 'assignToUser']);
         Route::post('{id}/import', [AdminFlashcardController::class, 'import']);
         Route::post('{id}/items', [AdminFlashcardController::class, 'storeItem']);

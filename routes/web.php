@@ -155,6 +155,7 @@ Route::prefix('admin')
             Route::delete('items/{item}', [App\Http\Controllers\Admin\FlashcardController::class, 'destroyItem'])->name('items.destroy');
             Route::get('{flashcard}/preview', [App\Http\Controllers\Admin\FlashcardController::class, 'preview'])->name('preview');
             Route::post('{flashcard}/toggle-visibility', [App\Http\Controllers\Admin\FlashcardController::class, 'toggleVisibility'])->name('toggle-visibility');
+            Route::post('{flashcard}/toggle-featured', [App\Http\Controllers\Admin\FlashcardController::class, 'toggleFeatured'])->name('toggle-featured');
             Route::post('users/search', [App\Http\Controllers\Admin\FlashcardController::class, 'searchStudent'])->name('users.search');
         });
 

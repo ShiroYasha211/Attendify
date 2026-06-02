@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Models\FlashcardItem;
 use App\Models\FlashcardPack;
 use App\Models\PublicPackStore;
+use App\Models\StudentNotification;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -33,13 +35,18 @@ class FlashcardController extends AdminApiController
         }
 
         if ($request->filled('display_mode')) {
-            $query->where('display_mode', $request->display_mode);
+            $displayMode = $request->display_mode;
+            $query->where(function ($q) use ($displayMode) {
+                $q->where('display_mode', $displayMode)
+                    ->orWhereHas('items', fn ($items) => $items->where('item_type', $displayMode));
+            });
         }
 
         $packs = $query->latest()->paginate(20);
         $packs->getCollection()->transform(function (FlashcardPack $pack) {
             $pack->items_count = $pack->cardsCount();
             $pack->children_count = $pack->childPacks()->count();
+            $pack->item_type_summary = $this->itemTypeSummary($pack);
 
             return $pack;
         });
@@ -53,9 +60,15 @@ class FlashcardController extends AdminApiController
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'color' => 'nullable|string|max:7',
-            'display_mode' => 'required|in:flash_card,one_line,qa,mcq',
+            'display_mode' => 'nullable|in:flash_card,one_line,qa,mcq',
             'category' => 'nullable|string|max:255',
             'parent_pack_id' => 'nullable|integer',
+            'smart_review_enabled' => 'boolean',
+            'daily_card_limit' => 'integer|min:1|max:100',
+            'schedule_mode' => 'nullable|in:daily,weekdays,weekly,monthly,manual',
+            'pack_priority' => 'nullable|in:high,medium,low',
+            'smart_review_frequency_minutes' => 'integer|min:1|max:1440',
+            'restart_mode' => 'nullable|in:none,all,hard_only,wrong_only',
         ]);
 
         $parentPack = $this->resolveAdminParentPack($validated['parent_pack_id'] ?? null, $request->user()->id);
@@ -65,23 +78,31 @@ class FlashcardController extends AdminApiController
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'color' => $validated['color'] ?? '#4f46e5',
-            'display_mode' => $validated['display_mode'],
+            'display_mode' => $validated['display_mode'] ?? 'one_line',
             'notifications_enabled' => $request->boolean('notifications_enabled', true),
-            'daily_notification_count' => $request->input('daily_notification_count', 5),
-            'repeat_cycle' => $request->input('repeat_cycle', 'daily'),
-            'quiet_start' => $request->input('quiet_start', '22:00'),
-            'quiet_end' => $request->input('quiet_end', '08:00'),
+            'smart_review_enabled' => $request->boolean('smart_review_enabled', true),
+            'daily_notification_count' => $validated['daily_card_limit'] ?? 5,
+            'daily_card_limit' => $validated['daily_card_limit'] ?? 5,
+            'repeat_cycle' => 'daily',
+            'schedule_mode' => $validated['schedule_mode'] ?? 'daily',
+            'pack_priority' => $validated['pack_priority'] ?? 'medium',
+            'smart_review_frequency_minutes' => $validated['smart_review_frequency_minutes'] ?? 30,
+            'restart_mode' => $validated['restart_mode'] ?? 'none',
+            'quiet_start' => null,
+            'quiet_end' => null,
             'is_public' => true,
             'parent_pack_id' => $parentPack?->id,
         ]);
 
-        PublicPackStore::create([
-            'pack_id' => $pack->id,
-            'published_by' => $request->user()->id,
-            'category' => $validated['category'] ?? null,
-        ]);
+        if (!$parentPack) {
+            PublicPackStore::create([
+                'pack_id' => $pack->id,
+                'published_by' => $request->user()->id,
+                'category' => $validated['category'] ?? null,
+            ]);
+        }
 
-        return $this->success(['pack' => $pack], 'Pack created successfully.', 201);
+        return $this->success(['pack' => $pack], 'تم إنشاء الحزمة بنجاح.', 201);
     }
 
     public function show($id)
@@ -90,6 +111,7 @@ class FlashcardController extends AdminApiController
             ->findOrFail($id);
 
         $pack->items_count = $pack->cardsCount();
+        $pack->item_type_summary = $this->itemTypeSummary($pack);
 
         $items = ($pack->is_assigned && $pack->sourcePack)
             ? $pack->sourcePack->items()->with('pack:id,title,color,display_mode')->orderBy('sort_order')->orderBy('id')->get()
@@ -114,9 +136,15 @@ class FlashcardController extends AdminApiController
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'color' => 'nullable|string|max:7',
-            'display_mode' => 'required|in:flash_card,one_line,qa,mcq',
+            'display_mode' => 'nullable|in:flash_card,one_line,qa,mcq',
             'category' => 'nullable|string|max:255',
             'parent_pack_id' => 'nullable|integer',
+            'smart_review_enabled' => 'boolean',
+            'daily_card_limit' => 'integer|min:1|max:100',
+            'schedule_mode' => 'nullable|in:daily,weekdays,weekly,monthly,manual',
+            'pack_priority' => 'nullable|in:high,medium,low',
+            'smart_review_frequency_minutes' => 'integer|min:1|max:1440',
+            'restart_mode' => 'nullable|in:none,all,hard_only,wrong_only',
         ]);
 
         $parentPack = $this->resolveAdminParentPack($validated['parent_pack_id'] ?? null, $request->user()->id, $pack);
@@ -125,20 +153,28 @@ class FlashcardController extends AdminApiController
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'color' => $validated['color'] ?? '#4f46e5',
-            'display_mode' => $validated['display_mode'],
-            'notifications_enabled' => $request->boolean('notifications_enabled', $pack->notifications_enabled),
-            'daily_notification_count' => $request->input('daily_notification_count', $pack->daily_notification_count),
-            'repeat_cycle' => $request->input('repeat_cycle', $pack->repeat_cycle),
-            'quiet_start' => $request->input('quiet_start', $pack->quiet_start),
-            'quiet_end' => $request->input('quiet_end', $pack->quiet_end),
+            'display_mode' => $validated['display_mode'] ?? $pack->display_mode,
+            'is_active' => $request->boolean('is_active', $pack->is_active),
             'parent_pack_id' => $parentPack?->id,
+            'notifications_enabled' => array_key_exists('smart_review_enabled', $validated)
+                ? (bool) $validated['smart_review_enabled']
+                : $pack->notifications_enabled,
+            'smart_review_enabled' => array_key_exists('smart_review_enabled', $validated)
+                ? (bool) $validated['smart_review_enabled']
+                : $pack->smart_review_enabled,
+            'daily_notification_count' => $validated['daily_card_limit'] ?? $pack->daily_notification_count,
+            'daily_card_limit' => $validated['daily_card_limit'] ?? $pack->daily_card_limit,
+            'schedule_mode' => $validated['schedule_mode'] ?? $pack->schedule_mode,
+            'pack_priority' => $validated['pack_priority'] ?? $pack->pack_priority,
+            'smart_review_frequency_minutes' => $validated['smart_review_frequency_minutes'] ?? $pack->smart_review_frequency_minutes,
+            'restart_mode' => $validated['restart_mode'] ?? $pack->restart_mode,
         ]);
 
         if ($pack->storeEntry) {
             $pack->storeEntry->update(['category' => $validated['category'] ?? null]);
         }
 
-        return $this->success(['pack' => $pack], 'Pack updated successfully.');
+        return $this->success(['pack' => $pack], 'تم تحديث الحزمة بنجاح.');
     }
 
     public function destroy($id)
@@ -146,7 +182,7 @@ class FlashcardController extends AdminApiController
         $pack = FlashcardPack::findOrFail($id);
         $this->deletePackTree($pack);
 
-        return $this->success(null, 'Pack deleted successfully.');
+        return $this->success(null, 'تم حذف الحزمة بنجاح.');
     }
 
     public function publishToStore(Request $request, $id)
@@ -165,7 +201,17 @@ class FlashcardController extends AdminApiController
 
         $pack->update(['is_public' => true]);
 
-        return $this->success(null, 'Pack published successfully.');
+        return $this->success(null, 'تم نشر الحزمة في المتجر.');
+    }
+
+    public function toggleFeatured($id)
+    {
+        $storeEntry = PublicPackStore::where('pack_id', $id)->firstOrFail();
+        $storeEntry->update(['is_featured' => !$storeEntry->is_featured]);
+
+        return $this->success([
+            'is_featured' => $storeEntry->is_featured,
+        ], $storeEntry->is_featured ? 'تم تمييز الحزمة في المتجر.' : 'تم إلغاء تمييز الحزمة من المتجر.');
     }
 
     public function assignToUser(Request $request, $id)
@@ -184,14 +230,16 @@ class FlashcardController extends AdminApiController
             ->first();
 
         if ($existing) {
-            return $this->error('This user already has the assigned tree.', 409);
+            return $this->error('الطالب لديه هذه الحزمة بالفعل.', 409);
         }
 
         DB::transaction(function () use ($pack, $targetUser) {
             $this->cloneAssignedTree($pack, $targetUser->id);
         });
 
-        return $this->success(null, 'Pack tree assigned successfully.');
+        $this->notifyFlashcardAssigned($pack, $targetUser, $request->user()->id);
+
+        return $this->success(null, 'تم تعيين الحزمة للطالب وإرسال إشعار له.');
     }
 
     public function import(Request $request, $id)
@@ -199,7 +247,7 @@ class FlashcardController extends AdminApiController
         $pack = FlashcardPack::findOrFail($id);
 
         if ($pack->is_assigned) {
-            return $this->error('Assigned packs cannot be edited directly.', 422);
+            return $this->error('الحزم المعيّنة لا تقبل تعديل العناصر مباشرة.', 422);
         }
 
         $request->validate([
@@ -214,53 +262,23 @@ class FlashcardController extends AdminApiController
             $itemsCountBefore = $pack->items()->count();
             $items = [];
 
-            foreach ($rows as $index => $row) {
-                if (empty($row[0])) {
-                    continue;
+            foreach ($rows as $row) {
+                $itemData = $this->mapImportedRow($row, $pack, $itemsCountBefore + count($items));
+
+                if ($itemData) {
+                    $items[] = $itemData;
                 }
-
-                $itemData = [
-                    'pack_id' => $pack->id,
-                    'item_type' => $pack->display_mode,
-                    'front_content' => trim((string) $row[0]),
-                    'priority' => 'normal',
-                    'sort_order' => $itemsCountBefore + $index,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-
-                switch ($pack->display_mode) {
-                    case 'one_line':
-                        $itemData['back_content'] = null;
-                        break;
-                    case 'mcq':
-                        $options = [];
-                        foreach ([1, 2, 3, 4, 5, 6] as $columnIndex) {
-                            if (!empty($row[$columnIndex])) {
-                                $options[] = trim((string) $row[$columnIndex]);
-                            }
-                        }
-                        $itemData['options'] = json_encode($options);
-                        $itemData['correct_option'] = isset($row[7]) && is_numeric($row[7]) ? (int) $row[7] : 0;
-                        $itemData['back_content'] = null;
-                        break;
-                    default:
-                        $itemData['back_content'] = isset($row[1]) ? trim((string) $row[1]) : null;
-                        break;
-                }
-
-                $items[] = $itemData;
             }
 
             if (empty($items)) {
-                return $this->error('No valid rows found in the file.', 422);
+                return $this->error('الملف لا يحتوي على بيانات صالحة.', 422);
             }
 
             FlashcardItem::insert($items);
 
-            return $this->success(['imported_count' => count($items)], 'Items imported successfully.');
+            return $this->success(['imported_count' => count($items)], 'تم استيراد العناصر بنجاح.');
         } catch (\Exception $e) {
-            return $this->error('Failed to read spreadsheet: ' . $e->getMessage(), 500);
+            return $this->error('حدث خطأ أثناء قراءة الملف: ' . $e->getMessage(), 500);
         }
     }
 
@@ -269,14 +287,14 @@ class FlashcardController extends AdminApiController
         $pack = FlashcardPack::findOrFail($id);
 
         if ($pack->is_assigned) {
-            return $this->error('Assigned packs cannot be edited directly.', 422);
+            return $this->error('الحزم المعيّنة لا تقبل تعديل العناصر مباشرة.', 422);
         }
 
         $itemType = $request->input('item_type', $pack->display_mode);
         $validated = $this->validateItemPayload($request, $itemType);
         $item = $pack->items()->create($this->mapItemData($validated, $pack, $itemType));
 
-        return $this->success(['item' => $item], 'Item created successfully.', 201);
+        return $this->success(['item' => $item], 'تم إنشاء العنصر بنجاح.', 201);
     }
 
     public function updateItem(Request $request, $itemId)
@@ -284,14 +302,14 @@ class FlashcardController extends AdminApiController
         $item = FlashcardItem::with('pack')->findOrFail($itemId);
 
         if ($item->pack->is_assigned) {
-            return $this->error('Assigned packs cannot be edited directly.', 422);
+            return $this->error('الحزم المعيّنة لا تقبل تعديل العناصر مباشرة.', 422);
         }
 
         $itemType = $request->input('item_type', $item->resolved_item_type);
         $validated = $this->validateItemPayload($request, $itemType);
         $item->update($this->mapItemData($validated, $item->pack, $itemType, false));
 
-        return $this->success(['item' => $item->fresh()], 'Item updated successfully.');
+        return $this->success(['item' => $item->fresh()], 'تم تحديث العنصر بنجاح.');
     }
 
     public function destroyItem($itemId)
@@ -299,12 +317,12 @@ class FlashcardController extends AdminApiController
         $item = FlashcardItem::with('pack')->findOrFail($itemId);
 
         if ($item->pack->is_assigned) {
-            return $this->error('Assigned packs cannot be edited directly.', 422);
+            return $this->error('الحزم المعيّنة لا تقبل تعديل العناصر مباشرة.', 422);
         }
 
         $item->delete();
 
-        return $this->success(null, 'Item deleted successfully.');
+        return $this->success(null, 'تم حذف العنصر بنجاح.');
     }
 
     private function resolveAdminParentPack(?int $parentPackId, int $userId, ?FlashcardPack $currentPack = null): ?FlashcardPack
@@ -319,7 +337,7 @@ class FlashcardController extends AdminApiController
             ->firstOrFail();
 
         if ($currentPack && in_array($parentPack->id, $currentPack->descendantPackIds(), true)) {
-            abort(422, 'Cannot move a pack inside one of its descendants.');
+            abort(422, 'لا يمكن نقل الحزمة داخل أحد تفرعاتها.');
         }
 
         return $parentPack;
@@ -340,6 +358,36 @@ class FlashcardController extends AdminApiController
         }
 
         return $clone;
+    }
+
+    private function itemTypeSummary(FlashcardPack $pack): array
+    {
+        return $pack->effectiveItems()
+            ->get(['item_type'])
+            ->map(fn (FlashcardItem $item) => $item->item_type ?: $pack->display_mode)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function notifyFlashcardAssigned(FlashcardPack $pack, User $targetUser, int $senderId): void
+    {
+        $notification = StudentNotification::create([
+            'user_id' => $targetUser->id,
+            'college_id' => $targetUser->college_id,
+            'sender_id' => $senderId,
+            'type' => 'flashcard_assignment',
+            'title' => 'تمت إضافة حزمة One Line Shot',
+            'message' => "تم تعيين حزمة «{$pack->title}» لك. يمكنك مراجعتها من One Line Shot.",
+            'data' => [
+                'screen' => 'flashcards',
+                'target_screen' => 'flashcards',
+                'pack_id' => (string) $pack->id,
+            ],
+        ]);
+
+        app(PushNotificationService::class)->sendStudentNotification($notification);
     }
 
     private function deletePackTree(FlashcardPack $pack): void
@@ -402,7 +450,7 @@ class FlashcardController extends AdminApiController
 
     private function looksLikeHeader(array $row): bool
     {
-        $headerKeywords = ['front', 'back', 'question', 'answer', 'column', 'type', 'a', 'b'];
+        $headerKeywords = ['front', 'back', 'question', 'answer', 'column', 'type', 'item_type', 'نوع', 'السؤال', 'الإجابة', 'الاجابة', 'النص', 'a', 'b'];
 
         foreach ($row as $cell) {
             if (in_array(strtolower(trim((string) ($cell ?? ''))), $headerKeywords, true)) {
@@ -457,5 +505,92 @@ class FlashcardController extends AdminApiController
         }
 
         return $data;
+    }
+
+    private function mapImportedRow(array $row, FlashcardPack $pack, int $sortOrder): ?array
+    {
+        $row = array_map(fn ($value) => is_string($value) ? trim($value) : $value, $row);
+        $firstCellType = $this->normalizeItemType((string) ($row[0] ?? ''));
+        $hasExplicitType = $firstCellType !== null;
+        $itemType = $firstCellType ?? ($pack->display_mode ?: 'one_line');
+        $offset = $hasExplicitType ? 1 : 0;
+        $front = trim((string) ($row[$offset] ?? ''));
+
+        if ($front === '') {
+            return null;
+        }
+
+        $data = [
+            'pack_id' => $pack->id,
+            'item_type' => $itemType,
+            'front_content' => $front,
+            'item_color' => $this->validHexColor((string) ($row[$offset + 9] ?? '')) ?: null,
+            'priority' => $this->normalizePriority((string) ($row[$offset + 8] ?? 'normal')),
+            'sort_order' => $sortOrder,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if ($itemType === 'mcq') {
+            $options = [];
+            foreach (range($offset + 1, $offset + 6) as $columnIndex) {
+                if (!empty($row[$columnIndex])) {
+                    $options[] = trim((string) $row[$columnIndex]);
+                }
+            }
+
+            if (count($options) < 2) {
+                return null;
+            }
+
+            $correct = is_numeric($row[$offset + 7] ?? null) ? (int) $row[$offset + 7] : 1;
+            $data['options'] = json_encode($options, JSON_UNESCAPED_UNICODE);
+            $data['correct_option'] = max(0, min(count($options) - 1, $correct > 0 ? $correct - 1 : $correct));
+            $data['back_content'] = null;
+
+            return $data;
+        }
+
+        $back = trim((string) ($row[$offset + 1] ?? ''));
+        if (!in_array($itemType, ['one_line'], true) && $back === '') {
+            return null;
+        }
+
+        $data['back_content'] = $itemType === 'one_line' ? null : $back;
+        $data['options'] = null;
+        $data['correct_option'] = null;
+
+        return $data;
+    }
+
+    private function normalizeItemType(string $value): ?string
+    {
+        $normalized = strtolower(trim($value));
+
+        return match ($normalized) {
+            'flash_card', 'flash card', 'card', 'بطاقة', 'بطاقة تعليمية' => 'flash_card',
+            'one_line', 'one line', 'line', 'نص', 'نص واحد' => 'one_line',
+            'qa', 'q&a', 'question_answer', 'سؤال', 'سؤال وجواب' => 'qa',
+            'mcq', 'multiple_choice', 'choice', 'اختيارات', 'اختيار من متعدد' => 'mcq',
+            default => null,
+        };
+    }
+
+    private function normalizePriority(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return match ($normalized) {
+            'critical', 'حرجة' => 'critical',
+            'high', 'عالية' => 'high',
+            default => 'normal',
+        };
+    }
+
+    private function validHexColor(string $value): ?string
+    {
+        $value = trim($value);
+
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? $value : null;
     }
 }

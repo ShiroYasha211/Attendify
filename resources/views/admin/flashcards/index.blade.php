@@ -348,11 +348,19 @@
                                     'qa' => ['label' => 'سؤال', 'color' => '#f59e0b', 'bg' => '#fffbeb'],
                                     'mcq' => ['label' => 'اختيارات', 'color' => '#ef4444', 'bg' => '#fef2f2'],
                                 ];
-                                $m = $modes[$pack->display_mode] ?? $modes['flash_card'];
+                                $typeSummary = $pack->item_type_summary ?: [$pack->display_mode];
                             @endphp
-                            <span class="badge-pill" style="background: {{ $m['bg'] }}; color: {{ $m['color'] }};">
-                                {{ $m['label'] }}
-                            </span>
+                            <div class="d-flex justify-content-center gap-1 flex-wrap">
+                                @foreach(array_slice($typeSummary, 0, 3) as $type)
+                                    @php $m = $modes[$type] ?? $modes['flash_card']; @endphp
+                                    <span class="badge-pill" style="background: {{ $m['bg'] }}; color: {{ $m['color'] }};">
+                                        {{ $m['label'] }}
+                                    </span>
+                                @endforeach
+                                @if(count($typeSummary) > 3)
+                                    <span class="badge-pill" style="background:#f8fafc;color:#64748b;">+{{ count($typeSummary) - 3 }}</span>
+                                @endif
+                            </div>
                         </td>
                         <td class="text-center">
                             @if($pack->user && $pack->user->hasRole(\App\Enums\UserRole::ADMIN))

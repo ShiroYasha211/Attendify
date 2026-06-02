@@ -62,15 +62,14 @@
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-body p-4">
                     <h4 class="fw-black mb-3">إضافة عنصر جديد</h4>
-                    <form action="{{ route('admin.flashcards.items.store', $flashcard) }}" method="POST">
+                    <form action="{{ route('admin.flashcards.items.store', $flashcard) }}" method="POST" data-flashcard-item-form>
                         @csrf
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">نوع العنصر</label>
-                                <select class="form-select" name="item_type" required>
-                                    <option value="{{ $flashcard->display_mode }}">النوع الافتراضي للحزمة ({{ \App\Models\FlashcardPack::itemTypeLabel($flashcard->display_mode) }})</option>
-                                    <option value="flash_card">بطاقة تعليمية</option>
+                                <select class="form-select" name="item_type" required data-item-type>
                                     <option value="one_line">نص واحد</option>
+                                    <option value="flash_card">بطاقة تعليمية</option>
                                     <option value="qa">سؤال وجواب</option>
                                     <option value="mcq">اختيارات</option>
                                 </select>
@@ -91,11 +90,11 @@
                                 <label class="form-label fw-bold">المحتوى الأمامي / السؤال / النص</label>
                                 <textarea class="form-control" name="front_content" rows="2" required></textarea>
                             </div>
-                            <div class="col-12">
+                            <div class="col-12" data-back-field>
                                 <label class="form-label fw-bold">المحتوى الخلفي / الإجابة</label>
                                 <textarea class="form-control" name="back_content" rows="2"></textarea>
                             </div>
-                            <div class="col-12">
+                            <div class="col-12 d-none" data-options-field>
                                 <label class="form-label fw-bold">خيارات الاختيارات المتعددة</label>
                                 <div class="row g-2">
                                     @for($i = 0; $i < 4; $i++)
@@ -105,7 +104,7 @@
                                     @endfor
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 d-none" data-correct-field>
                                 <label class="form-label fw-bold">رقم الإجابة الصحيحة</label>
                                 <input type="number" min="0" max="5" class="form-control" name="correct_option" value="0">
                             </div>
@@ -128,7 +127,7 @@
                             <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                         </div>
                         <div class="small text-secondary mb-3">
-                            الاستيراد يستخدم النوع الافتراضي للحزمة: <strong>{{ $flashcard->display_mode_text }}</strong>.
+                            يدعم الاستيراد قالبًا مختلطًا: النوع، المحتوى الأمامي، الإجابة/الخيار 1، الخيارات، رقم الإجابة الصحيحة، الأولوية، اللون. وإذا لم تضع النوع في أول عمود سيستخدم النظام نصًا واحدًا كقيمة افتراضية.
                         </div>
                         <button type="submit" class="btn btn-success w-100 rounded-3 fw-bold">بدء الاستيراد</button>
                     </form>
@@ -184,4 +183,22 @@
         </div>
     </div>
 </div>
+<script>
+    document.querySelectorAll('[data-flashcard-item-form]').forEach((form) => {
+        const typeInput = form.querySelector('[data-item-type]');
+        const backField = form.querySelector('[data-back-field]');
+        const optionsField = form.querySelector('[data-options-field]');
+        const correctField = form.querySelector('[data-correct-field]');
+
+        const syncFields = () => {
+            const type = typeInput.value;
+            backField.classList.toggle('d-none', type === 'one_line' || type === 'mcq');
+            optionsField.classList.toggle('d-none', type !== 'mcq');
+            correctField.classList.toggle('d-none', type !== 'mcq');
+        };
+
+        typeInput.addEventListener('change', syncFields);
+        syncFields();
+    });
+</script>
 @endsection
