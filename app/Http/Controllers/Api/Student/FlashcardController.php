@@ -532,7 +532,7 @@ class FlashcardController extends StudentApiController
             ->sortBy(fn (FlashcardPack $pack) => $this->packPriorityWeight($pack));
 
         $candidates = collect();
-        $reviewedToday = [];
+        $reviewedCandidates = collect();
 
         foreach ($packs as $pack) {
             if (!$this->packIsScheduledForDate($pack, now())) {
@@ -559,17 +559,14 @@ class FlashcardController extends StudentApiController
                     return $item;
                 })
                 ->filter(fn (FlashcardItem $item) => $item->user_progress?->last_shown_at?->toDateString() === now()->toDateString())
-                ->sortByDesc(fn (FlashcardItem $item) => $item->user_progress?->last_shown_at?->timestamp ?? 0)
                 ->values();
 
             foreach ($reviewedItems as $item) {
-                $reviewedToday[] = $this->dailyQueueItem(
-                    $pack,
-                    $item,
-                    $item->user_progress?->last_shown_at ?? now(),
-                    true,
-                    $settings
-                );
+                $reviewedCandidates->push([
+                    'pack' => $pack,
+                    'item' => $item,
+                    'last_shown_at' => $item->user_progress?->last_shown_at,
+                ]);
             }
 
             $dueItems = $items
@@ -623,14 +620,41 @@ class FlashcardController extends StudentApiController
             ->take((int) ($settings->daily_card_limit ?? 5))
             ->values();
 
-        $reviewedCount = count($reviewedToday);
-        $scheduleTimes = $this->resolveScheduledTimes($settings, $selected->count(), $reviewedCount);
-        $queue = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $settings) {
+        $reviewedSelected = $reviewedCandidates
+            ->sortBy(function (array $entry) {
+                return $entry['last_shown_at']?->timestamp ?? 0;
+            })
+            ->values();
+
+        $reviewedCount = $reviewedSelected->count();
+        $dueCount = $selected->count();
+        $totalCount = $reviewedCount + $dueCount;
+
+        $scheduleTimes = $this->resolveScheduledTimes($settings, $totalCount, 0);
+
+        $reviewedToday = [];
+        foreach ($reviewedSelected as $index => $entry) {
             /** @var FlashcardPack $pack */
             $pack = $entry['pack'];
             /** @var FlashcardItem $item */
             $item = $entry['item'];
             $scheduledTime = $scheduleTimes[$index] ?? now();
+
+            $reviewedToday[] = $this->dailyQueueItem(
+                $pack,
+                $item,
+                $scheduledTime,
+                true,
+                $settings
+            );
+        }
+
+        $queue = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $reviewedCount, $settings) {
+            /** @var FlashcardPack $pack */
+            $pack = $entry['pack'];
+            /** @var FlashcardItem $item */
+            $item = $entry['item'];
+            $scheduledTime = $scheduleTimes[$reviewedCount + $index] ?? now();
 
             return $this->dailyQueueItem($pack, $item, $scheduledTime, false, $settings);
         })->all();
