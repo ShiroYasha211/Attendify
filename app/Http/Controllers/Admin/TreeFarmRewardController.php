@@ -130,7 +130,7 @@ class TreeFarmRewardController extends Controller
             $profile->decrement('coins_balance', $reward->coins_amount);
             $reward->user->addStars(
                 $reward->stars_amount,
-                'tree_farm_reward',
+                'admin_grant',
                 auth()->id(),
                 'مكافأة مزرعة الأشجار',
                 $reward
@@ -206,7 +206,7 @@ class TreeFarmRewardController extends Controller
                 if ($data['action'] === 'add') {
                     $user->addStars($amount, 'admin_grant', auth()->id(), $data['description']);
                 } else {
-                    $user->deductStars($amount, 'admin_deduction', auth()->id(), $data['description']);
+                    $user->deductStars($amount, 'penalty', auth()->id(), $data['description']);
                 }
             }
         });
