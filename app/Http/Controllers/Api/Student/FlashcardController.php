@@ -623,7 +623,8 @@ class FlashcardController extends StudentApiController
             ->take((int) ($settings->daily_card_limit ?? 5))
             ->values();
 
-        $scheduleTimes = $this->resolveScheduledTimes($settings, $selected->count());
+        $reviewedCount = count($reviewedToday);
+        $scheduleTimes = $this->resolveScheduledTimes($settings, $selected->count(), $reviewedCount);
         $queue = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $settings) {
             /** @var FlashcardPack $pack */
             $pack = $entry['pack'];
@@ -741,7 +742,8 @@ class FlashcardController extends StudentApiController
 
             foreach ($packItems as $item) {
                 $progress = $progressMap->get($item->id);
-                $nextReviewAt = $progress?->next_review_at ?: now();
+                $hasProgress = $progress && $progress->next_review_at;
+                $nextReviewAt = $hasProgress ? $progress->next_review_at : now();
 
                 $items->push([
                     'item_id' => $item->id,
@@ -756,14 +758,14 @@ class FlashcardController extends StudentApiController
                     'correct_option' => $item->correct_option,
                     'priority' => $item->priority,
                     'next_review_at' => $nextReviewAt->toIso8601String(),
-                    'next_review_date' => $nextReviewAt->toDateString(),
-                    'next_review_time' => $nextReviewAt->format('H:i'),
-                    'next_review_time_label' => $this->formatTimeLabel($nextReviewAt),
+                    'next_review_date' => $hasProgress ? $nextReviewAt->toDateString() : '',
+                    'next_review_time' => $hasProgress ? $nextReviewAt->format('H:i') : '',
+                    'next_review_time_label' => $hasProgress ? $this->formatTimeLabel($nextReviewAt) : 'الآن',
                     'last_response' => $progress?->last_response,
                     'times_shown' => $progress?->times_shown ?? 0,
                     'times_correct' => $progress?->times_correct ?? 0,
                     'accuracy' => $progress?->accuracy ?? 0,
-                    'is_due' => !$progress || $progress->isDue(),
+                    'is_due' => !$hasProgress || $progress->isDue(),
                 ]);
             }
         }
@@ -1346,18 +1348,29 @@ class FlashcardController extends StudentApiController
         };
     }
 
-    private function resolveScheduledTimes(FlashcardUserSetting $settings, int $count): array
+    private function resolveScheduledTimes(FlashcardUserSetting $settings, int $count, int $reviewedCount = 0): array
     {
-        if ($count <= 0) {
+        $totalCount = $count + $reviewedCount;
+        if ($totalCount <= 0) {
             return [];
         }
 
         $frequency = max(1, (int) ($settings->smart_review_frequency_minutes ?? 30));
-        $cursor = now()->copy()->seconds(0);
+        $cursor = now()->startOfDay();
+        if ($settings->active_from_time) {
+            $parts = explode(':', $settings->active_from_time);
+            if (count($parts) >= 2) {
+                $cursor->hour((int)$parts[0])->minute((int)$parts[1]);
+            }
+        } else {
+            $cursor->hour(8)->minute(0);
+        }
+        $cursor->seconds(0)->microsecond(0);
+
         $selected = [];
         $guard = 0;
 
-        while (count($selected) < $count && $guard < 2880) {
+        while (count($selected) < $totalCount && $guard < 2880) {
             if ($this->settingsAllowDateTime($settings, $cursor)) {
                 $selected[] = $cursor->copy();
                 $cursor->addMinutes($frequency);
@@ -1372,11 +1385,11 @@ class FlashcardController extends StudentApiController
             $selected[] = now()->copy()->seconds(0);
         }
 
-        while (count($selected) < $count) {
+        while (count($selected) < $totalCount) {
             $selected[] = end($selected)->copy()->addMinutes($frequency);
         }
 
-        return $selected;
+        return array_slice($selected, $reviewedCount);
     }
 
     private function settingsAllowDateTime(FlashcardUserSetting $settings, Carbon $dateTime): bool
