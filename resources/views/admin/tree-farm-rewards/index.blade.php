@@ -1,69 +1,243 @@
 @extends('layouts.admin')
 
-@section('title', 'طلبات مكافآت مزرعة الأشجار')
+@section('title', 'إدارة مزرعة الأشجار والجوائز')
 
 @section('content')
-<div class="container-fluid py-4" dir="rtl">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 fw-bold mb-1">طلبات مكافآت مزرعة الأشجار</h1>
-            <p class="text-muted mb-0">مراجعة تحويل عملات المزرعة إلى نجوم بعد اعتماد الإدارة.</p>
+<style>
+    /* Premium Tree Farm Admin Dashboard Styles */
+    .tree-farm-admin-container {
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .bg-success-gradient {
+        background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+    }
+
+    .header-icon-box {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 16px -4px rgba(45, 106, 79, 0.3);
+    }
+
+    .stat-card-premium {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    .stat-card-premium:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .bg-success-light { background-color: rgba(45, 106, 79, 0.08); }
+    .bg-warning-light { background-color: rgba(245, 158, 11, 0.08); }
+    .bg-danger-light { background-color: rgba(239, 68, 68, 0.08); }
+    .bg-primary-light { background-color: rgba(59, 130, 246, 0.08); }
+
+    .badge-soft-success {
+        background-color: rgba(22, 163, 74, 0.08);
+        color: #16a34a;
+        border: 1px solid rgba(22, 163, 74, 0.15);
+        font-weight: 700;
+        padding: 0.4rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    .badge-soft-danger {
+        background-color: rgba(220, 38, 38, 0.08);
+        color: #dc2626;
+        border: 1px solid rgba(220, 38, 38, 0.15);
+        font-weight: 700;
+        padding: 0.4rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    .badge-soft-warning {
+        background-color: rgba(217, 119, 6, 0.08);
+        color: #d97706;
+        border: 1px solid rgba(217, 119, 6, 0.15);
+        font-weight: 700;
+        padding: 0.4rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    .badge-soft-info {
+        background-color: rgba(2, 132, 199, 0.08);
+        color: #0284c7;
+        border: 1px solid rgba(2, 132, 199, 0.15);
+        font-weight: 700;
+        padding: 0.4rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    .badge-soft-secondary {
+        background-color: rgba(107, 114, 128, 0.08);
+        color: #4b5563;
+        border: 1px solid rgba(107, 114, 128, 0.15);
+        font-weight: 700;
+        padding: 0.4rem 0.75rem;
+        border-radius: 8px;
+    }
+
+    .table-hover tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(243, 244, 246, 0.35) !important;
+    }
+
+    .btn-premium {
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .btn-premium:hover {
+        transform: translateY(-1px);
+    }
+</style>
+
+<div class="container-fluid py-4 tree-farm-admin-container" dir="rtl">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="header-icon-box bg-success-gradient">
+                <i class="fa-solid fa-tree fa-xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="h3 fw-bold mb-1">إدارة مزرعة الأشجار والجوائز</h1>
+                <p class="text-muted mb-0">لوحة تحكم المسئول لمتابعة إنجازات تركيز الطلاب واعتماد طلبات استبدال النجوم.</p>
+            </div>
         </div>
-        <a href="{{ route('admin.dashboard') }}" class="btn btn-light border">العودة</a>
+        <a href="{{ route('admin.dashboard') }}" class="btn btn-light border btn-premium px-4 py-2"><i class="fa-solid fa-arrow-left me-2"></i> العودة للرئيسية</a>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
+    <!-- Overview Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 stat-card-premium">
+                <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value-premium h3 fw-bold text-success mb-1">
+                            @php
+                                $totalSeconds = \App\Models\Student\TreeFarmProfile::sum('total_focus_seconds');
+                                $totalHours = floor($totalSeconds / 3600);
+                            @endphp
+                            {{ number_format($totalHours) }} ساعة
+                        </div>
+                        <div class="text-muted small fw-bold">إجمالي ساعات التركيز</div>
+                    </div>
+                    <div class="header-icon-box bg-success-light">
+                        <i class="fa-solid fa-clock-rotate-left fa-lg text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 stat-card-premium">
+                <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value-premium h3 fw-bold text-warning mb-1">
+                            {{ number_format(\App\Models\Student\TreeFarmProfile::sum('coins_balance')) }}
+                        </div>
+                        <div class="text-muted small fw-bold">عملات الطلاب المتبقية</div>
+                    </div>
+                    <div class="header-icon-box bg-warning-light">
+                        <i class="fa-solid fa-coins fa-lg text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 stat-card-premium">
+                <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value-premium h3 fw-bold text-danger mb-1">
+                            {{ \App\Models\Student\TreeFarmRewardRequest::where('status', 'pending')->count() }}
+                        </div>
+                        <div class="text-muted small fw-bold">طلبات نجوم معلقة</div>
+                    </div>
+                    <div class="header-icon-box bg-danger-light">
+                        <i class="fa-solid fa-star fa-lg text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 stat-card-premium">
+                <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value-premium h3 fw-bold text-primary mb-1">
+                            {{ \App\Models\Student\TreeFarmProfile::count() }}
+                        </div>
+                        <div class="text-muted small fw-bold">الطلاب النشطين بالمزرعة</div>
+                    </div>
+                    <div class="header-icon-box bg-primary-light">
+                        <i class="fa-solid fa-user-graduate fa-lg text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white border-0 py-3">
-            <h2 class="h5 fw-bold mb-0">طلبات بانتظار المراجعة</h2>
+    <!-- Star Requests Pending Review -->
+    <div class="card shadow-sm border-0 mb-4 rounded-4">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+            <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-square-poll-horizontal me-2"></i> طلبات بانتظار المراجعة</h2>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0 table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th>الطالب</th>
+                            <th class="ps-4">الطالب</th>
                             <th>رقم القيد</th>
-                            <th>العملات</th>
-                            <th>النجوم</th>
+                            <th>العملات المستبدلة</th>
+                            <th>النجوم المستحقة</th>
                             <th>تاريخ الطلب</th>
-                            <th style="min-width: 280px;">الإجراء</th>
+                            <th style="min-width: 320px;" class="pe-4">الإجراء والاعتماد</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($pendingRequests as $request)
                             <tr>
-                                <td>
-                                    <div class="fw-bold">{{ $request->user?->name ?? 'طالب محذوف' }}</div>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ $request->user?->name ?? 'طالب محذوف' }}</div>
                                     <div class="small text-muted">{{ $request->user?->email }}</div>
                                 </td>
                                 <td>{{ $request->user?->student_number ?? '-' }}</td>
-                                <td><span class="badge bg-warning text-dark">{{ number_format($request->coins_amount) }}</span></td>
-                                <td><span class="badge bg-success">{{ number_format($request->stars_amount) }}</span></td>
-                                <td>{{ optional($request->created_at)->format('Y-m-d H:i') }}</td>
-                                <td>
-                                    <div class="d-flex gap-2 flex-wrap">
-                                        <form action="{{ route('admin.tree-farm-rewards.approve', $request) }}" method="POST" onsubmit="return confirm('اعتماد هذا الطلب وتحويل العملات إلى نجوم؟')">
+                                <td><span class="badge badge-soft-warning"><i class="fa-solid fa-coins me-1"></i> {{ number_format($request->coins_amount) }} عملة</span></td>
+                                <td><span class="badge badge-soft-success"><i class="fa-solid fa-star me-1"></i> {{ number_format($request->stars_amount) }} نجوم</span></td>
+                                <td class="text-muted small">{{ optional($request->created_at)->format('Y-m-d H:i') }}</td>
+                                <td class="pe-4">
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <form action="{{ route('admin.tree-farm-rewards.approve', $request) }}" method="POST" onsubmit="return confirm('اعتماد هذا الطلب وتحويل العملات إلى نجوم؟')" class="mb-0">
                                             @csrf
-                                            <button class="btn btn-sm btn-success" type="submit">اعتماد</button>
+                                            <button class="btn btn-sm btn-success btn-premium px-3 py-1.5" type="submit"><i class="fa-solid fa-check me-1"></i> اعتماد</button>
                                         </form>
-                                        <form action="{{ route('admin.tree-farm-rewards.reject', $request) }}" method="POST" class="d-flex gap-2">
+                                        <form action="{{ route('admin.tree-farm-rewards.reject', $request) }}" method="POST" class="d-flex mb-0">
                                             @csrf
-                                            <input type="text" name="rejection_reason" class="form-control form-control-sm" placeholder="سبب الرفض اختياري">
-                                            <button class="btn btn-sm btn-outline-danger" type="submit">رفض</button>
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" name="rejection_reason" class="form-control form-control-sm" placeholder="سبب الرفض (اختياري)">
+                                                <button class="btn btn-outline-danger btn-premium" type="submit"><i class="fa-solid fa-xmark me-1"></i> رفض</button>
+                                            </div>
                                         </form>
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-5">لا توجد طلبات مكافآت بانتظار المراجعة.</td>
+                                <td colspan="6" class="text-center text-muted py-5"><i class="fa-solid fa-circle-check fa-2xl text-success mb-3 d-block"></i> لا توجد طلبات مكافآت بانتظار المراجعة حالياً.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -71,33 +245,34 @@
             </div>
         </div>
         @if($pendingRequests->hasPages())
-            <div class="card-footer bg-white">
-                {{ $pendingRequests->links() }}
+            <div class="card-footer bg-white border-0 py-3">
+                {{ $pendingRequests->appends(['sort_by' => $sortBy])->links() }}
             </div>
         @endif
     </div>
 
-    <div class="card shadow-sm border-0 mb-4">
+    <!-- Student Leaderboard -->
+    <div class="card shadow-sm border-0 mb-4 rounded-4">
         <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h2 class="h5 fw-bold mb-0">قائمة ترتيب طلاب مزرعة الأشجار</h2>
+            <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-trophy me-2 text-warning"></i> قائمة ترتيب طلاب مزرعة الأشجار</h2>
             <div class="d-flex gap-2 align-items-center">
                 <span class="small text-muted fw-bold">ترتيب حسب:</span>
-                <a href="{{ route('admin.tree-farm-rewards.index', ['sort_by' => 'focus']) }}" class="btn btn-sm {{ $sortBy === 'focus' ? 'btn-success text-white' : 'btn-light border' }}">مدة التركيز</a>
-                <a href="{{ route('admin.tree-farm-rewards.index', ['sort_by' => 'coins']) }}" class="btn btn-sm {{ $sortBy === 'coins' ? 'btn-success text-white' : 'btn-light border' }}">رصيد العملات</a>
+                <a href="{{ route('admin.tree-farm-rewards.index', ['sort_by' => 'focus']) }}" class="btn btn-sm btn-premium {{ $sortBy === 'focus' ? 'btn-success text-white' : 'btn-light border' }}"><i class="fa-solid fa-clock me-1"></i> مدة التركيز</a>
+                <a href="{{ route('admin.tree-farm-rewards.index', ['sort_by' => 'coins']) }}" class="btn btn-sm btn-premium {{ $sortBy === 'coins' ? 'btn-success text-white' : 'btn-light border' }}"><i class="fa-solid fa-coins me-1"></i> رصيد العملات</a>
             </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0 table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 80px;" class="text-center">الترتيب</th>
-                            <th>الطالب</th>
+                            <th style="width: 100px;" class="text-center">الترتيب</th>
+                            <th>الطالب (الاسم الحقيقي)</th>
                             <th>الاسم المستعار</th>
                             <th>رقم القيد</th>
                             <th class="text-center">إجمالي التركيز</th>
                             <th class="text-center">العملات المتبقية</th>
-                            <th class="text-center">لوحة المتصدرين</th>
+                            <th class="text-center">ظهور لوحة المتصدرين</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -118,14 +293,14 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <div class="fw-bold">{{ $profile->user?->name ?? 'طالب محذوف' }}</div>
+                                    <div class="fw-bold text-dark">{{ $profile->user?->name ?? 'طالب محذوف' }}</div>
                                     <div class="small text-muted">{{ $profile->user?->email }}</div>
                                 </td>
                                 <td>
                                     @if($profile->use_alias && $profile->public_name)
-                                        <span class="badge bg-info text-dark">{{ $profile->public_name }}</span>
+                                        <span class="badge badge-soft-info">{{ $profile->public_name }}</span>
                                     @else
-                                        <span class="text-muted small">الاسم الحقيقي فقط</span>
+                                        <span class="text-muted small"><i class="fa-solid fa-user-lock me-1"></i> الاسم الحقيقي</span>
                                     @endif
                                 </td>
                                 <td>{{ $profile->user?->student_number ?? '-' }}</td>
@@ -134,6 +309,7 @@
                                         $hours = floor($profile->total_focus_seconds / 3600);
                                         $minutes = floor(($profile->total_focus_seconds % 3600) / 60);
                                     @endphp
+                                    <i class="fa-regular fa-clock me-1 text-success"></i>
                                     @if($hours > 0)
                                         {{ $hours }} س و {{ $minutes }} د
                                     @else
@@ -141,13 +317,13 @@
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge bg-warning text-dark px-2 py-1.5 fw-bold"><i class="fa-solid fa-coins me-1"></i> {{ number_format($profile->coins_balance) }}</span>
+                                    <span class="badge badge-soft-warning px-2.5 py-2"><i class="fa-solid fa-coins me-1"></i> {{ number_format($profile->coins_balance) }}</span>
                                 </td>
                                 <td class="text-center">
                                     @if($profile->is_public)
-                                        <span class="badge bg-success px-2 py-1 text-white">عام</span>
+                                        <span class="badge badge-soft-success">مرئي للجميع</span>
                                     @else
-                                        <span class="badge bg-light text-muted border px-2 py-1">خاص</span>
+                                        <span class="badge badge-soft-secondary">حساب خاص</span>
                                     @endif
                                 </td>
                             </tr>
@@ -161,48 +337,49 @@
             </div>
         </div>
         @if($students->hasPages())
-            <div class="card-footer bg-white">
+            <div class="card-footer bg-white border-0 py-3">
                 {{ $students->appends(['sort_by' => $sortBy])->links() }}
             </div>
         @endif
     </div>
 
-    <div class="card shadow-sm border-0">
+    <!-- Recent Actions Log -->
+    <div class="card shadow-sm border-0 rounded-4">
         <div class="card-header bg-white border-0 py-3">
-            <h2 class="h5 fw-bold mb-0">آخر الطلبات التي تمت مراجعتها</h2>
+            <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-history me-2"></i> آخر الطلبات التي تمت مراجعتها</h2>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0 table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th>الطالب</th>
+                            <th class="ps-4">الطالب</th>
                             <th>الحالة</th>
-                            <th>العملات</th>
-                            <th>النجوم</th>
-                            <th>المراجع</th>
-                            <th>ملاحظة</th>
+                            <th>العملات المستبدلة</th>
+                            <th>النجوم الممنوحة</th>
+                            <th>المراجع المسؤول</th>
+                            <th class="pe-4">ملاحظة الرفض</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($recentRequests as $request)
                             <tr>
-                                <td>{{ $request->user?->name ?? 'طالب محذوف' }}</td>
+                                <td class="ps-4">{{ $request->user?->name ?? 'طالب محذوف' }}</td>
                                 <td>
                                     @if($request->status === 'approved')
-                                        <span class="badge bg-success">معتمد</span>
+                                        <span class="badge badge-soft-success"><i class="fa-solid fa-circle-check me-1"></i> معتمد</span>
                                     @else
-                                        <span class="badge bg-danger">مرفوض</span>
+                                        <span class="badge badge-soft-danger"><i class="fa-solid fa-circle-xmark me-1"></i> مرفوض</span>
                                     @endif
                                 </td>
-                                <td>{{ number_format($request->coins_amount) }}</td>
-                                <td>{{ number_format($request->stars_amount) }}</td>
-                                <td>{{ $request->reviewer?->name ?? '-' }}</td>
-                                <td>{{ $request->rejection_reason ?? '-' }}</td>
+                                <td><i class="fa-solid fa-coins text-warning me-1"></i> {{ number_format($request->coins_amount) }}</td>
+                                <td><i class="fa-solid fa-star text-success me-1"></i> {{ number_format($request->stars_amount) }}</td>
+                                <td><i class="fa-solid fa-user-shield text-muted me-1"></i> {{ $request->reviewer?->name ?? '-' }}</td>
+                                <td class="text-muted pe-4">{{ $request->rejection_reason ?? '-' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-5">لا توجد مراجعات سابقة.</td>
+                                <td colspan="6" class="text-center text-muted py-5">لا توجد مراجعات سابقة للطلبات.</td>
                             </tr>
                         @endforelse
                     </tbody>
