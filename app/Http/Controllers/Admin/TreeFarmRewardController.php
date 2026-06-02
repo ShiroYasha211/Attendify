@@ -8,6 +8,7 @@ use App\Models\Student\TreeFarmRewardRequest;
 use App\Models\Student\TreeFarmSession;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\StudentNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -124,6 +125,18 @@ class TreeFarmRewardController extends Controller
                     'rejection_reason' => 'رصيد العملات لم يعد كافيًا عند المراجعة.',
                 ]);
 
+                StudentNotification::create([
+                    'user_id' => $reward->user_id,
+                    'type' => 'tree_farm',
+                    'title' => '❌ رفض طلب استبدال النجوم',
+                    'message' => 'للأسف، تم رفض طلبك لاستبدال ' . number_format($reward->coins_amount) . ' عملة. السبب: رصيد العملات لم يعد كافياً عند المراجعة.',
+                    'data' => [
+                        'coins_amount' => $reward->coins_amount,
+                        'stars_amount' => $reward->stars_amount,
+                        'status' => 'rejected',
+                    ],
+                ]);
+
                 return;
             }
 
@@ -142,6 +155,18 @@ class TreeFarmRewardController extends Controller
                 'reviewed_at' => now(),
                 'rejection_reason' => null,
             ]);
+
+            StudentNotification::create([
+                'user_id' => $reward->user_id,
+                'type' => 'tree_farm',
+                'title' => '🎉 اعتماد استبدال النجوم',
+                'message' => "تمت الموافقة على طلبك لاستبدال " . number_format($reward->coins_amount) . " عملة بـ " . number_format($reward->stars_amount) . " نجوم. مبروك!",
+                'data' => [
+                    'coins_amount' => $reward->coins_amount,
+                    'stars_amount' => $reward->stars_amount,
+                    'status' => 'approved',
+                ],
+            ]);
         });
 
         return back()->with('success', 'تم اعتماد طلب المكافأة وتحويل العملات إلى نجوم.');
@@ -157,12 +182,27 @@ class TreeFarmRewardController extends Controller
             'rejection_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $reward->update([
-            'status' => 'rejected',
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
-            'rejection_reason' => $data['rejection_reason'] ?? 'تم رفض الطلب من الإدارة.',
-        ]);
+        DB::transaction(function () use ($reward, $data) {
+            $reason = $data['rejection_reason'] ?? 'تم رفض الطلب من الإدارة.';
+            $reward->update([
+                'status' => 'rejected',
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+                'rejection_reason' => $reason,
+            ]);
+
+            StudentNotification::create([
+                'user_id' => $reward->user_id,
+                'type' => 'tree_farm',
+                'title' => '❌ رفض طلب استبدال النجوم',
+                'message' => "للأسف، تم رفض طلبك لاستبدال " . number_format($reward->coins_amount) . " عملة. السبب: {$reason}",
+                'data' => [
+                    'coins_amount' => $reward->coins_amount,
+                    'stars_amount' => $reward->stars_amount,
+                    'status' => 'rejected',
+                ],
+            ]);
+        });
 
         return back()->with('success', 'تم رفض طلب المكافأة.');
     }
@@ -209,6 +249,32 @@ class TreeFarmRewardController extends Controller
                     $user->deductStars($amount, 'penalty', auth()->id(), $data['description']);
                 }
             }
+
+            // Build dynamic notification title and message based on the adjustment parameters
+            if ($data['adjustment_type'] === 'coins') {
+                $title = $data['action'] === 'add' ? '🪙 مكافأة عملات جديدة' : '🪙 سحب عملات من محفظتك';
+                $message = $data['action'] === 'add' 
+                    ? "تم منحك مكافأة إضافية قدرها " . number_format($amount) . " عملة في مزرعة الأشجار من الإدارة. ملاحظة: {$data['description']}"
+                    : "تم سحب " . number_format($amount) . " عملة من رصيد مزرعتك من قبل الإدارة. السبب: {$data['description']}";
+            } else {
+                $title = $data['action'] === 'add' ? '⭐ منحة نجوم أكاديمية' : '🥀 خصم نجوم أكاديمية';
+                $message = $data['action'] === 'add'
+                    ? "تم منحك " . number_format($amount) . " نجمة أكاديمية من قبل الإدارة. ملاحظة: {$data['description']}"
+                    : "تم خصم " . number_format($amount) . " نجمة من رصيدك الأكاديمي من قبل الإدارة. السبب: {$data['description']}";
+            }
+
+            StudentNotification::create([
+                'user_id' => $user->id,
+                'type' => 'tree_farm',
+                'title' => $title,
+                'message' => $message,
+                'data' => [
+                    'adjustment_type' => $data['adjustment_type'],
+                    'action' => $data['action'],
+                    'amount' => $amount,
+                    'description' => $data['description'],
+                ],
+            ]);
         });
 
         $adjTypeLabel = $data['adjustment_type'] === 'coins' ? 'عملات' : 'نجوم';
