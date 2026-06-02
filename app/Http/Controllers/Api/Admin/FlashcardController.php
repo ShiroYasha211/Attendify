@@ -450,11 +450,22 @@ class FlashcardController extends AdminApiController
 
     private function looksLikeHeader(array $row): bool
     {
-        $headerKeywords = ['front', 'back', 'question', 'answer', 'column', 'type', 'item_type', 'نوع', 'السؤال', 'الإجابة', 'الاجابة', 'النص', 'a', 'b'];
+        $headerKeywords = ['front', 'back', 'question', 'answer', 'column', 'type', 'item_type', 'نوع', 'السؤال', 'الإجابة', 'الاجابة', 'النص'];
 
         foreach ($row as $cell) {
-            if (in_array(strtolower(trim((string) ($cell ?? ''))), $headerKeywords, true)) {
+            $cellStr = strtolower(trim((string) ($cell ?? '')));
+            if ($cellStr === '') {
+                continue;
+            }
+
+            if ($cellStr === 'a' || $cellStr === 'b') {
                 return true;
+            }
+
+            foreach ($headerKeywords as $keyword) {
+                if (str_contains($cellStr, $keyword)) {
+                    return true;
+                }
             }
         }
 

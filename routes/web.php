@@ -137,6 +137,9 @@ Route::prefix('admin')
             Route::get('create', [App\Http\Controllers\Admin\FlashcardController::class, 'create'])->name('create');
             Route::post('/', [App\Http\Controllers\Admin\FlashcardController::class, 'store'])->name('store');
             Route::get('store-mgmt', [App\Http\Controllers\Admin\FlashcardController::class, 'storeManagement'])->name('store-mgmt');
+            Route::get('import-template', [App\Http\Controllers\Admin\FlashcardController::class, 'downloadTemplate'])->name('import-template');
+            Route::post('{flashcard}/import-preview', [App\Http\Controllers\Admin\FlashcardController::class, 'importPreview'])->name('import.preview');
+            Route::post('{flashcard}/import-confirm', [App\Http\Controllers\Admin\FlashcardController::class, 'importConfirm'])->name('import.confirm');
             Route::get('{flashcard}', [App\Http\Controllers\Admin\FlashcardController::class, 'show'])->name('show');
             Route::get('{flashcard}/edit', [App\Http\Controllers\Admin\FlashcardController::class, 'edit'])->name('edit');
             Route::put('{flashcard}', [App\Http\Controllers\Admin\FlashcardController::class, 'update'])->name('update');

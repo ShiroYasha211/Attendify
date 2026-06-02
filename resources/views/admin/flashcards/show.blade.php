@@ -30,6 +30,56 @@
         <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">{{ session('error') }}</div>
     @endif
 
+    @if(session('import_report'))
+        @php $report = session('import_report'); @endphp
+        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-light border-start border-4 border-success">
+            <div class="card-body p-4">
+                <h4 class="fw-black text-dark mb-3">تقرير استيراد البطاقات الأخير</h4>
+                <div class="row g-3 text-center mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded-3 p-2 bg-white">
+                            <div class="small text-secondary fw-semibold">مدرجة جديدة</div>
+                            <div class="fs-4 fw-black text-success">{{ $report['success_count'] }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded-3 p-2 bg-white">
+                            <div class="small text-secondary fw-semibold">محدثة</div>
+                            <div class="fs-4 fw-black text-primary">{{ $report['updated_count'] }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded-3 p-2 bg-white">
+                            <div class="small text-secondary fw-semibold">متجاهلة للتكرار</div>
+                            <div class="fs-4 fw-black text-warning">{{ $report['ignored_count'] }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded-3 p-2 bg-white">
+                            <div class="small text-secondary fw-semibold">صفوف فاشلة</div>
+                            <div class="fs-4 fw-black text-danger">{{ $report['failed_count'] }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                @if(!empty($report['errors']))
+                    <div class="alert alert-danger border-0 rounded-3 mb-0">
+                        <h5 class="fw-bold mb-2">تفاصيل أخطاء الاستيراد:</h5>
+                        <div class="overflow-auto" style="max-height: 200px;">
+                            <ul class="mb-0 ps-3">
+                                @foreach($report['errors'] as $err)
+                                    <li class="small mb-1">
+                                        <strong>السطر {{ $err['row'] }}:</strong> {{ $err['reason'] }}
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
     @if($childPacks->isNotEmpty())
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
@@ -119,17 +169,20 @@
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-body p-4">
-                    <h4 class="fw-black mb-3">استيراد سريع</h4>
-                    <form action="{{ route('admin.flashcards.import', $flashcard) }}" method="POST" enctype="multipart/form-data">
+                    <h4 class="fw-black mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span>استيراد سريع</span>
+                        <a href="{{ route('admin.flashcards.import-template') }}" class="btn btn-sm btn-link text-decoration-none fw-bold p-0">تحميل القالب التجريبي</a>
+                    </h4>
+                    <form action="{{ route('admin.flashcards.import.preview', $flashcard) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="mb-3">
                             <label class="form-label fw-bold">ملف Excel / CSV</label>
                             <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                         </div>
                         <div class="small text-secondary mb-3">
-                            يدعم الاستيراد قالبًا مختلطًا: النوع، المحتوى الأمامي، الإجابة/الخيار 1، الخيارات، رقم الإجابة الصحيحة، الأولوية، اللون. وإذا لم تضع النوع في أول عمود سيستخدم النظام نصًا واحدًا كقيمة افتراضية.
+                            قم برفع ملف الاستيراد للانتقال للخطوة التالية لتحديد خريطة الأعمدة، إستراتيجية معالجة التكرارات، ومعاينة البيانات قبل الحفظ.
                         </div>
-                        <button type="submit" class="btn btn-success w-100 rounded-3 fw-bold">بدء الاستيراد</button>
+                        <button type="submit" class="btn btn-success w-100 rounded-3 fw-bold">رفع ومعاينة البيانات</button>
                     </form>
                 </div>
             </div>
