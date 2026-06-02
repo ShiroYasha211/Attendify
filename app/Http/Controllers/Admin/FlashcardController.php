@@ -448,15 +448,16 @@ class FlashcardController extends Controller
     private function guessMapping(array $columns, FlashcardPack $pack): array
     {
         $mapping = [
-            'item_type_col' => -1,
-            'front_content_col' => 0,
-            'back_content_col' => 1,
-            'options_cols' => [],
+            'item_type_col' => 0, // Default to Column 1 (index 0)
+            'front_content_col' => 1, // Default to Column 2 (index 1)
+            'back_content_col' => 2, // Default to Column 3 (index 2)
+            'options_cols' => [2, 3, 4], // Default to Columns 3, 4, 5 (indices 2, 3, 4)
             'correct_option_col' => -1,
-            'priority_col' => -1,
-            'color_col' => -1,
+            'priority_col' => 9, // Default to Column 10 (index 9)
+            'color_col' => 10, // Default to Column 11 (index 10)
         ];
 
+        $hasMatchedOptions = false;
         foreach ($columns as $index => $name) {
             $nameLower = strtolower(trim($name));
 
@@ -473,19 +474,20 @@ class FlashcardController extends Controller
             } elseif ($nameLower === 'color' || str_contains($nameLower, 'لون') || str_contains($nameLower, 'اللون')) {
                 $mapping['color_col'] = $index;
             } elseif (preg_match('/(option|choice|خيار|إختيار|اختيار)\s*\d+/i', $nameLower) || in_array($nameLower, ['a', 'b', 'c', 'd', 'e', 'f'])) {
+                if (!$hasMatchedOptions) {
+                    $mapping['options_cols'] = [];
+                    $hasMatchedOptions = true;
+                }
                 $mapping['options_cols'][] = $index;
             }
         }
 
-        if ($mapping['front_content_col'] === 0 && $mapping['item_type_col'] === 0) {
-            $mapping['front_content_col'] = 1;
+        // Check bounds, fallback to -1 (default settings) if index is out of range
+        if ($mapping['priority_col'] >= count($columns)) {
+            $mapping['priority_col'] = -1;
         }
-
-        if (empty($mapping['options_cols']) && $pack->display_mode === 'mcq') {
-            $start = $mapping['front_content_col'] + 1;
-            for ($i = $start; $i < min($start + 4, count($columns)); $i++) {
-                $mapping['options_cols'][] = $i;
-            }
+        if ($mapping['color_col'] >= count($columns)) {
+            $mapping['color_col'] = -1;
         }
 
         return $mapping;
@@ -1041,13 +1043,7 @@ class FlashcardController extends Controller
 
         if ($extension === 'csv') {
             $handle = fopen($path, 'r');
-            $isFirst = true;
             while (($data = fgetcsv($handle)) !== false) {
-                if ($isFirst && $this->looksLikeHeader($data)) {
-                    $isFirst = false;
-                    continue;
-                }
-                $isFirst = false;
                 $rows[] = $data;
             }
             fclose($handle);
@@ -1058,7 +1054,6 @@ class FlashcardController extends Controller
 
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
             $worksheet = $spreadsheet->getActiveSheet();
-            $isFirst = true;
 
             foreach ($worksheet->getRowIterator() as $row) {
                 $cellIterator = $row->getCellIterator();
@@ -1069,12 +1064,6 @@ class FlashcardController extends Controller
                     $data[] = $cell->getValue();
                 }
 
-                if ($isFirst && $this->looksLikeHeader($data)) {
-                    $isFirst = false;
-                    continue;
-                }
-
-                $isFirst = false;
                 $rows[] = $data;
             }
         }
