@@ -436,7 +436,8 @@ class FlashcardController extends Controller
                 'tempFilePath',
                 'columns',
                 'previewRows',
-                'guessedMapping'
+                'guessedMapping',
+                'isFirstRowHeader'
             ));
         } catch (\Exception $e) {
             @unlink(storage_path('app/' . $tempFilePath));
