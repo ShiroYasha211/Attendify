@@ -9,6 +9,8 @@ class TreeFarmSession extends Model
 {
     protected $fillable = [
         'user_id',
+        'subject_id',
+        'subject_name',
         'client_uuid',
         'farm_scope',
         'source',

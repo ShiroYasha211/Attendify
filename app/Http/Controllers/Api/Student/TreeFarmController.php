@@ -189,11 +189,13 @@ class TreeFarmController extends Controller
             'sessions' => ['nullable', 'array'],
             'sessions.*.client_uuid' => ['required', 'string', 'max:80'],
             'sessions.*.farm_scope' => ['required', Rule::in(['private', 'public'])],
-            'sessions.*.planned_seconds' => ['required', 'integer', 'min:900', 'max:14400'],
+            'sessions.*.planned_seconds' => ['required', 'integer', 'min:600', 'max:14400'],
             'sessions.*.started_at' => ['required', 'date'],
             'sessions.*.ended_at' => ['required', 'date'],
             'sessions.*.heartbeat_count' => ['required', 'integer', 'min:0', 'max:28800'],
             'sessions.*.grace_seconds_used' => ['nullable', 'integer', 'min:0', 'max:180'],
+            'sessions.*.subject_id' => ['nullable', 'integer', 'exists:subjects,id'],
+            'sessions.*.subject_name' => ['nullable', 'string', 'max:255'],
             'thoughts' => ['nullable', 'array'],
             'thoughts.*.client_uuid' => ['required', 'string', 'max:80'],
             'thoughts.*.body' => ['required', 'string', 'max:1000'],
@@ -219,6 +221,8 @@ class TreeFarmController extends Controller
 
                 $session = TreeFarmSession::create([
                     'user_id' => $user->id,
+                    'subject_id' => $payload['subject_id'] ?? null,
+                    'subject_name' => $payload['subject_name'] ?? null,
                     'client_uuid' => $payload['client_uuid'],
                     'farm_scope' => $payload['farm_scope'],
                     'source' => 'offline',
@@ -341,6 +345,8 @@ class TreeFarmController extends Controller
             'started_at'      => ['required', 'date'],
             'ended_at'        => ['required', 'date'],
             'client_uuid'     => ['nullable', 'string', 'max:80'],
+            'subject_id'      => ['nullable', 'integer', 'exists:subjects,id'],
+            'subject_name'    => ['nullable', 'string', 'max:255'],
         ]);
 
         $user    = $request->user();
@@ -359,6 +365,8 @@ class TreeFarmController extends Controller
 
             $session = TreeFarmSession::create([
                 'user_id'          => $user->id,
+                'subject_id'       => $data['subject_id'] ?? null,
+                'subject_name'     => $data['subject_name'] ?? null,
                 'client_uuid'      => $data['client_uuid'] ?? null,
                 'farm_scope'       => $data['farm_scope'],
                 'source'           => 'offline',
@@ -402,6 +410,8 @@ class TreeFarmController extends Controller
         if ($plantDefinition) {
             $plant = TreeFarmPlant::create([
                 'user_id' => $session->user_id,
+                'subject_id' => $session->subject_id,
+                'subject_name' => $session->subject_name,
                 'tree_farm_session_id' => $session->id,
                 'farm_scope' => $session->farm_scope,
                 'plant_code' => $plantDefinition['code'],
@@ -530,6 +540,8 @@ class TreeFarmController extends Controller
         return [
             'id' => $session->id,
             'client_uuid' => $session->client_uuid,
+            'subject_id' => $session->subject_id,
+            'subject_name' => $session->subject_name,
             'farm_scope' => $session->farm_scope,
             'source' => $session->source,
             'status' => $session->status,
@@ -551,6 +563,8 @@ class TreeFarmController extends Controller
         return [
             'id' => $plant->id,
             'session_id' => $plant->tree_farm_session_id,
+            'subject_id' => $plant->subject_id,
+            'subject_name' => $plant->subject_name,
             'farm_scope' => $plant->farm_scope,
             'plant_code' => $plant->plant_code,
             'name' => $plant->name,
