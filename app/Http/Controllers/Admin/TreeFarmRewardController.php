@@ -90,6 +90,19 @@ class TreeFarmRewardController extends Controller
             ->orderBy('name')
             ->get();
 
+        $defaultPlants = [
+            ['code' => 'grass', 'name' => 'عشب البداية', 'required_seconds' => 600, 'coins' => 8, 'rarity' => 'common'],
+            ['code' => 'red_flower', 'name' => 'زهرة حمراء', 'required_seconds' => 900, 'coins' => 15, 'rarity' => 'common'],
+            ['code' => 'blue_flower', 'name' => 'زهرة زرقاء', 'required_seconds' => 1200, 'coins' => 20, 'rarity' => 'common'],
+            ['code' => 'blue_bud', 'name' => 'برعم أزرق', 'required_seconds' => 1500, 'coins' => 25, 'rarity' => 'uncommon'],
+            ['code' => 'purple_flower', 'name' => 'زهرة بنفسجية', 'required_seconds' => 1800, 'coins' => 35, 'rarity' => 'uncommon'],
+            ['code' => 'pine_small', 'name' => 'صنوبرة صغيرة', 'required_seconds' => 2700, 'coins' => 55, 'rarity' => 'rare'],
+            ['code' => 'pine_tall', 'name' => 'صنوبرة شامخة', 'required_seconds' => 3600, 'coins' => 80, 'rarity' => 'rare'],
+            ['code' => 'orange_tree', 'name' => 'شجرة برتقالية', 'required_seconds' => 5400, 'coins' => 120, 'rarity' => 'epic'],
+            ['code' => 'orange_cypress', 'name' => 'سرو برتقالي', 'required_seconds' => 7200, 'coins' => 170, 'rarity' => 'legendary'],
+        ];
+        $plantsCatalog = Setting::get('tree_farm_plants_catalog', $defaultPlants);
+
         return view('admin.tree-farm-rewards.index', compact(
             'pendingRequests', 
             'recentRequests', 
@@ -104,7 +117,8 @@ class TreeFarmRewardController extends Controller
             'atRiskStudents',
             'exchangeRate',
             'weeklyStarLimit',
-            'allTreeFarmStudents'
+            'allTreeFarmStudents',
+            'plantsCatalog'
         ));
     }
 
@@ -280,5 +294,42 @@ class TreeFarmRewardController extends Controller
         $adjTypeLabel = $data['adjustment_type'] === 'coins' ? 'عملات' : 'نجوم';
         $actionLabel = $data['action'] === 'add' ? 'إضافة' : 'خصم';
         return back()->with('success', "تمت عملية {$actionLabel} {$data['amount']} {$adjTypeLabel} للطالب بنجاح.");
+    }
+
+    public function updateCatalog(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'plants' => ['required', 'array'],
+            'plants.*.code' => ['required', 'string'],
+            'plants.*.required_minutes' => ['required', 'integer', 'min:1'],
+            'plants.*.coins' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $defaultPlants = [
+            ['code' => 'grass', 'name' => 'عشب البداية', 'required_seconds' => 600, 'coins' => 8, 'rarity' => 'common'],
+            ['code' => 'red_flower', 'name' => 'زهرة حمراء', 'required_seconds' => 900, 'coins' => 15, 'rarity' => 'common'],
+            ['code' => 'blue_flower', 'name' => 'زهرة زرقاء', 'required_seconds' => 1200, 'coins' => 20, 'rarity' => 'common'],
+            ['code' => 'blue_bud', 'name' => 'برعم أزرق', 'required_seconds' => 1500, 'coins' => 25, 'rarity' => 'uncommon'],
+            ['code' => 'purple_flower', 'name' => 'زهرة بنفسجية', 'required_seconds' => 1800, 'coins' => 35, 'rarity' => 'uncommon'],
+            ['code' => 'pine_small', 'name' => 'صنوبرة صغيرة', 'required_seconds' => 2700, 'coins' => 55, 'rarity' => 'rare'],
+            ['code' => 'pine_tall', 'name' => 'صنوبرة شامخة', 'required_seconds' => 3600, 'coins' => 80, 'rarity' => 'rare'],
+            ['code' => 'orange_tree', 'name' => 'شجرة برتقالية', 'required_seconds' => 5400, 'coins' => 120, 'rarity' => 'epic'],
+            ['code' => 'orange_cypress', 'name' => 'سرو برتقالي', 'required_seconds' => 7200, 'coins' => 170, 'rarity' => 'legendary'],
+        ];
+
+        $currentCatalog = Setting::get('tree_farm_plants_catalog', $defaultPlants);
+
+        $updatedCatalog = collect($currentCatalog)->map(function ($plant) use ($data) {
+            $input = collect($data['plants'])->firstWhere('code', $plant['code']);
+            if ($input) {
+                $plant['required_seconds'] = (int) $input['required_minutes'] * 60;
+                $plant['coins'] = (int) $input['coins'];
+            }
+            return $plant;
+        })->toArray();
+
+        Setting::set('tree_farm_plants_catalog', $updatedCatalog);
+
+        return back()->with('success', 'تم تحديث كتالوج البذور وأسعار النباتات بنجاح.');
     }
 }

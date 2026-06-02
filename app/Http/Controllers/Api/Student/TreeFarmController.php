@@ -494,10 +494,15 @@ class TreeFarmController extends Controller
         return null;
     }
 
+    private function getPlantsCatalog(): array
+    {
+        return Setting::get('tree_farm_plants_catalog', self::PLANTS);
+    }
+
     private function plantForSeconds(int $seconds): ?array
     {
         $selected = null;
-        foreach (self::PLANTS as $plant) {
+        foreach ($this->getPlantsCatalog() as $plant) {
             if ($seconds >= $plant['required_seconds']) {
                 $selected = $plant;
             }
@@ -535,7 +540,7 @@ class TreeFarmController extends Controller
                 'weekly_limit' => $weeklyLimit,
                 'weekly_stars_remaining' => $weeklyStarsRemaining,
             ],
-            'plant_catalog' => self::PLANTS,
+            'plant_catalog' => $this->getPlantsCatalog(),
             'profile' => $this->formatProfile($profile, $user),
             'active_session' => optional(TreeFarmSession::where('user_id', $user->id)->where('status', 'active')->latest()->first(), fn ($session) => $this->formatSession($session)),
             'plants' => TreeFarmPlant::where('user_id', $user->id)->latest('planted_at')->limit(60)->get()->map(fn ($plant) => $this->formatPlant($plant))->values(),

@@ -242,6 +242,12 @@
                         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                     </svg>
                     <span>إدارة مزرعة الأشجار</span>
+                    @php
+                        $pendingRewardsCount = \App\Models\Student\TreeFarmRewardRequest::where('status', 'pending')->count();
+                    @endphp
+                    @if($pendingRewardsCount > 0)
+                        <span class="badge" style="background: var(--danger-color); color: white; border-radius: 50%; padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-right: auto;">{{ $pendingRewardsCount }}</span>
+                    @endif
                 </a>
 
                 <div class="nav-group-label" title="إدارة المستخدمين">إدارة المستخدمين</div>

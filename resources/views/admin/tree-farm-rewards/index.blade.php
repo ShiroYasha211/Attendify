@@ -698,9 +698,10 @@
 
         <!-- Tab 4: Control & Moderation Settings -->
         <div class="tab-pane fade" id="settings-pane" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
-            <div class="row">
-                <div class="col-lg-6 mx-auto">
-                    <div class="card shadow-sm border-0 rounded-4">
+            <div class="row g-4">
+                <!-- Limits & Exchange Rate Card (col-lg-5) -->
+                <div class="col-lg-5">
+                    <div class="card shadow-sm border-0 rounded-4 h-100">
                         <div class="card-header bg-white border-0 py-3">
                             <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-sliders me-2"></i> إعدادات شروط التبديل والحدود</h2>
                         </div>
@@ -728,6 +729,74 @@
                                 </div>
 
                                 <button type="submit" class="btn btn-success btn-premium w-100 py-2"><i class="fa-solid fa-floppy-disk me-1"></i> حفظ إعدادات الرقابة والصرف</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seeds & Rewards Catalog Card (col-lg-7) -->
+                <div class="col-lg-7">
+                    <div class="card shadow-sm border-0 rounded-4 h-100">
+                        <div class="card-header bg-white border-0 py-3">
+                            <h2 class="h5 fw-bold mb-0 text-success"><i class="fa-solid fa-seedling me-2"></i> تعديل كتالوج بذور النباتات وجوائز التركيز</h2>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">يمكنك تعديل مدة التركيز المطلوبة لكل نبتة وجائزة العملات المحددة لها. (الأسماء وصور النباتات ثابتة ولا يمكن إضافتها أو حذفها حالياً).</p>
+                            
+                            <form action="{{ route('admin.tree-farm-rewards.update-catalog') }}" method="POST">
+                                @csrf
+                                <div class="table-responsive scroll-container" style="max-height: 380px; overflow-y: auto;">
+                                    <table class="table table-sm align-middle mb-0 table-hover">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>نوع النبتة</th>
+                                                <th>المدة المطلوبة (دقائق)</th>
+                                                <th>العملات الممنوحة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($plantsCatalog as $index => $plant)
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                                @if($plant['code'] === 'grass') 🌿
+                                                                @elseif($plant['code'] === 'red_flower') 🌹
+                                                                @elseif($plant['code'] === 'blue_flower') 🪻
+                                                                @elseif($plant['code'] === 'blue_bud') 🪹
+                                                                @elseif($plant['code'] === 'purple_flower') 🌸
+                                                                @elseif($plant['code'] === 'pine_small') 🌲
+                                                                @elseif($plant['code'] === 'pine_tall') 🌳
+                                                                @elseif($plant['code'] === 'orange_tree') 🍊
+                                                                @elseif($plant['code'] === 'orange_cypress') 🌴
+                                                                @else 🌱 @endif
+                                                            </div>
+                                                            <div>
+                                                                <div class="fw-bold small text-dark">{{ $plant['name'] }}</div>
+                                                                <span class="badge bg-light text-muted" style="font-size: 0.65rem;">{{ $plant['rarity'] }}</span>
+                                                            </div>
+                                                        </div>
+                                                        <input type="hidden" name="plants[{{ $index }}][code]" value="{{ $plant['code'] }}">
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm" style="max-width: 140px;">
+                                                            <input type="number" name="plants[{{ $index }}][required_minutes]" class="form-control text-center" value="{{ round($plant['required_seconds'] / 60) }}" min="1" required>
+                                                            <span class="input-group-text bg-light small">د</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm" style="max-width: 140px;">
+                                                            <input type="number" name="plants[{{ $index }}][coins]" class="form-control text-center text-warning fw-bold" value="{{ $plant['coins'] }}" min="0" required>
+                                                            <span class="input-group-text bg-light small"><i class="fa-solid fa-coins text-warning"></i></span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <button type="submit" class="btn btn-success btn-premium w-100 py-2 mt-4"><i class="fa-solid fa-circle-check me-1"></i> حفظ تعديلات كتالوج البذور</button>
                             </form>
                         </div>
                     </div>

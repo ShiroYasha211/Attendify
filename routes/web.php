@@ -189,6 +189,7 @@ Route::prefix('admin')
             Route::post('{reward}/reject', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'reject'])->name('reject');
             Route::post('settings', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'updateSettings'])->name('update-settings');
             Route::post('adjust-balance', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'adjustBalance'])->name('adjust-balance');
+            Route::post('update-catalog', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'updateCatalog'])->name('update-catalog');
         });
     });
 
