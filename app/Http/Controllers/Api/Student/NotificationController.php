@@ -96,6 +96,32 @@ class NotificationController extends StudentApiController
     }
 
     /**
+     * Retract a vote on a poll.
+     */
+    public function unvote($notificationId)
+    {
+        $user = Auth::user();
+        $notification = StudentNotification::where('user_id', $user->id)
+            ->findOrFail($notificationId);
+
+        if ($notification->type !== 'poll') {
+            return $this->error('هذا الإشعار ليس استطلاعًا.', 400);
+        }
+
+        $existingVote = PollVote::where('batch_id', $notification->batch_id)
+            ->where('student_id', $user->id)
+            ->first();
+
+        if (!$existingVote) {
+            return $this->error('لم تقم بالتصويت في هذا الاستطلاع بعد.', 400);
+        }
+
+        $existingVote->delete();
+
+        return $this->success(null, 'تم سحب تصويتك بنجاح');
+    }
+
+    /**
      * Mark the specified notification as read.
      */
     public function markAsRead($id)

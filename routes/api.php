@@ -545,6 +545,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('notifications/unread-count', [\App\Http\Controllers\Api\Student\NotificationController::class, 'unreadCount']);
     Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAsRead']);
     Route::post('notifications/{id}/vote', [\App\Http\Controllers\Api\Student\NotificationController::class, 'vote']);
+    Route::delete('notifications/{id}/vote', [\App\Http\Controllers\Api\Student\NotificationController::class, 'unvote']);
     Route::post('notifications/mark-all-read', [\App\Http\Controllers\Api\Student\NotificationController::class, 'markAllAsRead']);
     Route::get('reminders', [\App\Http\Controllers\Api\Student\ReminderController::class, 'index']);
     Route::get('resources', [\App\Http\Controllers\Api\Student\ResourceController::class, 'index']);
