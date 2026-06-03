@@ -524,6 +524,20 @@ class FlashcardController extends StudentApiController
         $user = $request->user();
         $today = now()->toDateString();
         $settings = $this->flashcardSettings($user->id);
+
+        if (!$settings->smart_review_enabled) {
+            return $this->success([
+                'queue' => [],
+                'pending' => [],
+                'reviewed_today' => [],
+                'total' => 0,
+                'reviewed_total' => 0,
+                'completed_today' => false,
+                'date' => $today,
+                'settings' => $settings,
+            ]);
+        }
+
         $packs = FlashcardPack::forUser($user->id)
             ->whereNull('parent_pack_id')
             ->active()
@@ -628,9 +642,8 @@ class FlashcardController extends StudentApiController
 
         $reviewedCount = $reviewedSelected->count();
         $dueCount = $selected->count();
-        $totalCount = $reviewedCount + $dueCount;
-
-        $scheduleTimes = $this->resolveScheduledTimes($settings, $totalCount, 0);
+        $reviewedScheduleTimes = $this->resolveScheduledTimes($settings, $reviewedCount, 0);
+        $queueScheduleTimes = $this->resolveScheduledTimes($settings, $dueCount, 0);
 
         $reviewedToday = [];
         foreach ($reviewedSelected as $index => $entry) {
@@ -638,7 +651,9 @@ class FlashcardController extends StudentApiController
             $pack = $entry['pack'];
             /** @var FlashcardItem $item */
             $item = $entry['item'];
-            $scheduledTime = $scheduleTimes[$index] ?? now();
+            $scheduledTime = $item->user_progress?->last_shown_at
+                ?? $reviewedScheduleTimes[$index]
+                ?? now();
 
             $reviewedToday[] = $this->dailyQueueItem(
                 $pack,
@@ -654,7 +669,7 @@ class FlashcardController extends StudentApiController
             $pack = $entry['pack'];
             /** @var FlashcardItem $item */
             $item = $entry['item'];
-            $scheduledTime = $scheduleTimes[$reviewedCount + $index] ?? now();
+            $scheduledTime = $queueScheduleTimes[$index] ?? now();
 
             return $this->dailyQueueItem($pack, $item, $scheduledTime, false, $settings);
         })->all();
@@ -1380,13 +1395,22 @@ class FlashcardController extends StudentApiController
         }
 
         $frequency = max(1, (int) ($settings->smart_review_frequency_minutes ?? 30));
-        $cursor = now()->startOfDay();
+        $now = now()->copy()->seconds(0)->microsecond(0);
+        $cursor = $now->copy();
         if ($settings->active_from_time) {
             $parts = explode(':', $settings->active_from_time);
             if (count($parts) >= 2) {
-                $cursor->hour((int)$parts[0])->minute((int)$parts[1]);
+                $activeStart = now()->startOfDay()
+                    ->hour((int)$parts[0])
+                    ->minute((int)$parts[1])
+                    ->seconds(0)
+                    ->microsecond(0);
+                if ($activeStart->isAfter($now)) {
+                    $cursor = $activeStart;
+                }
             }
-        } else {
+        } elseif ($now->hour < 8) {
+            $cursor = now()->startOfDay();
             $cursor->hour(8)->minute(0);
         }
         $cursor->seconds(0)->microsecond(0);
