@@ -385,6 +385,14 @@
     showDetailsModal: false,
     deleteUrl: '', 
     modalTitle: '', 
+    
+    // Device Requests modal state
+    showDeviceRequestsModal: false,
+    deviceRequestsList: [],
+    isLoadingDeviceRequests: false,
+    rejectingRequest: null,
+    adminRejectNote: '',
+    adminApproveNote: '',
     modalMessage: '',
     
     editUrl: '',
@@ -553,6 +561,100 @@
         } finally {
             this.isLoadingDevices = false;
         }
+    },
+    async fetchAndShowDeviceRequests() {
+        this.isLoadingDeviceRequests = true;
+        this.showDeviceRequestsModal = true;
+        this.deviceRequestsList = [];
+        this.rejectingRequest = null;
+        this.adminRejectNote = '';
+        try {
+            const response = await fetch('{{ route('admin.students.device-requests.pending') }}', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.deviceRequestsList = data.requests;
+            } else {
+                this.showToast('حدث خطأ أثناء جلب طلبات الأجهزة', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDeviceRequests = false;
+        }
+    },
+    async approveRequestAJAX(requestId, note = '') {
+        if (this.isLoadingDeviceRequests) return;
+        this.isLoadingDeviceRequests = true;
+        try {
+            const response = await fetch('{{ url('admin/student-device-requests') }}/' + requestId + '/approve', {
+                method: 'POST',
+                body: JSON.stringify({ admin_note: note }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.showToast(data.message, 'success');
+                this.deviceRequestsList = this.deviceRequestsList.filter(r => r.id !== requestId);
+                if (this.deviceRequestsList.length === 0) {
+                    this.showDeviceRequestsModal = false;
+                    window.location.reload();
+                }
+            } else {
+                this.showToast(data.message || 'حدث خطأ ما', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDeviceRequests = false;
+        }
+    },
+    async rejectRequestAJAX(requestId, note) {
+        if (!note || note.trim() === '') {
+            this.showToast('يرجى تحديد سبب الرفض', 'error');
+            return;
+        }
+        if (this.isLoadingDeviceRequests) return;
+        this.isLoadingDeviceRequests = true;
+        try {
+            const response = await fetch('{{ url('admin/student-device-requests') }}/' + requestId + '/reject', {
+                method: 'POST',
+                body: JSON.stringify({ admin_note: note }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.showToast(data.message, 'success');
+                this.rejectingRequest = null;
+                this.adminRejectNote = '';
+                this.deviceRequestsList = this.deviceRequestsList.filter(r => r.id !== requestId);
+                if (this.deviceRequestsList.length === 0) {
+                    this.showDeviceRequestsModal = false;
+                    window.location.reload();
+                }
+            } else {
+                this.showToast(data.message || 'حدث خطأ ما', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDeviceRequests = false;
+        }
     }
 }">
 
@@ -651,6 +753,35 @@
             </div>
         </div>
     </div>
+
+    <!-- Pending Requests Banner/Action Box -->
+    @php
+        $pendingRequests = \App\Models\StudentDeviceRequest::pending()->count();
+    @endphp
+    @if($pendingRequests > 0)
+    <div style="background: linear-gradient(135deg, #fef3c7, #fffbef); border: 1px solid #fde68a; border-radius: 16px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 48px; height: 48px; background: #f59e0b; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                </svg>
+            </div>
+            <div>
+                <h4 style="font-size: 1.05rem; font-weight: 800; color: #92400e; margin-bottom: 0.15rem; margin-top: 0;">طلبات تفعيل الأجهزة الفرعية</h4>
+                <p style="font-size: 0.85rem; color: #b45309; font-weight: 600; margin: 0;">يوجد حالياً <span style="font-weight: 900; font-size: 1rem; color: #b45309;">{{ $pendingRequests }}</span> طلبات معلقة بانتظار المراجعة واتخاذ قرار بالقبول أو الرفض.</p>
+            </div>
+        </div>
+        <button type="button" @click="fetchAndShowDeviceRequests()" class="action-btn" style="background: #f59e0b; color: white; padding: 0.6rem 1.25rem; font-size: 0.85rem; font-weight: 700; border-radius: 10px; box-shadow: 0 4px 10px -2px rgba(245, 158, 11, 0.4); display: flex; align-items: center; gap: 0.35rem; border: none; cursor: pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            مراجعة الطلبات المعلقة
+        </button>
+    </div>
+    @endif
 
     <!-- Main Grid -->
     <div style="display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; align-items: start;">
@@ -1334,6 +1465,120 @@
 
             <div class="modal-actions" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                 <button type="button" class="btn btn-secondary" @click="showDetailsModal = false">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Device Requests Modal -->
+    <div x-show="showDeviceRequestsModal" class="modal-overlay" style="display: none;"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0">
+        <div class="modal-container" style="text-align: right; max-width: 750px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;" @click.away="showDeviceRequestsModal = false">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 40px; height: 40px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                    </div>
+                    <h3 class="modal-title" style="margin: 0; font-size: 1.25rem;">طلبات الأجهزة الفرعية المعلقة</h3>
+                </div>
+                <button @click="showDeviceRequestsModal = false" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</button>
+            </div>
+
+            <!-- Modal Content with scroll -->
+            <div style="flex: 1; overflow-y: auto; padding-right: 0.25rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                <!-- Loading State -->
+                <div x-show="isLoadingDeviceRequests && deviceRequestsList.length === 0" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem; gap: 1rem;">
+                    <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(0, 0, 0, 0.1); border-top-color: #f59e0b; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="color: var(--text-secondary); font-weight: 600;">جاري تحميل طلبات الأجهزة المعلقة...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="!isLoadingDeviceRequests && deviceRequestsList.length === 0" style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <p style="font-size: 1rem; font-weight: 600; color: var(--text-secondary);">لا توجد طلبات أجهزة معلقة حالياً.</p>
+                </div>
+
+                <!-- Requests List -->
+                <template x-for="req in deviceRequestsList" :key="req.id">
+                    <div class="device-request-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);" onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='#e2e8f0'">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 0.75rem;">
+                            <div>
+                                <h4 style="margin: 0 0 0.25rem 0; font-size: 1.05rem; font-weight: 800; color: var(--text-primary);" x-text="req.student_name"></h4>
+                                <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;" x-text="'الرقم الجامعي: ' + req.student_number"></span>
+                                <span style="margin: 0 0.5rem; color: #cbd5e1;">|</span>
+                                <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;" x-text="req.college_name + ' - ' + req.major_name + ' (' + req.level_name + ')'"></span>
+                            </div>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; background: #e2e8f0; padding: 0.25rem 0.50rem; border-radius: 6px;" x-text="req.created_at"></span>
+                        </div>
+
+                        <!-- Requested Device & Platform Details -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                            <div style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 10px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.15); color: #2563eb; font-size: 0.85rem; font-weight: 700;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                                </svg>
+                                <span x-text="req.requested_device_name"></span>
+                            </div>
+                            <template x-if="req.platform">
+                                <span style="font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 8px; text-transform: uppercase;"
+                                    :style="req.platform.toLowerCase().includes('ios') || req.platform.toLowerCase().includes('iphone') ? 'background: #f3f4f6; color: #1f2937;' : 'background: #e0f2fe; color: #0369a1;'"
+                                    x-text="req.platform">
+                                </span>
+                            </template>
+                        </div>
+
+                        <!-- Reason -->
+                        <div style="background: white; border: 1px solid #f1f5f9; border-right: 3px solid #f59e0b; border-radius: 10px; padding: 0.75rem 1rem;">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 700; margin-bottom: 0.25rem;">سبب تقديم الطلب:</div>
+                            <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); font-weight: 600;" x-text="req.reason"></p>
+                        </div>
+
+                        <!-- Notes / Actions Section -->
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid #f1f5f9; padding-top: 0.75rem;">
+                            <!-- Note input for approval -->
+                            <div style="display: flex; gap: 0.5rem; align-items: center;" x-show="rejectingRequest !== req.id">
+                                <input type="text" placeholder="ملاحظة للموافقة (اختياري)..." x-model="adminApproveNote" style="flex: 1; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.85rem;" />
+                                <button type="button" @click="approveRequestAJAX(req.id, adminApproveNote); adminApproveNote = ''" class="action-btn" style="background: #10b981; color: white; padding: 0.5rem 1rem; border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    موافقة وتفعيل
+                                </button>
+                                <button type="button" @click="rejectingRequest = req.id; adminRejectNote = ''" class="action-btn" style="background: #ef4444; color: white; padding: 0.5rem 1rem; border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer;">
+                                    رفض
+                                </button>
+                            </div>
+
+                            <!-- Reject note input -->
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 12px; padding: 1rem;" x-show="rejectingRequest === req.id">
+                                <label style="font-size: 0.8rem; font-weight: 700; color: #991b1b; display: block;">يرجى تحديد سبب الرفض لإرساله للطالب في إشعار:</label>
+                                <textarea placeholder="اكتب سبب رفض الطلب هنا (مطلوب)..." x-model="adminRejectNote" rows="2" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #fecaca; border-radius: 8px; font-size: 0.85rem; font-weight: 600; resize: none; direction: rtl; box-sizing: border-box;"></textarea>
+                                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem;">
+                                    <button type="button" @click="rejectingRequest = null" class="action-btn view" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px;">إلغاء</button>
+                                    <button type="button" @click="rejectRequestAJAX(req.id, adminRejectNote)" class="action-btn" style="background: #ef4444; color: white; padding: 0.4rem 0.85rem; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">تأكيد الرفض</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Modal footer -->
+            <div class="modal-actions" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" @click="showDeviceRequestsModal = false">إغلاق</button>
             </div>
         </div>
     </div>

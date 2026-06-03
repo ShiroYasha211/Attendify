@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Student;
 use App\Models\Setting;
 use App\Models\StudentDevice;
 use App\Models\User;
+use App\Models\StudentDeviceRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -190,7 +191,10 @@ class AuthController extends StudentApiController
      */
     public function me(Request $request)
     {
-        $user = $request->user()->load(['major', 'university', 'college', 'level', 'clinicalDelegateAssignment']);
+        $user = $request->user()->load([
+            'major', 'university', 'college', 'level', 'clinicalDelegateAssignment',
+            'studentDevices', 'studentDeviceRequests' => fn($q) => $q->latest()
+        ]);
 
         return $this->success([
             'id' => $user->id,
@@ -222,6 +226,65 @@ class AuthController extends StudentApiController
                 'id' => $user->level->id,
                 'name' => $user->level->name,
             ] : null,
+            'devices' => $user->studentDevices->map(fn($d) => [
+                'id' => $d->id,
+                'device_name' => $d->device_name,
+                'platform' => $d->platform,
+                'app_version' => $d->app_version,
+                'device_type' => $d->device_type,
+                'is_active' => $d->is_active,
+                'is_temporary' => $d->is_temporary,
+                'expires_at' => $d->expires_at ? $d->expires_at->toIso8601String() : null,
+                'is_primary' => $d->is_primary,
+            ]),
+            'device_requests' => $user->studentDeviceRequests->map(fn($r) => [
+                'id' => $r->id,
+                'requested_device_name' => $r->requested_device_name,
+                'platform' => $r->platform,
+                'reason' => $r->reason,
+                'status' => $r->status,
+                'admin_note' => $r->admin_note,
+                'created_at' => $r->created_at ? $r->created_at->toIso8601String() : null,
+            ]),
+        ]);
+    }
+
+    /**
+     * Store student secondary device request.
+     */
+    public function storeDeviceRequest(Request $request)
+    {
+        $request->validate([
+            'requested_device_name' => 'required|string|max:255',
+            'platform' => 'nullable|string|max:50',
+            'reason' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        // Check if there is already a pending request to prevent spamming
+        $hasPending = $user->studentDeviceRequests()->where('status', StudentDeviceRequest::STATUS_PENDING)->exists();
+        if ($hasPending) {
+            return $this->error('لديك طلب معلق بالفعل. يرجى انتظار مراجعة الإدارة.', 400);
+        }
+
+        $deviceRequest = $user->studentDeviceRequests()->create([
+            'requested_device_name' => $request->requested_device_name,
+            'platform' => $request->platform,
+            'reason' => $request->reason,
+            'status' => StudentDeviceRequest::STATUS_PENDING,
+        ]);
+
+        return $this->success([
+            'message' => 'تم تقديم طلب استخدام جهاز فرعي بنجاح.',
+            'request' => [
+                'id' => $deviceRequest->id,
+                'requested_device_name' => $deviceRequest->requested_device_name,
+                'platform' => $deviceRequest->platform,
+                'reason' => $deviceRequest->reason,
+                'status' => $deviceRequest->status,
+                'created_at' => $deviceRequest->created_at->toIso8601String(),
+            ]
         ]);
     }
 

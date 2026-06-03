@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Enums\UserRole;
 use App\Models\Academic\Major;
 use App\Models\StudentDevice;
+use App\Models\StudentDeviceRequest;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -376,5 +377,123 @@ class StudentController extends Controller
                 'created_at' => $device->created_at ? $device->created_at->format('Y-m-d H:i') : null,
             ];
         })->values()->all();
+    }
+
+    /**
+     * Get pending device requests.
+     */
+    public function pendingDeviceRequests()
+    {
+        $requests = StudentDeviceRequest::pending()
+            ->with(['student.college', 'student.major', 'student.level'])
+            ->latest()
+            ->get()
+            ->map(fn($r) => [
+                'id' => $r->id,
+                'student_name' => $r->student->name,
+                'student_number' => $r->student->student_number,
+                'college_name' => $r->student->college->name ?? '-',
+                'major_name' => $r->student->major->name ?? '-',
+                'level_name' => $r->student->level->name ?? '-',
+                'requested_device_name' => $r->requested_device_name,
+                'platform' => $r->platform,
+                'reason' => $r->reason,
+                'created_at' => $r->created_at->format('Y-m-d H:i'),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'requests' => $requests,
+        ]);
+    }
+
+    /**
+     * Approve device request.
+     */
+    public function approveDeviceRequest(Request $request, $id)
+    {
+        $deviceRequest = StudentDeviceRequest::findOrFail($id);
+
+        if ($deviceRequest->status !== StudentDeviceRequest::STATUS_PENDING) {
+            return response()->json([
+                'success' => false,
+                'message' => 'هذا الطلب ليس معلقاً.',
+            ], 400);
+        }
+
+        $deviceRequest->update([
+            'status' => StudentDeviceRequest::STATUS_APPROVED,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'admin_note' => $request->input('admin_note'),
+        ]);
+
+        $student = $deviceRequest->student;
+        $student->increment('allowed_secondary_devices');
+
+        $this->logUpdate('StudentDeviceRequest', $deviceRequest, "تم قبول طلب الجهاز الفرعي ومنح مساحة للطالب: {$student->name}");
+
+        // Create student notification
+        \App\Models\StudentNotification::create([
+            'user_id' => $student->id,
+            'type' => 'device_request',
+            'title' => 'تم قبول طلب الجهاز الفرعي',
+            'message' => "تم قبول طلبك لاستخدام جهاز فرعي إضافي ({$deviceRequest->requested_device_name}) وتم فتح مساحة جهاز فرعي جديدة لك.",
+            'data' => [
+                'request_id' => $deviceRequest->id,
+                'status' => 'approved',
+                'action_url' => '/student/profile',
+            ],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم قبول طلب الجهاز الفرعي وفتح مساحة إضافية للطالب بنجاح.',
+        ]);
+    }
+
+    /**
+     * Reject device request.
+     */
+    public function rejectDeviceRequest(Request $request, $id)
+    {
+        $deviceRequest = StudentDeviceRequest::findOrFail($id);
+
+        if ($deviceRequest->status !== StudentDeviceRequest::STATUS_PENDING) {
+            return response()->json([
+                'success' => false,
+                'message' => 'هذا الطلب ليس معلقاً.',
+            ], 400);
+        }
+
+        $deviceRequest->update([
+            'status' => StudentDeviceRequest::STATUS_REJECTED,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'admin_note' => $request->input('admin_note'),
+        ]);
+
+        $student = $deviceRequest->student;
+        $adminNote = $deviceRequest->admin_note ? "\nالسبب: " . $deviceRequest->admin_note : '';
+
+        $this->logUpdate('StudentDeviceRequest', $deviceRequest, "تم رفض طلب الجهاز الفرعي للطالب: {$student->name}");
+
+        // Create student notification
+        \App\Models\StudentNotification::create([
+            'user_id' => $student->id,
+            'type' => 'device_request',
+            'title' => 'تم رفض طلب الجهاز الفرعي',
+            'message' => "نأسف، تم رفض طلبك لاستخدام جهاز فرعي إضافي ({$deviceRequest->requested_device_name}).{$adminNote}",
+            'data' => [
+                'request_id' => $deviceRequest->id,
+                'status' => 'rejected',
+                'action_url' => '/student/profile',
+            ],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم رفض طلب الجهاز الفرعي بنجاح.',
+        ]);
     }
 }

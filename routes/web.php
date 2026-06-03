@@ -80,6 +80,9 @@ Route::prefix('admin')
         Route::post('students/{student}/close-slot', [App\Http\Controllers\Admin\StudentController::class, 'closeDeviceSlot'])->name('students.close-slot');
         Route::patch('students/devices/{device}', [App\Http\Controllers\Admin\StudentController::class, 'updateDevice'])->name('students.devices.update');
         Route::delete('students/devices/{device}', [App\Http\Controllers\Admin\StudentController::class, 'destroyDevice'])->name('students.devices.destroy');
+        Route::get('student-device-requests', [App\Http\Controllers\Admin\StudentController::class, 'pendingDeviceRequests'])->name('students.device-requests.pending');
+        Route::post('student-device-requests/{request}/approve', [App\Http\Controllers\Admin\StudentController::class, 'approveDeviceRequest'])->name('students.device-requests.approve');
+        Route::post('student-device-requests/{request}/reject', [App\Http\Controllers\Admin\StudentController::class, 'rejectDeviceRequest'])->name('students.device-requests.reject');
         Route::resource('doctors', App\Http\Controllers\Admin\DoctorController::class);
         Route::patch('doctors/{doctor}/administrative-access', [App\Http\Controllers\Admin\DoctorController::class, 'updateAdministrativeAccess'])->name('doctors.administrative-access');
 

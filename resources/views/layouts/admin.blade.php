@@ -309,14 +309,24 @@
                     </svg>
                     <span>نقل المندوبية</span>
                 </a>
-                <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.*') ? 'active' : '' }}" title="الطلاب">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    <span>الطلاب</span>
+                <a href="{{ route('admin.students.index') }}" class="nav-link {{ request()->routeIs('admin.students.*') ? 'active' : '' }}" title="الطلاب" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>الطلاب</span>
+                    </div>
+                    @php
+                        $pendingDeviceRequestsCount = \App\Models\StudentDeviceRequest::pending()->count();
+                    @endphp
+                    @if($pendingDeviceRequestsCount > 0)
+                        <span style="background: #ef4444; color: white; border-radius: 9999px; padding: 0.15rem 0.45rem; font-size: 0.75rem; font-weight: 800; min-width: 18px; text-align: center; line-height: 1;">
+                            {{ $pendingDeviceRequestsCount }}
+                        </span>
+                    @endif
                 </a>
 
                 <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 0.5rem 1rem;"></div>
