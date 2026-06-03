@@ -36,6 +36,7 @@ class User extends Authenticatable
         'subscribed_until',
         'auto_renew',
         'assignment_sort_by',
+        'allowed_secondary_devices',
     ];
 
     /**
@@ -61,6 +62,7 @@ class User extends Authenticatable
         'balance' => 'decimal:2',
         'subscribed_until' => 'datetime',
         'auto_renew' => 'boolean',
+        'allowed_secondary_devices' => 'integer',
     ];
 
     /**

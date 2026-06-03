@@ -21,6 +21,8 @@ class StudentDevice extends Model
         'device_type',
         'is_primary',
         'is_active',
+        'is_temporary',
+        'expires_at',
         'approved_by',
         'approved_at',
         'last_login_at',
@@ -29,9 +31,27 @@ class StudentDevice extends Model
     protected $casts = [
         'is_primary' => 'boolean',
         'is_active' => 'boolean',
+        'is_temporary' => 'boolean',
+        'expires_at' => 'datetime',
         'approved_at' => 'datetime',
         'last_login_at' => 'datetime',
     ];
+
+    public function isValid(): bool
+    {
+        if (!$this->is_active) {
+            return false;
+        }
+        if ($this->is_temporary && $this->expires_at && $this->expires_at->isPast()) {
+            return false;
+        }
+        return true;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->is_temporary && $this->expires_at && $this->expires_at->isPast();
+    }
 
     public function student()
     {

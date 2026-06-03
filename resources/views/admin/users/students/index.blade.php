@@ -301,8 +301,8 @@
         padding: 0.85rem;
         background: #ffffff;
         display: flex;
+        flex-direction: column;
         gap: 0.75rem;
-        align-items: flex-start;
     }
 
     .device-icon {
@@ -704,10 +704,13 @@
                                             major: '{{ $student->major->name ?? '-' }}',
                                             college: '{{ $student->college->name ?? '-' }}',
                                             university: '{{ $student->university->name ?? '-' }}',
-                                            role_label: '{{ $student->role === \App\Enums\UserRole::DELEGATE ? "مندوب دفعة" : ($student->role === \App\Enums\UserRole::PRACTICAL_DELEGATE ? "مندوب عملي" : "طالب") }}'
+                                            role_label: '{{ $student->role === \App\Enums\UserRole::DELEGATE ? "مندوب دفعة" : ($student->role === \App\Enums\UserRole::PRACTICAL_DELEGATE ? "مندوب عملي" : "طالب") }}',
+                                            allowed_secondary_devices: {{ $student->allowed_secondary_devices ?? 0 }},
+                                            secondary_devices_count: {{ $student->studentDevices->where('device_type', \App\Models\StudentDevice::TYPE_SECONDARY)->count() }}
                                         };
                                         viewDevices = {{ json_encode($student->studentDevices->map(function($device) {
                                             return [
+                                                'id' => $device->id,
                                                 'device_id' => $device->device_id,
                                                 'device_name' => $device->device_name ?: 'جهاز غير مسمى',
                                                 'platform' => $device->platform ?: '-',
@@ -716,7 +719,11 @@
                                                 'device_type_label' => $device->is_primary ? 'أساسي' : 'فرعي',
                                                 'is_primary' => (bool) $device->is_primary,
                                                 'is_active' => (bool) $device->is_active,
-                                                'status_label' => $device->is_active ? 'مفعل' : 'غير مفعل',
+                                                'is_temporary' => (bool) $device->is_temporary,
+                                                'expires_at' => $device->expires_at ? $device->expires_at->format('Y-m-d\TH:i') : null,
+                                                'expires_at_label' => $device->expires_at ? $device->expires_at->format('Y-m-d H:i') : null,
+                                                'status_label' => $device->is_active ? ($device->isExpired() ? 'منتهي الصلاحية' : 'مفعل') : 'غير مفعل',
+                                                'is_expired' => $device->isExpired(),
                                                 'approved_at' => $device->approved_at ? $device->approved_at->format('Y-m-d H:i') : null,
                                                 'last_login_at' => $device->last_login_at ? $device->last_login_at->format('Y-m-d H:i') : null,
                                                 'created_at' => $device->created_at ? $device->created_at->format('Y-m-d H:i') : null,
@@ -984,6 +991,35 @@
 
                 <!-- Tab 2: Devices -->
                 <div x-show="activeTab === 'devices'" x-transition.opacity>
+                    <!-- Slot Manager Controls -->
+                    <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <div style="font-weight: 800; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.15rem;">
+                                المساحات الفرعية المفتوحة: <span x-text="viewStudent.allowed_secondary_devices" style="color: #2563eb; font-weight: 900;"></span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                الأجهزة الفرعية المسجلة حالياً: <span x-text="viewStudent.secondary_devices_count" style="font-weight: 700;"></span> 
+                                | المساحات الشاغرة: <span x-text="Math.max(0, viewStudent.allowed_secondary_devices - viewStudent.secondary_devices_count)" style="color: #059669; font-weight: 700;"></span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <!-- Open Slot Form -->
+                            <form :action="'{{ url('admin/students') }}/' + viewStudent.id + '/open-slot'" method="POST" style="margin: 0;">
+                                @csrf
+                                <button type="submit" class="action-btn view" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px;">
+                                    + فتح مساحة جديدة
+                                </button>
+                            </form>
+                            <!-- Close Slot Form -->
+                            <form :action="'{{ url('admin/students') }}/' + viewStudent.id + '/close-slot'" method="POST" style="margin: 0;" x-show="viewStudent.allowed_secondary_devices > viewStudent.secondary_devices_count">
+                                @csrf
+                                <button type="submit" class="action-btn delete" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px; background: #fee2e2; color: #b91c1c;">
+                                    إلغاء مساحة شاغرة
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">الأجهزة المسجلة لحساب الطالب</h5>
                         <form :action="'{{ url('admin/students') }}/' + viewStudent.id + '/reset-devices'" method="POST" style="margin: 0;" onsubmit="return confirm('هل أنت متأكد من إعادة تعيين جميع الأجهزة المرتبطة بهذا الحساب؟ سيتعين على الطالب تسجيل الدخول مجدداً من جهازه الجديد وسيتم ربطه تلقائياً.')" x-show="viewDevices.length > 0">
@@ -1000,33 +1036,105 @@
 
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                         <template x-for="device in viewDevices" :key="device.device_id">
-                            <div class="device-card">
-                                <div class="device-icon">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
-                                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
-                                    </svg>
-                                </div>
-                                <div style="flex: 1; min-width: 0;">
-                                    <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start;">
-                                        <div>
-                                            <div style="font-weight: 800; color: var(--text-primary);" x-text="device.device_name"></div>
-                                            <div style="font-size: 0.75rem; color: var(--text-secondary); word-break: break-all;" x-text="device.device_id"></div>
+                            <div class="device-card" x-data="{ 
+                                editing: false,
+                                is_active: device.is_active ? '1' : '0',
+                                device_type: device.device_type,
+                                is_temporary: device.is_temporary ? '1' : '0',
+                                expires_at: device.expires_at ? device.expires_at.substring(0, 16) : ''
+                            }">
+                                <!-- View Mode -->
+                                <div x-show="!editing" style="width: 100%; display: flex; gap: 0.75rem; align-items: flex-start;">
+                                    <div class="device-icon" style="display: flex; align-items: center; justify-content: center;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+                                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                                        </svg>
+                                    </div>
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start;">
+                                            <div>
+                                                <div style="font-weight: 800; color: var(--text-primary);" x-text="device.device_name"></div>
+                                                <div style="font-size: 0.75rem; color: var(--text-secondary); word-break: break-all;" x-text="device.device_id"></div>
+                                            </div>
+                                            <span class="device-badge" :class="device.is_primary ? 'primary' : 'secondary'" x-text="device.device_type_label"></span>
                                         </div>
-                                        <span class="device-badge" :class="device.is_primary ? 'primary' : 'secondary'" x-text="device.device_type_label"></span>
+                                        <div class="device-meta" style="margin-top: 0.4rem;">
+                                            <!-- Status Badge -->
+                                            <span class="device-badge" :class="device.is_expired ? 'inactive' : (device.is_active ? 'active' : 'inactive')" x-text="device.status_label"></span>
+                                            <span class="device-badge" x-text="'النظام: ' + device.platform"></span>
+                                            <span class="device-badge" x-show="device.app_version && device.app_version !== '-'" x-text="'الإصدار: ' + device.app_version"></span>
+                                            
+                                            <!-- Expiration Badge -->
+                                            <span class="device-badge" :class="device.is_temporary ? 'secondary' : 'primary'" style="background: #f1f5f9; color: #475569;" x-text="device.is_temporary ? ('مؤقت (ينتهي: ' + (device.expires_at_label || '-') + ')') : 'صلاحية دائمة'"></span>
+                                        </div>
+                                        <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.55rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                            <div>
+                                                آخر دخول: <strong x-text="device.last_login_at || 'لم يسجل بعد'"></strong>
+                                                <span style="margin: 0 0.25rem;">•</span>
+                                                تاريخ الربط: <strong x-text="device.created_at || '-'"></strong>
+                                            </div>
+                                            <div style="display: flex; gap: 0.35rem;">
+                                                <button type="button" @click="editing = true" class="action-btn view" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; border-radius: 6px;">
+                                                    تعديل الصلاحية
+                                                </button>
+                                                
+                                                <form :action="'{{ url('admin/students/devices') }}/' + device.id" method="POST" style="margin: 0;" onsubmit="return confirm('هل أنت متأكد من إلغاء ربط وحذف هذا الجهاز؟')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="action-btn delete" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; border-radius: 6px;">
+                                                        حذف
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="device-meta">
-                                        <span class="device-badge" :class="device.is_active ? 'active' : 'inactive'" x-text="device.status_label"></span>
-                                        <span class="device-badge" x-text="'النظام: ' + device.platform"></span>
-                                        <span class="device-badge" x-show="device.app_version && device.app_version !== '-'" x-text="'الإصدار: ' + device.app_version"></span>
-                                    </div>
-                                    <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.55rem;">
-                                        آخر دخول:
-                                        <strong x-text="device.last_login_at || 'لم يسجل بعد'"></strong>
-                                        <span style="margin: 0 0.35rem;">•</span>
-                                        تاريخ الربط:
-                                        <strong x-text="device.created_at || '-'"></strong>
-                                    </div>
+                                </div>
+
+                                <!-- Edit Mode -->
+                                <div x-show="editing" style="width: 100%;" x-transition.opacity>
+                                    <form :action="'{{ url('admin/students/devices') }}/' + device.id" method="POST" style="margin: 0;">
+                                        @csrf
+                                        @method('PATCH')
+                                        <div style="font-weight: 800; font-size: 0.85rem; color: #2563eb; margin-bottom: 0.75rem; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.25rem;">
+                                            تعديل صلاحية الجهاز: <span x-text="device.device_name"></span>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                                            <div>
+                                                <label style="font-size: 0.72rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">نوع الجهاز</label>
+                                                <select name="device_type" x-model="device_type" style="width: 100%; padding: 0.35rem; font-size: 0.78rem; border: 1px solid var(--border-color); border-radius: 6px; background: white;">
+                                                    <option value="primary">أساسي (Primary)</option>
+                                                    <option value="secondary">فرعي (Secondary)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 0.72rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">حالة التنشيط</label>
+                                                <select name="is_active" x-model="is_active" style="width: 100%; padding: 0.35rem; font-size: 0.78rem; border: 1px solid var(--border-color); border-radius: 6px; background: white;">
+                                                    <option value="1">نشط ومفعل</option>
+                                                    <option value="0">غير نشط</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 0.72rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">صلاحية الجهاز</label>
+                                                <select name="is_temporary" x-model="is_temporary" style="width: 100%; padding: 0.35rem; font-size: 0.78rem; border: 1px solid var(--border-color); border-radius: 6px; background: white;">
+                                                    <option value="0">دائمة (Permanent)</option>
+                                                    <option value="1">مؤقتة (Temporary)</option>
+                                                </select>
+                                            </div>
+                                            <div x-show="is_temporary === '1'">
+                                                <label style="font-size: 0.72rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">تاريخ انتهاء الصلاحية</label>
+                                                <input type="datetime-local" name="expires_at" x-model="expires_at" style="width: 100%; padding: 0.3rem; font-size: 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; background: white;" :required="is_temporary === '1'">
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 0.35rem; justify-content: flex-end; margin-top: 0.5rem;">
+                                            <button type="button" @click="editing = false" class="action-btn view" style="padding: 0.3rem 0.75rem; font-size: 0.75rem; border-radius: 6px; background: #f3f4f6; color: #4b5563;">
+                                                إلغاء
+                                            </button>
+                                            <button type="submit" class="action-btn view" style="padding: 0.3rem 0.75rem; font-size: 0.75rem; border-radius: 6px; background: #059669; color: white;">
+                                                حفظ التغييرات
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         </template>

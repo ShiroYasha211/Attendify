@@ -49,16 +49,56 @@ class AuthController extends StudentApiController
         if ($deviceId) {
             $existingDevice = $user->studentDevices()->where('device_id', $deviceId)->first();
             $hasPrimaryDevice = $user->studentDevices()->where('is_primary', true)->exists();
-            if ($hasPrimaryDevice && (! $existingDevice || ! $existingDevice->is_active)) {
-                $whatsappNumber = Setting::get('admin_whatsapp_number', '');
-                return $this->error(
-                    'هذا الحساب مرتبط بجهاز آخر. يرجى التواصل مع الإدارة لتسجيل جهازك الجديد.',
-                    403,
-                    [
-                        'error_code'      => 'device_not_authorized',
-                        'whatsapp_number' => $whatsappNumber,
-                    ]
-                );
+            
+            if ($hasPrimaryDevice) {
+                // If it doesn't exist, try to consume an available secondary slot
+                if (!$existingDevice) {
+                    $secondaryCount = $user->studentDevices()->where('device_type', StudentDevice::TYPE_SECONDARY)->count();
+                    
+                    if ($secondaryCount < ($user->allowed_secondary_devices ?? 0)) {
+                        // Slot is available! Auto-register as active secondary device
+                        $existingDevice = $user->studentDevices()->create([
+                            'device_id' => $deviceId,
+                            'device_name' => $request->input('device.device_name') ?? 'جهاز فرعي تلقائي',
+                            'platform' => $request->input('device.platform'),
+                            'app_version' => $request->input('device.app_version'),
+                            'device_type' => StudentDevice::TYPE_SECONDARY,
+                            'is_primary' => false,
+                            'is_active' => true,
+                            'is_temporary' => false,
+                            'approved_at' => now(),
+                        ]);
+                    } else {
+                        // No slots available
+                        $whatsappNumber = Setting::get('admin_whatsapp_number', '');
+                        return $this->error(
+                            'هذا الحساب مرتبط بجهاز آخر. يرجى التواصل مع الإدارة لفتح مساحة وتسجيل جهازك الجديد.',
+                            403,
+                            [
+                                'error_code'      => 'device_not_authorized',
+                                'whatsapp_number' => $whatsappNumber,
+                            ]
+                        );
+                    }
+                }
+
+                // If it exists, verify it is valid (active and not expired)
+                if (!$existingDevice->isValid()) {
+                    $whatsappNumber = Setting::get('admin_whatsapp_number', '');
+                    
+                    $message = $existingDevice->isExpired()
+                        ? 'انتهت صلاحية الفترة المحددة لهذا الجهاز الفرعي. يرجى التواصل مع الإدارة لتمديد الصلاحية.'
+                        : 'هذا الجهاز الفرعي غير نشط حالياً. يرجى التواصل مع الإدارة لتفعيله.';
+
+                    return $this->error(
+                        $message,
+                        403,
+                        [
+                            'error_code'      => 'device_not_authorized',
+                            'whatsapp_number' => $whatsappNumber,
+                        ]
+                    );
+                }
             }
         }
 

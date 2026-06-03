@@ -76,6 +76,10 @@ Route::prefix('admin')
         Route::resource('students', App\Http\Controllers\Admin\StudentController::class);
         Route::post('students/{student}/permissions', [App\Http\Controllers\Admin\StudentController::class, 'updatePermissions'])->name('students.permissions');
         Route::post('students/{student}/reset-devices', [App\Http\Controllers\Admin\StudentController::class, 'resetDevices'])->name('students.reset-devices');
+        Route::post('students/{student}/open-slot', [App\Http\Controllers\Admin\StudentController::class, 'openDeviceSlot'])->name('students.open-slot');
+        Route::post('students/{student}/close-slot', [App\Http\Controllers\Admin\StudentController::class, 'closeDeviceSlot'])->name('students.close-slot');
+        Route::patch('students/devices/{device}', [App\Http\Controllers\Admin\StudentController::class, 'updateDevice'])->name('students.devices.update');
+        Route::delete('students/devices/{device}', [App\Http\Controllers\Admin\StudentController::class, 'destroyDevice'])->name('students.devices.destroy');
         Route::resource('doctors', App\Http\Controllers\Admin\DoctorController::class);
         Route::patch('doctors/{doctor}/administrative-access', [App\Http\Controllers\Admin\DoctorController::class, 'updateAdministrativeAccess'])->name('doctors.administrative-access');
 

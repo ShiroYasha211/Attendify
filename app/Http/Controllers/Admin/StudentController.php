@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Enums\UserRole;
 use App\Models\Academic\Major;
+use App\Models\StudentDevice;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -193,5 +194,97 @@ class StudentController extends Controller
         $this->logUpdate('StudentDevices', $student, "تم إعادة تعيين أجهزة الطالب: {$student->name}");
 
         return back()->with('success', 'تم إعادة تعيين أجهزة الطالب بنجاح، ويمكنه الآن تسجيل الدخول من جهاز جديد.');
+    }
+
+    /**
+     * فتح مساحة لجهاز فرعي جديد.
+     */
+    public function openDeviceSlot(User $student)
+    {
+        if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
+            return back()->with('error', 'لا يمكن تعديل هذا المستخدم.');
+        }
+
+        $student->increment('allowed_secondary_devices');
+
+        $this->logUpdate('StudentDevices', $student, "تم فتح مساحة لجهاز فرعي جديد للطالب: {$student->name}");
+
+        return back()->with('success', 'تم فتح مساحة للجهاز الفرعي بنجاح، يمكن للطالب الآن ربطه بمجرد تسجيل الدخول منه.');
+    }
+
+    /**
+     * إلغاء مساحة جهاز فرعي غير مستخدمة.
+     */
+    public function closeDeviceSlot(User $student)
+    {
+        if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
+            return back()->with('error', 'لا يمكن تعديل هذا المستخدم.');
+        }
+
+        $secondaryDevicesCount = $student->studentDevices()->where('device_type', StudentDevice::TYPE_SECONDARY)->count();
+
+        if ($student->allowed_secondary_devices <= $secondaryDevicesCount) {
+            return back()->with('error', 'لا يمكن إلغاء مساحة فرعية مستخدمة بالفعل. يرجى حذف الجهاز أولاً.');
+        }
+
+        if ($student->allowed_secondary_devices > 0) {
+            $student->decrement('allowed_secondary_devices');
+        }
+
+        $this->logUpdate('StudentDevices', $student, "تم إلغاء مساحة جهاز فرعي غير مستخدمة للطالب: {$student->name}");
+
+        return back()->with('success', 'تم إلغاء المساحة الفرعية الشاغرة بنجاح.');
+    }
+
+    /**
+     * تعديل بيانات وصلاحية جهاز الطالب.
+     */
+    public function updateDevice(Request $request, StudentDevice $device)
+    {
+        $request->validate([
+            'is_active' => 'required|boolean',
+            'device_type' => 'required|in:primary,secondary',
+            'is_temporary' => 'required|boolean',
+            'expires_at' => 'nullable|date',
+        ]);
+
+        $student = $device->student;
+
+        // If setting this device to primary, demote any other primary device for this user
+        if ($request->device_type === StudentDevice::TYPE_PRIMARY) {
+            $student->studentDevices()
+                ->where('id', '!=', $device->id)
+                ->where('device_type', StudentDevice::TYPE_PRIMARY)
+                ->update([
+                    'device_type' => StudentDevice::TYPE_SECONDARY,
+                    'is_primary' => false,
+                ]);
+        }
+
+        $device->update([
+            'is_active' => (bool)$request->is_active,
+            'device_type' => $request->device_type,
+            'is_primary' => $request->device_type === StudentDevice::TYPE_PRIMARY,
+            'is_temporary' => (bool)$request->is_temporary,
+            'expires_at' => $request->is_temporary ? $request->expires_at : null,
+        ]);
+
+        $this->logUpdate('StudentDevices', $student, "تم تعديل إعدادات الجهاز ({$device->device_name}) للطالب: {$student->name}");
+
+        return back()->with('success', 'تم تحديث إعدادات وصلاحية الجهاز بنجاح.');
+    }
+
+    /**
+     * حذف وإلغاء ربط جهاز الطالب.
+     */
+    public function destroyDevice(StudentDevice $device)
+    {
+        $student = $device->student;
+
+        $this->logDelete('StudentDevices', $device, "تم إلغاء ربط وحذف الجهاز ({$device->device_name}) للطالب: {$student->name}");
+
+        $device->delete();
+
+        return back()->with('success', 'تم حذف وإلغاء ربط الجهاز بنجاح.');
     }
 }
