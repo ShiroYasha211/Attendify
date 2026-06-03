@@ -303,6 +303,16 @@
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .device-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+        transform: translateY(-2px);
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 
     .device-icon {
@@ -390,7 +400,160 @@
     viewDevices: [],
     showPermissionsModal: false,
     permStudent: { name: '', permissions: [] },
-    permsUrl: ''
+    permsUrl: '',
+
+    // AJAX Device Management and Toast states
+    toastShow: false,
+    toastMessage: '',
+    toastType: 'success',
+    isLoadingDevices: false,
+    showToast(message, type = 'success') {
+        this.toastMessage = message;
+        this.toastType = type;
+        this.toastShow = true;
+        setTimeout(() => { this.toastShow = false; }, 4000);
+    },
+    async openDeviceSlotAJAX() {
+        if (this.isLoadingDevices) return;
+        this.isLoadingDevices = true;
+        try {
+            const response = await fetch('{{ url('admin/students') }}/' + this.viewStudent.id + '/open-slot', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.viewStudent.allowed_secondary_devices = data.allowed_secondary_devices;
+                this.viewStudent.secondary_devices_count = data.secondary_devices_count;
+                this.viewDevices = data.devices;
+                this.showToast(data.message, 'success');
+            } else {
+                this.showToast(data.message || 'حدث خطأ ما', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDevices = false;
+        }
+    },
+    async closeDeviceSlotAJAX() {
+        if (this.isLoadingDevices) return;
+        this.isLoadingDevices = true;
+        try {
+            const response = await fetch('{{ url('admin/students') }}/' + this.viewStudent.id + '/close-slot', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.viewStudent.allowed_secondary_devices = data.allowed_secondary_devices;
+                this.viewStudent.secondary_devices_count = data.secondary_devices_count;
+                this.viewDevices = data.devices;
+                this.showToast(data.message, 'success');
+            } else {
+                this.showToast(data.message || 'حدث خطأ ما', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDevices = false;
+        }
+    },
+    async resetDevicesAJAX() {
+        if (!confirm('هل أنت متأكد من إعادة تعيين جميع الأجهزة المرتبطة بهذا الحساب؟ سيتعين على الطالب تسجيل الدخول مجدداً من جهازه الجديد وسيتم ربطه تلقائياً.')) return;
+        if (this.isLoadingDevices) return;
+        this.isLoadingDevices = true;
+        try {
+            const response = await fetch('{{ url('admin/students') }}/' + this.viewStudent.id + '/reset-devices', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.viewStudent.allowed_secondary_devices = data.allowed_secondary_devices;
+                this.viewStudent.secondary_devices_count = data.secondary_devices_count;
+                this.viewDevices = data.devices;
+                this.showToast(data.message, 'success');
+            } else {
+                this.showToast(data.message || 'حدث خطأ ما', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDevices = false;
+        }
+    },
+    async updateDeviceAJAX(deviceId, payload) {
+        if (this.isLoadingDevices) return;
+        this.isLoadingDevices = true;
+        try {
+            const response = await fetch('{{ url('admin/students/devices') }}/' + deviceId, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-HTTP-Method-Override': 'PATCH',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.viewStudent.allowed_secondary_devices = data.allowed_secondary_devices;
+                this.viewStudent.secondary_devices_count = data.secondary_devices_count;
+                this.viewDevices = data.devices;
+                this.showToast(data.message, 'success');
+            } else {
+                this.showToast(data.message || 'حدث خطأ ما', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDevices = false;
+        }
+    },
+    async destroyDeviceAJAX(deviceId) {
+        if (!confirm('هل أنت متأكد من إلغاء ربط وحذف هذا الجهاز؟')) return;
+        if (this.isLoadingDevices) return;
+        this.isLoadingDevices = true;
+        try {
+            const response = await fetch('{{ url('admin/students/devices') }}/' + deviceId, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-HTTP-Method-Override': 'DELETE',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.viewStudent.allowed_secondary_devices = data.allowed_secondary_devices;
+                this.viewStudent.secondary_devices_count = data.secondary_devices_count;
+                this.viewDevices = data.devices;
+                this.showToast(data.message, 'success');
+            } else {
+                this.showToast(data.message || 'حدث خطأ ما', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+        } finally {
+            this.isLoadingDevices = false;
+        }
+    }
 }">
 
     <!-- Page Header -->
@@ -990,7 +1153,17 @@
                 </div>
 
                 <!-- Tab 2: Devices -->
-                <div x-show="activeTab === 'devices'" x-transition.opacity>
+                <div x-show="activeTab === 'devices'" x-transition.opacity style="position: relative;">
+                    <!-- Loading overlay for the tab -->
+                    <div x-show="isLoadingDevices" 
+                         x-transition.opacity 
+                         style="position: absolute; inset: 0; background: rgba(255, 255, 255, 0.72); z-index: 10; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(1px); border-radius: 12px;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: #2563eb; font-weight: 700; font-size: 0.85rem;">
+                            <span style="width: 28px; height: 28px; border: 3px solid #2563eb; border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite;"></span>
+                            جاري معالجة الطلب...
+                        </div>
+                    </div>
+
                     <!-- Slot Manager Controls -->
                     <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                         <div>
@@ -1003,35 +1176,27 @@
                             </div>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
-                            <!-- Open Slot Form -->
-                            <form :action="'{{ url('admin/students') }}/' + viewStudent.id + '/open-slot'" method="POST" style="margin: 0;">
-                                @csrf
-                                <button type="submit" class="action-btn view" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px;">
-                                    + فتح مساحة جديدة
-                                </button>
-                            </form>
-                            <!-- Close Slot Form -->
-                            <form :action="'{{ url('admin/students') }}/' + viewStudent.id + '/close-slot'" method="POST" style="margin: 0;" x-show="viewStudent.allowed_secondary_devices > viewStudent.secondary_devices_count">
-                                @csrf
-                                <button type="submit" class="action-btn delete" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px; background: #fee2e2; color: #b91c1c;">
-                                    إلغاء مساحة شاغرة
-                                </button>
-                            </form>
+                            <!-- Open Slot Button -->
+                            <button type="button" @click="openDeviceSlotAJAX()" class="action-btn view" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px; display: flex; align-items: center; gap: 0.25rem;">
+                                + فتح مساحة جديدة
+                            </button>
+                            <!-- Close Slot Button -->
+                            <button type="button" @click="closeDeviceSlotAJAX()" class="action-btn delete" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px; background: #fee2e2; color: #b91c1c; display: flex; align-items: center; gap: 0.25rem;" x-show="viewStudent.allowed_secondary_devices > viewStudent.secondary_devices_count">
+                                إلغاء مساحة شاغرة
+                            </button>
                         </div>
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">الأجهزة المسجلة لحساب الطالب</h5>
-                        <form :action="'{{ url('admin/students') }}/' + viewStudent.id + '/reset-devices'" method="POST" style="margin: 0;" onsubmit="return confirm('هل أنت متأكد من إعادة تعيين جميع الأجهزة المرتبطة بهذا الحساب؟ سيتعين على الطالب تسجيل الدخول مجدداً من جهازه الجديد وسيتم ربطه تلقائياً.')" x-show="viewDevices.length > 0">
-                            @csrf
-                            <button type="submit" class="action-btn delete" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M23 4v6h-6"></path>
-                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                </svg>
-                                إعادة تعيين الأجهزة
-                            </button>
-                        </form>
+                        <!-- Reset Devices Button -->
+                        <button type="button" @click="resetDevicesAJAX()" class="action-btn delete" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; display: flex; align-items: center; gap: 0.3rem;" x-show="viewDevices.length > 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                            </svg>
+                            إعادة تعيين الأجهزة
+                        </button>
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -1079,13 +1244,9 @@
                                                     تعديل الصلاحية
                                                 </button>
                                                 
-                                                <form :action="'{{ url('admin/students/devices') }}/' + device.id" method="POST" style="margin: 0;" onsubmit="return confirm('هل أنت متأكد من إلغاء ربط وحذف هذا الجهاز؟')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="action-btn delete" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; border-radius: 6px;">
-                                                        حذف
-                                                    </button>
-                                                </form>
+                                                <button type="button" @click="destroyDeviceAJAX(device.id)" class="action-btn delete" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; border-radius: 6px;">
+                                                    حذف
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -1093,9 +1254,7 @@
 
                                 <!-- Edit Mode -->
                                 <div x-show="editing" style="width: 100%;" x-transition.opacity>
-                                    <form :action="'{{ url('admin/students/devices') }}/' + device.id" method="POST" style="margin: 0;">
-                                        @csrf
-                                        @method('PATCH')
+                                    <form @submit.prevent="updateDeviceAJAX(device.id, { is_active: is_active, device_type: device_type, is_temporary: is_temporary, expires_at: expires_at }); editing = false;" style="margin: 0;">
                                         <div style="font-weight: 800; font-size: 0.85rem; color: #2563eb; margin-bottom: 0.75rem; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.25rem;">
                                             تعديل صلاحية الجهاز: <span x-text="device.device_name"></span>
                                         </div>
@@ -1229,6 +1388,37 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- Beautiful premium toast notification container -->
+    <div x-show="toastShow" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-2 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 translate-y-2 scale-95"
+         style="position: fixed; bottom: 2rem; left: 2rem; z-index: 99999; display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1.5rem; border-radius: 14px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.15); color: white; direction: rtl; transition: all 0.3s; pointer-events: none;"
+         :style="toastType === 'success' ? 'background: linear-gradient(135deg, #059669 0%, #10b981 100%); border: 1px solid #34d399;' : 'background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); border: 1px solid #fca5a5;'">
+         
+         <!-- Success Icon -->
+         <template x-if="toastType === 'success'">
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
+             </svg>
+         </template>
+         
+         <!-- Error Icon -->
+         <template x-if="toastType === 'error'">
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                 <circle cx="12" cy="12" r="10"></circle>
+                 <line x1="12" y1="8" x2="12" y2="12"></line>
+                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
+             </svg>
+         </template>
+         
+         <span style="font-weight: 700; font-size: 0.9rem;" x-text="toastMessage"></span>
     </div>
 
 </div>

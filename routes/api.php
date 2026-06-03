@@ -264,7 +264,7 @@ Route::prefix('delegate')->group(function () {
 // ══════════════════════════════════════════════════════════════
 // Delegate API — Protected (Sanctum Auth + Delegate Role)
 // ══════════════════════════════════════════════════════════════
-Route::prefix('delegate')->middleware(['auth:sanctum'])->group(function () {
+Route::prefix('delegate')->middleware(['auth:sanctum', 'device.validate'])->group(function () {
 
     // Auth
     Route::post('logout', [DelegateAuthController::class, 'logout']);
@@ -525,7 +525,7 @@ Route::prefix('student')->group(function () {
 // ══════════════════════════════════════════════════════════════
 // Student API — Protected (Sanctum Auth + CheckUserStatus)
 // ══════════════════════════════════════════════════════════════
-Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\CheckUserStatus::class])->group(function () {
+Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\CheckUserStatus::class, 'device.validate'])->group(function () {
 
     // Auth & Profile
     Route::post('logout', [StudentAuthController::class, 'logout']);

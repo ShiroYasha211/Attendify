@@ -104,7 +104,12 @@ class AuthController extends StudentApiController
 
         $user->load(['major', 'level', 'clinicalDelegateAssignment']);
         $device = $this->recordLoginDevice($user, $request->input('device', []));
-        $token = $user->createToken('student_api_token')->plainTextToken;
+        
+        $abilities = [];
+        if ($deviceId) {
+            $abilities[] = 'device_id:' . $deviceId;
+        }
+        $token = $user->createToken('student_api_token', $abilities)->plainTextToken;
 
         return $this->success([
             'token' => $token,

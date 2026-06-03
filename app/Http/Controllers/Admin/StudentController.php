@@ -186,12 +186,25 @@ class StudentController extends Controller
     public function resetDevices(User $student)
     {
         if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json(['success' => false, 'message' => 'لا يمكن تعديل أجهزة هذا المستخدم.']);
+            }
             return back()->with('error', 'لا يمكن تعديل أجهزة هذا المستخدم.');
         }
 
         $student->studentDevices()->delete();
 
         $this->logUpdate('StudentDevices', $student, "تم إعادة تعيين أجهزة الطالب: {$student->name}");
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إعادة تعيين أجهزة الطالب بنجاح، ويمكنه الآن تسجيل الدخول من جهاز جديد.',
+                'allowed_secondary_devices' => $student->allowed_secondary_devices,
+                'secondary_devices_count' => 0,
+                'devices' => [],
+            ]);
+        }
 
         return back()->with('success', 'تم إعادة تعيين أجهزة الطالب بنجاح، ويمكنه الآن تسجيل الدخول من جهاز جديد.');
     }
@@ -202,12 +215,25 @@ class StudentController extends Controller
     public function openDeviceSlot(User $student)
     {
         if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json(['success' => false, 'message' => 'لا يمكن تعديل هذا المستخدم.']);
+            }
             return back()->with('error', 'لا يمكن تعديل هذا المستخدم.');
         }
 
         $student->increment('allowed_secondary_devices');
 
         $this->logUpdate('StudentDevices', $student, "تم فتح مساحة لجهاز فرعي جديد للطالب: {$student->name}");
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم فتح مساحة للجهاز الفرعي بنجاح.',
+                'allowed_secondary_devices' => $student->allowed_secondary_devices,
+                'secondary_devices_count' => $student->studentDevices()->where('device_type', StudentDevice::TYPE_SECONDARY)->count(),
+                'devices' => $this->getStudentDevicesArray($student),
+            ]);
+        }
 
         return back()->with('success', 'تم فتح مساحة للجهاز الفرعي بنجاح، يمكن للطالب الآن ربطه بمجرد تسجيل الدخول منه.');
     }
@@ -218,12 +244,18 @@ class StudentController extends Controller
     public function closeDeviceSlot(User $student)
     {
         if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json(['success' => false, 'message' => 'لا يمكن تعديل هذا المستخدم.']);
+            }
             return back()->with('error', 'لا يمكن تعديل هذا المستخدم.');
         }
 
         $secondaryDevicesCount = $student->studentDevices()->where('device_type', StudentDevice::TYPE_SECONDARY)->count();
 
         if ($student->allowed_secondary_devices <= $secondaryDevicesCount) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json(['success' => false, 'message' => 'لا يمكن إلغاء مساحة فرعية مستخدمة بالفعل. يرجى حذف الجهاز أولاً.']);
+            }
             return back()->with('error', 'لا يمكن إلغاء مساحة فرعية مستخدمة بالفعل. يرجى حذف الجهاز أولاً.');
         }
 
@@ -232,6 +264,16 @@ class StudentController extends Controller
         }
 
         $this->logUpdate('StudentDevices', $student, "تم إلغاء مساحة جهاز فرعي غير مستخدمة للطالب: {$student->name}");
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إلغاء المساحة الفرعية الشاغرة بنجاح.',
+                'allowed_secondary_devices' => $student->allowed_secondary_devices,
+                'secondary_devices_count' => $student->studentDevices()->where('device_type', StudentDevice::TYPE_SECONDARY)->count(),
+                'devices' => $this->getStudentDevicesArray($student),
+            ]);
+        }
 
         return back()->with('success', 'تم إلغاء المساحة الفرعية الشاغرة بنجاح.');
     }
@@ -271,6 +313,16 @@ class StudentController extends Controller
 
         $this->logUpdate('StudentDevices', $student, "تم تعديل إعدادات الجهاز ({$device->device_name}) للطالب: {$student->name}");
 
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث إعدادات وصلاحية الجهاز بنجاح.',
+                'allowed_secondary_devices' => $student->allowed_secondary_devices,
+                'secondary_devices_count' => $student->studentDevices()->where('device_type', StudentDevice::TYPE_SECONDARY)->count(),
+                'devices' => $this->getStudentDevicesArray($student),
+            ]);
+        }
+
         return back()->with('success', 'تم تحديث إعدادات وصلاحية الجهاز بنجاح.');
     }
 
@@ -285,6 +337,44 @@ class StudentController extends Controller
 
         $device->delete();
 
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف وإلغاء ربط الجهاز بنجاح.',
+                'allowed_secondary_devices' => $student->allowed_secondary_devices,
+                'secondary_devices_count' => $student->studentDevices()->where('device_type', StudentDevice::TYPE_SECONDARY)->count(),
+                'devices' => $this->getStudentDevicesArray($student),
+            ]);
+        }
+
         return back()->with('success', 'تم حذف وإلغاء ربط الجهاز بنجاح.');
+    }
+
+    /**
+     * Get the formatted devices list for a student.
+     */
+    private function getStudentDevicesArray(User $student)
+    {
+        return $student->studentDevices()->latest('last_login_at')->latest()->get()->map(function($device) {
+            return [
+                'id' => $device->id,
+                'device_id' => $device->device_id,
+                'device_name' => $device->device_name ?: 'جهاز غير مسمى',
+                'platform' => $device->platform ?: '-',
+                'app_version' => $device->app_version ?: '-',
+                'device_type' => $device->device_type,
+                'device_type_label' => $device->is_primary ? 'أساسي' : 'فرعي',
+                'is_primary' => (bool) $device->is_primary,
+                'is_active' => (bool) $device->is_active,
+                'is_temporary' => (bool) $device->is_temporary,
+                'expires_at' => $device->expires_at ? $device->expires_at->format('Y-m-d\TH:i') : null,
+                'expires_at_label' => $device->expires_at ? $device->expires_at->format('Y-m-d H:i') : null,
+                'status_label' => $device->is_active ? ($device->isExpired() ? 'منتهي الصلاحية' : 'مفعل') : 'غير مفعل',
+                'is_expired' => $device->isExpired(),
+                'approved_at' => $device->approved_at ? $device->approved_at->format('Y-m-d H:i') : null,
+                'last_login_at' => $device->last_login_at ? $device->last_login_at->format('Y-m-d H:i') : null,
+                'created_at' => $device->created_at ? $device->created_at->format('Y-m-d H:i') : null,
+            ];
+        })->values()->all();
     }
 }
