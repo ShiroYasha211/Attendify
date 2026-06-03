@@ -16,7 +16,13 @@ class StudentController extends AdminApiController
     public function index(Request $request)
     {
         $query = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
-            ->with(['university', 'college', 'major', 'level'])
+            ->with([
+                'university',
+                'college',
+                'major',
+                'level',
+                'studentDevices' => fn ($query) => $query->latest('last_login_at')->latest(),
+            ])
             ->latest();
 
         if ($request->search) {
@@ -35,7 +41,14 @@ class StudentController extends AdminApiController
 
     public function show(User $student)
     {
-        return $this->success($student->load('university', 'college', 'major', 'level'));
+        return $this->success($student->load([
+            'university',
+            'college',
+            'major',
+            'level',
+            'studentDevices' => fn ($query) => $query->latest('last_login_at')->latest(),
+            'studentDeviceRequests' => fn ($query) => $query->latest(),
+        ]));
     }
 
     public function store(Request $request)

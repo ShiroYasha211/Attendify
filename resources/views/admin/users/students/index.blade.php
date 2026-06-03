@@ -294,6 +294,66 @@
         font-size: 0.8rem;
         font-weight: 600;
     }
+
+    .device-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 0.85rem;
+        background: #ffffff;
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .device-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eff6ff;
+        color: #2563eb;
+        flex: 0 0 auto;
+    }
+
+    .device-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.45rem;
+    }
+
+    .device-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .device-badge.primary {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .device-badge.secondary {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .device-badge.active {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .device-badge.inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
 </style>
 
 <div x-data="{ 
@@ -314,6 +374,7 @@
     viewStudent: {},
     viewSubjects: [],
     viewDelegate: null,
+    viewDevices: [],
     showPermissionsModal: false,
     permStudent: { name: '', permissions: [] },
     permsUrl: ''
@@ -600,6 +661,22 @@
                                             college: '{{ $student->college->name ?? '-' }}',
                                             university: '{{ $student->university->name ?? '-' }}'
                                         };
+                                        viewDevices = {{ json_encode($student->studentDevices->map(function($device) {
+                                            return [
+                                                'device_id' => $device->device_id,
+                                                'device_name' => $device->device_name ?: 'جهاز غير مسمى',
+                                                'platform' => $device->platform ?: '-',
+                                                'app_version' => $device->app_version ?: '-',
+                                                'device_type' => $device->device_type,
+                                                'device_type_label' => $device->is_primary ? 'أساسي' : 'فرعي',
+                                                'is_primary' => (bool) $device->is_primary,
+                                                'is_active' => (bool) $device->is_active,
+                                                'status_label' => $device->is_active ? 'مفعل' : 'غير مفعل',
+                                                'approved_at' => $device->approved_at ? $device->approved_at->format('Y-m-d H:i') : null,
+                                                'last_login_at' => $device->last_login_at ? $device->last_login_at->format('Y-m-d H:i') : null,
+                                                'created_at' => $device->created_at ? $device->created_at->format('Y-m-d H:i') : null,
+                                            ];
+                                        })->values()) }};
                                         viewSubjects = {{ json_encode($student->level ? $student->level->terms->flatMap->subjects->map(function($s) {
                                             return [
                                                 'name' => $s->name,
@@ -787,6 +864,51 @@
                             <path d="M12 14v7"></path>
                         </svg>
                         <span x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registered Devices -->
+            <div style="margin-bottom: 1.5rem;">
+                <h5 style="margin-top: 0; margin-bottom: 1rem; color: var(--text-primary); border-bottom: 2px solid #2563eb; display: inline-block; padding-bottom: 0.25rem;">
+                    الأجهزة المرتبطة بالحساب
+                </h5>
+
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <template x-for="device in viewDevices" :key="device.device_id">
+                        <div class="device-card">
+                            <div class="device-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+                                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                                </svg>
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start;">
+                                    <div>
+                                        <div style="font-weight: 800; color: var(--text-primary);" x-text="device.device_name"></div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary); word-break: break-all;" x-text="device.device_id"></div>
+                                    </div>
+                                    <span class="device-badge" :class="device.is_primary ? 'primary' : 'secondary'" x-text="device.device_type_label"></span>
+                                </div>
+                                <div class="device-meta">
+                                    <span class="device-badge" :class="device.is_active ? 'active' : 'inactive'" x-text="device.status_label"></span>
+                                    <span class="device-badge" x-text="'النظام: ' + device.platform"></span>
+                                    <span class="device-badge" x-show="device.app_version && device.app_version !== '-'" x-text="'الإصدار: ' + device.app_version"></span>
+                                </div>
+                                <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.55rem;">
+                                    آخر دخول:
+                                    <strong x-text="device.last_login_at || 'لم يسجل بعد'"></strong>
+                                    <span style="margin: 0 0.35rem;">•</span>
+                                    تاريخ الربط:
+                                    <strong x-text="device.created_at || '-'"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div x-show="viewDevices.length === 0" style="text-align: center; padding: 1rem; color: var(--text-secondary); background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px;">
+                        لم يتم تسجيل أي جهاز لهذا الطالب حتى الآن.
                     </div>
                 </div>
             </div>

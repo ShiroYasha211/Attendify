@@ -21,7 +21,14 @@ class StudentController extends Controller
     public function index()
     {
         $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
-            ->with(['university', 'college', 'major', 'level.terms.subjects.doctor', 'permissions'])
+            ->with([
+                'university',
+                'college',
+                'major',
+                'level.terms.subjects.doctor',
+                'permissions',
+                'studentDevices' => fn ($query) => $query->latest('last_login_at')->latest(),
+            ])
             ->latest()
             ->paginate(10);
 
