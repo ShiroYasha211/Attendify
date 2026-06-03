@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Student;
 
+use App\Models\StudentDevice;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,11 @@ class AuthController extends StudentApiController
         $request->validate([
             'login' => 'required',
             'password' => 'required',
+            'device' => 'nullable|array',
+            'device.device_id' => 'nullable|string|max:255',
+            'device.device_name' => 'nullable|string|max:255',
+            'device.platform' => 'nullable|string|max:50',
+            'device.app_version' => 'nullable|string|max:50',
         ]);
 
         $login = $request->login;
@@ -39,10 +45,17 @@ class AuthController extends StudentApiController
         }
 
         $user->load(['major', 'level', 'clinicalDelegateAssignment']);
+        $device = $this->recordLoginDevice($user, $request->input('device', []));
         $token = $user->createToken('student_api_token')->plainTextToken;
 
         return $this->success([
             'token' => $token,
+            'device' => $device ? [
+                'id' => $device->id,
+                'device_type' => $device->device_type,
+                'is_primary' => $device->is_primary,
+                'is_active' => $device->is_active,
+            ] : null,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -65,6 +78,48 @@ class AuthController extends StudentApiController
                     : [],
             ],
         ], 'تم تسجيل الدخول بنجاح');
+    }
+
+    private function recordLoginDevice(User $user, array $deviceData): ?StudentDevice
+    {
+        $deviceId = trim((string) ($deviceData['device_id'] ?? ''));
+
+        if ($deviceId === '') {
+            return null;
+        }
+
+        $hasPrimary = $user->studentDevices()->where('is_primary', true)->exists();
+        $device = $user->studentDevices()->where('device_id', $deviceId)->first();
+
+        $payload = [
+            'device_name' => $deviceData['device_name'] ?? null,
+            'platform' => $deviceData['platform'] ?? null,
+            'app_version' => $deviceData['app_version'] ?? null,
+            'last_login_at' => now(),
+        ];
+
+        if ($device) {
+            if (! $hasPrimary) {
+                $payload['device_type'] = StudentDevice::TYPE_PRIMARY;
+                $payload['is_primary'] = true;
+                $payload['is_active'] = true;
+                $payload['approved_at'] = $device->approved_at ?? now();
+            }
+
+            $device->update($payload);
+
+            return $device->refresh();
+        }
+
+        return $user->studentDevices()->create($payload + [
+            'device_id' => $deviceId,
+            'device_type' => $hasPrimary
+                ? StudentDevice::TYPE_SECONDARY
+                : StudentDevice::TYPE_PRIMARY,
+            'is_primary' => ! $hasPrimary,
+            'is_active' => ! $hasPrimary,
+            'approved_at' => $hasPrimary ? null : now(),
+        ]);
     }
 
     /**

@@ -80,7 +80,7 @@ class NewsHubController extends StudentApiController
                 'total' => $items->count(),
                 'last_page' => (int) ceil(max($items->count(), 1) / $perPage),
             ],
-            'items' => $paginated->map(fn ($item) => $this->serializeItem($item))->values(),
+            'items' => $paginated->map(fn ($item) => $this->serializeItem($item, $student))->values(),
         ]);
     }
 
@@ -125,9 +125,30 @@ class NewsHubController extends StudentApiController
             ->get();
     }
 
-    private function serializeItem($item): array
+    private function serializeItem($item, $student = null): array
     {
         if ($item instanceof StudentNotification) {
+            $pollData = null;
+            if ($item->type === 'poll') {
+                $studentId = $student ? $student->id : auth()->id();
+                $options = \App\Models\PollOption::where('batch_id', $item->batch_id)->get();
+                $votedOption = \App\Models\PollVote::where('batch_id', $item->batch_id)
+                    ->where('student_id', $studentId)
+                    ->first();
+
+                $pollData = [
+                    'options' => $options->map(function ($option) {
+                        return [
+                            'id' => $option->id,
+                            'text' => $option->option_text,
+                            'votes_count' => \App\Models\PollVote::where('poll_option_id', $option->id)->count(),
+                        ];
+                    })->toArray(),
+                    'has_voted' => (bool) $votedOption,
+                    'voted_option_id' => $votedOption?->poll_option_id,
+                ];
+            }
+
             return [
                 'id' => 'center-' . $item->id,
                 'source' => 'administration',
@@ -147,6 +168,7 @@ class NewsHubController extends StudentApiController
                 'detail_url' => url('/student/news/' . $item->batch_id),
                 'open_mode' => 'link',
                 'can_vote' => $item->type === 'poll',
+                'poll_data' => $pollData,
             ];
         }
 

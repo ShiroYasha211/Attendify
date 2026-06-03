@@ -327,6 +327,26 @@ class User extends Authenticatable
         return $this->hasMany(UserDevice::class);
     }
 
+    public function studentDevices()
+    {
+        return $this->hasMany(StudentDevice::class, 'student_id');
+    }
+
+    public function activeStudentDevices()
+    {
+        return $this->hasMany(StudentDevice::class, 'student_id')->where('is_active', true);
+    }
+
+    public function primaryStudentDevice()
+    {
+        return $this->hasOne(StudentDevice::class, 'student_id')->where('is_primary', true);
+    }
+
+    public function studentDeviceRequests()
+    {
+        return $this->hasMany(StudentDeviceRequest::class, 'student_id');
+    }
+
     /**
      * Get the student notes.
      */
