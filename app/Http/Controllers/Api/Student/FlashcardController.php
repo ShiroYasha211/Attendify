@@ -664,7 +664,7 @@ class FlashcardController extends StudentApiController
             );
         }
 
-        $queue = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $reviewedCount, $settings) {
+        $queue = $selected->map(function (array $entry, int $index) use ($queueScheduleTimes, $settings) {
             /** @var FlashcardPack $pack */
             $pack = $entry['pack'];
             /** @var FlashcardItem $item */
