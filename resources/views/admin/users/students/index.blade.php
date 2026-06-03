@@ -695,6 +695,7 @@
                                     @click="
                                         showDetailsModal = true;
                                         viewStudent = {
+                                            id: '{{ $student->id }}',
                                             name: '{{ $student->name }}',
                                             email: '{{ $student->email }}',
                                             student_number: '{{ $student->student_number }}',
