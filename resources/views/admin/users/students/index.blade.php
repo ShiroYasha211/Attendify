@@ -663,7 +663,14 @@
                             <div style="display: flex; align-items: center; gap: 0.75rem;">
                                 <div class="student-avatar">{{ mb_substr($student->name, 0, 1) }}</div>
                                 <div>
-                                    <div style="font-weight: 600;">{{ $student->name }}</div>
+                                    <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                                        <span style="font-weight: 600;">{{ $student->name }}</span>
+                                        @if($student->role === \App\Enums\UserRole::DELEGATE)
+                                            <span style="font-size: 0.7rem; background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.4rem; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center;">مندوب دفعة</span>
+                                        @elseif($student->role === \App\Enums\UserRole::PRACTICAL_DELEGATE)
+                                            <span style="font-size: 0.7rem; background: #fef3c7; color: #b45309; padding: 0.1rem 0.4rem; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center;">مندوب عملي</span>
+                                        @endif
+                                    </div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ $student->email }}</div>
                                 </div>
                             </div>
@@ -695,7 +702,8 @@
                                             level: '{{ $student->level->name ?? '-' }}',
                                             major: '{{ $student->major->name ?? '-' }}',
                                             college: '{{ $student->college->name ?? '-' }}',
-                                            university: '{{ $student->university->name ?? '-' }}'
+                                            university: '{{ $student->university->name ?? '-' }}',
+                                            role_label: '{{ $student->role === \App\Enums\UserRole::DELEGATE ? "مندوب دفعة" : ($student->role === \App\Enums\UserRole::PRACTICAL_DELEGATE ? "مندوب عملي" : "طالب") }}'
                                         };
                                         viewDevices = {{ json_encode($student->studentDevices->map(function($device) {
                                             return [
@@ -880,7 +888,10 @@
                 
                 <!-- Student Header Banner -->
                 <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
-                    <h4 x-text="viewStudent.name" style="margin: 0; font-size: 1.25rem; font-weight: 800;"></h4>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
+                        <h4 x-text="viewStudent.name" style="margin: 0; font-size: 1.25rem; font-weight: 800;"></h4>
+                        <span x-show="viewStudent.role_label && viewStudent.role_label !== 'طالب'" x-text="viewStudent.role_label" style="font-size: 0.72rem; background: rgba(255, 255, 255, 0.22); color: white; padding: 0.15rem 0.45rem; border-radius: 6px; font-weight: 700;"></span>
+                    </div>
                     <div style="opacity: 0.9; margin-top: 0.5rem; display: flex; gap: 1rem; font-size: 0.9rem; align-items: center;">
                         <div style="display: flex; align-items: center; gap: 0.25rem;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

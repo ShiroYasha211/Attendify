@@ -22,7 +22,7 @@ class StudentController extends Controller
     {
         $search = $request->query('search');
 
-        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+        $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -143,7 +143,7 @@ class StudentController extends Controller
      */
     public function destroy(User $student)
     {
-        if ($student->role !== UserRole::STUDENT) {
+        if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
             return back()->with('error', 'لا يمكن حذف هذا المستخدم من قائمة الطلاب.');
         }
 
@@ -184,7 +184,7 @@ class StudentController extends Controller
      */
     public function resetDevices(User $student)
     {
-        if ($student->role !== UserRole::STUDENT) {
+        if (!in_array($student->role, [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])) {
             return back()->with('error', 'لا يمكن تعديل أجهزة هذا المستخدم.');
         }
 
