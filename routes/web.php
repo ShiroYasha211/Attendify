@@ -75,6 +75,7 @@ Route::prefix('admin')
         Route::post('delegates-transfer', [App\Http\Controllers\Admin\DelegateTransferController::class, 'transfer'])->name('delegates.transfer.perform');
         Route::resource('students', App\Http\Controllers\Admin\StudentController::class);
         Route::post('students/{student}/permissions', [App\Http\Controllers\Admin\StudentController::class, 'updatePermissions'])->name('students.permissions');
+        Route::post('students/{student}/reset-devices', [App\Http\Controllers\Admin\StudentController::class, 'resetDevices'])->name('students.reset-devices');
         Route::resource('doctors', App\Http\Controllers\Admin\DoctorController::class);
         Route::patch('doctors/{doctor}/administrative-access', [App\Http\Controllers\Admin\DoctorController::class, 'updateAdministrativeAccess'])->name('doctors.administrative-access');
 

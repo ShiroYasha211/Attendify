@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Student;
 
+use App\Models\Setting;
 use App\Models\StudentDevice;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -42,6 +43,23 @@ class AuthController extends StudentApiController
 
         if ($user->status !== 'active') {
             return $this->error('حسابك غير مفعل حاليًا. يرجى مراجعة الإدارة.', 403);
+        }
+
+        $deviceId = trim((string) ($request->input('device.device_id') ?? ''));
+        if ($deviceId) {
+            $existingDevice = $user->studentDevices()->where('device_id', $deviceId)->first();
+            $hasPrimaryDevice = $user->studentDevices()->where('is_primary', true)->exists();
+            if ($hasPrimaryDevice && (! $existingDevice || ! $existingDevice->is_active)) {
+                $whatsappNumber = Setting::get('admin_whatsapp_number', '');
+                return $this->error(
+                    'هذا الحساب مرتبط بجهاز آخر. يرجى التواصل مع الإدارة لتسجيل جهازك الجديد.',
+                    403,
+                    [
+                        'error_code'      => 'device_not_authorized',
+                        'whatsapp_number' => $whatsappNumber,
+                    ]
+                );
+            }
         }
 
         $user->load(['major', 'level', 'clinicalDelegateAssignment']);

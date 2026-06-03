@@ -18,9 +18,18 @@ class StudentController extends Controller
     /**
      * عرض قائمة الطلاب.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->query('search');
+
         $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE])
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('student_number', 'like', "%{$search}%");
+                });
+            })
             ->with([
                 'university',
                 'college',
@@ -30,7 +39,8 @@ class StudentController extends Controller
                 'studentDevices' => fn ($query) => $query->latest('last_login_at')->latest(),
             ])
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         // Fetch Universities for the Create Form dropdown
         $universities = \App\Models\Academic\University::with('colleges.majors.levels')->get();
@@ -46,7 +56,6 @@ class StudentController extends Controller
      */
     public function create()
     {
-        // This is now handled within the Index page modal/form, but keeping it for fallback
         $majors = Major::with(['college', 'levels'])->get();
         return view('admin.users.students.create', compact('majors'));
     }
@@ -168,5 +177,21 @@ class StudentController extends Controller
         $this->logUpdate('StudentPermissions', $student, "تم تحديث صلاحيات الطالب: {$student->name}");
 
         return back()->with('success', 'تم تحديث صلاحيات الطالب بنجاح.');
+    }
+
+    /**
+     * إعادة تعيين أجهزة الطالب (حذف الأجهزة المرتبطة).
+     */
+    public function resetDevices(User $student)
+    {
+        if ($student->role !== UserRole::STUDENT) {
+            return back()->with('error', 'لا يمكن تعديل أجهزة هذا المستخدم.');
+        }
+
+        $student->studentDevices()->delete();
+
+        $this->logUpdate('StudentDevices', $student, "تم إعادة تعيين أجهزة الطالب: {$student->name}");
+
+        return back()->with('success', 'تم إعادة تعيين أجهزة الطالب بنجاح، ويمكنه الآن تسجيل الدخول من جهاز جديد.');
     }
 }

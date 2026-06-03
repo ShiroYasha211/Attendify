@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'إدارة الطلاب')
 
@@ -354,6 +354,19 @@
         background: #fee2e2;
         color: #991b1b;
     }
+
+    .active-tab {
+        color: #2563eb !important;
+        border-bottom: 2px solid #2563eb !important;
+    }
+    .inactive-tab {
+        color: #64748b !important;
+        border-bottom: 2px solid transparent !important;
+    }
+    .inactive-tab:hover {
+        color: #334155 !important;
+        border-bottom-color: #cbd5e1 !important;
+    }
 </style>
 
 <div x-data="{ 
@@ -477,7 +490,7 @@
     </div>
 
     <!-- Main Grid -->
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; align-items: start;">
+    <div style="display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; align-items: start;">
 
         <!-- Create Form -->
         <div class="form-card">
@@ -607,6 +620,29 @@
                 <span class="count-badge">{{ $students->total() }} طالب</span>
             </div>
 
+            <!-- Search Bar -->
+            <div style="margin-bottom: 1.25rem;">
+                <form action="{{ route('admin.students.index') }}" method="GET" style="display: flex; gap: 0.5rem; margin: 0;">
+                    <div style="position: relative; flex: 1;">
+                        <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); pointer-events: none; display: flex; align-items: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </span>
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="ابحث باسم الطالب، البريد الإلكتروني، أو الرقم الجامعي..." style="width: 100%; padding: 0.65rem 2.5rem 0.65rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.85rem; background: #fafafa; transition: all 0.2s;" onfocus="this.style.borderColor='var(--primary-color)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='#fafafa';">
+                    </div>
+                    <button type="submit" style="padding: 0.65rem 1.25rem; font-size: 0.85rem; background: #2563eb; color: white; border-radius: 10px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-weight: 600;">
+                        بحث
+                    </button>
+                    @if(request('search'))
+                    <a href="{{ route('admin.students.index') }}" style="padding: 0.65rem 1.25rem; font-size: 0.85rem; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; height: 38px; border: 1px solid var(--border-color); background: #f3f4f6; color: #4b5563; font-weight: 600;">
+                        إلغاء
+                    </a>
+                    @endif
+                </form>
+            </div>
+
             <div class="table-responsive">
 <table class="modern-table">
                 <thead>
@@ -695,7 +731,7 @@
                                         <circle cx="12" cy="12" r="3"></circle>
                                     </svg>
                                 </button>
-                                <button type="button" class="action-btn edit"
+                                <button type="button" class="action-btn edit" title="تعديل الطالب" style="padding: 0.5rem;"
                                     @click="
                                         showEditModal = true;
                                         modalTitle = 'تعديل: {{ $student->name }}';
@@ -710,9 +746,19 @@
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
-                                    تعديل
                                 </button>
-                                <button type="button" class="action-btn delete"
+                                <button type="button" class="action-btn" title="الصلاحيات" style="background: #f0f9ff; color: #0369a1; padding: 0.5rem;"
+                                    @click="
+                                        showPermissionsModal = true;
+                                        permStudent.name = '{{ $student->name }}';
+                                        permStudent.permissions = {{ json_encode($student->permissions->pluck('slug')) }};
+                                        permsUrl = '{{ route('admin.students.permissions', $student) }}';
+                                    ">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="action-btn delete" title="حذف الطالب" style="padding: 0.5rem;"
                                     @click="
                                         showDeleteModal = true;
                                         deleteUrl = '{{ route('admin.students.destroy', $student) }}';
@@ -723,19 +769,6 @@
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                     </svg>
-                                    حذف
-                                </button>
-                                                                <button type="button" class="action-btn" style="background: #f0f9ff; color: #0369a1;"
-                                    @click="
-                                        showPermissionsModal = true;
-                                        permStudent.name = '{{ $student->name }}';
-                                        permStudent.permissions = {{ json_encode($student->permissions->pluck('slug')) }};
-                                        permsUrl = '{{ route('admin.students.permissions', $student) }}';
-                                    ">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                                    </svg>
-                                    الصلاحيات
                                 </button>
 
                             </div>
@@ -834,95 +867,169 @@
         x-transition:leave="transition ease-in duration-200"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0">
-        <div class="modal-container" style="text-align: right; max-width: 650px;" @click.away="showDetailsModal = false">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-                <h3 class="modal-title" style="margin: 0;">تفاصيل الطالب الأكاديمية</h3>
-                <button @click="showDetailsModal = false" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</button>
+        <div class="modal-container" style="text-align: right; max-width: 650px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;" @click.away="showDetailsModal = false" x-data="{ activeTab: 'academic' }">
+            
+            <!-- Modal Header (Fixed) -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); background: white;">
+                <h3 class="modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800;">تفاصيل الطالب الأكاديمية</h3>
+                <button @click="showDetailsModal = false" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--text-secondary); line-height: 1;">&times;</button>
             </div>
 
-            <!-- Student Header -->
-            <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
-                <h4 x-text="viewStudent.name" style="margin: 0; font-size: 1.25rem;"></h4>
-                <div style="opacity: 0.9; margin-top: 0.5rem; display: flex; gap: 1rem; font-size: 0.9rem; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 0.25rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                        <span x-text="viewStudent.student_number"></span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.25rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-                        </svg>
-                        <span x-text="viewStudent.major"></span> - <span x-text="viewStudent.level"></span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.25rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2a5 5 0 0 1 5 5c0 2-1 3-2 4l-1 1v2"></path>
-                            <path d="M9 21h6"></path>
-                            <path d="M12 14v7"></path>
-                        </svg>
-                        <span x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Registered Devices -->
-            <div style="margin-bottom: 1.5rem;">
-                <h5 style="margin-top: 0; margin-bottom: 1rem; color: var(--text-primary); border-bottom: 2px solid #2563eb; display: inline-block; padding-bottom: 0.25rem;">
-                    الأجهزة المرتبطة بالحساب
-                </h5>
-
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    <template x-for="device in viewDevices" :key="device.device_id">
-                        <div class="device-card">
-                            <div class="device-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
-                                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
-                                </svg>
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start;">
-                                    <div>
-                                        <div style="font-weight: 800; color: var(--text-primary);" x-text="device.device_name"></div>
-                                        <div style="font-size: 0.75rem; color: var(--text-secondary); word-break: break-all;" x-text="device.device_id"></div>
-                                    </div>
-                                    <span class="device-badge" :class="device.is_primary ? 'primary' : 'secondary'" x-text="device.device_type_label"></span>
-                                </div>
-                                <div class="device-meta">
-                                    <span class="device-badge" :class="device.is_active ? 'active' : 'inactive'" x-text="device.status_label"></span>
-                                    <span class="device-badge" x-text="'النظام: ' + device.platform"></span>
-                                    <span class="device-badge" x-show="device.app_version && device.app_version !== '-'" x-text="'الإصدار: ' + device.app_version"></span>
-                                </div>
-                                <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.55rem;">
-                                    آخر دخول:
-                                    <strong x-text="device.last_login_at || 'لم يسجل بعد'"></strong>
-                                    <span style="margin: 0 0.35rem;">•</span>
-                                    تاريخ الربط:
-                                    <strong x-text="device.created_at || '-'"></strong>
-                                </div>
-                            </div>
+            <!-- Modal Content (Scrollable) -->
+            <div style="flex: 1; overflow-y: auto; padding: 1.5rem;">
+                
+                <!-- Student Header Banner -->
+                <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+                    <h4 x-text="viewStudent.name" style="margin: 0; font-size: 1.25rem; font-weight: 800;"></h4>
+                    <div style="opacity: 0.9; margin-top: 0.5rem; display: flex; gap: 1rem; font-size: 0.9rem; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 0.25rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            <span x-text="viewStudent.student_number"></span>
                         </div>
-                    </template>
-
-                    <div x-show="viewDevices.length === 0" style="text-align: center; padding: 1rem; color: var(--text-secondary); background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px;">
-                        لم يتم تسجيل أي جهاز لهذا الطالب حتى الآن.
+                        <div style="display: flex; align-items: center; gap: 0.25rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2a5 5 0 0 1 5 5c0 2-1 3-2 4l-1 1v2"></path>
+                                <path d="M9 21h6"></path>
+                                <path d="M12 14v7"></path>
+                            </svg>
+                            <span x-text="viewStudent.gender === 'female' ? 'أنثى' : 'ذكر'"></span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Content Grid -->
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; align-items: start;">
+                <!-- Tab Navigation Bar -->
+                <div style="display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; gap: 1rem;">
+                    <button type="button" @click="activeTab = 'academic'" :class="activeTab === 'academic' ? 'active-tab' : 'inactive-tab'" style="padding: 0.75rem 0.5rem; font-weight: 700; font-size: 0.9rem; border: none; background: none; cursor: pointer; transition: all 0.2s;">
+                        البيانات الأكاديمية
+                    </button>
+                    <button type="button" @click="activeTab = 'devices'" :class="activeTab === 'devices' ? 'active-tab' : 'inactive-tab'" style="padding: 0.75rem 0.5rem; font-weight: 700; font-size: 0.9rem; border: none; background: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.35rem;">
+                        الأجهزة المرتبطة
+                        <span style="font-size: 0.75rem; background: #e2e8f0; color: #475569; padding: 0.15rem 0.4rem; border-radius: 99px;" x-text="viewDevices.length"></span>
+                    </button>
+                    <button type="button" @click="activeTab = 'subjects'" :class="activeTab === 'subjects' ? 'active-tab' : 'inactive-tab'" style="padding: 0.75rem 0.5rem; font-weight: 700; font-size: 0.9rem; border: none; background: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.35rem;">
+                        المواد والمدرسين
+                        <span style="font-size: 0.75rem; background: #e2e8f0; color: #475569; padding: 0.15rem 0.4rem; border-radius: 99px;" x-text="viewSubjects.length"></span>
+                    </button>
+                </div>
 
-                <!-- Subjects -->
-                <div>
-                    <h5 style="margin-top: 0; margin-bottom: 1rem; color: var(--text-primary); border-bottom: 2px solid #10b981; display: inline-block; padding-bottom: 0.25rem;">
-                        المواد الدراسية والدكاترة
-                    </h5>
+                <!-- Tab 1: Academic Data -->
+                <div x-show="activeTab === 'academic'" x-transition.opacity>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="background: #fafafa; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">الجامعة</div>
+                            <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.university || '-'"></div>
+                        </div>
+                        <div style="background: #fafafa; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">الكلية</div>
+                            <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.college || '-'"></div>
+                        </div>
+                        <div style="background: #fafafa; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">التخصص</div>
+                            <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.major || '-'"></div>
+                        </div>
+                        <div style="background: #fafafa; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">المرحلة / المستوى</div>
+                            <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.level || '-'"></div>
+                        </div>
+                        <div style="background: #fafafa; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-color); grid-column: span 2;">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">البريد الإلكتروني</div>
+                            <div style="font-weight: 700; color: var(--text-primary);" x-text="viewStudent.email || '-'"></div>
+                        </div>
+                    </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 280px; overflow-y: auto;">
+                    <!-- Delegate Box -->
+                    <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); padding: 1.25rem; border-radius: 12px; border: 1px solid #bbf7d0;">
+                        <h5 style="margin-top: 0; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 800; color: #166534; display: flex; align-items: center; gap: 0.35rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            مندوب الدفعة
+                        </h5>
+
+                        <template x-if="viewDelegate">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: bold;">
+                                    <span x-text="viewDelegate.name.charAt(0)"></span>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.9rem; color: #166534;" x-text="viewDelegate.name"></div>
+                                    <div style="font-size: 0.75rem; color: #15803d;" x-text="viewDelegate.email"></div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="!viewDelegate">
+                            <div style="color: #16a34a; font-size: 0.8rem; font-weight: 600;">
+                                لم يتم تعيين مندوب لهذه الدفعة بعد.
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Devices -->
+                <div x-show="activeTab === 'devices'" x-transition.opacity>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">الأجهزة المسجلة لحساب الطالب</h5>
+                        <form :action="'{{ url('admin/students') }}/' + viewStudent.id + '/reset-devices'" method="POST" style="margin: 0;" onsubmit="return confirm('هل أنت متأكد من إعادة تعيين جميع الأجهزة المرتبطة بهذا الحساب؟ سيتعين على الطالب تسجيل الدخول مجدداً من جهازه الجديد وسيتم ربطه تلقائياً.')" x-show="viewDevices.length > 0">
+                            @csrf
+                            <button type="submit" class="action-btn delete" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>
+                                إعادة تعيين الأجهزة
+                            </button>
+                        </form>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <template x-for="device in viewDevices" :key="device.device_id">
+                            <div class="device-card">
+                                <div class="device-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+                                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                                    </svg>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start;">
+                                        <div>
+                                            <div style="font-weight: 800; color: var(--text-primary);" x-text="device.device_name"></div>
+                                            <div style="font-size: 0.75rem; color: var(--text-secondary); word-break: break-all;" x-text="device.device_id"></div>
+                                        </div>
+                                        <span class="device-badge" :class="device.is_primary ? 'primary' : 'secondary'" x-text="device.device_type_label"></span>
+                                    </div>
+                                    <div class="device-meta">
+                                        <span class="device-badge" :class="device.is_active ? 'active' : 'inactive'" x-text="device.status_label"></span>
+                                        <span class="device-badge" x-text="'النظام: ' + device.platform"></span>
+                                        <span class="device-badge" x-show="device.app_version && device.app_version !== '-'" x-text="'الإصدار: ' + device.app_version"></span>
+                                    </div>
+                                    <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.55rem;">
+                                        آخر دخول:
+                                        <strong x-text="device.last_login_at || 'لم يسجل بعد'"></strong>
+                                        <span style="margin: 0 0.35rem;">•</span>
+                                        تاريخ الربط:
+                                        <strong x-text="device.created_at || '-'"></strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="viewDevices.length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-secondary); background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px;">
+                            لم يتم تسجيل أي جهاز لهذا الطالب حتى الآن.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Subjects -->
+                <div x-show="activeTab === 'subjects'" x-transition.opacity>
+                    <h5 style="margin-top: 0; margin-bottom: 1rem; font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">المواد الدراسية ومدرسيها</h5>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                         <template x-for="subject in viewSubjects">
                             <div style="background: white; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
@@ -937,31 +1044,11 @@
                                 </div>
                             </div>
                         </template>
-                        <div x-show="viewSubjects.length === 0" style="text-align: center; padding: 1rem; color: var(--text-secondary); background: #f8fafc; border-radius: 8px;">
-                            لا توجد مواد مسجلة
+
+                        <div x-show="viewSubjects.length === 0" style="text-align: center; padding: 1.5rem; color: var(--text-secondary); background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px;">
+                            لم يتم تسجيل أي مواد دراسية لهذا الطالب.
                         </div>
                     </div>
-                </div>
-
-                <!-- Delegate -->
-                <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); padding: 1rem; border-radius: 12px; border: 1px solid #bbf7d0;">
-                    <h5 style="margin-top: 0; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 700; color: #166534;">مندوب الدفعة</h5>
-
-                    <template x-if="viewDelegate">
-                        <div style="text-align: center;">
-                            <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; margin: 0 auto 0.5rem; font-weight: bold;">
-                                <span x-text="viewDelegate.name.charAt(0)"></span>
-                            </div>
-                            <div style="font-weight: 600; font-size: 0.9rem; color: #166534;" x-text="viewDelegate.name"></div>
-                            <div style="font-size: 0.75rem; color: #22c55e; word-break: break-all;" x-text="viewDelegate.email"></div>
-                        </div>
-                    </template>
-
-                    <template x-if="!viewDelegate">
-                        <div style="text-align: center; color: #16a34a; font-size: 0.8rem;">
-                            لم يتم تعيين مندوب لهذه الدفعة بعد.
-                        </div>
-                    </template>
                 </div>
 
             </div>
