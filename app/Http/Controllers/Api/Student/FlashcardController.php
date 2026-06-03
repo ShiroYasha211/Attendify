@@ -462,8 +462,8 @@ class FlashcardController extends StudentApiController
                 $progress = $item->user_progress;
 
                 return [
-                    $progress?->isDue() === false ? 1 : 0,
                     $progress?->review_weight ? -1 * $progress->review_weight : -2,
+                    $progress?->last_shown_at?->timestamp ?? 0,
                     match ($item->priority) {
                         'critical' => 0,
                         'high' => 1,
@@ -589,11 +589,11 @@ class FlashcardController extends StudentApiController
 
                     return $item;
                 })
-                ->filter(fn (FlashcardItem $item) => (!$item->user_progress || $item->user_progress->isDue())
-                    && $item->user_progress?->last_shown_at?->toDateString() !== now()->toDateString())
+                ->filter(fn (FlashcardItem $item) => $item->user_progress?->last_shown_at?->toDateString() !== now()->toDateString())
                 ->sortBy(function (FlashcardItem $item) {
                     return [
                         -1 * ($item->user_progress?->review_weight ?? 2),
+                        $item->user_progress?->last_shown_at?->timestamp ?? 0,
                         match ($item->priority) {
                             'critical' => 0,
                             'high' => 1,
@@ -623,6 +623,7 @@ class FlashcardController extends StudentApiController
                 return [
                     $this->packPriorityWeight($pack),
                     -1 * ($item->user_progress?->review_weight ?? 2),
+                    $item->user_progress?->last_shown_at?->timestamp ?? 0,
                     match ($item->priority) {
                         'critical' => 0,
                         'high' => 1,
@@ -746,9 +747,9 @@ class FlashcardController extends StudentApiController
             'times_correct' => $progress?->times_correct ?? 0,
             'accuracy' => $progress?->accuracy ?? 0,
             'response_actions' => [
-                ['key' => 'easy', 'label' => 'سهل', 'effect' => 'less_frequent'],
-                ['key' => 'medium', 'label' => 'متوسط', 'effect' => 'balanced'],
-                ['key' => 'hard', 'label' => 'صعب', 'effect' => 'high_priority'],
+                ['key' => 'easy', 'label' => 'سهل - تقليل الظهور', 'effect' => 'less_frequent'],
+                ['key' => 'medium', 'label' => 'متوسط - عادي', 'effect' => 'balanced'],
+                ['key' => 'hard', 'label' => 'صعب - زيادة الظهور', 'effect' => 'high_priority'],
             ],
         ];
     }
@@ -781,8 +782,10 @@ class FlashcardController extends StudentApiController
 
             foreach ($packItems as $item) {
                 $progress = $progressMap->get($item->id);
-                $hasProgress = $progress && $progress->next_review_at;
-                $nextReviewAt = $hasProgress ? $progress->next_review_at : now();
+                $reviewedToday = $progress?->last_shown_at?->toDateString() === now()->toDateString();
+                $nextReviewAt = $reviewedToday
+                    ? ($this->nextPackScheduledAt($pack, now()->addDay()->startOfDay()) ?? now()->copy()->addDay())
+                    : now();
 
                 $items->push([
                     'item_id' => $item->id,
@@ -797,14 +800,14 @@ class FlashcardController extends StudentApiController
                     'correct_option' => $item->correct_option,
                     'priority' => $item->priority,
                     'next_review_at' => $nextReviewAt->toIso8601String(),
-                    'next_review_date' => $hasProgress ? $nextReviewAt->toDateString() : '',
-                    'next_review_time' => $hasProgress ? $nextReviewAt->format('H:i') : '',
-                    'next_review_time_label' => $hasProgress ? $this->formatTimeLabel($nextReviewAt) : 'الآن',
+                    'next_review_date' => $reviewedToday ? $nextReviewAt->toDateString() : '',
+                    'next_review_time' => $reviewedToday ? $nextReviewAt->format('H:i') : '',
+                    'next_review_time_label' => $reviewedToday ? $this->formatTimeLabel($nextReviewAt) : 'الآن',
                     'last_response' => $progress?->last_response,
                     'times_shown' => $progress?->times_shown ?? 0,
                     'times_correct' => $progress?->times_correct ?? 0,
                     'accuracy' => $progress?->accuracy ?? 0,
-                    'is_due' => !$hasProgress || $progress->isDue(),
+                    'is_due' => !$reviewedToday,
                 ]);
             }
         }
@@ -1266,34 +1269,41 @@ class FlashcardController extends StudentApiController
     private function responseLabel(?string $response): string
     {
         return match ($response) {
-            'easy' => 'سهل',
-            'medium' => 'متوسط',
-            'hard' => 'صعب',
+            'easy' => 'سهل - تقليل الظهور',
+            'medium' => 'متوسط - عادي',
+            'hard' => 'صعب - زيادة الظهور',
             default => 'لم تُراجع',
         };
     }
 
     private function calculateNextReview(FlashcardPack $pack, FlashcardProgress $progress, string $responseLevel)
     {
-        $now = now();
-        $scheduleMap = [
-            'daily' => ['easy' => 3, 'medium' => 1, 'hard' => 0.25],
-            'weekly' => ['easy' => 7, 'medium' => 3, 'hard' => 1],
-            'monthly' => ['easy' => 30, 'medium' => 7, 'hard' => 2],
-        ];
+        return $this->nextPackScheduledAt($pack, now()->addDay()->startOfDay());
+    }
 
-        $cycle = $scheduleMap[$pack->repeat_cycle] ?? $scheduleMap['daily'];
-        $days = $cycle[$responseLevel] ?? 1;
-
-        if ($responseLevel === 'easy') {
-            $days = min(45, $days + max(0, $progress->times_correct - 1));
+    private function nextPackScheduledAt(FlashcardPack $pack, Carbon $from): ?Carbon
+    {
+        $mode = $pack->schedule_mode ?? $this->legacyScheduleMode($pack->repeat_cycle ?? 'daily');
+        if ($mode === 'manual') {
+            return null;
         }
 
-        if ($responseLevel === 'hard') {
-            return $now->copy()->addHours((int) max(4, $days * 24));
+        $startMinute = $this->timeToMinute($pack->active_from_time) ?? (8 * 60);
+
+        for ($offset = 0; $offset < 370; $offset++) {
+            $date = $from->copy()->addDays($offset);
+            if (!$this->packIsScheduledForDate($pack, $date)) {
+                continue;
+            }
+
+            return $date
+                ->startOfDay()
+                ->addMinutes($startMinute)
+                ->seconds(0)
+                ->microsecond(0);
         }
 
-        return $now->copy()->addDays((int) ceil($days));
+        return null;
     }
 
     private function flashcardSettings(int $userId): FlashcardUserSetting
