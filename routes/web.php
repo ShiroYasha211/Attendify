@@ -75,6 +75,7 @@ Route::prefix('admin')
         Route::post('delegates-transfer', [App\Http\Controllers\Admin\DelegateTransferController::class, 'transfer'])->name('delegates.transfer.perform');
         Route::resource('students', App\Http\Controllers\Admin\StudentController::class);
         Route::post('students/{student}/permissions', [App\Http\Controllers\Admin\StudentController::class, 'updatePermissions'])->name('students.permissions');
+        Route::post('students/bulk-reset-devices', [App\Http\Controllers\Admin\StudentController::class, 'bulkResetDevices'])->name('students.bulk-reset-devices');
         Route::post('students/{student}/reset-devices', [App\Http\Controllers\Admin\StudentController::class, 'resetDevices'])->name('students.reset-devices');
         Route::post('students/{student}/open-slot', [App\Http\Controllers\Admin\StudentController::class, 'openDeviceSlot'])->name('students.open-slot');
         Route::post('students/{student}/close-slot', [App\Http\Controllers\Admin\StudentController::class, 'closeDeviceSlot'])->name('students.close-slot');

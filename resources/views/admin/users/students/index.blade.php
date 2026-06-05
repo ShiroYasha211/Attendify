@@ -409,6 +409,7 @@
     showPermissionsModal: false,
     permStudent: { name: '', permissions: [] },
     permsUrl: '',
+    selectedStudents: [],
 
     // AJAX Device Management and Toast states
     toastShow: false,
@@ -654,6 +655,47 @@
             this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
         } finally {
             this.isLoadingDeviceRequests = false;
+        }
+    },
+    toggleAllStudents(checked) {
+        const pageIds = Array.from(document.querySelectorAll('[data-student-checkbox]')).map((checkbox) => checkbox.value);
+        if (checked) {
+            this.selectedStudents = Array.from(new Set([...this.selectedStudents, ...pageIds]));
+        } else {
+            this.selectedStudents = this.selectedStudents.filter((id) => !pageIds.includes(id));
+        }
+    },
+    isPageFullySelected() {
+        const pageIds = Array.from(document.querySelectorAll('[data-student-checkbox]')).map((checkbox) => checkbox.value);
+        return pageIds.length > 0 && pageIds.every((id) => this.selectedStudents.includes(id));
+    },
+    async bulkResetSelectedDevices() {
+        if (this.selectedStudents.length === 0) {
+            this.showToast('حدد طالباً واحداً على الأقل أولاً.', 'error');
+            return;
+        }
+        if (!confirm('سيتم حذف جميع الأجهزة المرتبطة للطلاب المحددين، وسيتمكنون من ربط جهاز جديد عند تسجيل الدخول. هل تريد المتابعة؟')) return;
+
+        try {
+            const response = await fetch('{{ route('admin.students.bulk-reset-devices') }}', {
+                method: 'POST',
+                body: JSON.stringify({ student_ids: this.selectedStudents }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 900);
+            } else {
+                this.showToast(data.message || 'تعذر تنفيذ العملية الجماعية.', 'error');
+            }
+        } catch (err) {
+            this.showToast('حدث خطأ في الاتصال بالخادم', 'error');
         }
     }
 }">
@@ -914,9 +956,9 @@
                 <span class="count-badge">{{ $students->total() }} طالب</span>
             </div>
 
-            <!-- Search Bar -->
+            <!-- Search and Filters -->
             <div style="margin-bottom: 1.25rem;">
-                <form action="{{ route('admin.students.index') }}" method="GET" style="display: flex; gap: 0.5rem; margin: 0;">
+                <form action="{{ route('admin.students.index') }}" method="GET" style="display: grid; grid-template-columns: minmax(220px, 1fr) 210px auto auto; gap: 0.5rem; margin: 0; align-items: center;">
                     <div style="position: relative; flex: 1;">
                         <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); pointer-events: none; display: flex; align-items: center;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -926,10 +968,15 @@
                         </span>
                         <input type="text" name="search" value="{{ request('search') }}" placeholder="ابحث باسم الطالب، البريد الإلكتروني، أو الرقم الجامعي..." style="width: 100%; padding: 0.65rem 2.5rem 0.65rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.85rem; background: #fafafa; transition: all 0.2s;" onfocus="this.style.borderColor='var(--primary-color)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='#fafafa';">
                     </div>
+                    <select name="device_status" style="width: 100%; padding: 0.65rem 0.8rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.85rem; background: #fafafa; color: var(--text-primary);">
+                        <option value="">كل حالات الأجهزة</option>
+                        <option value="has_devices" @selected(request('device_status') === 'has_devices')>لديهم أجهزة مرتبطة</option>
+                        <option value="no_devices" @selected(request('device_status') === 'no_devices')>بدون أجهزة مرتبطة</option>
+                    </select>
                     <button type="submit" style="padding: 0.65rem 1.25rem; font-size: 0.85rem; background: #2563eb; color: white; border-radius: 10px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-weight: 600;">
                         بحث
                     </button>
-                    @if(request('search'))
+                    @if(request('search') || request('device_status'))
                     <a href="{{ route('admin.students.index') }}" style="padding: 0.65rem 1.25rem; font-size: 0.85rem; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; height: 38px; border: 1px solid var(--border-color); background: #f3f4f6; color: #4b5563; font-weight: 600;">
                         إلغاء
                     </a>
@@ -937,10 +984,27 @@
                 </form>
             </div>
 
+            <div x-show="selectedStudents.length > 0" x-transition.opacity style="margin-bottom: 1rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 0.8rem 1rem; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                <div style="font-size: 0.85rem; font-weight: 800;">
+                    تم تحديد <span x-text="selectedStudents.length"></span> حساب
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" @click="bulkResetSelectedDevices()" class="action-btn delete" style="background: #fee2e2; color: #b91c1c; padding: 0.5rem 0.85rem;">
+                        إلغاء ربط أجهزة المحددين
+                    </button>
+                    <button type="button" @click="selectedStudents = []" class="action-btn view" style="padding: 0.5rem 0.85rem;">
+                        إلغاء التحديد
+                    </button>
+                </div>
+            </div>
+
             <div class="table-responsive">
 <table class="modern-table">
                 <thead>
                     <tr>
+                        <th style="width: 42px; text-align: center;">
+                            <input type="checkbox" @change="toggleAllStudents($event.target.checked)" :checked="isPageFullySelected()" style="width: 16px; height: 16px; cursor: pointer;">
+                        </th>
                         <th>#</th>
                         <th>الطالب</th>
                         <th>الرقم الجامعي</th>
@@ -952,6 +1016,9 @@
                 <tbody>
                     @forelse($students as $student)
                     <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox" data-student-checkbox value="{{ $student->id }}" x-model="selectedStudents" style="width: 16px; height: 16px; cursor: pointer;">
+                        </td>
                         <td style="font-weight: 600; color: var(--text-secondary);">{{ $loop->iteration }}</td>
                         <td>
                             <div style="display: flex; align-items: center; gap: 0.75rem;">

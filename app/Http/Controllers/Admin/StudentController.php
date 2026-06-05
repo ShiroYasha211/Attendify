@@ -23,6 +23,7 @@ class StudentController extends Controller
     public function index(Request $request)
     {
         $search = $request->query('search');
+        $deviceStatus = $request->query('device_status');
 
         $students = User::whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
             ->when($search, function ($query) use ($search) {
@@ -32,6 +33,8 @@ class StudentController extends Controller
                       ->orWhere('student_number', 'like', "%{$search}%");
                 });
             })
+            ->when($deviceStatus === 'has_devices', fn ($query) => $query->whereHas('studentDevices'))
+            ->when($deviceStatus === 'no_devices', fn ($query) => $query->whereDoesntHave('studentDevices'))
             ->with([
                 'university',
                 'college',
@@ -179,6 +182,44 @@ class StudentController extends Controller
         $this->logUpdate('StudentPermissions', $student, "تم تحديث صلاحيات الطالب: {$student->name}");
 
         return back()->with('success', 'تم تحديث صلاحيات الطالب بنجاح.');
+    }
+
+    /**
+     * إعادة تعيين أجهزة مجموعة من الطلاب.
+     */
+    public function bulkResetDevices(Request $request)
+    {
+        $validated = $request->validate([
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'integer|exists:users,id',
+        ]);
+
+        $students = User::whereIn('id', $validated['student_ids'])
+            ->whereIn('role', [UserRole::STUDENT, UserRole::DELEGATE, UserRole::PRACTICAL_DELEGATE])
+            ->withCount('studentDevices')
+            ->get();
+
+        if ($students->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لم يتم العثور على طلاب صالحين لإعادة تعيين أجهزتهم.',
+            ], 422);
+        }
+
+        $studentIds = $students->pluck('id');
+        $deletedDevicesCount = StudentDevice::whereIn('student_id', $studentIds)->count();
+        StudentDevice::whereIn('student_id', $studentIds)->delete();
+
+        foreach ($students as $student) {
+            $this->logUpdate('StudentDevices', $student, "تم إعادة تعيين أجهزة الطالب ضمن إجراء جماعي: {$student->name}");
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "تم إلغاء ربط الأجهزة لـ {$students->count()} حساب، وعدد الأجهزة المحذوفة {$deletedDevicesCount}.",
+            'students_count' => $students->count(),
+            'deleted_devices_count' => $deletedDevicesCount,
+        ]);
     }
 
     /**
