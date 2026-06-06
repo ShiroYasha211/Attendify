@@ -36,7 +36,12 @@ class MessageController extends DoctorApiController
     public function index()
     {
         $conversations = DoctorConversation::where('doctor_id', Auth::id())
-            ->with(['delegate:id,name,student_number,role', 'lastMessage'])
+            ->with([
+                'delegate:id,name,student_number,role,major_id,level_id',
+                'delegate.major:id,name',
+                'delegate.level:id,name',
+                'lastMessage'
+            ])
             ->orderByDesc('last_message_at')
             ->get()
             ->map(fn($c) => [
@@ -46,8 +51,11 @@ class MessageController extends DoctorApiController
                     'name' => $c->delegate->name,
                     'student_number' => $c->delegate->student_number,
                     'role' => $this->roleValue($c->delegate),
+                    'major' => $c->delegate->major?->name,
+                    'level' => $c->delegate->level?->name,
                 ] : null,
                 'last_message' => $c->lastMessage?->body,
+                'last_message_is_mine' => $c->lastMessage?->sender_id === Auth::id(),
                 'last_message_at' => $c->last_message_at,
                 'unread_count' => $c->messages()->where('sender_id', '!=', Auth::id())->whereNull('read_at')->count(),
             ]);

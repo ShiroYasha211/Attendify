@@ -18,7 +18,14 @@ class AdministrativeController extends Controller
      */
     public function index()
     {
-        $administratives = User::where('role', UserRole::ADMINISTRATIVE)
+        $administratives = User::query()
+            ->where(function ($query) {
+                $query->where('role', UserRole::ADMINISTRATIVE)
+                    ->orWhere(function ($doctorQuery) {
+                        $doctorQuery->where('role', UserRole::DOCTOR)
+                            ->where('administrative_access', true);
+                    });
+            })
             ->with('college')
             ->latest()
             ->paginate(10);

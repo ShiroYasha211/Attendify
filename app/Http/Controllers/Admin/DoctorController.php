@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Academic\College;
+use App\Models\StudentNotification;
 use App\Models\User;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
@@ -111,14 +112,46 @@ class DoctorController extends Controller
             'administrative_access' => 'nullable|boolean',
         ]);
 
-        $doctor->update([
-            'administrative_access' => $request->boolean('administrative_access'),
-        ]);
+        $hadAdministrativeAccess = (bool) $doctor->administrative_access;
+        $hasAdministrativeAccess = $request->boolean('administrative_access');
 
-        $this->logUpdate('Doctor', $doctor, "تم تحديث رتبة المسؤول الإداري للدكتور: {$doctor->name}");
+        $doctor->update(['administrative_access' => $hasAdministrativeAccess]);
+
+        $action = $hasAdministrativeAccess ? 'منح' : 'سحب';
+        $this->logUpdate(
+            'Doctor',
+            $doctor,
+            "تم {$action} صلاحية المسؤول الإداري للدكتور: {$doctor->name}"
+        );
+
+        if ($hadAdministrativeAccess !== $hasAdministrativeAccess) {
+            StudentNotification::create([
+                'user_id' => $doctor->id,
+                'college_id' => $doctor->college_id,
+                'sender_id' => auth()->id(),
+                'type' => 'administrative_access',
+                'title' => $hasAdministrativeAccess
+                    ? 'تم منحك صلاحية المسؤول الإداري'
+                    : 'تم سحب صلاحية المسؤول الإداري',
+                'message' => $hasAdministrativeAccess
+                    ? 'أصبح بإمكانك الآن الانتقال إلى لوحة المسؤول الإداري وإدارة الكلية من حسابك.'
+                    : 'تم سحب صلاحية الوصول إلى لوحة المسؤول الإداري من حسابك.',
+                'data' => [
+                    'screen' => 'notifications',
+                    'target_screen' => 'notifications',
+                    'administrative_access' => $hasAdministrativeAccess,
+                    'refresh_session' => true,
+                ],
+            ]);
+        }
 
         return redirect()->route('admin.doctors.index')
-            ->with('success', 'تم تحديث الرتبة الإدارية بنجاح.');
+            ->with(
+                'success',
+                $hasAdministrativeAccess
+                    ? 'تم منح الرتبة الإدارية وإشعار الدكتور بنجاح.'
+                    : 'تم سحب الرتبة الإدارية وإشعار الدكتور بنجاح.'
+            );
     }
 
     /**

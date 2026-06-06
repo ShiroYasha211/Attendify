@@ -172,6 +172,7 @@ class PushNotificationService
             'star', 'stars' => 'stars',
             'quiz', 'quizzes' => 'quizzes',
             'grade_delegation' => 'authorized_grades',
+            'administrative_access' => 'notifications',
             'flashcard_assignment' => 'flashcards',
             'assignment' => 'assignments',
             'study_reminder' => 'study_session',
