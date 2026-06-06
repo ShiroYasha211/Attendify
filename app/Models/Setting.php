@@ -88,6 +88,7 @@ class Setting extends Model
             'general' => 'الإعدادات العامة',
             'academic' => 'الإعدادات الأكاديمية',
             'attendance' => 'إعدادات الحضور',
+            'support' => 'إعدادات الدعم والمساعدة',
             default => $group
         };
     }

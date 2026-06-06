@@ -289,6 +289,22 @@ class AuthController extends StudentApiController
     }
 
     /**
+     * Get dynamic support settings.
+     */
+    public function supportSettings()
+    {
+        return $this->success([
+            'support_phone'      => Setting::get('support_phone', '+967 777 000 111'),
+            'support_whatsapp'   => Setting::get('support_whatsapp', '+967 777 000 222'),
+            'support_email'      => Setting::get('support_email', 'support@moeen.tech'),
+            'support_website'    => Setting::get('support_website', 'moeen.tech'),
+            'support_instagram'  => Setting::get('support_instagram', '@moeen.app'),
+            'support_work_hours' => Setting::get('support_work_hours', 'السبت - الخميس | 8:00 ص - 2:00 م'),
+            'support_notice'     => Setting::get('support_notice', 'عند وجود مشكلة في الحضور أو رفع الملفات، يرجى إرسال اسمك، رقم القيد، وصف دقيق للمشكلة، مع لقطة شاشة توضيحية لضمان سرعة المعالجة.'),
+        ]);
+    }
+
+    /**
      * Student logout.
      */
     public function logout(Request $request)

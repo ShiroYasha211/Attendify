@@ -297,7 +297,7 @@
         @foreach($settings as $group => $groupSettings)
         <div class="settings-section" id="{{ $group }}">
             <div class="section-header">
-                <div class="icon" style="background: {{ $group === 'general' ? 'rgba(99, 102, 241, 0.1)' : ($group === 'academic' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)') }}; color: {{ $group === 'general' ? '#6366f1' : ($group === 'academic' ? '#10b981' : '#f59e0b') }};">
+                <div class="icon" style="background: {{ $group === 'general' ? 'rgba(99, 102, 241, 0.1)' : ($group === 'academic' ? 'rgba(16, 185, 129, 0.1)' : ($group === 'support' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(245, 158, 11, 0.1)')) }}; color: {{ $group === 'general' ? '#6366f1' : ($group === 'academic' ? '#10b981' : ($group === 'support' ? '#2563eb' : '#f59e0b')) }};">
                     @if($group === 'general')
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -307,6 +307,10 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
                         <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                    </svg>
+                    @elseif($group === 'support')
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
                     </svg>
                     @else
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -323,6 +327,8 @@
                         إعدادات عامة للنظام والمظهر
                         @elseif($group === 'academic')
                         إعدادات متعلقة بالنظام الأكاديمي
+                        @elseif($group === 'support')
+                        إعدادات قنوات التواصل لمركز المساعدة والدعم في التطبيق
                         @else
                         إعدادات أخرى للنظام
                         @endif
@@ -359,6 +365,8 @@
                         </div>
                         @elseif($setting->type === 'number')
                         <input type="number" name="{{ $setting->key }}" value="{{ $setting->value }}">
+                        @elseif($setting->key === 'support_notice')
+                        <textarea name="{{ $setting->key }}" rows="4" style="width: 100%; min-width: 300px; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; background: #fafafa; transition: all 0.2s; resize: vertical;" onfocus="this.style.borderColor='var(--primary-color)'; this.style.backgroundColor='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='#fafafa';">{{ $setting->value }}</textarea>
                         @else
                         <input type="text" name="{{ $setting->key }}" value="{{ $setting->value }}">
                         @endif

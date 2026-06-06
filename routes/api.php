@@ -532,6 +532,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::post('change-password', [StudentAuthController::class, 'changePassword']);
     Route::patch('profile/email', [StudentAuthController::class, 'updateEmail']);
     Route::get('me', [StudentAuthController::class, 'me']);
+    Route::get('support-settings', [StudentAuthController::class, 'supportSettings']);
     Route::post('devices/request', [StudentAuthController::class, 'storeDeviceRequest']);
     Route::post('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'store']);
     Route::delete('devices/token', [\App\Http\Controllers\Api\DeviceTokenController::class, 'destroy']);
