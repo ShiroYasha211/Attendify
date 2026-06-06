@@ -84,6 +84,7 @@ Route::prefix('public')->group(function () {
     Route::get('levels/{major}', [\App\Http\Controllers\Api\Public\DataController::class, 'levels']);
     Route::get('subjects', [\App\Http\Controllers\Api\Public\DataController::class, 'subjects']);
     Route::get('subjects/{level}', [\App\Http\Controllers\Api\Public\DataController::class, 'subjects']);
+    Route::get('support-settings', [\App\Http\Controllers\Api\Public\DataController::class, 'supportSettings']);
 });
 
 // ══════════════════════════════════════════════════════════════

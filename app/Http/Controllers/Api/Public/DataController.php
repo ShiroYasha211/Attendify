@@ -107,4 +107,20 @@ class DataController extends BaseController
 
         return $this->success($subjects);
     }
+
+    /**
+     * Get public support settings.
+     */
+    public function supportSettings()
+    {
+        return $this->success([
+            'support_phone'      => \App\Models\Setting::get('support_phone', '+967 777 000 111'),
+            'support_whatsapp'   => \App\Models\Setting::get('support_whatsapp', '+967 777 000 222'),
+            'support_email'      => \App\Models\Setting::get('support_email', 'support@moeen.tech'),
+            'support_website'    => \App\Models\Setting::get('support_website', 'moeen.tech'),
+            'support_instagram'  => \App\Models\Setting::get('support_instagram', '@moeen.app'),
+            'support_work_hours' => \App\Models\Setting::get('support_work_hours', 'السبت - الخميس | 8:00 ص - 2:00 م'),
+            'support_notice'     => \App\Models\Setting::get('support_notice', 'عند وجود مشكلة في الحضور أو رفع الملفات، يرجى إرسال اسمك، رقم القيد، وصف دقيق للمشكلة، مع لقطة شاشة توضيحية لضمان سرعة المعالجة.'),
+        ]);
+    }
 }

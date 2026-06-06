@@ -71,7 +71,7 @@ class AuthController extends StudentApiController
                         ]);
                     } else {
                         // No slots available
-                        $whatsappNumber = Setting::get('admin_whatsapp_number', '');
+                        $whatsappNumber = Setting::get('support_whatsapp', Setting::get('admin_whatsapp_number', ''));
                         return $this->error(
                             'هذا الحساب مرتبط بجهاز آخر. يرجى التواصل مع الإدارة لفتح مساحة وتسجيل جهازك الجديد.',
                             403,
@@ -85,7 +85,7 @@ class AuthController extends StudentApiController
 
                 // If it exists, verify it is valid (active and not expired)
                 if (!$existingDevice->isValid()) {
-                    $whatsappNumber = Setting::get('admin_whatsapp_number', '');
+                    $whatsappNumber = Setting::get('support_whatsapp', Setting::get('admin_whatsapp_number', ''));
                     
                     $message = $existingDevice->isExpired()
                         ? 'انتهت صلاحية الفترة المحددة لهذا الجهاز الفرعي. يرجى التواصل مع الإدارة لتمديد الصلاحية.'
