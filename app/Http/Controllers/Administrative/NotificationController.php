@@ -108,6 +108,11 @@ class NotificationController extends Controller
         }
 
         $users = $query->get();
+
+        if ($admin->isDoctorWithAdministrativeAccess()) {
+            $users = $users->push($admin)->unique('id')->values();
+        }
+
         if ($users->isEmpty()) {
             return back()->with('error', "لا يوجد مستخدمين ضمن الفئة المستهدفة.")->withInput();
         }

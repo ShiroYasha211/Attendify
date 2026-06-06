@@ -109,6 +109,10 @@ class NotificationController extends AdministrativeApiController
 
         $users = $query->get(['id']);
 
+        if ($admin->isDoctorWithAdministrativeAccess()) {
+            $users = $users->push($admin)->unique('id')->values();
+        }
+
         if ($users->isEmpty()) {
             return $this->error('لا يوجد مستخدمون ضمن الفئة المستهدفة.', 422);
         }
