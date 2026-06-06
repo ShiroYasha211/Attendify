@@ -144,6 +144,44 @@ class MessageController extends DoctorApiController
         ], 'تم إرسال الرسالة.');
     }
 
+    public function delegateInfo($id)
+    {
+        $conversation = DoctorConversation::where('doctor_id', Auth::id())
+            ->findOrFail($id);
+
+        $delegate = User::with(['major:id,name', 'level:id,name', 'college:id,name'])
+            ->findOrFail($conversation->delegate_id);
+
+        $otherDelegates = User::whereIn('role', ['delegate', 'practical_delegate'])
+            ->where('college_id', $delegate->college_id)
+            ->where('id', '!=', $delegate->id)
+            ->where('status', 'active')
+            ->with(['major:id,name', 'level:id,name'])
+            ->get()
+            ->map(fn($d) => [
+                'id' => $d->id,
+                'name' => $d->name,
+                'student_number' => $d->student_number,
+                'role' => $this->roleValue($d),
+                'major' => $d->major?->name,
+                'level' => $d->level?->name,
+            ]);
+
+        return $this->success([
+            'delegate' => [
+                'id' => $delegate->id,
+                'name' => $delegate->name,
+                'student_number' => $delegate->student_number,
+                'role' => $this->roleValue($delegate),
+                'email' => $delegate->email,
+                'college' => $delegate->college?->name,
+                'major' => $delegate->major?->name,
+                'level' => $delegate->level?->name,
+            ],
+            'other_delegates' => $otherDelegates,
+        ]);
+    }
+
     private function roleValue(User $user): string
     {
         return $user->role instanceof \BackedEnum

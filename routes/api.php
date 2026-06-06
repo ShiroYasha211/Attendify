@@ -877,6 +877,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::get('messages', [DoctorMessageController::class, 'index']);
     Route::get('messages/delegates', [DoctorMessageController::class, 'delegates']);
     Route::get('messages/{conversation}', [DoctorMessageController::class, 'show']);
+    Route::get('messages/{conversation}/delegate-info', [DoctorMessageController::class, 'delegateInfo']);
     Route::post('messages', [DoctorMessageController::class, 'store']);
     Route::post('messages/start', [DoctorMessageController::class, 'store']);
     Route::post('messages/{conversation}/send', [DoctorMessageController::class, 'send']);
