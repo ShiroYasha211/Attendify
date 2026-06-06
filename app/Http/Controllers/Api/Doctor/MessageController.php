@@ -86,6 +86,7 @@ class MessageController extends DoctorApiController
             'body' => $m->body,
             'sender' => $m->sender ? ['id' => $m->sender->id, 'name' => $m->sender->name] : null,
             'is_mine' => $m->sender_id === Auth::id(),
+            'is_read' => $m->read_at !== null,
             'created_at' => $m->created_at,
         ]);
 

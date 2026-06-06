@@ -161,6 +161,7 @@
         <p>جميع التقييمات السريرية التي أجريتها</p>
     </div>
     <div class="left-side">
+        <a href="{{ route('doctor.clinical.evaluations.portfolios.index') }}" class="btn-back" style="border-color:#99f6e4;color:#0f766e;">كشوف الطلاب</a>
         <a href="{{ route('doctor.clinical.evaluations.start') }}" class="btn-back" style="border-color:#c7d2fe;color:var(--primary-color);">🎯 تقييم جديد</a>
         <a href="{{ route('doctor.clinical.evaluations.checklists') }}" class="btn-back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 18 9 12 15 6"></polyline>

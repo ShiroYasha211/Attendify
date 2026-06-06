@@ -15,6 +15,8 @@ use App\Models\Academic\Major;
 use App\Models\Academic\Level;
 use App\Models\Academic\Subject;
 use App\Models\User;
+use App\Services\ClinicalEvaluationPortfolioExcelExporter;
+use App\Services\ClinicalEvaluationPortfolioService;
 
 class EvaluationController extends DoctorApiController
 {
@@ -521,6 +523,45 @@ class EvaluationController extends DoctorApiController
     }
 
     /** GET /api/doctor/clinical/evaluations/results */
+    public function portfolioStudents(
+        Request $request,
+        ClinicalEvaluationPortfolioService $service
+    ) {
+        $students = $service->studentsForDoctor(Auth::user(), $request);
+
+        return $this->success([
+            'students' => $students->items(),
+            'filters' => $service->filtersForDoctor(Auth::user()),
+            'pagination' => [
+                'current_page' => $students->currentPage(),
+                'last_page' => $students->lastPage(),
+                'per_page' => $students->perPage(),
+                'total' => $students->total(),
+            ],
+        ]);
+    }
+
+    public function portfolioShow(
+        Request $request,
+        User $student,
+        ClinicalEvaluationPortfolioService $service
+    ) {
+        return $this->success(
+            $service->portfolioForDoctor(Auth::user(), $student, $request)
+        );
+    }
+
+    public function portfolioExcel(
+        Request $request,
+        User $student,
+        ClinicalEvaluationPortfolioService $service,
+        ClinicalEvaluationPortfolioExcelExporter $exporter
+    ) {
+        return $exporter->download(
+            $service->portfolioForDoctor(Auth::user(), $student, $request)
+        );
+    }
+
     public function results(Request $request)
     {
         $baseQuery = StudentEvaluation::where('doctor_id', Auth::id());

@@ -330,6 +330,9 @@ Route::prefix('doctor')
                 Route::get('start', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'startEvaluation'])->name('start');
                 Route::post('live', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'liveEvaluate'])->name('live');
                 Route::post('submit', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'submitEvaluation'])->name('submit');
+                Route::get('portfolios', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'portfolios'])->name('portfolios.index');
+                Route::get('portfolios/{student}', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'showPortfolio'])->name('portfolios.show');
+                Route::get('portfolios/{student}/excel', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'exportPortfolio'])->name('portfolios.excel');
                 Route::get('results', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'results'])->name('results');
                 Route::get('results/{id}', [App\Http\Controllers\Doctor\Clinical\EvaluationController::class, 'showResult'])->name('results.show');
             });

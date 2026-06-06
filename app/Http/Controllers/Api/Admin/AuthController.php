@@ -35,9 +35,7 @@ class AuthController extends AdminApiController
             return $this->error('حسابك غير مفعّل. يرجى التواصل مع الإدارة.', 403);
         }
 
-        // Revoke old tokens
-        $user->tokens()->delete();
-
+        $user->tokens()->where('name', 'admin-api')->delete();
         $token = $user->createToken('admin-api')->plainTextToken;
 
         return $this->success([

@@ -12,6 +12,8 @@ use App\Models\Clinical\StudentEvaluation;
 use App\Models\Clinical\EvaluationScore;
 use App\Models\Clinical\ClinicalCase;
 use App\Models\User;
+use App\Services\ClinicalEvaluationPortfolioExcelExporter;
+use App\Services\ClinicalEvaluationPortfolioService;
 
 class EvaluationController extends Controller
 {
@@ -402,6 +404,44 @@ class EvaluationController extends Controller
     }
 
     // ─────────────────── Results ───────────────────
+
+    public function portfolios(
+        Request $request,
+        ClinicalEvaluationPortfolioService $service
+    ) {
+        $students = $service->studentsForDoctor(Auth::user(), $request);
+        $filters = $service->filtersForDoctor(Auth::user());
+
+        return view(
+            'doctor.clinical.evaluations.portfolios.index',
+            compact('students', 'filters')
+        );
+    }
+
+    public function showPortfolio(
+        Request $request,
+        User $student,
+        ClinicalEvaluationPortfolioService $service
+    ) {
+        $portfolio = $service->portfolioForDoctor(Auth::user(), $student, $request);
+        $filters = $service->filtersForDoctor(Auth::user());
+
+        return view(
+            'doctor.clinical.evaluations.portfolios.show',
+            compact('portfolio', 'filters')
+        );
+    }
+
+    public function exportPortfolio(
+        Request $request,
+        User $student,
+        ClinicalEvaluationPortfolioService $service,
+        ClinicalEvaluationPortfolioExcelExporter $exporter
+    ) {
+        return $exporter->download(
+            $service->portfolioForDoctor(Auth::user(), $student, $request)
+        );
+    }
 
     public function results(Request $request)
     {

@@ -30,7 +30,7 @@ class AuthController extends AdministrativeApiController
             return $this->error('حسابك غير مفعل. يرجى التواصل مع الإدارة.', 403);
         }
 
-        $user->tokens()->delete();
+        $user->tokens()->where('name', 'administrative-api')->delete();
         $token = $user->createToken('administrative-api')->plainTextToken;
 
         return $this->success([

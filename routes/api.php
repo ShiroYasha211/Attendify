@@ -982,6 +982,9 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         Route::get('evaluations/checklists/{id}/take', [DoctorEvaluationController::class, 'takeChecklist']);
         Route::get('evaluations/start-data', [DoctorEvaluationController::class, 'startData']);
         Route::post('evaluations/submit', [DoctorEvaluationController::class, 'submit']);
+        Route::get('evaluations/portfolios', [DoctorEvaluationController::class, 'portfolioStudents']);
+        Route::get('evaluations/portfolios/{student}', [DoctorEvaluationController::class, 'portfolioShow']);
+        Route::get('evaluations/portfolios/{student}/excel', [DoctorEvaluationController::class, 'portfolioExcel']);
         Route::get('evaluations/results', [DoctorEvaluationController::class, 'results']);
         Route::get('evaluations/results/{id}', [DoctorEvaluationController::class, 'showResult']);
 
