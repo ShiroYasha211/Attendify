@@ -628,11 +628,13 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('ledger', [\App\Http\Controllers\Api\Student\FinancialController::class, 'ledger']);
     Route::get('ledger/export', [\App\Http\Controllers\Api\Student\FinancialController::class, 'exportPdf']);
 
-    Route::get('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'settings']);
-    Route::put('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateUserSettings']);
+    Route::middleware('device.primary')->group(function () {
+        Route::get('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'settings']);
+        Route::put('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateUserSettings']);
+    });
 
     // Flashcard / One Line Shot
-    Route::prefix('flashcards')->group(function () {
+    Route::prefix('flashcards')->middleware('device.primary')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'index']);
         Route::post('/', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'store']);
         Route::get('store', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'publicStore']);
@@ -703,10 +705,12 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     });
 
     // ─── Quizzes (MCQ Exams) ───
-    Route::get('quizzes', [\App\Http\Controllers\Api\Student\QuizController::class, 'index']);
-    Route::get('quizzes/{quiz}/take', [\App\Http\Controllers\Api\Student\QuizController::class, 'take']);
-    Route::post('quizzes/{attempt}/submit', [\App\Http\Controllers\Api\Student\QuizController::class, 'submit']);
-    Route::get('quizzes/results/{attempt}', [\App\Http\Controllers\Api\Student\QuizController::class, 'result']);
+    Route::middleware('device.primary')->group(function () {
+        Route::get('quizzes', [\App\Http\Controllers\Api\Student\QuizController::class, 'index']);
+        Route::get('quizzes/{quiz}/take', [\App\Http\Controllers\Api\Student\QuizController::class, 'take']);
+        Route::post('quizzes/{attempt}/submit', [\App\Http\Controllers\Api\Student\QuizController::class, 'submit']);
+        Route::get('quizzes/results/{attempt}', [\App\Http\Controllers\Api\Student\QuizController::class, 'result']);
+    });
 
     // ─── My Stars (نجومي) ───
     Route::get('stars', [\App\Http\Controllers\Api\Student\StarController::class, 'index']);
@@ -729,7 +733,8 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     });
 
     // ─── QR Attendance (Student Scan) ───
-    Route::post('qr-attendance/scan', [\App\Http\Controllers\Api\QrAttendanceController::class, 'scan']);
+    Route::post('qr-attendance/scan', [\App\Http\Controllers\Api\QrAttendanceController::class, 'scan'])
+        ->middleware('device.primary');
 
     // ─── Authorized Delegations (Monitoring) ───
     Route::get('authorized-grades', [\App\Http\Controllers\Api\Student\AuthorizedGradeController::class, 'index']);
