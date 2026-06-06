@@ -7,7 +7,9 @@ use App\Models\Academic\Subject;
 use App\Models\Clinical\StudentDailyLog;
 use App\Models\StudentNotification;
 use App\Models\User;
+use App\Services\ClinicalLogbookPortfolioService;
 use App\Services\PushNotificationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -34,19 +36,19 @@ class LogbookController extends DoctorApiController
             ->first();
 
         if (!$log) {
-            return $this->error('Invalid QR token.', 404);
+            return $this->error('رمز QR غير صالح.', 404);
         }
         if ($log->status === 'confirmed') {
-            return $this->error('This log is already fully confirmed.', 422);
+            return $this->error('هذا السجل معتمد بالكامل بالفعل.', 422);
         }
         if ($log->status === 'rejected') {
-            return $this->error('This log has already been rejected.', 422);
+            return $this->error('هذا السجل مرفوض ولا يمكن اعتماده من هذه الشاشة.', 422);
         }
         if ($log->status === 'pending' && $log->isExpired()) {
-            return $this->error('This QR code has expired.', 422);
+            return $this->error('انتهت صلاحية رمز QR لهذا السجل.', 422);
         }
 
-        return $this->success($this->serializeLog($log), 'Daily log loaded successfully.');
+        return $this->success($this->serializeLog($log), 'تم تحميل السجل العملي بنجاح.');
     }
 
     public function confirm(Request $request)
@@ -72,7 +74,7 @@ class LogbookController extends DoctorApiController
             ->findOrFail($validated['log_id']);
 
         if (!in_array($log->status, ['pending', 'partially_confirmed'], true)) {
-            return $this->error('This log has already been processed.', 422);
+            return $this->error('تمت معالجة هذا السجل مسبقًا.', 422);
         }
 
         if ($validated['action'] === 'reject') {
@@ -96,7 +98,7 @@ class LogbookController extends DoctorApiController
 
             return $this->success([
                 'status' => $log->status,
-            ], 'The daily log was rejected.');
+            ], 'تم رفض السجل العملي.');
         }
 
         $groups = $log->groupedActivities();
@@ -144,7 +146,7 @@ class LogbookController extends DoctorApiController
         });
 
         if (!$selectedAny) {
-            return $this->error('Select at least one section to confirm.', 422);
+            return $this->error('اختر قسمًا واحدًا على الأقل لاعتماده.', 422);
         }
 
         $log->refresh();
@@ -165,7 +167,7 @@ class LogbookController extends DoctorApiController
                 'activities.bodySystem',
                 'activities.confirmedBy',
             ])),
-        ], $log->status === 'confirmed' ? 'All sections were confirmed.' : 'The log was partially confirmed.');
+        ], $log->status === 'confirmed' ? 'تم اعتماد جميع أقسام السجل.' : 'تم اعتماد جزء من أقسام السجل، وما زال المتبقي بانتظار المراجعة.');
     }
 
     public function records(Request $request)
@@ -196,6 +198,91 @@ class LogbookController extends DoctorApiController
         );
 
         return $this->paginated($paginator);
+    }
+
+    public function portfolioStudents(Request $request, ClinicalLogbookPortfolioService $service)
+    {
+        $paginator = $service->studentsForDoctor(Auth::user(), $request);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم جلب تقارير إنجازات الطلاب بنجاح.',
+            'data' => $paginator->items(),
+            'filters' => $service->filtersForDoctor(Auth::user()),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
+    }
+
+    public function portfolioShow(Request $request, User $student, ClinicalLogbookPortfolioService $service)
+    {
+        $portfolio = $service->portfolioForDoctor(Auth::user(), $student, $request);
+
+        if (($portfolio['summary']['approved_activities'] ?? 0) === 0) {
+            return $this->error('لا توجد إنجازات عملية معتمدة لهذا الطالب ضمن نطاقك.', 404);
+        }
+
+        return $this->success($portfolio, 'تم جلب تقرير الطالب العملي بنجاح.');
+    }
+
+    public function portfolioPdf(Request $request, User $student, ClinicalLogbookPortfolioService $service)
+    {
+        $portfolio = $service->portfolioForDoctor(Auth::user(), $student, $request);
+
+        if (($portfolio['summary']['approved_activities'] ?? 0) === 0) {
+            return $this->error('لا توجد إنجازات عملية معتمدة لهذا الطالب ضمن نطاقك.', 404);
+        }
+
+        $pdf = Pdf::loadView('doctor.clinical.logbook_portfolios.pdf', compact('portfolio'));
+        $filename = 'clinical_portfolio_' . ($student->student_number ?: $student->id) . '_' . now()->format('Y-m-d') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    public function portfolioCsv(Request $request, User $student, ClinicalLogbookPortfolioService $service)
+    {
+        $portfolio = $service->portfolioForDoctor(Auth::user(), $student, $request);
+
+        if (($portfolio['summary']['approved_activities'] ?? 0) === 0) {
+            return $this->error('لا توجد إنجازات عملية معتمدة لهذا الطالب ضمن نطاقك.', 404);
+        }
+
+        $filename = 'clinical_portfolio_' . ($student->student_number ?: $student->id) . '_' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($portfolio) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($handle, ['نظام الجسم/المهارة', 'قصص مرضية', 'فحوصات سريرية', 'مرور', 'الإجمالي']);
+            foreach ($portfolio['matrix'] as $row) {
+                fputcsv($handle, [
+                    $row['body_system'],
+                    $row['history_taking'],
+                    $row['clinical_examination'],
+                    $row['round'],
+                    $row['total'],
+                ]);
+            }
+            fputcsv($handle, []);
+            fputcsv($handle, ['التاريخ', 'المركز', 'القسم', 'الدكتور', 'نوع النشاط', 'النظام/الحالة', 'الملاحظات']);
+            foreach ($portfolio['logs'] as $log) {
+                foreach ($log['activities'] as $activity) {
+                    fputcsv($handle, [
+                        $log['date'],
+                        $log['training_center'],
+                        $log['department'],
+                        $log['doctor'],
+                        $activity['type_label'],
+                        $activity['body_system'],
+                        $activity['diagnosis'] ?: $log['doctor_notes'],
+                    ]);
+                }
+            }
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function manualAttendance(Request $request)

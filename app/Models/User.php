@@ -252,6 +252,11 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Academic\Subject::class, 'doctor_id');
     }
 
+    public function dailyLogsAsStudent()
+    {
+        return $this->hasMany(\App\Models\Clinical\StudentDailyLog::class, 'student_id');
+    }
+
     /**
      * Students and delegates that belong to a doctor's clinical teaching scope.
      *

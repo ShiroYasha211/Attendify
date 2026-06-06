@@ -311,6 +311,10 @@ Route::prefix('doctor')
             Route::post('scanner/process', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'processQr'])->name('scanner.process');
             Route::post('scanner/confirm', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'confirm'])->name('scanner.confirm');
             Route::get('logbook-records', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'records'])->name('logbook-records');
+            Route::get('logbook-portfolios', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'portfolioStudents'])->name('logbook-portfolios.index');
+            Route::get('logbook-portfolios/{student}', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'portfolioShow'])->name('logbook-portfolios.show');
+            Route::get('logbook-portfolios/{student}/pdf', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'portfolioPdf'])->name('logbook-portfolios.pdf');
+            Route::get('logbook-portfolios/{student}/csv', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'portfolioCsv'])->name('logbook-portfolios.csv');
             Route::get('manual-attendance', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'manualAttendance'])->name('manual-attendance');
             Route::post('manual-attendance', [App\Http\Controllers\Doctor\Clinical\LogbookScannerController::class, 'storeManualAttendance'])->name('manual-attendance.store');
 

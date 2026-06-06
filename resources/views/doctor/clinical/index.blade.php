@@ -306,6 +306,22 @@
         </div>
     </a>
 
+    <a href="{{ route('doctor.clinical.logbook-portfolios.index') }}" class="stat-card" title="تقارير إنجازات الطلاب العملية">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3v18h18"></path>
+                <path d="M7 15l3-3 3 2 5-7"></path>
+                <path d="M7 19v-4"></path>
+                <path d="M12 19v-7"></path>
+                <path d="M17 19V7"></path>
+            </svg>
+        </div>
+        <div class="stat-content">
+            <h3 style="font-size: 1.25rem; margin-top:0.4rem;">إنجازات الطلاب العملية</h3>
+            <span>تقرير تراكمي لكل طالب حسب النشاط ونظام الجسم</span>
+        </div>
+    </a>
+
     <a href="{{ route('doctor.clinical.evaluations.checklists') }}" class="stat-card" title="التقييم السريري">
         <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

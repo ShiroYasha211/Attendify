@@ -962,6 +962,10 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         // Logbook / QR
         Route::post('logbook/scan', [DoctorLogbookController::class, 'processQr']);
         Route::post('logbook/confirm', [DoctorLogbookController::class, 'confirm']);
+        Route::get('logbook/students', [DoctorLogbookController::class, 'portfolioStudents']);
+        Route::get('logbook/students/{student}', [DoctorLogbookController::class, 'portfolioShow']);
+        Route::get('logbook/students/{student}/pdf', [DoctorLogbookController::class, 'portfolioPdf']);
+        Route::get('logbook/students/{student}/csv', [DoctorLogbookController::class, 'portfolioCsv']);
         Route::get('logbook/records', [DoctorLogbookController::class, 'records']);
         Route::post('logbook/manual', [DoctorLogbookController::class, 'manualAttendance']);
 

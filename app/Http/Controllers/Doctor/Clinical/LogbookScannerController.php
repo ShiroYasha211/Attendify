@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Academic\Subject;
 use App\Models\Clinical\StudentDailyLog;
 use App\Models\User;
+use App\Services\ClinicalLogbookPortfolioService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -247,6 +249,76 @@ class LogbookScannerController extends Controller
         $logs = $query->latest()->paginate(20)->withQueryString();
 
         return view('doctor.clinical.logbook_records', compact('logs'));
+    }
+
+    public function portfolioStudents(Request $request, ClinicalLogbookPortfolioService $service)
+    {
+        $students = $service->studentsForDoctor(Auth::user(), $request);
+        $filters = $service->filtersForDoctor(Auth::user());
+
+        return view('doctor.clinical.logbook_portfolios.index', compact('students', 'filters'));
+    }
+
+    public function portfolioShow(Request $request, User $student, ClinicalLogbookPortfolioService $service)
+    {
+        $portfolio = $service->portfolioForDoctor(Auth::user(), $student, $request);
+        abort_if(($portfolio['summary']['approved_activities'] ?? 0) === 0, 404);
+
+        return view('doctor.clinical.logbook_portfolios.show', compact('portfolio'));
+    }
+
+    public function portfolioPdf(Request $request, User $student, ClinicalLogbookPortfolioService $service)
+    {
+        $portfolio = $service->portfolioForDoctor(Auth::user(), $student, $request);
+        abort_if(($portfolio['summary']['approved_activities'] ?? 0) === 0, 404);
+
+        $pdf = Pdf::loadView('doctor.clinical.logbook_portfolios.pdf', compact('portfolio'));
+        $filename = 'clinical_portfolio_' . ($student->student_number ?: $student->id) . '_' . now()->format('Y-m-d') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    public function portfolioCsv(Request $request, User $student, ClinicalLogbookPortfolioService $service)
+    {
+        $portfolio = $service->portfolioForDoctor(Auth::user(), $student, $request);
+        abort_if(($portfolio['summary']['approved_activities'] ?? 0) === 0, 404);
+
+        $filename = 'clinical_portfolio_' . ($student->student_number ?: $student->id) . '_' . now()->format('Y-m-d') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename={$filename}",
+        ];
+
+        return response()->streamDownload(function () use ($portfolio) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($handle, ['نظام الجسم/المهارة', 'قصص مرضية', 'فحوصات سريرية', 'مرور', 'الإجمالي']);
+            foreach ($portfolio['matrix'] as $row) {
+                fputcsv($handle, [
+                    $row['body_system'],
+                    $row['history_taking'],
+                    $row['clinical_examination'],
+                    $row['round'],
+                    $row['total'],
+                ]);
+            }
+            fputcsv($handle, []);
+            fputcsv($handle, ['التاريخ', 'المركز', 'القسم', 'الدكتور', 'نوع النشاط', 'النظام/الحالة', 'الملاحظات']);
+            foreach ($portfolio['logs'] as $log) {
+                foreach ($log['activities'] as $activity) {
+                    fputcsv($handle, [
+                        $log['date'],
+                        $log['training_center'],
+                        $log['department'],
+                        $log['doctor'],
+                        $activity['type_label'],
+                        $activity['body_system'],
+                        $activity['diagnosis'] ?: $log['doctor_notes'],
+                    ]);
+                }
+            }
+            fclose($handle);
+        }, $filename, $headers);
     }
 
     protected function serializeLog(StudentDailyLog $log): array
