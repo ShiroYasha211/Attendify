@@ -111,7 +111,6 @@ class ClinicalLogbookPortfolioService
                 'activities.confirmedBy:id,name',
             ])
             ->where('doctor_id', $doctor->id)
-            ->whereIn('status', ['confirmed', 'partially_confirmed'])
             ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('log_date', '>=', $request->input('from')))
             ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('log_date', '<=', $request->input('to')))
             ->orderBy('log_date', 'desc')
@@ -171,7 +170,6 @@ class ClinicalLogbookPortfolioService
     {
         return $logs->map(function (StudentDailyLog $log) {
             $activities = $log->activities
-                ->filter(fn ($activity) => $this->isApprovedActivity($activity))
                 ->map(fn ($activity) => [
                     'id' => $activity->id,
                     'type' => $activity->activity_type,
@@ -181,6 +179,7 @@ class ClinicalLogbookPortfolioService
                     'diagnosis' => $activity->diagnosis,
                     'confirmed_by' => $activity->confirmedBy?->name,
                     'confirmed_at' => optional($activity->confirmed_at)?->toIso8601String(),
+                    'review_status' => $activity->is_confirmed ? 'approved' : ($activity->review_status ?: 'pending'),
                 ])
                 ->values();
 

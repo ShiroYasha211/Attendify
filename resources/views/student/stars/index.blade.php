@@ -180,6 +180,58 @@
 
     .gift-card-title i { color: #8b5cf6; }
 
+    .gift-limit-card {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 16px;
+    }
+
+    .gift-limit-item {
+        min-width: 0;
+    }
+
+    .gift-limit-value {
+        color: #92400e;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .gift-limit-label {
+        color: #a16207;
+        font-size: 0.75rem;
+        margin-top: 0.15rem;
+    }
+
+    .gift-limit-progress {
+        grid-column: 1 / -1;
+        height: 7px;
+        overflow: hidden;
+        background: #fef3c7;
+        border-radius: 999px;
+    }
+
+    .gift-limit-progress span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #f59e0b, #d97706);
+        border-radius: inherit;
+    }
+
+    .gift-limit-note {
+        padding: 0.85rem 1rem;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
     .empty-tx { text-align: center; padding: 3rem; color: #94a3b8; }
 
     @media (max-width: 992px) {
@@ -189,8 +241,28 @@
     @media (max-width: 768px) {
         .stars-header { padding: 1.5rem; }
         .stars-balance-big { font-size: 3rem; }
+        .gift-limit-card { grid-template-columns: 1fr; }
+        .gift-limit-progress { grid-column: auto; }
     }
 </style>
+
+@if(session('success'))
+<div class="alert alert-success border-0 rounded-3 mb-3">
+    {{ session('success') }}
+</div>
+@endif
+
+@if(session('error'))
+<div class="alert alert-danger border-0 rounded-3 mb-3">
+    {{ session('error') }}
+</div>
+@endif
+
+@if($errors->any())
+<div class="alert alert-danger border-0 rounded-3 mb-3">
+    {{ $errors->first() }}
+</div>
+@endif
 
 <div class="stars-header">
     <div class="stars-header-content">
@@ -254,33 +326,66 @@
         </div>
 
         {{-- Gift Section --}}
-        @if($student->stars_balance > 0)
         <div class="gift-card">
             <div class="gift-card-title"><i class="fa-solid fa-gift"></i> أرسل نجوم لزميلك</div>
-            <form action="{{ route('student.stars.gift') }}" method="POST">
+
+            @php
+                $limitProgress = $giftLimit['maximum'] > 0
+                    ? min(100, round(($giftLimit['used'] / $giftLimit['maximum']) * 100))
+                    : 0;
+                $maximumGift = min((int) $student->stars_balance, (int) $giftLimit['remaining']);
+            @endphp
+
+            <div class="gift-limit-card">
+                <div class="gift-limit-item">
+                    <div class="gift-limit-value">{{ number_format($giftLimit['maximum']) }}</div>
+                    <div class="gift-limit-label">الحد خلال {{ $giftLimit['period_label'] }}</div>
+                </div>
+                <div class="gift-limit-item">
+                    <div class="gift-limit-value">{{ number_format($giftLimit['used']) }}</div>
+                    <div class="gift-limit-label">تم تحويله</div>
+                </div>
+                <div class="gift-limit-item">
+                    <div class="gift-limit-value">{{ number_format($giftLimit['remaining']) }}</div>
+                    <div class="gift-limit-label">المتبقي</div>
+                </div>
+                <div class="gift-limit-progress" aria-label="نسبة استخدام حد التحويل">
+                    <span style="width: {{ $limitProgress }}%"></span>
+                </div>
+            </div>
+
+            @if(!$giftLimit['enabled'])
+                <div class="gift-limit-note">تحويل النجوم بين الطلاب متوقف حاليًا من إدارة النظام.</div>
+            @elseif($giftLimit['remaining'] <= 0)
+                <div class="gift-limit-note">
+                    استهلكت الحد المتاح. سيتجدد في
+                    {{ \Carbon\Carbon::parse($giftLimit['resets_at'])->translatedFormat('d M Y، h:i A') }}.
+                </div>
+            @elseif($student->stars_balance <= 0)
+                <div class="gift-limit-note">لا يوجد في رصيدك نجوم متاحة للتحويل.</div>
+            @else
+            <form
+                action="{{ route('student.stars.gift') }}"
+                method="POST"
+                onsubmit="return confirm('هل تريد تأكيد تحويل النجوم إلى الطالب المحدد؟')"
+            >
                 @csrf
                 <div class="row g-2">
                     <div class="col-md-5">
                         <select name="recipient_id" class="form-select" required style="border-radius: 12px; border: 2px solid #e2e8f0;">
                             <option value="">— اختر الطالب —</option>
-                            @php
-                                $peers = \App\Models\User::where('id', '!=', $student->id)
-                                    ->where('major_id', $student->major_id)
-                                    ->where('level_id', $student->level_id)
-                                    ->orderBy('name')
-                                    ->select('id','name')
-                                    ->get();
-                            @endphp
                             @foreach($peers as $peer)
-                            <option value="{{ $peer->id }}">{{ $peer->name }}</option>
+                            <option value="{{ $peer->id }}" @selected(old('recipient_id') == $peer->id)>
+                                {{ $peer->name }}{{ $peer->student_number ? ' - ' . $peer->student_number : '' }}
+                            </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <input type="number" name="amount" class="form-control" min="1" max="{{ $student->stars_balance }}" placeholder="العدد" required style="border-radius: 12px; border: 2px solid #e2e8f0;">
+                        <input type="number" name="amount" class="form-control" min="1" max="{{ $maximumGift }}" value="{{ old('amount') }}" placeholder="العدد" required style="border-radius: 12px; border: 2px solid #e2e8f0;">
                     </div>
                     <div class="col-md-3">
-                        <input type="text" name="message" class="form-control" placeholder="رسالة (اختياري)" maxlength="200" style="border-radius: 12px; border: 2px solid #e2e8f0;">
+                        <input type="text" name="message" class="form-control" value="{{ old('message') }}" placeholder="رسالة (اختياري)" maxlength="200" style="border-radius: 12px; border: 2px solid #e2e8f0;">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border-radius: 12px; font-weight: 700;">
@@ -289,8 +394,8 @@
                     </div>
                 </div>
             </form>
+            @endif
         </div>
-        @endif
     </div>
 
     {{-- Honor Board --}}

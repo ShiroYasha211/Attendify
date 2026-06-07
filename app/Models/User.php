@@ -686,13 +686,8 @@ class User extends Authenticatable
      */
     public function giftStars(User $recipient, int $amount, ?string $description = null): bool
     {
-        if ($this->stars_balance < $amount) {
-            return false;
-        }
-
-        $this->deductStars($amount, 'gifted', null, $description ?? 'هدية لـ ' . $recipient->name);
-        $recipient->addStars($amount, 'received_gift', $this->id, $description ?? 'هدية من ' . $this->name);
-
+        app(\App\Services\StudentStarGiftService::class)
+            ->gift($this, $recipient, $amount, $description);
         return true;
     }
 }

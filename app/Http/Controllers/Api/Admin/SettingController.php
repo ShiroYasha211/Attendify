@@ -17,6 +17,22 @@ class SettingController extends AdminApiController
 
     public function update(Request $request)
     {
+        if ($request->hasAny([
+            'student_star_gifting_enabled',
+            'student_star_gift_limit',
+            'student_star_gift_period',
+            'student_star_gift_custom_days',
+            'student_star_gift_once_per_recipient',
+        ])) {
+            $request->validate([
+                'student_star_gifting_enabled' => ['sometimes', 'boolean'],
+                'student_star_gift_limit' => ['sometimes', 'integer', 'min:1', 'max:1000000'],
+                'student_star_gift_period' => ['sometimes', 'in:daily,weekly,monthly,custom'],
+                'student_star_gift_custom_days' => ['sometimes', 'integer', 'min:1', 'max:365'],
+                'student_star_gift_once_per_recipient' => ['sometimes', 'boolean'],
+            ]);
+        }
+
         $settings = Setting::all();
         $updated = 0;
 

@@ -89,6 +89,7 @@ class Setting extends Model
             'academic' => 'الإعدادات الأكاديمية',
             'attendance' => 'إعدادات الحضور',
             'support' => 'إعدادات الدعم والمساعدة',
+            'stars' => 'إعدادات تحويل النجوم',
             default => $group
         };
     }

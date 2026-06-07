@@ -23,6 +23,28 @@ class SettingController extends Controller
      */
     public function update(Request $request)
     {
+        if ($request->hasAny([
+            'student_star_gifting_enabled',
+            'student_star_gift_limit',
+            'student_star_gift_period',
+            'student_star_gift_custom_days',
+            'student_star_gift_once_per_recipient',
+        ])) {
+            $request->validate([
+                'student_star_gifting_enabled' => ['required', 'boolean'],
+                'student_star_gift_limit' => ['required', 'integer', 'min:1', 'max:1000000'],
+                'student_star_gift_period' => ['required', 'in:daily,weekly,monthly,custom'],
+                'student_star_gift_custom_days' => [
+                    'required_if:student_star_gift_period,custom',
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:365',
+                ],
+                'student_star_gift_once_per_recipient' => ['required', 'boolean'],
+            ]);
+        }
+
         $updated = 0;
 
         foreach ($request->all() as $key => $value) {
@@ -48,7 +70,7 @@ class SettingController extends Controller
 
                 // Handle checkbox (boolean) values
                 if ($setting->type === 'boolean') {
-                    $value = $request->has($key) ? '1' : '0';
+                    $value = $request->boolean($key) ? '1' : '0';
                 }
 
                 if ($oldValue !== $value) {
