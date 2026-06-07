@@ -211,6 +211,12 @@ class Quiz extends Model
         if ($this->is_competition) {
             return $this->targets()
                 ->where(function ($q) use ($student) {
+                    $q->whereNull('university_id')->orWhere('university_id', $student->university_id);
+                })
+                ->where(function ($q) use ($student) {
+                    $q->whereNull('college_id')->orWhere('college_id', $student->college_id);
+                })
+                ->where(function ($q) use ($student) {
                     $q->whereNull('major_id')->orWhere('major_id', $student->major_id);
                 })
                 ->where(function ($q) use ($student) {

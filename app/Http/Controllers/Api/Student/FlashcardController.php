@@ -60,6 +60,13 @@ class FlashcardController extends StudentApiController
             'smart_review_frequency_minutes' => 'integer|min:1|max:1440',
             'auto_restart_enabled' => 'boolean',
             'prompt_mode' => 'nullable|in:app_and_notification,app_only,notification_only',
+            'one_line_notifications_enabled' => 'boolean',
+            'one_line_daily_limit' => 'integer|min:1|max:100',
+            'one_line_frequency_minutes' => 'integer|min:1|max:1440',
+            'one_line_active_from_time' => 'nullable|date_format:H:i',
+            'one_line_active_to_time' => 'nullable|date_format:H:i',
+            'one_line_quiet_start' => 'nullable|date_format:H:i',
+            'one_line_quiet_end' => 'nullable|date_format:H:i',
         ]);
 
         $settings = FlashcardUserSetting::firstOrNew(['user_id' => $request->user()->id]);
@@ -517,6 +524,123 @@ class FlashcardController extends StudentApiController
         $progress->save();
 
         return $this->success(['progress' => $progress->fresh()], 'Progress recorded successfully.');
+    }
+
+    public function oneLineNotifications(Request $request)
+    {
+        $user = $request->user();
+        $today = now()->toDateString();
+        $settings = $this->flashcardSettings($user->id);
+
+        if (!$settings->one_line_notifications_enabled) {
+            return $this->success([
+                'items' => [],
+                'total' => 0,
+                'date' => $today,
+                'settings' => $settings,
+                'summary' => [
+                    'enabled' => false,
+                    'message' => 'إشعارات One Line متوقفة.',
+                ],
+            ]);
+        }
+
+        $packs = FlashcardPack::forUser($user->id)
+            ->whereNull('parent_pack_id')
+            ->active()
+            ->where('smart_review_enabled', true)
+            ->get()
+            ->sortBy(fn (FlashcardPack $pack) => $this->packPriorityWeight($pack));
+
+        $candidates = collect();
+
+        foreach ($packs as $pack) {
+            if (!$this->packIsScheduledForDate($pack, now())) {
+                continue;
+            }
+
+            $packItems = $pack->effectiveItems()
+                ->with('pack:id,title,color,display_mode')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->filter(fn (FlashcardItem $item) => $item->resolved_item_type === 'one_line')
+                ->values();
+
+            if ($packItems->isEmpty()) {
+                continue;
+            }
+
+            $progressMap = FlashcardProgress::where('user_id', $user->id)
+                ->whereIn('item_id', $packItems->pluck('id'))
+                ->get()
+                ->keyBy('item_id');
+
+            foreach ($packItems as $item) {
+                $item->user_progress = $progressMap->get($item->id);
+                $candidates->push(['pack' => $pack, 'item' => $item]);
+            }
+        }
+
+        $limit = max(1, (int) ($settings->one_line_daily_limit ?? $settings->daily_card_limit ?? 5));
+        $selected = $candidates
+            ->sortBy(function (array $entry) {
+                /** @var FlashcardPack $pack */
+                $pack = $entry['pack'];
+                /** @var FlashcardItem $item */
+                $item = $entry['item'];
+
+                return [
+                    $this->packPriorityWeight($pack),
+                    $item->user_progress?->last_shown_at?->timestamp ?? 0,
+                    match ($item->priority) {
+                        'critical' => 0,
+                        'high' => 1,
+                        default => 2,
+                    },
+                    $item->sort_order,
+                    $item->id,
+                ];
+            })
+            ->take($limit)
+            ->values();
+
+        $scheduleSettings = $this->oneLineScheduleSettings($settings);
+        $scheduleTimes = $this->resolveScheduledTimes($scheduleSettings, $selected->count(), 0);
+
+        $items = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $scheduleSettings) {
+            /** @var FlashcardPack $pack */
+            $pack = $entry['pack'];
+            /** @var FlashcardItem $item */
+            $item = $entry['item'];
+            $scheduledAt = $scheduleTimes[$index] ?? now()->copy()->seconds(0)->microsecond(0);
+            $title = trim((string) $pack->title);
+
+            return array_merge(
+                $this->dailyQueueItem($pack, $item, $scheduledAt, false, $scheduleSettings),
+                [
+                    'notification_title' => $title === '' || $title === 'جديد'
+                        ? 'تذكير One Line'
+                        : "تذكير One Line - {$title}",
+                    'notification_body' => trim((string) $item->front_content),
+                    'notification_subtitle' => $title === '' ? 'One Line Shot' : $title,
+                    'requires_response' => false,
+                ]
+            );
+        })->all();
+
+        return $this->success([
+            'items' => $items,
+            'total' => count($items),
+            'date' => $today,
+            'settings' => $settings,
+            'summary' => [
+                'enabled' => true,
+                'daily_limit' => $limit,
+                'frequency_minutes' => $scheduleSettings->smart_review_frequency_minutes,
+                'next_time_label' => $items[0]['scheduled_time_label'] ?? null,
+            ],
+        ]);
     }
 
     public function getDailyQueue(Request $request)
@@ -1334,7 +1458,31 @@ class FlashcardController extends StudentApiController
             'smart_review_frequency_minutes' => 30,
             'auto_restart_enabled' => false,
             'prompt_mode' => 'app_and_notification',
+            'one_line_notifications_enabled' => true,
+            'one_line_daily_limit' => 5,
+            'one_line_frequency_minutes' => 30,
+            'one_line_active_from_time' => null,
+            'one_line_active_to_time' => null,
+            'one_line_quiet_start' => null,
+            'one_line_quiet_end' => null,
         ];
+    }
+
+    private function oneLineScheduleSettings(FlashcardUserSetting $settings): FlashcardUserSetting
+    {
+        return new FlashcardUserSetting([
+            'smart_review_enabled' => $settings->one_line_notifications_enabled,
+            'active_from_time' => $settings->one_line_active_from_time ?? $settings->active_from_time,
+            'active_to_time' => $settings->one_line_active_to_time ?? $settings->active_to_time,
+            'quiet_start' => $settings->one_line_quiet_start ?? $settings->quiet_start,
+            'quiet_end' => $settings->one_line_quiet_end ?? $settings->quiet_end,
+            'daily_card_limit' => $settings->one_line_daily_limit ?? $settings->daily_card_limit ?? 5,
+            'smart_review_frequency_minutes' => $settings->one_line_frequency_minutes
+                ?? $settings->smart_review_frequency_minutes
+                ?? 30,
+            'auto_restart_enabled' => false,
+            'prompt_mode' => 'notification_only',
+        ]);
     }
 
     private function packPriorityWeight(FlashcardPack $pack): int

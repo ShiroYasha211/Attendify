@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\QuizNotificationService;
 
 class QuizController extends Controller
 {
@@ -159,6 +160,8 @@ class QuizController extends Controller
             }
 
             DB::commit();
+
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject']));
 
             return redirect()->route('doctor.quizzes.show', $quiz)
                 ->with('success', 'تم إنشاء الكويز بنجاح.');
@@ -344,6 +347,8 @@ class QuizController extends Controller
 
             DB::commit();
 
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject']));
+
             return redirect()->route('doctor.quizzes.show', $quiz)
                 ->with('success', 'تم تحديث الكويز بنجاح.');
 
@@ -423,6 +428,7 @@ class QuizController extends Controller
         $quiz = $this->ownedQuizOrFail($quiz);
 
         $quiz->update(['status' => 'published']);
+        app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject']));
 
         return back()->with('success', 'تم نشر الكويز بنجاح.');
     }

@@ -62,6 +62,10 @@ class QuizController extends Controller
             })
             ->whereHas('targets', function ($q) use ($student) {
                 $q->where(function ($sub) use ($student) {
+                    $sub->whereNull('university_id')->orWhere('university_id', $student->university_id);
+                })->where(function ($sub) use ($student) {
+                    $sub->whereNull('college_id')->orWhere('college_id', $student->college_id);
+                })->where(function ($sub) use ($student) {
                     $sub->whereNull('major_id')->orWhere('major_id', $student->major_id);
                 })->where(function ($sub) use ($student) {
                     $sub->whereNull('level_id')->orWhere('level_id', $student->level_id);

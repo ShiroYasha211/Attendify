@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\QuizNotificationService;
 
 class QuizController extends Controller
 {
@@ -192,6 +193,8 @@ class QuizController extends Controller
 
             DB::commit();
 
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject', 'targets']));
+
             return redirect()->route('admin.quizzes.show', $quiz)
                 ->with('success', 'تم إنشاء الكويز الإداري بنجاح.');
 
@@ -250,6 +253,8 @@ class QuizController extends Controller
     public function publish(Quiz $quiz)
     {
         $quiz->update(['status' => 'published']);
+        app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject', 'targets']));
+
         return back()->with('success', 'تم نشر الكويز بنجاح.');
     }
 
@@ -401,9 +406,18 @@ class QuizController extends Controller
                 foreach ($validated['targets'] as $t) {
                     $quiz->targets()->create($t);
                 }
+            } else {
+                $quiz->targets()->create([
+                    'university_id' => null,
+                    'college_id' => null,
+                    'major_id' => null,
+                    'level_id' => null,
+                ]);
             }
 
             DB::commit();
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject', 'targets']));
+
             return redirect()->route('admin.quizzes.show', $quiz)->with('success', 'تم تحديث الكويز بنجاح.');
         } catch (\Exception $e) {
             DB::rollBack();

@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\QuizNotificationService;
 
 class QuizController extends BaseController
 {
@@ -171,6 +172,8 @@ class QuizController extends BaseController
 
             DB::commit();
 
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject', 'targets']));
+
             return $this->success($quiz->load('models.questions.options', 'targets'), 'تم إنشاء الكويز بنجاح', 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -316,6 +319,8 @@ class QuizController extends BaseController
             }
 
             DB::commit();
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject', 'targets']));
+
             return $this->success($quiz->load('models.questions.options', 'targets'), 'تم تحديث الكويز بنجاح.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -346,6 +351,8 @@ class QuizController extends BaseController
         }
 
         $quiz->update(['status' => 'published']);
+        app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject', 'targets']));
+
         return $this->success(null, 'تم نشر الكويز بنجاح.');
     }
 

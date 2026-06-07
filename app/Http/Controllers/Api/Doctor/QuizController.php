@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Services\QuizNotificationService;
 
 class QuizController extends DoctorApiController
 {
@@ -138,6 +139,8 @@ class QuizController extends DoctorApiController
 
             DB::commit();
 
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject']));
+
             return $this->success($quiz->load('subject:id,name', 'models.questions.options'), 'تم إنشاء الكويز بنجاح.', 201);
         } catch (\Throwable $exception) {
             DB::rollBack();
@@ -254,6 +257,8 @@ class QuizController extends DoctorApiController
 
             DB::commit();
 
+            app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject']));
+
             return $this->success($quiz->fresh()->load('subject:id,name', 'models.questions.options'), 'تم تحديث الكويز بنجاح.');
         } catch (\Throwable $exception) {
             DB::rollBack();
@@ -338,6 +343,7 @@ class QuizController extends DoctorApiController
     {
         $quiz = $this->ownedQuizOrFail($quiz);
         $quiz->update(['status' => 'published']);
+        app(QuizNotificationService::class)->notifyIfEnabled($quiz->fresh(['subject']));
 
         return $this->success($quiz->only(['id', 'status']), 'تم نشر الكويز بنجاح.');
     }

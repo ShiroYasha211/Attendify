@@ -18,6 +18,13 @@ class FlashcardUserSetting extends Model
         'smart_review_frequency_minutes',
         'auto_restart_enabled',
         'prompt_mode',
+        'one_line_notifications_enabled',
+        'one_line_daily_limit',
+        'one_line_frequency_minutes',
+        'one_line_active_from_time',
+        'one_line_active_to_time',
+        'one_line_quiet_start',
+        'one_line_quiet_end',
     ];
 
     protected $casts = [
@@ -25,6 +32,9 @@ class FlashcardUserSetting extends Model
         'daily_card_limit' => 'integer',
         'smart_review_frequency_minutes' => 'integer',
         'auto_restart_enabled' => 'boolean',
+        'one_line_notifications_enabled' => 'boolean',
+        'one_line_daily_limit' => 'integer',
+        'one_line_frequency_minutes' => 'integer',
     ];
 
     public function user(): BelongsTo
