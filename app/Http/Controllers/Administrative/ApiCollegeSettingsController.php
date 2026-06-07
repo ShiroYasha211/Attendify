@@ -19,6 +19,7 @@ class ApiCollegeSettingsController extends AdministrativeApiController
             'excuses_deadline_days' => $college->excuses_deadline_days,
             'excuse_receiver' => $college->excuse_receiver,
             'qr_rotation_seconds' => $college->qr_rotation_seconds,
+            'doctor_initial_star_balance' => $college->doctor_initial_star_balance,
         ]);
     }
 
@@ -29,6 +30,7 @@ class ApiCollegeSettingsController extends AdministrativeApiController
             'excuses_deadline_days' => 'required|integer|min:1|max:30',
             'excuse_receiver' => 'required|in:administrative,doctor',
             'qr_rotation_seconds' => 'required|integer|min:5|max:300',
+            'doctor_initial_star_balance' => 'required|integer|min:0|max:1000000',
         ]);
 
         $college = $this->college();
@@ -45,6 +47,7 @@ class ApiCollegeSettingsController extends AdministrativeApiController
             'excuses_deadline_days' => $college->excuses_deadline_days,
             'excuse_receiver' => $college->excuse_receiver,
             'qr_rotation_seconds' => $college->qr_rotation_seconds,
+            'doctor_initial_star_balance' => $college->doctor_initial_star_balance,
             'transferred_pending_excuses' => $transferredExcuses,
         ], 'College settings updated successfully.');
     }

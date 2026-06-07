@@ -24,6 +24,7 @@ class CollegeSettingsController extends Controller
             'excuses_deadline_days' => 'required|integer|min:1|max:30',
             'excuse_receiver' => 'required|in:administrative,doctor',
             'qr_rotation_seconds' => 'required|integer|min:5|max:300',
+            'doctor_initial_star_balance' => 'required|integer|min:0|max:1000000',
         ]);
 
         $college->update($validated);

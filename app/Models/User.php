@@ -643,6 +643,11 @@ class User extends Authenticatable
         return $this->hasMany(StarTransaction::class);
     }
 
+    public function doctorStarWallet()
+    {
+        return $this->hasOne(DoctorStarWallet::class, 'doctor_id');
+    }
+
     /**
      * Add stars to this user's balance.
      */

@@ -759,6 +759,7 @@ Route::prefix('administrative')
 
         // Management Resources
         Route::resource('students', App\Http\Controllers\Administrative\StudentController::class)->except(['create', 'show', 'edit']);
+        Route::post('doctors/{doctor}/star-wallet/top-up', [App\Http\Controllers\Administrative\DoctorController::class, 'topUpStarWallet'])->name('doctors.star-wallet.top-up');
         Route::resource('doctors', App\Http\Controllers\Administrative\DoctorController::class)->except(['create', 'show', 'edit']);
         Route::resource('majors', App\Http\Controllers\Administrative\MajorController::class)->except(['create', 'show', 'edit']);
         Route::resource('subjects', App\Http\Controllers\Administrative\SubjectController::class)->except(['create', 'show', 'edit']);

@@ -94,6 +94,23 @@
     }
 
     .select-all-btn:hover { background: #fde68a; }
+
+    .wallet-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .wallet-metric {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 14px;
+        padding: 0.9rem;
+    }
+
+    .wallet-metric span { display: block; color: #92400e; font-size: 0.78rem; font-weight: 700; }
+    .wallet-metric strong { color: #78350f; font-size: 1.25rem; font-weight: 900; }
 </style>
 
 <div class="star-grant-header">
@@ -106,12 +123,29 @@
 <div class="grant-card" x-data="{ selectAll: false }">
     <div class="grant-card-title"><i class="fa-solid fa-gift"></i> منح نجوم للطلاب</div>
 
-    <form action="{{ route('doctor.stars.grant') }}" method="POST">
+    <div class="wallet-summary">
+        <div class="wallet-metric">
+            <span>الرصيد المتاح</span>
+            <strong>{{ $wallet->balance }}</strong>
+        </div>
+        <div class="wallet-metric">
+            <span>إجمالي المخصص</span>
+            <strong>{{ $wallet->total_allocated }}</strong>
+        </div>
+        <div class="wallet-metric">
+            <span>إجمالي الممنوح</span>
+            <strong>{{ $wallet->total_spent }}</strong>
+        </div>
+    </div>
+
+    <form action="{{ route('doctor.stars.grant') }}" method="POST"
+          x-data="{ amount: 5, selectedCount: 0, balance: {{ $wallet->balance }} }"
+          @change="selectedCount = document.querySelectorAll('.student-cb:checked').length">
         @csrf
 
         <div class="mb-3">
             <label class="form-label" style="font-weight: 700;">عدد النجوم لكل طالب *</label>
-            <input type="number" name="amount" class="form-control form-control-star" min="1" max="100" value="5" required style="max-width: 200px;">
+            <input type="number" name="amount" x-model.number="amount" class="form-control form-control-star" min="1" max="100" value="5" required style="max-width: 200px;">
         </div>
 
         <div class="mb-3">
@@ -122,7 +156,7 @@
         <div class="mb-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <label class="form-label mb-0" style="font-weight: 700;">اختر الطلاب *</label>
-                <button type="button" class="select-all-btn" @click="selectAll = !selectAll; document.querySelectorAll('.student-cb').forEach(cb => cb.checked = selectAll)">
+                <button type="button" class="select-all-btn" @click="selectAll = !selectAll; document.querySelectorAll('.student-cb').forEach(cb => cb.checked = selectAll); selectedCount = document.querySelectorAll('.student-cb:checked').length">
                     <i class="fa-solid fa-check-double me-1"></i> <span x-text="selectAll ? 'إلغاء الكل' : 'تحديد الكل'"></span>
                 </button>
             </div>
@@ -142,7 +176,21 @@
             </div>
         </div>
 
-        <button type="submit" class="btn-grant">
+        <div class="mb-3 rounded-3 border p-3" style="background:#f8fafc;">
+            <strong>تكلفة العملية: <span x-text="selectedCount * amount"></span> نجمة</strong>
+            <div class="small text-muted mt-1">
+                الرصيد بعد المنح:
+                <span x-text="Math.max(0, balance - (selectedCount * amount))"></span>
+                نجمة
+            </div>
+            <div class="small text-danger mt-1" x-show="selectedCount * amount > balance">
+                الرصيد المتاح لا يكفي لتنفيذ هذه العملية.
+            </div>
+        </div>
+
+        <button type="submit" class="btn-grant"
+                :disabled="selectedCount === 0 || amount < 1 || selectedCount * amount > balance"
+                :style="(selectedCount === 0 || selectedCount * amount > balance) ? 'opacity:.5;cursor:not-allowed' : ''">
             <i class="fa-solid fa-paper-plane"></i> منح النجوم
         </button>
     </form>

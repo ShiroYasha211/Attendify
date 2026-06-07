@@ -54,6 +54,16 @@
                     @enderror
                 </div>
 
+                <div class="col-md-6">
+                    <label class="form-label">الرصيد الابتدائي لمنح النجوم للدكتور</label>
+                    <input type="number" name="doctor_initial_star_balance" class="form-control" min="0" max="1000000"
+                        value="{{ old('doctor_initial_star_balance', $college->doctor_initial_star_balance ?? 50) }}" required>
+                    <div class="form-text">يطبق على محافظ الدكاترة الجدد. يمكن إضافة رصيد منفصل لأي دكتور من صفحة إدارة الدكاترة.</div>
+                    @error('doctor_initial_star_balance')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="col-12">
                     <div class="alert alert-info mb-0">
                         عند قبول العذر سيتم اختيار إحدى النتائج التالية: مستأذن، إعفاء، أو إبقاء الطالب غائبًا.

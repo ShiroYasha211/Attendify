@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api\Doctor;
 
 use App\Models\Academic\Subject;
 use App\Models\User;
+use App\Services\DoctorStarWalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class StarController extends DoctorApiController
 {
+    public function __construct(private readonly DoctorStarWalletService $wallets)
+    {
+    }
+
     protected function eligibleStudentsQuery()
     {
         $doctor = Auth::user();
@@ -32,6 +37,7 @@ class StarController extends DoctorApiController
 
     public function index(Request $request)
     {
+        $wallet = $this->wallets->initialize(Auth::user());
         $subjects = Subject::where('doctor_id', Auth::id())
             ->with(['major:id,name', 'level:id,name'])
             ->get(['id', 'name', 'level_id', 'major_id']);
@@ -55,13 +61,25 @@ class StarController extends DoctorApiController
                 });
             })
             ->orderBy('name')
-            ->paginate($request->integer('per_page', 25), ['id', 'name', 'student_number', 'stars_balance', 'major_id', 'level_id']);
+            ->paginate($request->integer('per_page', 25), [
+                'id',
+                'name',
+                'student_number',
+                'stars_balance',
+                'major_id',
+                'level_id',
+            ]);
 
         return $this->success([
             'subjects' => $subjects,
             'majors' => $subjects->pluck('major')->filter()->unique('id')->values(),
             'levels' => $subjects->pluck('level')->filter()->unique('id')->values(),
             'students' => $students,
+            'wallet' => [
+                'balance' => $wallet->balance,
+                'total_allocated' => $wallet->total_allocated,
+                'total_spent' => $wallet->total_spent,
+            ],
         ]);
     }
 
@@ -69,41 +87,32 @@ class StarController extends DoctorApiController
     {
         $validated = $request->validate([
             'student_ids' => 'required|array|min:1',
-            'student_ids.*' => 'exists:users,id',
+            'student_ids.*' => 'integer|exists:users,id',
             'amount' => 'required|integer|min:1|max:100',
             'description' => 'nullable|string|max:200',
         ]);
 
-        $eligibleIds = $this->eligibleStudentsQuery()
-            ->whereIn('id', $validated['student_ids'])
-            ->pluck('id')
-            ->all();
+        $requestedIds = array_values(array_unique(array_map('intval', $validated['student_ids'])));
+        $students = $this->eligibleStudentsQuery()
+            ->whereIn('id', $requestedIds)
+            ->get();
 
-        if (count($eligibleIds) !== count($validated['student_ids'])) {
+        if ($students->count() !== count($requestedIds)) {
             return $this->error('أحد الطلاب المحددين خارج نطاق المواد التابعة لك.', 403);
         }
 
-        $doctor = $request->user();
-        $count = 0;
-
-        foreach ($eligibleIds as $studentId) {
-            $student = User::find($studentId);
-            if (!$student) {
-                continue;
-            }
-
-            $student->addStars(
-                $validated['amount'],
-                'doctor_gift',
-                $doctor->id,
-                $validated['description'] ?? "هدية نجوم من د. {$doctor->name}"
-            );
-            $count++;
-        }
+        $result = $this->wallets->grant(
+            $request->user(),
+            $students,
+            $validated['amount'],
+            $validated['description'] ?? null,
+        );
 
         return $this->success([
-            'granted_count' => $count,
-            'amount' => $validated['amount'],
-        ], "تم منح {$validated['amount']} نجمة لـ {$count} طالب بنجاح.");
+            'granted_count' => $result['recipient_count'],
+            'amount' => $result['stars_per_student'],
+            'total_cost' => $result['total_cost'],
+            'remaining_balance' => $result['wallet']->balance,
+        ], "تم منح {$validated['amount']} نجمة لـ {$result['recipient_count']} طالب بنجاح.");
     }
 }

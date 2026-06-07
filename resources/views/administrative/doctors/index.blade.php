@@ -204,6 +204,7 @@
     }
 
     .action-btn.edit { background: #3b82f6; }
+    .action-btn.stars { background: #d97706; }
     .action-btn.delete { background: #ef4444; }
     .action-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
 </style>
@@ -211,13 +212,17 @@
 <div x-data="{ 
     showDeleteModal: false, 
     showEditModal: false,
+    showStarsModal: false,
     deleteUrl: '', 
     modalTitle: '', 
     modalMessage: '',
     
     editUrl: '',
     editName: '',
-    editEmail: ''
+    editEmail: '',
+    starsUrl: '',
+    starsDoctorName: '',
+    starsBalance: 0
 }">
 
     <!-- Page Header -->
@@ -294,7 +299,8 @@
                         <tr>
                             <th>الدكتور</th>
                             <th>المواد المسؤولة</th>
-                            <th style="width: 120px;">الإجراءات</th>
+                            <th>رصيد المنح</th>
+                            <th style="width: 160px;">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -326,7 +332,21 @@
                                 @endif
                             </td>
                             <td>
+                                <div style="display:inline-flex;align-items:center;gap:.45rem;background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:.45rem .7rem;border-radius:10px;font-weight:800;">
+                                    <i class="fas fa-star"></i>
+                                    {{ $doctor->doctorStarWallet?->balance ?? 0 }}
+                                </div>
+                            </td>
+                            <td>
                                 <div style="display: flex; gap: 0.5rem;">
+                                    <button @click="
+                                        showStarsModal = true;
+                                        starsUrl = '{{ route('administrative.doctors.star-wallet.top-up', $doctor) }}';
+                                        starsDoctorName = @js($doctor->name);
+                                        starsBalance = {{ $doctor->doctorStarWallet?->balance ?? 0 }};
+                                    " class="action-btn stars" title="إضافة رصيد نجوم">
+                                        <i class="fas fa-star"></i>
+                                    </button>
                                     <button @click="
                                         showEditModal = true;
                                         modalTitle = 'تعديل بيانات: {{ $doctor->name }}';
@@ -350,7 +370,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="3" style="text-align: center; padding: 4rem;">
+                            <td colspan="4" style="text-align: center; padding: 4rem;">
                                 <div style="color: #94a3b8; font-weight: 600;">لا يوجد دكاترة مسجلين في الكلية حالياً</div>
                             </td>
                         </tr>
@@ -403,6 +423,40 @@
             </div>
         </form>
     </x-edit-modal>
+
+    <div x-show="showStarsModal" x-cloak
+         style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1050;display:flex;align-items:center;justify-content:center;padding:1rem;"
+         @keydown.escape.window="showStarsModal = false">
+        <div @click.outside="showStarsModal = false"
+             style="width:min(480px,100%);background:white;border-radius:22px;padding:1.5rem;box-shadow:0 24px 70px rgba(15,23,42,.25);">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div>
+                    <h3 class="h5 fw-bold mb-1">إضافة رصيد منح النجوم</h3>
+                    <div class="text-muted small" x-text="starsDoctorName"></div>
+                </div>
+                <div style="background:#fffbeb;color:#92400e;border-radius:12px;padding:.55rem .8rem;font-weight:800;">
+                    <i class="fas fa-star me-1"></i>
+                    <span x-text="starsBalance"></span>
+                </div>
+            </div>
+            <form :action="starsUrl" method="POST">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label fw-bold">عدد النجوم المضافة</label>
+                    <input type="number" name="amount" class="form-control" min="1" max="1000000" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold">سبب الإضافة</label>
+                    <textarea name="reason" class="form-control" rows="3" maxlength="255" required
+                              placeholder="مثال: تعزيز رصيد المنح للفصل الحالي"></textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-warning flex-grow-1 fw-bold">تأكيد إضافة الرصيد</button>
+                    <button type="button" class="btn btn-light" @click="showStarsModal = false">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 </div>
 

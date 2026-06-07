@@ -504,6 +504,8 @@ Route::prefix('administrative')->middleware(['auth:sanctum', 'administrative', '
           Route::get('reports/comparison', [\App\Http\Controllers\Api\Administrative\ReportController::class, 'comparison']);
 
         Route::apiResource('students', \App\Http\Controllers\Api\Administrative\StudentController::class);
+        Route::get('doctors/{doctor}/star-wallet', [\App\Http\Controllers\Api\Administrative\DoctorController::class, 'starWallet']);
+        Route::post('doctors/{doctor}/star-wallet/top-up', [\App\Http\Controllers\Api\Administrative\DoctorController::class, 'topUpStarWallet']);
         Route::apiResource('doctors', \App\Http\Controllers\Api\Administrative\DoctorController::class);
         Route::apiResource('majors', \App\Http\Controllers\Api\Administrative\MajorController::class)->except(['create', 'edit']);
         Route::apiResource('subjects', \App\Http\Controllers\Api\Administrative\SubjectController::class)->except(['create', 'edit']);

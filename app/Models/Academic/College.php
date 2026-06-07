@@ -15,6 +15,11 @@ class College extends Model
         'excuses_deadline_days',
         'excuse_receiver',
         'qr_rotation_seconds',
+        'doctor_initial_star_balance',
+    ];
+
+    protected $casts = [
+        'doctor_initial_star_balance' => 'integer',
     ];
 
     /**
