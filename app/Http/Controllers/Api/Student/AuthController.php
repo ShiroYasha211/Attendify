@@ -299,6 +299,7 @@ class AuthController extends StudentApiController
             'support_email'      => Setting::get('support_email', 'support@moeen.tech'),
             'support_website'    => Setting::get('support_website', 'moeen.tech'),
             'support_instagram'  => Setting::get('support_instagram', '@moeen.app'),
+            'student_qr_scan_free_enabled' => Setting::get('student_qr_scan_free_enabled', true),
             'support_work_hours' => Setting::get('support_work_hours', 'السبت - الخميس | 8:00 ص - 2:00 م'),
             'support_notice'     => Setting::get('support_notice', 'عند وجود مشكلة في الحضور أو رفع الملفات، يرجى إرسال اسمك، رقم القيد، وصف دقيق للمشكلة، مع لقطة شاشة توضيحية لضمان سرعة المعالجة.'),
         ]);

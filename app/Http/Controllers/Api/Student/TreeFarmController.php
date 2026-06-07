@@ -48,6 +48,16 @@ class TreeFarmController extends Controller
         ]);
     }
 
+    public function publicFarm(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'rows'  => $this->publicFarmRows($user),
+            'stats' => $this->publicFarmStats($user),
+        ]);
+    }
+
     public function updateProfile(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -564,12 +574,58 @@ class TreeFarmController extends Controller
             ->values()
             ->map(function ($profile, $index) {
                 return [
-                    'rank' => $index + 1,
-                    'name' => $profile->use_alias && $profile->public_name ? $profile->public_name : $profile->user?->name,
+                    'rank'          => $index + 1,
+                    'name'          => $profile->use_alias && $profile->public_name ? $profile->public_name : $profile->user?->name,
                     'focus_seconds' => (int) $profile->total_focus_seconds,
-                    'coins' => (int) $profile->coins_balance,
+                    'coins'         => (int) $profile->coins_balance,
                 ];
             });
+    }
+
+    private function publicFarmRows($user): \Illuminate\Support\Collection
+    {
+        return TreeFarmProfile::query()
+            ->with('user:id,name,university_id')
+            ->where('is_public', true)
+            ->where('total_public_focus_seconds', '>', 0)
+            ->whereHas('user', function ($query) use ($user) {
+                $query->where('university_id', $user->university_id)
+                      ->whereNotNull('university_id');
+            })
+            ->orderByDesc('total_public_focus_seconds')
+            ->limit(100)
+            ->get()
+            ->values()
+            ->map(function ($profile, $index) {
+                return [
+                    'rank'                      => $index + 1,
+                    'name'                      => $profile->use_alias && $profile->public_name
+                                                        ? $profile->public_name
+                                                        : $profile->user?->name,
+                    'public_focus_seconds'      => (int) $profile->total_public_focus_seconds,
+                    'total_focus_seconds'       => (int) $profile->total_focus_seconds,
+                    'coins'                     => (int) $profile->coins_balance,
+                ];
+            });
+    }
+
+    private function publicFarmStats($user): array
+    {
+        $baseQuery = TreeFarmProfile::query()
+            ->where('is_public', true)
+            ->where('total_public_focus_seconds', '>', 0)
+            ->whereHas('user', function ($query) use ($user) {
+                $query->where('university_id', $user->university_id)
+                      ->whereNotNull('university_id');
+            });
+
+        $total = (clone $baseQuery)->count();
+        $totalPublicSeconds = (clone $baseQuery)->sum('total_public_focus_seconds');
+
+        return [
+            'participant_count'         => $total,
+            'total_public_focus_seconds'=> (int) $totalPublicSeconds,
+        ];
     }
 
     private function formatProfile(TreeFarmProfile $profile, $user): array

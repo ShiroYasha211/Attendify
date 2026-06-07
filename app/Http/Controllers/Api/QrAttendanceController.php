@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Delegate\DelegateApiController;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\QrAttendanceSession;
+use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -238,6 +239,13 @@ class QrAttendanceController extends DelegateApiController
             UserRole::PRACTICAL_DELEGATE->value,
         ], true)) {
             return response()->json(['message' => 'هذه الميزة متاحة للطلاب فقط.'], 403);
+        }
+
+        if (!Setting::get('student_qr_scan_free_enabled', true) && !$user->isSubscribed()) {
+            return response()->json([
+                'message' => 'تصوير QR الحضور يحتاج إلى اشتراك نشط حاليًا.',
+                'code' => 'subscription_required',
+            ], 403);
         }
 
         $validated = $request->validate([

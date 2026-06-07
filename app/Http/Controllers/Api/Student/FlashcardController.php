@@ -853,20 +853,20 @@ class FlashcardController extends StudentApiController
             'options' => $item->options,
             'correct_option' => $item->correct_option,
             'priority' => $item->priority,
-            'scheduled_at' => $scheduledAt->toIso8601String(),
+            'scheduled_at' => $this->isoWithAppTimezone($scheduledAt),
             'scheduled_time' => $scheduledAt->format('H:i'),
-            'scheduled_time_label' => $this->formatTimeLabel($scheduledAt),
+            'scheduled_time_label' => $this->formatAppTimeLabel($scheduledAt),
             'available_now' => $scheduledAt->lessThanOrEqualTo(now()) && $this->globalSettingsAllowNow($settings),
             'reviewed_today' => $reviewed,
-            'reviewed_at' => $progress?->last_shown_at?->toIso8601String(),
+            'reviewed_at' => $this->isoWithAppTimezone($progress?->last_shown_at),
             'reviewed_time' => $progress?->last_shown_at?->format('H:i'),
-            'reviewed_time_label' => $this->formatTimeLabel($progress?->last_shown_at),
+            'reviewed_time_label' => $this->formatAppTimeLabel($progress?->last_shown_at),
             'last_response' => $progress?->last_response,
             'last_response_label' => $this->responseLabel($progress?->last_response),
-            'next_review_at' => $progress?->next_review_at?->toIso8601String(),
+            'next_review_at' => $this->isoWithAppTimezone($progress?->next_review_at),
             'next_review_date' => $progress?->next_review_at?->toDateString(),
             'next_review_time' => $progress?->next_review_at?->format('H:i'),
-            'next_review_time_label' => $this->formatTimeLabel($progress?->next_review_at),
+            'next_review_time_label' => $this->formatAppTimeLabel($progress?->next_review_at),
             'times_shown' => $progress?->times_shown ?? 0,
             'times_correct' => $progress?->times_correct ?? 0,
             'accuracy' => $progress?->accuracy ?? 0,
@@ -1624,6 +1624,31 @@ class FlashcardController extends StudentApiController
         }
 
         return str_replace(['AM', 'PM'], ['ص', 'م'], $dateTime->format('g:i A'));
+    }
+
+    private function isoWithAppTimezone(?Carbon $dateTime): ?string
+    {
+        if (!$dateTime) {
+            return null;
+        }
+
+        return $dateTime
+            ->copy()
+            ->timezone(config('app.timezone'))
+            ->format('Y-m-d\TH:i:sP');
+    }
+
+    private function formatAppTimeLabel(?Carbon $dateTime): ?string
+    {
+        if (!$dateTime) {
+            return null;
+        }
+
+        return str_replace(
+            ['AM', 'PM'],
+            ['ص', 'م'],
+            $dateTime->copy()->timezone(config('app.timezone'))->format('g:i A')
+        );
     }
 
     private function timeStringIsNowOrPast(string $time): bool

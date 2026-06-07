@@ -726,6 +726,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::prefix('tree-farm')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'index']);
         Route::get('leaderboard', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'leaderboard']);
+        Route::get('public-farm', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'publicFarm']);
         Route::patch('profile', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'updateProfile']);
         Route::post('sessions/start', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'start']);
         Route::post('sessions/{session}/heartbeat', [\App\Http\Controllers\Api\Student\TreeFarmController::class, 'heartbeat']);
