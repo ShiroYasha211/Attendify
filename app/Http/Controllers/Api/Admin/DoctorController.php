@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Models\User;
 use App\Enums\UserRole;
+use App\Services\AdministrativeAccessNotificationService;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -50,6 +51,10 @@ class DoctorController extends AdminApiController
         ]);
 
         $this->logCreate('Doctor', $doctor, "تم إضافة الدكتور: {$doctor->name}");
+        if ($doctor->administrative_access) {
+            app(AdministrativeAccessNotificationService::class)
+                ->notify($doctor, true, $request->user()?->id);
+        }
         return $this->success($doctor, 'تم إضافة الدكتور بنجاح', 201);
     }
 
@@ -63,6 +68,7 @@ class DoctorController extends AdminApiController
             'administrative_access' => 'nullable|boolean',
         ]);
 
+        $hadAdministrativeAccess = (bool) $doctor->administrative_access;
         $data = $request->only('name', 'email', 'university_id', 'college_id');
         $data['administrative_access'] = $request->boolean('administrative_access');
         if ($request->filled('password')) {
@@ -70,7 +76,12 @@ class DoctorController extends AdminApiController
         }
 
         $doctor->update($data);
+        $hasAdministrativeAccess = (bool) $doctor->administrative_access;
         $this->logUpdate('Doctor', $doctor, "تم تعديل بيانات الدكتور: {$doctor->name}");
+        if ($hadAdministrativeAccess !== $hasAdministrativeAccess) {
+            app(AdministrativeAccessNotificationService::class)
+                ->notify($doctor, $hasAdministrativeAccess, $request->user()?->id);
+        }
         return $this->success($doctor->fresh(), 'تم تحديث بيانات الدكتور بنجاح');
     }
 

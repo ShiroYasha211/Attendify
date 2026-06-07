@@ -74,8 +74,17 @@ class MessageController extends DoctorApiController
                         ->orWhere('student_number', 'like', "%{$search}%");
                 });
             })
+            ->with(['major:id,name', 'level:id,name'])
             ->orderBy('name')
-            ->get(['id', 'name', 'student_number', 'role']);
+            ->get(['id', 'name', 'student_number', 'role', 'major_id', 'level_id'])
+            ->map(fn($d) => [
+                'id' => $d->id,
+                'name' => $d->name,
+                'student_number' => $d->student_number,
+                'role' => $this->roleValue($d),
+                'major' => $d->major?->name,
+                'level' => $d->level?->name,
+            ]);
 
         return $this->success($delegates);
     }

@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Academic\College;
-use App\Models\StudentNotification;
 use App\Models\User;
+use App\Services\AdministrativeAccessNotificationService;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -60,6 +60,11 @@ class DoctorController extends Controller
 
         $this->logCreate('Doctor', $doctor, "تم إضافة الدكتور: {$doctor->name}");
 
+        if ($doctor->administrative_access) {
+            app(AdministrativeAccessNotificationService::class)
+                ->notify($doctor, true, auth()->id());
+        }
+
         return redirect()->route('admin.doctors.index')
             ->with('success', 'تم إضافة الدكتور بنجاح.');
     }
@@ -91,9 +96,16 @@ class DoctorController extends Controller
             $updateData['password'] = Hash::make($request->password);
         }
 
+        $hadAdministrativeAccess = (bool) $doctor->administrative_access;
         $doctor->update($updateData);
+        $hasAdministrativeAccess = (bool) $doctor->administrative_access;
 
         $this->logUpdate('Doctor', $doctor, "تم تعديل بيانات الدكتور: {$doctor->name}");
+
+        if ($hadAdministrativeAccess !== $hasAdministrativeAccess) {
+            app(AdministrativeAccessNotificationService::class)
+                ->notify($doctor, $hasAdministrativeAccess, auth()->id());
+        }
 
         return redirect()->route('admin.doctors.index')
             ->with('success', 'تم تحديث بيانات الدكتور بنجاح.');
@@ -125,24 +137,8 @@ class DoctorController extends Controller
         );
 
         if ($hadAdministrativeAccess !== $hasAdministrativeAccess) {
-            StudentNotification::create([
-                'user_id' => $doctor->id,
-                'college_id' => $doctor->college_id,
-                'sender_id' => auth()->id(),
-                'type' => 'administrative_access',
-                'title' => $hasAdministrativeAccess
-                    ? 'تم منحك صلاحية المسؤول الإداري'
-                    : 'تم سحب صلاحية المسؤول الإداري',
-                'message' => $hasAdministrativeAccess
-                    ? 'أصبح بإمكانك الآن الانتقال إلى لوحة المسؤول الإداري وإدارة الكلية من حسابك.'
-                    : 'تم سحب صلاحية الوصول إلى لوحة المسؤول الإداري من حسابك.',
-                'data' => [
-                    'screen' => 'notifications',
-                    'target_screen' => 'notifications',
-                    'administrative_access' => $hasAdministrativeAccess,
-                    'refresh_session' => true,
-                ],
-            ]);
+            app(AdministrativeAccessNotificationService::class)
+                ->notify($doctor, $hasAdministrativeAccess, auth()->id());
         }
 
         return redirect()->route('admin.doctors.index')
