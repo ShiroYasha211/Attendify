@@ -21,7 +21,7 @@ Route::prefix('admin')
 
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'status'])
+    ->middleware(['auth', 'web.access', 'status'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])
             ->name('dashboard');
@@ -204,7 +204,7 @@ Route::prefix('admin')
 
 Route::prefix('doctor')
     ->name('doctor.')
-    ->middleware(['auth', 'role:doctor', 'status', 'subscribed'])
+    ->middleware(['auth', 'web.access', 'role:doctor', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Doctor\DashboardController::class, 'index'])->name('dashboard');
 
@@ -391,7 +391,7 @@ Route::prefix('doctor')
 
 Route::prefix('student')
     ->name('student.')
-    ->middleware(['auth', 'role:student', 'status', 'subscribed'])
+    ->middleware(['auth', 'web.access', 'role:student', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
 
@@ -564,7 +564,7 @@ Route::prefix('student')
 
 Route::prefix('delegate')
     ->name('delegate.')
-    ->middleware(['auth', 'role:delegate', 'status', 'subscribed'])
+    ->middleware(['auth', 'web.access', 'role:delegate', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Delegate\DashboardController::class, 'index'])->name('dashboard');
 
@@ -706,7 +706,7 @@ Route::prefix('delegate')
 
 Route::prefix('administrative')
     ->name('administrative.')
-    ->middleware(['auth', 'administrative', 'status', 'subscribed'])
+    ->middleware(['auth', 'web.access', 'administrative', 'status', 'subscribed'])
     ->group(function () {
         Route::get('dashboard', [App\Http\Controllers\Administrative\DashboardController::class, 'index'])->name('dashboard');
         Route::get('settings', [App\Http\Controllers\Administrative\CollegeSettingsController::class, 'edit'])->name('settings');
@@ -781,7 +781,7 @@ Route::prefix('administrative')
 // Separate Clinical Access for Students who are Practical Delegates
 Route::prefix('student')
     ->name('student.')
-    ->middleware(['auth', 'role:student', 'status', 'clinical_delegate'])
+    ->middleware(['auth', 'web.access', 'role:student', 'status', 'clinical_delegate'])
     ->group(function () {
         Route::prefix('clinical')->name('clinical.')->group(function () {
             Route::get('cases/pending', [App\Http\Controllers\Delegate\Clinical\ClinicalCaseController::class, 'pending'])->name('cases.pending');

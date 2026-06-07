@@ -45,6 +45,16 @@ class SettingController extends Controller
             ]);
         }
 
+        if ($request->hasAny([
+            'web_access_enabled',
+            'web_access_closed_message',
+        ])) {
+            $request->validate([
+                'web_access_enabled' => ['required', 'boolean'],
+                'web_access_closed_message' => ['required', 'string', 'max:500'],
+            ]);
+        }
+
         $updated = 0;
 
         foreach ($request->all() as $key => $value) {

@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'delegate.permission' => \App\Http\Middleware\CheckDelegatePermission::class,
             'device.validate' => \App\Http\Middleware\ValidateDeviceBinding::class,
             'device.primary' => \App\Http\Middleware\EnsurePrimaryStudentDevice::class,
+            'web.access' => \App\Http\Middleware\EnsureWebAccessEnabled::class,
         ]);
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->expectsJson() || $request->is('api/*')) {

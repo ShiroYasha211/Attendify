@@ -9,6 +9,7 @@ use App\Models\Academic\College;
 use App\Models\Academic\Major;
 use App\Models\Academic\Level;
 use App\Enums\UserRole;
+use App\Support\WebAccessGate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -20,6 +21,12 @@ class RegisterController extends Controller
      */
     public function showRegistrationForm()
     {
+        if (! WebAccessGate::isEnabled()) {
+            return redirect()
+                ->route('admin.login')
+                ->withErrors(['email' => WebAccessGate::closedMessage()]);
+        }
+
         $universities = University::all();
         $colleges = College::all();
         $majors = Major::all();
@@ -33,6 +40,12 @@ class RegisterController extends Controller
      */
     public function register(Request $request)
     {
+        if (! WebAccessGate::isEnabled()) {
+            return redirect()
+                ->route('admin.login')
+                ->withErrors(['email' => WebAccessGate::closedMessage()]);
+        }
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],

@@ -90,6 +90,7 @@ class Setting extends Model
             'attendance' => 'إعدادات الحضور',
             'support' => 'إعدادات الدعم والمساعدة',
             'stars' => 'إعدادات تحويل النجوم',
+            'access' => 'إعدادات دخول الموقع',
             default => $group
         };
     }

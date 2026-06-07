@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Support\WebAccessGate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -59,6 +60,19 @@ class AuthController extends Controller
                 Auth::logout();
                 return back()->withErrors([
                     'email' => 'حسابك غير نشط. يرجى مراجعة إدارة النظام.',
+                ])->withInput($request->only('email'));
+            }
+
+            if (! WebAccessGate::canAccessWeb($user)) {
+                $message = WebAccessGate::closedMessage();
+
+                Auth::logout();
+
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => $message,
                 ])->withInput($request->only('email'));
             }
 
