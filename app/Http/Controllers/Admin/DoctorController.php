@@ -18,16 +18,58 @@ class DoctorController extends Controller
     /**
      * Display the doctors list.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $doctors = User::where('role', UserRole::DOCTOR)
+        $query = User::where('role', UserRole::DOCTOR)
             ->with(['university', 'college', 'subjects.term.level.major'])
+            ->withCount('subjects');
+
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $query->where(function ($doctorQuery) use ($search) {
+                $doctorQuery
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+
+                if (ctype_digit($search)) {
+                    $doctorQuery->orWhereKey((int) $search);
+                }
+            });
+        }
+
+        if ($request->filled('university_id')) {
+            $query->where('university_id', (int) $request->query('university_id'));
+        }
+
+        if ($request->filled('college_id')) {
+            $query->where('college_id', (int) $request->query('college_id'));
+        }
+
+        $status = (string) $request->query('status', '');
+        if (in_array($status, ['active', 'inactive', 'pending'], true)) {
+            $query->where('status', $status);
+        }
+
+        $rank = (string) $request->query('rank', '');
+        if ($rank === 'administrative') {
+            $query->where('administrative_access', true);
+        } elseif ($rank === 'doctor') {
+            $query->where('administrative_access', false);
+        }
+
+        $doctors = $query
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         $universities = \App\Models\Academic\University::with('colleges')->get();
+        $totalDoctors = User::where('role', UserRole::DOCTOR)->count();
 
-        return view('admin.users.doctors.index', compact('doctors', 'universities'));
+        return view('admin.users.doctors.index', compact(
+            'doctors',
+            'universities',
+            'totalDoctors',
+        ));
     }
 
     /**

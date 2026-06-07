@@ -279,6 +279,160 @@
         font-weight: 700;
         color: #0891b2;
     }
+
+    .doctors-filter-panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .doctors-filter-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(145px, 1fr));
+        gap: 0.75rem;
+        align-items: end;
+    }
+
+    .doctors-filter-field {
+        min-width: 0;
+    }
+
+    .doctors-filter-field label {
+        display: block;
+        color: #475569;
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+
+    .doctors-filter-field .form-control {
+        min-height: 42px;
+        background: white;
+        border-color: #dbe3ec;
+        font-size: 0.86rem;
+    }
+
+    .doctors-filter-search {
+        position: relative;
+    }
+
+    .doctors-filter-search svg {
+        position: absolute;
+        right: 0.85rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+
+    .doctors-filter-search input {
+        padding-right: 2.6rem;
+    }
+
+    .doctors-filter-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .doctors-filter-buttons {
+        display: flex;
+        gap: 0.55rem;
+    }
+
+    .doctors-filter-apply,
+    .doctors-filter-reset {
+        min-height: 40px;
+        border: 0;
+        border-radius: 9px;
+        padding: 0.6rem 1rem;
+        font-size: 0.84rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        transition: transform 0.2s ease, background-color 0.2s ease;
+    }
+
+    .doctors-filter-apply {
+        background: #0e7490;
+        color: white;
+    }
+
+    .doctors-filter-apply:hover {
+        background: #155e75;
+        transform: translateY(-1px);
+    }
+
+    .doctors-filter-reset {
+        background: white;
+        color: #475569;
+        border: 1px solid #dbe3ec;
+    }
+
+    .doctors-filter-reset:hover {
+        background: #f1f5f9;
+    }
+
+    .doctors-filter-summary {
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+
+    .doctors-filter-summary strong {
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 1200px) {
+        .doctors-filter-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .doctors-filter-field:first-child {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .stats-row,
+        div[style*="grid-template-columns: 1fr 2fr"] {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .doctors-filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .doctors-filter-field:first-child {
+            grid-column: auto;
+        }
+
+        .doctors-filter-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .doctors-filter-buttons {
+            width: 100%;
+        }
+
+        .doctors-filter-apply,
+        .doctors-filter-reset {
+            flex: 1;
+        }
+    }
 </style>
 
 <div x-data="{ 
@@ -297,6 +451,18 @@
     editEmail: '',
     editCollegeId: '',
     editAdministrativeAccess: false,
+    filterUniversity: @js((string) request('university_id', '')),
+    filterCollege: @js((string) request('college_id', '')),
+    filterColleges: @js($universities->flatMap(fn($university) => $university->colleges->map(fn($college) => [
+        'id' => (string) $college->id,
+        'university_id' => (string) $university->id,
+        'name' => $college->name,
+        'university_name' => $university->name,
+    ]))->values()),
+    get visibleFilterColleges() {
+        if (!this.filterUniversity) return this.filterColleges;
+        return this.filterColleges.filter(college => college.university_id === this.filterUniversity);
+    },
     
     viewDoctor: {},
     viewSubjects: []
@@ -353,7 +519,7 @@
                 </svg>
             </div>
             <div class="stat-info">
-                <h3>{{ $doctors->total() }}</h3>
+                <h3>{{ $totalDoctors }}</h3>
                 <p>إجمالي الدكاترة</p>
             </div>
         </div>
@@ -497,6 +663,95 @@
                 <span class="count-badge">{{ $doctors->total() }} دكتور</span>
             </div>
 
+            <form method="GET" action="{{ route('admin.doctors.index') }}" class="doctors-filter-panel">
+                <div class="doctors-filter-grid">
+                    <div class="doctors-filter-field">
+                        <label for="doctor_search">البحث</label>
+                        <div class="doctors-filter-search">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                            <input
+                                type="search"
+                                id="doctor_search"
+                                name="search"
+                                value="{{ request('search') }}"
+                                class="form-control"
+                                placeholder="الاسم، البريد الإلكتروني، أو رقم الحساب"
+                                autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="doctors-filter-field">
+                        <label for="doctor_university_filter">الجامعة</label>
+                        <select
+                            id="doctor_university_filter"
+                            name="university_id"
+                            class="form-control"
+                            x-model="filterUniversity"
+                            @change="filterCollege = ''">
+                            <option value="">كل الجامعات</option>
+                            @foreach($universities as $university)
+                                <option value="{{ $university->id }}">{{ $university->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="doctors-filter-field">
+                        <label for="doctor_college_filter">الكلية</label>
+                        <select
+                            id="doctor_college_filter"
+                            name="college_id"
+                            class="form-control"
+                            x-model="filterCollege">
+                            <option value="">كل الكليات</option>
+                            <template x-for="college in visibleFilterColleges" :key="college.id">
+                                <option
+                                    :value="college.id"
+                                    x-text="filterUniversity ? college.name : `${college.name} - ${college.university_name}`">
+                                </option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div class="doctors-filter-field">
+                        <label for="doctor_status_filter">حالة الحساب</label>
+                        <select id="doctor_status_filter" name="status" class="form-control">
+                            <option value="">كل الحالات</option>
+                            <option value="active" @selected(request('status') === 'active')>نشط</option>
+                            <option value="inactive" @selected(request('status') === 'inactive')>غير نشط</option>
+                            <option value="pending" @selected(request('status') === 'pending')>بانتظار التفعيل</option>
+                        </select>
+                    </div>
+
+                    <div class="doctors-filter-field">
+                        <label for="doctor_rank_filter">الرتبة</label>
+                        <select id="doctor_rank_filter" name="rank" class="form-control">
+                            <option value="">كل الرتب</option>
+                            <option value="doctor" @selected(request('rank') === 'doctor')>دكتور فقط</option>
+                            <option value="administrative" @selected(request('rank') === 'administrative')>دكتور إداري</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="doctors-filter-actions">
+                    <div class="doctors-filter-summary">
+                        عرض <strong>{{ $doctors->firstItem() ?? 0 }}-{{ $doctors->lastItem() ?? 0 }}</strong>
+                        من أصل <strong>{{ $doctors->total() }}</strong> نتيجة
+                    </div>
+                    <div class="doctors-filter-buttons">
+                        <a href="{{ route('admin.doctors.index') }}" class="doctors-filter-reset">مسح الفلاتر</a>
+                        <button type="submit" class="doctors-filter-apply">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16l-6 7v5l-4 2v-7z"></path>
+                            </svg>
+                            تطبيق
+                        </button>
+                    </div>
+                </div>
+            </form>
+
             <div class="table-responsive">
 <table class="modern-table">
                 <thead>
@@ -519,9 +774,18 @@
                                 <div>
                                     <div style="font-weight: 600;">{{ $doctor->name }}</div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ $doctor->email }}</div>
-                                    @if($doctor->administrative_access)
-                                        <span class="badge" style="background:#ede9fe; color:#6d28d9; font-size:0.7rem; margin-top:0.35rem;">مسؤول إداري</span>
-                                    @endif
+                                    <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.35rem;">
+                                        @if($doctor->status === 'active')
+                                            <span class="badge" style="background:#dcfce7; color:#166534; font-size:0.7rem;">نشط</span>
+                                        @elseif($doctor->status === 'pending')
+                                            <span class="badge" style="background:#fef3c7; color:#92400e; font-size:0.7rem;">بانتظار التفعيل</span>
+                                        @else
+                                            <span class="badge" style="background:#fee2e2; color:#991b1b; font-size:0.7rem;">غير نشط</span>
+                                        @endif
+                                        @if($doctor->administrative_access)
+                                            <span class="badge" style="background:#ede9fe; color:#6d28d9; font-size:0.7rem;">مسؤول إداري</span>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -614,7 +878,7 @@
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
                             </svg>
-                            <div>لا يوجد دكاترة مسجلين</div>
+                            <div>{{ request()->hasAny(['search', 'university_id', 'college_id', 'status', 'rank']) ? 'لا توجد نتائج مطابقة للفلاتر الحالية' : 'لا يوجد دكاترة مسجلون' }}</div>
                         </td>
                     </tr>
                     @endforelse
