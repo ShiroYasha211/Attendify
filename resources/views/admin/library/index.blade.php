@@ -256,21 +256,30 @@
                             </div>
                         </td>
                         <td style="padding: 1.25rem 1.5rem;">
-                            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">{{ $resource->subject->name }}</div>
+                            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">{{ $resource->subject?->name ?? 'مادة محذوفة' }}</div>
                             <span style="font-size: 0.75rem; padding: 0.25rem 0.6rem; background: #f1f5f9; color: var(--text-secondary); border-radius: 6px; font-weight: 700;">{{ $resource->full_category_text }}</span>
                         </td>
                         <td style="padding: 1.25rem 1.5rem;">
+                            @php
+                                $uploader = $resource->uploader;
+                                $uploaderRole = $uploader?->role;
+                                $uploaderRole = $uploaderRole instanceof \App\Enums\UserRole
+                                    ? $uploaderRole->value
+                                    : (string) $uploaderRole;
+                            @endphp
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                                @if($resource->uploader_role == 'doctor')
+                                @if($uploaderRole === 'doctor')
                                     <span style="font-size: 0.7rem; padding: 0.15rem 0.4rem; background: rgba(79, 70, 229, 0.1); color: var(--primary-color); border-radius: 6px; font-weight: 800;">دكتور</span>
-                                @elseif($resource->uploader_role == 'delegate')
+                                @elseif(in_array($uploaderRole, ['delegate', 'practical_delegate'], true))
                                     <span style="font-size: 0.7rem; padding: 0.15rem 0.4rem; background: rgba(20, 184, 166, 0.1); color: #14b8a6; border-radius: 6px; font-weight: 800;">مندوب</span>
-                                @else
+                                @elseif($uploaderRole === 'student')
                                     <span style="font-size: 0.7rem; padding: 0.15rem 0.4rem; background: rgba(100, 116, 139, 0.1); color: #64748b; border-radius: 6px; font-weight: 800;">طالب</span>
+                                @else
+                                    <span style="font-size: 0.7rem; padding: 0.15rem 0.4rem; background: rgba(100, 116, 139, 0.1); color: #64748b; border-radius: 6px; font-weight: 800;">غير معروف</span>
                                 @endif
-                                <div style="font-weight: 600; font-size: 0.9rem;">{{ $resource->uploader->name }}</div>
+                                <div style="font-weight: 600; font-size: 0.9rem;">{{ $uploader?->name ?? 'مستخدم محذوف' }}</div>
                             </div>
-                            <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ $resource->uploader->batch ? 'دفعة ' . $resource->uploader->batch : '' }}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ $uploader?->batch ? 'دفعة ' . $uploader->batch : '' }}</div>
                         </td>
                         <td style="padding: 1.25rem 1.5rem;">
                             <div style="font-weight: 600; font-size: 0.9rem;">{{ $resource->created_at->format('Y/m/d') }}</div>
