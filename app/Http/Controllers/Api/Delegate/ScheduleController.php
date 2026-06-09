@@ -53,6 +53,7 @@ class ScheduleController extends DelegateApiController implements HasMiddleware
     public function store(Request $request)
     {
         $delegate = $request->user();
+        $this->normalizeSchedulePayload($request);
 
         $validator = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
@@ -103,6 +104,7 @@ class ScheduleController extends DelegateApiController implements HasMiddleware
     public function update(Request $request, string $id)
     {
         $delegate = $request->user();
+        $this->normalizeSchedulePayload($request);
 
         $schedule = Schedule::with('subject')->find($id);
 
@@ -180,6 +182,29 @@ class ScheduleController extends DelegateApiController implements HasMiddleware
         return User::where('id', $doctorId)
             ->where('role', UserRole::DOCTOR)
             ->exists();
+    }
+
+    private function normalizeSchedulePayload(Request $request): void
+    {
+        $data = [];
+
+        if (! $request->filled('day_of_week') && $request->filled('day')) {
+            $data['day_of_week'] = $request->input('day');
+        }
+
+        if (! $request->filled('hall_name') && $request->filled('hall')) {
+            $data['hall_name'] = $request->input('hall');
+        }
+
+        foreach (['start_time', 'end_time'] as $field) {
+            if ($request->filled($field)) {
+                $data[$field] = substr((string) $request->input($field), 0, 5);
+            }
+        }
+
+        if ($data !== []) {
+            $request->merge($data);
+        }
     }
 
     private function withResolvedDoctor(Schedule $schedule): Schedule

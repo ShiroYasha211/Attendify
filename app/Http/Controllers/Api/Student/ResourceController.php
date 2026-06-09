@@ -31,7 +31,13 @@ class ResourceController extends StudentApiController
             });
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%' . $request->search . '%');
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', '%' . $search . '%')
+                    ->orWhereHas('subject', function ($subjectQuery) use ($search) {
+                        $subjectQuery->where('name', 'like', '%' . $search . '%');
+                    });
+            });
         }
 
         if ($request->filled('subject_id')) {
@@ -39,7 +45,14 @@ class ResourceController extends StudentApiController
         }
 
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            $category = $request->category;
+            if ($category === 'lectures') {
+                $query->whereIn('category', ['lectures', 'lecture']);
+            } elseif ($category === 'summaries') {
+                $query->whereIn('category', ['summaries', 'summary']);
+            } else {
+                $query->where('category', $category);
+            }
         }
 
         if ($request->filled('scheduled') && $request->scheduled == '1') {
@@ -57,6 +70,9 @@ class ResourceController extends StudentApiController
                 $query->join('subjects', 'course_resources.subject_id', '=', 'subjects.id')
                     ->orderBy('subjects.name')
                     ->select('course_resources.*');
+                break;
+            case 'title':
+                $query->orderBy('title');
                 break;
             default:
                 $query->latest();
