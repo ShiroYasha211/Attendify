@@ -194,6 +194,9 @@ Route::prefix('admin')
 
         Route::prefix('tree-farm-rewards')->name('tree-farm-rewards.')->group(function () {
             Route::get('/', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'index'])->name('index');
+            Route::get('public-farm/export', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'exportPublicFarm'])->name('public-farm.export');
+            Route::get('public-farm/{profile}', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'publicFarmProfile'])->name('public-farm.show');
+            Route::post('public-farm/{profile}/visibility', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'togglePublicVisibility'])->name('public-farm.visibility');
             Route::post('{reward}/approve', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'approve'])->name('approve');
             Route::post('{reward}/reject', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'reject'])->name('reject');
             Route::post('settings', [App\Http\Controllers\Admin\TreeFarmRewardController::class, 'updateSettings'])->name('update-settings');

@@ -205,10 +205,14 @@
         </div>
     @endif
 
+    @php
+        $activeTreeFarmTab = request('tab') === 'public_farm' ? 'public_farm' : 'analytics';
+    @endphp
+
     <!-- Premium Tab Navigation -->
     <ul class="nav nav-pills tree-farm-nav-pills gap-2 mb-4 bg-white p-2 rounded-4 shadow-sm" id="treeFarmTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics-pane" type="button" role="tab" aria-controls="analytics-pane" aria-selected="true">
+            <button class="nav-link {{ $activeTreeFarmTab === 'analytics' ? 'active' : '' }}" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics-pane" type="button" role="tab" aria-controls="analytics-pane" aria-selected="{{ $activeTreeFarmTab === 'analytics' ? 'true' : 'false' }}">
                 <i class="fa-solid fa-chart-pie"></i> الرئيسية والتحليلات
             </button>
         </li>
@@ -226,6 +230,14 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $activeTreeFarmTab === 'public_farm' ? 'active' : '' }}" id="public-farm-tab" data-bs-toggle="tab" data-bs-target="#public-farm-pane" type="button" role="tab" aria-controls="public-farm-pane" aria-selected="{{ $activeTreeFarmTab === 'public_farm' ? 'true' : 'false' }}">
+                <i class="fa-solid fa-earth-americas"></i> المزرعة العامة
+                @if(($publicStats['participants'] ?? 0) > 0)
+                    <span class="badge bg-success ms-1">{{ number_format($publicStats['participants']) }}</span>
+                @endif
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button" role="tab" aria-controls="settings-pane" aria-selected="false">
                 <i class="fa-solid fa-sliders"></i> إعدادات الرقابة وسعر الصرف
             </button>
@@ -236,7 +248,7 @@
     <div class="tab-content" id="treeFarmTabsContent">
         
         <!-- Tab 1: Analytics -->
-        <div class="tab-pane fade show active" id="analytics-pane" role="tabpanel" aria-labelledby="analytics-tab" tabindex="0">
+        <div class="tab-pane fade {{ $activeTreeFarmTab === 'analytics' ? 'show active' : '' }}" id="analytics-pane" role="tabpanel" aria-labelledby="analytics-tab" tabindex="0">
             <!-- Overview Stats Cards -->
             <div class="row g-4 mb-4">
                 <div class="col-md-3">
@@ -697,6 +709,8 @@
         </div>
 
         <!-- Tab 4: Control & Moderation Settings -->
+        @include('admin.tree-farm-rewards.partials.public-farm')
+
         <div class="tab-pane fade" id="settings-pane" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
             <div class="row g-4">
                 <!-- Limits & Exchange Rate Card (col-lg-5) -->

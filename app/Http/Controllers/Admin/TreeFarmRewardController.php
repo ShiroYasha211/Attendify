@@ -4,15 +4,27 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student\TreeFarmProfile;
+use App\Models\Student\TreeFarmPlant;
 use App\Models\Student\TreeFarmRewardRequest;
 use App\Models\Student\TreeFarmSession;
+use App\Models\Academic\College;
+use App\Models\Academic\Level;
+use App\Models\Academic\Major;
+use App\Models\Academic\University;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\StudentNotification;
+use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TreeFarmRewardController extends Controller
 {
@@ -90,6 +102,88 @@ class TreeFarmRewardController extends Controller
             ->orderBy('name')
             ->get();
 
+        $publicProfilesQuery = $this->publicFarmProfilesQuery($request);
+        $publicSort = $request->query('public_sort', 'focus');
+
+        match ($publicSort) {
+            'plants' => $publicProfilesQuery->orderByDesc('filtered_public_plants_count'),
+            'sessions' => $publicProfilesQuery->orderByDesc('filtered_public_sessions_count'),
+            'latest' => $publicProfilesQuery->orderByDesc('last_public_activity_at'),
+            default => $publicProfilesQuery->orderByDesc('filtered_public_focus_seconds'),
+        };
+
+        $publicSummaryRows = (clone $publicProfilesQuery)
+            ->reorder()
+            ->get();
+
+        $publicProfiles = (clone $publicProfilesQuery)
+            ->paginate(15, ['*'], 'public_page')
+            ->withQueryString();
+
+        $publicStats = [
+            'participants' => $publicSummaryRows->count(),
+            'focus_seconds' => (int) $publicSummaryRows->sum(
+                fn (TreeFarmProfile $profile) => (int) ($profile->filtered_public_focus_seconds ?? 0)
+            ),
+            'sessions' => (int) $publicSummaryRows->sum(
+                fn (TreeFarmProfile $profile) => (int) ($profile->filtered_public_sessions_count ?? 0)
+            ),
+            'plants' => (int) $publicSummaryRows->sum(
+                fn (TreeFarmProfile $profile) => (int) ($profile->filtered_public_plants_count ?? 0)
+            ),
+            'universities' => $publicSummaryRows
+                ->pluck('user.university_id')
+                ->filter()
+                ->unique()
+                ->count(),
+        ];
+
+        $publicUniversitySummary = $publicSummaryRows
+            ->filter(fn (TreeFarmProfile $profile) => $profile->user?->university)
+            ->groupBy(fn (TreeFarmProfile $profile) => $profile->user->university_id)
+            ->map(function ($profiles) {
+                $first = $profiles->first();
+
+                return [
+                    'university' => $first->user->university->name,
+                    'participants' => $profiles->count(),
+                    'focus_seconds' => (int) $profiles->sum(
+                        fn (TreeFarmProfile $profile) => (int) ($profile->filtered_public_focus_seconds ?? 0)
+                    ),
+                    'sessions' => (int) $profiles->sum(
+                        fn (TreeFarmProfile $profile) => (int) ($profile->filtered_public_sessions_count ?? 0)
+                    ),
+                    'plants' => (int) $profiles->sum(
+                        fn (TreeFarmProfile $profile) => (int) ($profile->filtered_public_plants_count ?? 0)
+                    ),
+                ];
+            })
+            ->sortByDesc('focus_seconds')
+            ->values();
+
+        $publicUniversities = University::orderBy('name')->get(['id', 'name']);
+        $publicColleges = College::query()
+            ->when(
+                $request->filled('public_university_id'),
+                fn (Builder $query) => $query->where('university_id', $request->integer('public_university_id'))
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'university_id']);
+        $publicMajors = Major::query()
+            ->when(
+                $request->filled('public_college_id'),
+                fn (Builder $query) => $query->where('college_id', $request->integer('public_college_id'))
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'college_id']);
+        $publicLevels = Level::query()
+            ->when(
+                $request->filled('public_major_id'),
+                fn (Builder $query) => $query->where('major_id', $request->integer('public_major_id'))
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'major_id']);
+
         $defaultPlants = [
             ['code' => 'grass', 'name' => 'عشب البداية', 'required_seconds' => 600, 'coins' => 8, 'rarity' => 'common'],
             ['code' => 'red_flower', 'name' => 'زهرة حمراء', 'required_seconds' => 900, 'coins' => 15, 'rarity' => 'common'],
@@ -118,8 +212,250 @@ class TreeFarmRewardController extends Controller
             'exchangeRate',
             'weeklyStarLimit',
             'allTreeFarmStudents',
-            'plantsCatalog'
+            'plantsCatalog',
+            'publicProfiles',
+            'publicStats',
+            'publicUniversitySummary',
+            'publicUniversities',
+            'publicColleges',
+            'publicMajors',
+            'publicLevels',
+            'publicSort'
         ));
+    }
+
+    public function publicFarmProfile(TreeFarmProfile $profile): View
+    {
+        $profile->load([
+            'user:id,name,email,student_number,university_id,college_id,major_id,level_id',
+            'user.university:id,name',
+            'user.college:id,name',
+            'user.major:id,name',
+            'user.level:id,name',
+        ]);
+
+        $sessions = TreeFarmSession::query()
+            ->where('user_id', $profile->user_id)
+            ->where('farm_scope', 'public')
+            ->with('plant')
+            ->latest('started_at')
+            ->paginate(20);
+
+        $plants = TreeFarmPlant::query()
+            ->where('user_id', $profile->user_id)
+            ->where('farm_scope', 'public')
+            ->latest('planted_at')
+            ->limit(60)
+            ->get();
+        $publicPlantsCount = TreeFarmPlant::query()
+            ->where('user_id', $profile->user_id)
+            ->where('farm_scope', 'public')
+            ->count();
+
+        return view('admin.tree-farm-rewards.public-profile', compact(
+            'profile',
+            'sessions',
+            'plants',
+            'publicPlantsCount'
+        ));
+    }
+
+    public function togglePublicVisibility(TreeFarmProfile $profile): RedirectResponse
+    {
+        $profile->update(['is_public' => ! $profile->is_public]);
+
+        StudentNotification::create([
+            'user_id' => $profile->user_id,
+            'type' => 'tree_farm',
+            'title' => $profile->is_public
+                ? 'تم تفعيل ظهورك في المزرعة العامة'
+                : 'تم إيقاف ظهورك في المزرعة العامة',
+            'message' => $profile->is_public
+                ? 'أعادت الإدارة تفعيل ظهور إنجازاتك في المزرعة العامة.'
+                : 'أوقفت الإدارة ظهور إنجازاتك في المزرعة العامة. تواصل مع الإدارة إذا كنت تحتاج إلى مراجعة القرار.',
+            'data' => [
+                'screen' => 'tree_farm',
+                'is_public' => (bool) $profile->is_public,
+            ],
+        ]);
+
+        return back()->with(
+            'success',
+            $profile->is_public
+                ? 'تم تفعيل ظهور الطالب في المزرعة العامة.'
+                : 'تم إخفاء الطالب من المزرعة العامة.'
+        );
+    }
+
+    public function exportPublicFarm(Request $request): StreamedResponse
+    {
+        $profiles = $this->publicFarmProfilesQuery($request)
+            ->orderByDesc('filtered_public_focus_seconds')
+            ->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('المزرعة العامة');
+        $sheet->setRightToLeft(true);
+
+        $headers = [
+            'الترتيب',
+            'اسم الطالب',
+            'الاسم الظاهر',
+            'الرقم الجامعي',
+            'الجامعة',
+            'الكلية',
+            'التخصص',
+            'المستوى',
+            'ساعات التركيز العامة',
+            'عدد الجلسات',
+            'عدد النباتات',
+            'آخر نشاط',
+            'حالة الظهور',
+        ];
+        $sheet->fromArray($headers, null, 'A1');
+
+        foreach ($profiles->values() as $index => $profile) {
+            $user = $profile->user;
+            $sheet->fromArray([
+                $index + 1,
+                $user?->name ?? 'مستخدم محذوف',
+                $profile->use_alias && $profile->public_name
+                    ? $profile->public_name
+                    : ($user?->name ?? 'مستخدم محذوف'),
+                $user?->student_number,
+                $user?->university?->name,
+                $user?->college?->name,
+                $user?->major?->name,
+                $user?->level?->name,
+                round(((int) ($profile->filtered_public_focus_seconds ?? 0)) / 3600, 2),
+                (int) ($profile->filtered_public_sessions_count ?? 0),
+                (int) ($profile->filtered_public_plants_count ?? 0),
+                $profile->last_public_activity_at
+                    ? Carbon::parse($profile->last_public_activity_at)->format('Y-m-d H:i')
+                    : null,
+                $profile->is_public ? 'ظاهر' : 'مخفي',
+            ], null, 'A' . ($index + 2));
+        }
+
+        $lastColumn = 'M';
+        $lastRow = max(2, $profiles->count() + 1);
+        $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '166534'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+        $sheet->getStyle("A1:{$lastColumn}{$lastRow}")
+            ->getAlignment()
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter("A1:{$lastColumn}{$lastRow}");
+
+        foreach (range('A', $lastColumn) as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $filename = 'public_tree_farm_' . now()->format('Y-m-d_H-i') . '.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function publicFarmProfilesQuery(Request $request): Builder
+    {
+        $request->validate([
+            'public_search' => ['nullable', 'string', 'max:120'],
+            'public_university_id' => ['nullable', 'integer', 'exists:universities,id'],
+            'public_college_id' => ['nullable', 'integer', 'exists:colleges,id'],
+            'public_major_id' => ['nullable', 'integer', 'exists:majors,id'],
+            'public_level_id' => ['nullable', 'integer', 'exists:levels,id'],
+            'public_from' => ['nullable', 'date'],
+            'public_to' => ['nullable', 'date', 'after_or_equal:public_from'],
+            'public_visibility' => ['nullable', 'in:public,hidden,all'],
+            'public_sort' => ['nullable', 'in:focus,plants,sessions,latest'],
+        ]);
+
+        $from = $request->date('public_from');
+        $to = $request->date('public_to');
+
+        $sessionFilter = function (Builder $query) use ($from, $to) {
+            $query->where('focused_seconds', '>', 0)
+                ->when($from, fn (Builder $builder) => $builder->whereDate('started_at', '>=', $from))
+                ->when($to, fn (Builder $builder) => $builder->whereDate('started_at', '<=', $to));
+        };
+
+        $plantFilter = function (Builder $query) use ($from, $to) {
+            $query->when($from, fn (Builder $builder) => $builder->whereDate('planted_at', '>=', $from))
+                ->when($to, fn (Builder $builder) => $builder->whereDate('planted_at', '<=', $to));
+        };
+
+        return TreeFarmProfile::query()
+            ->with([
+                'user:id,name,email,student_number,university_id,college_id,major_id,level_id',
+                'user.university:id,name',
+                'user.college:id,name',
+                'user.major:id,name',
+                'user.level:id,name',
+            ])
+            ->whereHas('publicSessions', $sessionFilter)
+            ->when(
+                $request->query('public_visibility', 'public') === 'public',
+                fn (Builder $query) => $query->where('is_public', true)
+            )
+            ->when(
+                $request->query('public_visibility') === 'hidden',
+                fn (Builder $query) => $query->where('is_public', false)
+            )
+            ->when($request->filled('public_search'), function (Builder $query) use ($request) {
+                $search = trim((string) $request->query('public_search'));
+                $query->where(function (Builder $builder) use ($search) {
+                    $builder->where('public_name', 'like', "%{$search}%")
+                        ->orWhereHas('user', function (Builder $userQuery) use ($search) {
+                            $userQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%")
+                                ->orWhere('student_number', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->whereHas('user', function (Builder $query) use ($request) {
+                $query
+                    ->when(
+                        $request->filled('public_university_id'),
+                        fn (Builder $builder) => $builder->where('university_id', $request->integer('public_university_id'))
+                    )
+                    ->when(
+                        $request->filled('public_college_id'),
+                        fn (Builder $builder) => $builder->where('college_id', $request->integer('public_college_id'))
+                    )
+                    ->when(
+                        $request->filled('public_major_id'),
+                        fn (Builder $builder) => $builder->where('major_id', $request->integer('public_major_id'))
+                    )
+                    ->when(
+                        $request->filled('public_level_id'),
+                        fn (Builder $builder) => $builder->where('level_id', $request->integer('public_level_id'))
+                    );
+            })
+            ->withCount([
+                'publicSessions as filtered_public_sessions_count' => $sessionFilter,
+                'publicPlants as filtered_public_plants_count' => $plantFilter,
+            ])
+            ->withSum([
+                'publicSessions as filtered_public_focus_seconds' => $sessionFilter,
+            ], 'focused_seconds')
+            ->withMax([
+                'publicSessions as last_public_activity_at' => $sessionFilter,
+            ], 'started_at');
     }
 
     public function approve(TreeFarmRewardRequest $reward): RedirectResponse

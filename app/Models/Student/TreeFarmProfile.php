@@ -4,6 +4,7 @@ namespace App\Models\Student;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TreeFarmProfile extends Model
 {
@@ -28,5 +29,17 @@ class TreeFarmProfile extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function publicSessions(): HasMany
+    {
+        return $this->hasMany(TreeFarmSession::class, 'user_id', 'user_id')
+            ->where('farm_scope', 'public');
+    }
+
+    public function publicPlants(): HasMany
+    {
+        return $this->hasMany(TreeFarmPlant::class, 'user_id', 'user_id')
+            ->where('farm_scope', 'public');
     }
 }
