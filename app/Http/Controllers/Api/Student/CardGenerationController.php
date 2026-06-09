@@ -41,6 +41,14 @@ class CardGenerationController extends StudentApiController
         $request->validate([
             'count' => 'required|integer|min:1|max:100',
             'amount' => 'required|numeric|min:1',
+        ], [
+            'count.required' => 'يرجى تحديد عدد الكروت.',
+            'count.integer' => 'عدد الكروت يجب أن يكون رقمًا صحيحًا.',
+            'count.min' => 'يجب توليد كرت واحد على الأقل.',
+            'count.max' => 'يمكن توليد 100 كرت كحد أقصى في العملية الواحدة.',
+            'amount.required' => 'يرجى تحديد قيمة الكرت.',
+            'amount.numeric' => 'قيمة الكرت يجب أن تكون رقمًا.',
+            'amount.min' => 'قيمة الكرت يجب ألا تقل عن ريال واحد.',
         ]);
 
         $count = $request->count;

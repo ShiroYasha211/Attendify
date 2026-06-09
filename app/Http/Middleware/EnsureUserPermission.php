@@ -22,10 +22,10 @@ class EnsureUserPermission
         if ($request->expectsJson() || $request->is('api/*')) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have the required permission for this action.',
+                'message' => 'ليس لديك الصلاحية المطلوبة لتنفيذ هذه العملية.',
             ], 403);
         }
 
-        abort(403, 'Unauthorized action.');
+        abort(403, 'ليس لديك الصلاحية المطلوبة لتنفيذ هذه العملية.');
     }
 }
