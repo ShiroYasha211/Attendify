@@ -52,10 +52,13 @@
 
                         <!-- Has Headers -->
                         <div class="form-check form-switch mb-4">
-                            <input class="form-check-input" type="checkbox" name="has_headers" id="has_headers" value="1" checked>
+                            <input class="form-check-input" type="checkbox" name="has_headers" id="has_headers" value="1" {{ $isFirstRowHeader ? 'checked' : '' }}>
                             <label class="form-check-label fw-bold" for="has_headers">
                                 يحتوي الملف على سطر عناوين (تخطي الصف الأول)
                             </label>
+                            <div class="form-text">
+                                تم ضبط هذا الخيار تلقائيًا حسب أول صف. إذا كان أول صف بطاقة فعلية، ألغِ التحديد حتى لا يتم تجاهله.
+                            </div>
                         </div>
 
                         <h4 class="fw-black mb-4 pt-3 border-top">2. ربط أعمدة الملف بالحقول</h4>

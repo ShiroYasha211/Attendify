@@ -445,6 +445,11 @@ class FlashcardController extends Controller
         }
     }
 
+    public function import(Request $request, FlashcardPack $flashcard)
+    {
+        return $this->importPreview($request, $flashcard);
+    }
+
     private function guessMapping(array $columns, FlashcardPack $pack): array
     {
         $mapping = [
@@ -510,7 +515,13 @@ class FlashcardController extends Controller
 
         $this->assertCanManageItems($flashcard);
 
-        $tempFilePath = storage_path('app/' . $request->temp_file);
+        $tempFile = (string) $request->temp_file;
+        if (!str_starts_with($tempFile, 'temp_imports/')) {
+            return redirect()->route('admin.flashcards.show', $flashcard)
+                ->with('error', 'مسار ملف الاستيراد المؤقت غير صالح، يرجى الرفع من جديد.');
+        }
+
+        $tempFilePath = storage_path('app/' . $tempFile);
         if (!file_exists($tempFilePath)) {
             return redirect()->route('admin.flashcards.show', $flashcard)->with('error', 'انتهت صلاحية الملف المؤقت أو الملف غير موجود، يرجى الرفع من جديد.');
         }
@@ -525,7 +536,7 @@ class FlashcardController extends Controller
                 return redirect()->route('admin.flashcards.show', $flashcard)->with('error', 'الملف لا يحتوي على بيانات صالحة.');
             }
 
-            $isFirstRowHeader = $request->has('has_headers') || $this->looksLikeHeader($rows[0]);
+            $isFirstRowHeader = $request->boolean('has_headers');
             $startRowIndex = $isFirstRowHeader ? 1 : 0;
 
             $insertedCount = 0;

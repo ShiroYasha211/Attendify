@@ -287,6 +287,9 @@ class FlashcardController extends StudentApiController
             $items = [];
 
             foreach ($rows as $index => $row) {
+                if ($index === 0 && $this->looksLikeHeader($row)) {
+                    continue;
+                }
                 if (empty($row[0])) {
                     continue;
                 }
@@ -333,6 +336,250 @@ class FlashcardController extends StudentApiController
             return $this->success(['imported_count' => count($items)], 'Items imported successfully.');
         } catch (\Exception $e) {
             return $this->error('Failed to read spreadsheet: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function importPreview(Request $request, $id)
+    {
+        $pack = FlashcardPack::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $this->assertCanManageItems($pack);
+
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,csv,xls',
+        ]);
+
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+        $tempDir = storage_path('app/temp_imports/student_flashcards');
+
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $tempFileName = 'student_' . $request->user()->id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+        $file->move($tempDir, $tempFileName);
+        $tempFilePath = 'temp_imports/student_flashcards/' . $tempFileName;
+
+        try {
+            $rows = $this->parseSpreadsheet(storage_path('app/' . $tempFilePath), $extension);
+            if (empty($rows)) {
+                @unlink(storage_path('app/' . $tempFilePath));
+                return $this->error('الملف لا يحتوي على بيانات صالحة.', 422);
+            }
+
+            $firstRow = $rows[0];
+            $columns = [];
+            foreach ($firstRow as $index => $value) {
+                $columns[$index] = trim((string) ($value ?? '')) ?: ('العمود ' . ($index + 1));
+            }
+
+            $isFirstRowHeader = $this->looksLikeHeader($firstRow);
+
+            return $this->success([
+                'temp_file' => $tempFilePath,
+                'columns' => $columns,
+                'preview_rows' => array_values(array_slice($rows, $isFirstRowHeader ? 1 : 0, 5)),
+                'guessed_mapping' => $this->guessImportMapping($columns),
+                'is_first_row_header' => $isFirstRowHeader,
+                'pack' => [
+                    'id' => $pack->id,
+                    'title' => $pack->title,
+                    'display_mode' => $pack->display_mode,
+                    'display_mode_label' => FlashcardPack::itemTypeLabel($pack->display_mode),
+                ],
+            ], 'تمت قراءة الملف. راجع المعاينة قبل التأكيد.');
+        } catch (\Exception $e) {
+            @unlink(storage_path('app/' . $tempFilePath));
+            return $this->error('حدث خطأ أثناء قراءة الملف للمعاينة: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function importConfirm(Request $request, $id)
+    {
+        $pack = FlashcardPack::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $this->assertCanManageItems($pack);
+
+        $validated = $request->validate([
+            'temp_file' => 'required|string',
+            'duplicate_strategy' => 'required|in:allow,ignore,update',
+            'has_headers' => 'boolean',
+            'front_content_col' => 'required|integer|min:0',
+            'item_type_col' => 'required|integer',
+            'back_content_col' => 'required|integer',
+            'options_cols' => 'nullable|array',
+            'options_cols.*' => 'integer',
+            'correct_option_col' => 'required|integer',
+            'priority_col' => 'required|integer',
+            'color_col' => 'required|integer',
+        ]);
+
+        $tempFile = (string) $validated['temp_file'];
+        if (!str_starts_with($tempFile, 'temp_imports/student_flashcards/')) {
+            return $this->error('مسار ملف الاستيراد المؤقت غير صالح، يرجى الرفع من جديد.', 422);
+        }
+
+        $tempFilePath = storage_path('app/' . $tempFile);
+        if (!file_exists($tempFilePath)) {
+            return $this->error('انتهت صلاحية الملف المؤقت أو الملف غير موجود، يرجى الرفع من جديد.', 422);
+        }
+
+        $extension = strtolower(pathinfo($tempFilePath, PATHINFO_EXTENSION));
+
+        try {
+            $rows = $this->parseSpreadsheet($tempFilePath, $extension);
+            if (empty($rows)) {
+                @unlink($tempFilePath);
+                return $this->error('الملف لا يحتوي على بيانات صالحة.', 422);
+            }
+
+            $startRowIndex = $request->boolean('has_headers') ? 1 : 0;
+            $itemsCountBefore = $pack->items()->count();
+            $existingItems = $pack->items()
+                ->select(['id', 'front_content'])
+                ->get()
+                ->keyBy(fn ($item) => mb_strtolower(trim($item->front_content)));
+
+            $toInsert = [];
+            $insertedCount = 0;
+            $updatedCount = 0;
+            $ignoredCount = 0;
+            $failedRows = [];
+
+            foreach ($rows as $index => $row) {
+                if ($index < $startRowIndex) {
+                    continue;
+                }
+
+                $rowNum = $index + 1;
+                $row = array_map(fn ($value) => is_string($value) ? trim($value) : $value, $row);
+                if (empty(array_filter($row, fn ($value) => $value !== null && $value !== ''))) {
+                    continue;
+                }
+
+                $frontCol = (int) $validated['front_content_col'];
+                $front = isset($row[$frontCol]) ? trim((string) $row[$frontCol]) : '';
+                if ($front === '') {
+                    $failedRows[] = ['row' => $rowNum, 'reason' => 'حقل المحتوى الأمامي أو السؤال فارغ.'];
+                    continue;
+                }
+
+                $typeCol = (int) $validated['item_type_col'];
+                $explicitType = ($typeCol >= 0 && isset($row[$typeCol]))
+                    ? $this->normalizeImportItemType((string) $row[$typeCol])
+                    : null;
+                $itemType = $explicitType ?? ($pack->display_mode ?: 'one_line');
+
+                $priority = 'normal';
+                $priorityCol = (int) $validated['priority_col'];
+                if ($priorityCol >= 0 && isset($row[$priorityCol])) {
+                    $priority = $this->normalizeImportPriority((string) $row[$priorityCol]);
+                }
+
+                $color = null;
+                $colorCol = (int) $validated['color_col'];
+                if ($colorCol >= 0 && isset($row[$colorCol])) {
+                    $color = $this->validImportHexColor((string) $row[$colorCol]);
+                }
+
+                $back = null;
+                $options = null;
+                $correctOption = null;
+
+                if ($itemType === 'mcq') {
+                    $options = [];
+                    foreach (($validated['options_cols'] ?? []) as $colIndex) {
+                        if (isset($row[$colIndex]) && trim((string) $row[$colIndex]) !== '') {
+                            $options[] = trim((string) $row[$colIndex]);
+                        }
+                    }
+
+                    if (count($options) < 2) {
+                        $failedRows[] = ['row' => $rowNum, 'reason' => 'تم تحديد اختيار متعدد ولكن عدد الخيارات الصالحة أقل من خيارين.'];
+                        continue;
+                    }
+
+                    $correctCol = (int) $validated['correct_option_col'];
+                    $correctVal = ($correctCol >= 0 && isset($row[$correctCol])) ? $row[$correctCol] : null;
+                    $correct = is_numeric($correctVal) ? (int) $correctVal : 1;
+                    $correctOption = max(0, min(count($options) - 1, $correct > 0 ? $correct - 1 : $correct));
+                } else {
+                    $backCol = (int) $validated['back_content_col'];
+                    $backVal = ($backCol >= 0 && isset($row[$backCol])) ? trim((string) $row[$backCol]) : '';
+                    if ($itemType !== 'one_line' && $backVal === '') {
+                        $failedRows[] = ['row' => $rowNum, 'reason' => 'هذا النوع يحتاج إلى إجابة أو محتوى خلفي.'];
+                        continue;
+                    }
+                    $back = $itemType === 'one_line' ? null : $backVal;
+                }
+
+                $frontKey = mb_strtolower(trim($front));
+                $duplicateExists = $existingItems->has($frontKey);
+
+                if ($duplicateExists && $validated['duplicate_strategy'] === 'ignore') {
+                    $ignoredCount++;
+                    continue;
+                }
+
+                if ($duplicateExists && $validated['duplicate_strategy'] === 'update') {
+                    $existingItem = $existingItems->get($frontKey);
+                    FlashcardItem::where('id', $existingItem->id)->update([
+                        'item_type' => $itemType,
+                        'back_content' => $back,
+                        'options' => $options,
+                        'correct_option' => $correctOption,
+                        'item_color' => $color,
+                        'priority' => $priority,
+                    ]);
+                    $updatedCount++;
+                    continue;
+                }
+
+                $toInsert[] = [
+                    'pack_id' => $pack->id,
+                    'item_type' => $itemType,
+                    'front_content' => $front,
+                    'back_content' => $back,
+                    'options' => $options ? json_encode($options, JSON_UNESCAPED_UNICODE) : null,
+                    'correct_option' => $correctOption,
+                    'item_color' => $color,
+                    'priority' => $priority,
+                    'sort_order' => $itemsCountBefore + count($toInsert),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            if (!empty($toInsert)) {
+                FlashcardItem::insert($toInsert);
+                $insertedCount = count($toInsert);
+            }
+
+            @unlink($tempFilePath);
+
+            $message = 'تمت معالجة ملف الاستيراد.';
+            if ($insertedCount > 0) $message .= " تمت إضافة {$insertedCount} بطاقة.";
+            if ($updatedCount > 0) $message .= " تم تحديث {$updatedCount} بطاقة.";
+            if ($ignoredCount > 0) $message .= " تم تجاهل {$ignoredCount} بطاقة مكررة.";
+            if (count($failedRows) > 0) $message .= ' توجد ' . count($failedRows) . ' صفوف لم تُستورد.';
+
+            return $this->success([
+                'report' => [
+                    'success_count' => $insertedCount,
+                    'updated_count' => $updatedCount,
+                    'ignored_count' => $ignoredCount,
+                    'failed_count' => count($failedRows),
+                    'errors' => $failedRows,
+                ],
+            ], $message);
+        } catch (\Exception $e) {
+            @unlink($tempFilePath);
+            return $this->error('حدث خطأ غير متوقع أثناء معالجة ملف الاستيراد: ' . $e->getMessage(), 500);
         }
     }
 
@@ -1325,19 +1572,90 @@ class FlashcardController extends StudentApiController
         return $clone;
     }
 
+    private function guessImportMapping(array $columns): array
+    {
+        $mapping = [
+            'item_type_col' => 0,
+            'front_content_col' => 1,
+            'back_content_col' => 2,
+            'options_cols' => [2, 3, 4],
+            'correct_option_col' => -1,
+            'priority_col' => 9,
+            'color_col' => 10,
+        ];
+
+        $hasMatchedOptions = false;
+        foreach ($columns as $index => $name) {
+            $nameLower = mb_strtolower(trim((string) $name));
+
+            if ($nameLower === 'type' || $nameLower === 'item_type' || str_contains($nameLower, 'نوع')) {
+                $mapping['item_type_col'] = $index;
+            } elseif ($nameLower === 'front' || $nameLower === 'question' || str_contains($nameLower, 'سؤال') || str_contains($nameLower, 'المحتوى الأمامي') || str_contains($nameLower, 'النص')) {
+                $mapping['front_content_col'] = $index;
+            } elseif ($nameLower === 'back' || $nameLower === 'answer' || str_contains($nameLower, 'إجابة') || str_contains($nameLower, 'الاجابة') || str_contains($nameLower, 'المحتوى الخلفي')) {
+                $mapping['back_content_col'] = $index;
+            } elseif (str_contains($nameLower, 'correct') || str_contains($nameLower, 'صحيح')) {
+                $mapping['correct_option_col'] = $index;
+            } elseif ($nameLower === 'priority' || str_contains($nameLower, 'أولوية') || str_contains($nameLower, 'الأولوية')) {
+                $mapping['priority_col'] = $index;
+            } elseif ($nameLower === 'color' || str_contains($nameLower, 'لون') || str_contains($nameLower, 'اللون')) {
+                $mapping['color_col'] = $index;
+            } elseif (preg_match('/(option|choice|خيار|إختيار|اختيار)\s*\d*/iu', $nameLower) || in_array($nameLower, ['a', 'b', 'c', 'd', 'e', 'f'], true)) {
+                if (!$hasMatchedOptions) {
+                    $mapping['options_cols'] = [];
+                    $hasMatchedOptions = true;
+                }
+                $mapping['options_cols'][] = $index;
+            }
+        }
+
+        foreach (['priority_col', 'color_col'] as $key) {
+            if ($mapping[$key] >= count($columns)) {
+                $mapping[$key] = -1;
+            }
+        }
+
+        return $mapping;
+    }
+
+    private function normalizeImportItemType(string $value): ?string
+    {
+        $normalized = mb_strtolower(trim($value));
+
+        return match ($normalized) {
+            'flash_card', 'flash card', 'card', 'بطاقة', 'بطاقة تعليمية' => 'flash_card',
+            'one_line', 'one line', 'line', 'نص', 'نص واحد' => 'one_line',
+            'qa', 'q&a', 'question_answer', 'سؤال', 'سؤال وجواب' => 'qa',
+            'mcq', 'multiple_choice', 'choice', 'اختيارات', 'اختيار من متعدد' => 'mcq',
+            default => null,
+        };
+    }
+
+    private function normalizeImportPriority(string $value): string
+    {
+        $normalized = mb_strtolower(trim($value));
+
+        return match ($normalized) {
+            'critical', 'حرجة', 'صعب', 'صعبة' => 'critical',
+            'high', 'عالية', 'متوسط', 'متوسطة' => 'high',
+            default => 'normal',
+        };
+    }
+
+    private function validImportHexColor(string $value): ?string
+    {
+        $value = trim($value);
+
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? $value : null;
+    }
+
     private function parseSpreadsheet(string $path, string $extension): array
     {
         $rows = [];
 
         if ($extension === 'csv') {
             $handle = fopen($path, 'r');
-            $isFirst = true;
             while (($data = fgetcsv($handle)) !== false) {
-                if ($isFirst && $this->looksLikeHeader($data)) {
-                    $isFirst = false;
-                    continue;
-                }
-                $isFirst = false;
                 $rows[] = $data;
             }
             fclose($handle);
@@ -1348,7 +1666,6 @@ class FlashcardController extends StudentApiController
 
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
             $worksheet = $spreadsheet->getActiveSheet();
-            $isFirst = true;
 
             foreach ($worksheet->getRowIterator() as $row) {
                 $cellIterator = $row->getCellIterator();
@@ -1359,12 +1676,6 @@ class FlashcardController extends StudentApiController
                     $data[] = $cell->getValue();
                 }
 
-                if ($isFirst && $this->looksLikeHeader($data)) {
-                    $isFirst = false;
-                    continue;
-                }
-
-                $isFirst = false;
                 $rows[] = $data;
             }
         }
@@ -1374,11 +1685,18 @@ class FlashcardController extends StudentApiController
 
     private function looksLikeHeader(array $row): bool
     {
-        $headerKeywords = ['front', 'back', 'question', 'answer', 'column', 'type', 'a', 'b'];
+        $headerKeywords = ['front', 'back', 'question', 'answer', 'column', 'type', 'item_type', 'نوع', 'السؤال', 'إجابة', 'الاجابة', 'النص', 'المحتوى'];
 
         foreach ($row as $cell) {
-            if (in_array(strtolower(trim((string) ($cell ?? ''))), $headerKeywords, true)) {
-                return true;
+            $cellStr = mb_strtolower(trim((string) ($cell ?? '')));
+            if ($cellStr === '') {
+                continue;
+            }
+
+            foreach ($headerKeywords as $keyword) {
+                if (str_contains($cellStr, $keyword)) {
+                    return true;
+                }
             }
         }
 

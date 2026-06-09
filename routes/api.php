@@ -657,6 +657,8 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
         Route::delete('{id}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'destroy']);
         Route::post('{id}/toggle', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'toggleActive']);
         Route::put('{id}/settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateSettings']);
+        Route::post('{id}/import-preview', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'importPreview']);
+        Route::post('{id}/import-confirm', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'importConfirm']);
         Route::post('{id}/import', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'import']);
         Route::post('{id}/items', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'storeItem']);
         Route::put('items/{itemId}', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateItem']);
