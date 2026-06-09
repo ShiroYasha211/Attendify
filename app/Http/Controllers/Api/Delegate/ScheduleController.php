@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Delegate\DelegateApiController;
 use App\Models\Academic\Schedule;
 use App\Models\Academic\Subject;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -62,10 +63,10 @@ class ScheduleController extends DelegateApiController implements HasMiddleware
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'hall_name' => 'nullable|string|max:255',
-        ]);
+        ], $this->validationMessages());
 
         if ($validator->fails()) {
-            return $this->error('بيانات غير صالحة', 422, $validator->errors());
+            return $this->error($validator->errors()->first(), 422, $validator->errors());
         }
 
         $subject = Subject::where('id', $request->subject_id)
@@ -119,10 +120,10 @@ class ScheduleController extends DelegateApiController implements HasMiddleware
             'start_time' => 'required|date_format:H:i|string',
             'end_time' => 'required|date_format:H:i|string|after:start_time',
             'hall_name' => 'nullable|string|max:255',
-        ]);
+        ], $this->validationMessages());
 
         if ($validator->fails()) {
-            return $this->error('بيانات غير صالحة', 422, $validator->errors());
+            return $this->error($validator->errors()->first(), 422, $validator->errors());
         }
 
         if ($request->subject_id != $schedule->subject_id) {
@@ -198,13 +199,51 @@ class ScheduleController extends DelegateApiController implements HasMiddleware
 
         foreach (['start_time', 'end_time'] as $field) {
             if ($request->filled($field)) {
-                $data[$field] = substr((string) $request->input($field), 0, 5);
+                $data[$field] = $this->normalizeTime((string) $request->input($field));
             }
         }
 
         if ($data !== []) {
             $request->merge($data);
         }
+    }
+
+    private function normalizeTime(string $value): string
+    {
+        $value = trim($value);
+
+        if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $matches)) {
+            $hour = (int) $matches[1];
+            $minute = (int) $matches[2];
+
+            if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
+                return sprintf('%02d:%02d', $hour, $minute);
+            }
+        }
+
+        try {
+            return Carbon::parse($value)->format('H:i');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    private function validationMessages(): array
+    {
+        return [
+            'subject_id.required' => 'يرجى اختيار المادة الدراسية.',
+            'subject_id.exists' => 'المادة الدراسية المختارة غير موجودة.',
+            'doctor_id.exists' => 'الدكتور المختار غير موجود.',
+            'day_of_week.required' => 'يرجى اختيار يوم المحاضرة.',
+            'day_of_week.integer' => 'يوم المحاضرة غير صحيح.',
+            'day_of_week.between' => 'يوم المحاضرة غير صحيح.',
+            'start_time.required' => 'يرجى اختيار وقت بداية المحاضرة.',
+            'start_time.date_format' => 'صيغة وقت بداية المحاضرة غير صحيحة.',
+            'end_time.required' => 'يرجى اختيار وقت نهاية المحاضرة.',
+            'end_time.date_format' => 'صيغة وقت نهاية المحاضرة غير صحيحة.',
+            'end_time.after' => 'يجب أن يكون وقت نهاية المحاضرة بعد وقت البداية.',
+            'hall_name.max' => 'اسم القاعة طويل جدًا.',
+        ];
     }
 
     private function withResolvedDoctor(Schedule $schedule): Schedule
