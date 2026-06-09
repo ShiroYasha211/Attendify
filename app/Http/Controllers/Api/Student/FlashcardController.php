@@ -266,6 +266,40 @@ class FlashcardController extends StudentApiController
         };
     }
 
+    public function downloadImportTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="one_line_shot_template.csv"',
+        ];
+
+        return response()->stream(function () {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            fputcsv($file, [
+                'نوع البطاقة',
+                'المحتوى الأمامي أو السؤال',
+                'الإجابة أو الاختيار الأول',
+                'الاختيار الثاني',
+                'الاختيار الثالث',
+                'الاختيار الرابع',
+                'الاختيار الخامس',
+                'الاختيار السادس',
+                'رقم الاختيار الصحيح للمتعدد',
+                'الأولوية',
+                'اللون بصيغة Hex',
+            ]);
+
+            fputcsv($file, ['نص واحد', 'العلم نور والجهل ظلام.', '', '', '', '', '', '', '', 'normal', '#F59E0B']);
+            fputcsv($file, ['بطاقة', 'ما هي عاصمة المملكة العربية السعودية؟', 'الرياض', '', '', '', '', '', '', 'عالية', '#4F46E5']);
+            fputcsv($file, ['سؤال وجواب', 'كم عدد أركان الإسلام؟', 'خمسة أركان.', '', '', '', '', '', '', 'حرجة', '#EF4444']);
+            fputcsv($file, ['اختيارات', 'أي مما يلي يعد من ألوان قوس قزح؟', 'الأحمر', 'الأسود', 'الأبيض', 'الرمادي', '', '', '1', 'normal', '#10B981']);
+
+            fclose($file);
+        }, 200, $headers);
+    }
+
     public function import(Request $request, $id)
     {
         $pack = FlashcardPack::where('id', $id)

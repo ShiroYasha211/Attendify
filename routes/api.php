@@ -649,6 +649,7 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
         Route::get('history', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'history']);
         Route::get('difficulty', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'difficulty']);
         Route::get('analytics', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'analytics']);
+        Route::get('import-template', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'downloadImportTemplate']);
         Route::get('settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'settings']);
         Route::put('settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateUserSettings']);
         Route::post('progress', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'recordProgress']);
