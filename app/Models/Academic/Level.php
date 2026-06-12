@@ -25,4 +25,12 @@ class Level extends Model
     {
         return $this->hasMany(Term::class);
     }
+
+    /**
+     * Level has many practical delegates.
+     */
+    public function clinicalDelegates(): HasMany
+    {
+        return $this->hasMany(\App\Models\ClinicalDelegate::class);
+    }
 }

@@ -260,9 +260,8 @@ class User extends Authenticatable
     /**
      * Students and delegates that belong to a doctor's clinical teaching scope.
      *
-     * Regular students/delegates are matched by the doctor's subject major+level.
-     * Practical delegates are major-scoped, including legacy rows in
-     * clinical_delegates, so they must not be lost when their level differs.
+     * Students and all delegate types are matched by the doctor's subject
+     * major+level. Practical delegate assignments are also level-scoped.
      */
     public function scopeInDoctorClinicalScope($query, int $doctorId)
     {
@@ -275,14 +274,7 @@ class User extends Authenticatable
             return $query->whereRaw('1 = 0');
         }
 
-        $majorIds = $doctorSubjects
-            ->pluck('major_id')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        return $query->where(function ($outer) use ($doctorSubjects, $majorIds) {
+        return $query->where(function ($outer) use ($doctorSubjects) {
             $outer->where(function ($scope) use ($doctorSubjects) {
                 $scope->whereIn('role', [
                     UserRole::STUDENT,
@@ -298,18 +290,16 @@ class User extends Authenticatable
                 });
             });
 
-            if (!empty($majorIds)) {
-                $outer->orWhere(function ($delegateScope) use ($majorIds) {
-                    $delegateScope
-                        ->where(function ($query) use ($majorIds) {
-                            $query->where('role', UserRole::PRACTICAL_DELEGATE)
-                                ->whereIn('major_id', $majorIds);
-                        })
-                        ->orWhereHas('clinicalDelegateAssignment', function ($query) use ($majorIds) {
-                            $query->whereIn('major_id', $majorIds);
+            $outer->orWhereHas('clinicalDelegateAssignment', function ($assignmentScope) use ($doctorSubjects) {
+                $assignmentScope->where(function ($academicScope) use ($doctorSubjects) {
+                    foreach ($doctorSubjects as $subject) {
+                        $academicScope->orWhere(function ($query) use ($subject) {
+                            $query->where('major_id', $subject->major_id)
+                                ->where('level_id', $subject->level_id);
                         });
+                    }
                 });
-            }
+            });
         });
     }
 

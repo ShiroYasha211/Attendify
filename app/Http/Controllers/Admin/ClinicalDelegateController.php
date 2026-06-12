@@ -21,14 +21,18 @@ class ClinicalDelegateController extends Controller
     public function index()
     {
         $clinicalMajors = Major::where('has_clinical', true)
-            ->with(['college.university', 'clinicalDelegate.student'])
+            ->with([
+                'college.university',
+                'levels' => fn ($query) => $query->orderBy('name'),
+                'levels.clinicalDelegates.student',
+            ])
             ->get();
 
         $studentsByMajor = User::where('role', UserRole::STUDENT)
-            ->select('id', 'name', 'student_number', 'major_id')
+            ->select('id', 'name', 'student_number', 'major_id', 'level_id')
             ->orderBy('name')
             ->get()
-            ->groupBy('major_id');
+            ->groupBy(fn (User $student) => $student->major_id . '-' . $student->level_id);
 
         return view('admin.users.clinical_delegates.index', compact('clinicalMajors', 'studentsByMajor'));
     }
@@ -40,43 +44,46 @@ class ClinicalDelegateController extends Controller
     {
         $request->validate([
             'major_id' => 'required|exists:majors,id',
+            'level_id' => 'required|exists:levels,id',
             'student_id' => 'required|exists:users,id',
         ], [
             'major_id.required' => 'يرجى اختيار التخصص.',
+            'level_id.required' => 'يرجى اختيار المستوى.',
             'student_id.required' => 'يرجى اختيار الطالب.',
         ]);
 
-        $major = Major::where('has_clinical', true)->findOrFail($request->major_id);
+        $major = Major::where('has_clinical', true)
+            ->with('levels')
+            ->findOrFail($request->major_id);
+
+        $level = $major->levels->firstWhere('id', (int) $request->level_id);
+
+        if (! $level) {
+            return back()->with('error', 'المستوى المحدد لا يتبع هذا التخصص.');
+        }
 
         $student = User::where('role', UserRole::STUDENT)
             ->where('major_id', $major->id)
+            ->where('level_id', $level->id)
             ->findOrFail($request->student_id);
 
-        $delegate = DB::transaction(function () use ($major, $student) {
-            $existing = ClinicalDelegate::with('student')->where('major_id', $major->id)->first();
-
-            if ($existing && $existing->student_id !== $student->id) {
-                $previousStudent = $existing->student;
-
-                if ($previousStudent && $previousStudent->role === UserRole::PRACTICAL_DELEGATE) {
-                    $previousStudent->update(['role' => UserRole::STUDENT]);
-                    $previousStudent->revokeDelegatePermissions();
-                }
-            }
-
+        $delegate = DB::transaction(function () use ($major, $level, $student) {
             $student->update(['role' => UserRole::PRACTICAL_DELEGATE]);
             $student->grantAllDelegatePermissions(auth()->id());
 
             return ClinicalDelegate::updateOrCreate(
-                ['major_id' => $major->id],
-                ['student_id' => $student->id]
+                ['student_id' => $student->id],
+                [
+                    'major_id' => $major->id,
+                    'level_id' => $level->id,
+                ]
             );
         });
 
-        $this->logCreate('ClinicalDelegate', $delegate, "تم تعيين {$student->name} كمندوب عملي لتخصص {$major->name}");
+        $this->logCreate('ClinicalDelegate', $delegate, "تم تعيين {$student->name} كمندوب عملي لتخصص {$major->name} - {$level->name}");
 
         return redirect()->route('admin.clinical-delegates.index')
-            ->with('success', "تم تعيين {$student->name} كمندوب عملي لتخصص {$major->name} بنجاح.");
+            ->with('success', "تم تعيين {$student->name} كمندوب عملي لتخصص {$major->name} - {$level->name} بنجاح.");
     }
 
     /**

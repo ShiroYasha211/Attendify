@@ -5,7 +5,6 @@ namespace App\Models\Academic;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Major extends Model
 {
@@ -41,10 +40,18 @@ class Major extends Model
     }
 
     /**
-     * Major has one clinical delegate.
+     * Major has many clinical delegates across its levels.
      */
-    public function clinicalDelegate(): HasOne
+    public function clinicalDelegates(): HasMany
     {
-        return $this->hasOne(\App\Models\ClinicalDelegate::class);
+        return $this->hasMany(\App\Models\ClinicalDelegate::class);
+    }
+
+    /**
+     * Legacy helper for places that still need a single representative.
+     */
+    public function clinicalDelegate()
+    {
+        return $this->hasOne(\App\Models\ClinicalDelegate::class)->latestOfMany();
     }
 }

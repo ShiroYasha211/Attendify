@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ClinicalDelegate extends Model
 {
-    protected $fillable = ['student_id', 'major_id'];
+    protected $fillable = ['student_id', 'major_id', 'level_id'];
 
     /**
      * The student assigned as clinical delegate.
@@ -23,5 +23,13 @@ class ClinicalDelegate extends Model
     public function major(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Academic\Major::class);
+    }
+
+    /**
+     * The level this practical delegate is responsible for.
+     */
+    public function level(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Academic\Level::class);
     }
 }

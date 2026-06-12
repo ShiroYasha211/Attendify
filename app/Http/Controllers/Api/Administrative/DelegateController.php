@@ -83,30 +83,9 @@ class DelegateController extends AdministrativeApiController
             return $this->error('لا يمكن تعيين مندوب عملي لطالب لا ينتمي إلى تخصص سريري.', 422);
         }
 
-        if ($validated['role'] === 'practical_delegate') {
-            $existingDelegate = ClinicalDelegate::where('major_id', $user->major_id)->first();
-
-            if ($existingDelegate && $existingDelegate->student_id !== $user->id) {
-                return $this->error('يوجد بالفعل مندوب عملي رئيسي لهذا التخصص. استخدم شاشة المندوب العملي لتبديله.', 422);
-            }
-        }
-
         $wasClinicalDelegate = $user->isClinicalDelegate();
 
         DB::transaction(function () use ($user, $validated, $wasClinicalDelegate) {
-            if ($validated['role'] === 'delegate') {
-                User::where('id', '!=', $user->id)
-                    ->where('role', UserRole::DELEGATE)
-                    ->where('college_id', $user->college_id)
-                    ->where('major_id', $user->major_id)
-                    ->where('level_id', $user->level_id)
-                    ->get()
-                    ->each(function (User $oldDelegate) {
-                        $oldDelegate->update(['role' => UserRole::STUDENT]);
-                        $oldDelegate->revokeDelegatePermissions();
-                    });
-            }
-
             $user->update(['role' => $validated['role']]);
 
             if (in_array($validated['role'], ['delegate', 'practical_delegate'], true)) {
@@ -115,8 +94,11 @@ class DelegateController extends AdministrativeApiController
 
             if ($validated['role'] === 'practical_delegate') {
                 ClinicalDelegate::updateOrCreate(
-                    ['major_id' => $user->major_id],
-                    ['student_id' => $user->id]
+                    ['student_id' => $user->id],
+                    [
+                        'major_id' => $user->major_id,
+                        'level_id' => $user->level_id,
+                    ]
                 );
             } elseif ($wasClinicalDelegate) {
                 ClinicalDelegate::where('student_id', $user->id)->delete();

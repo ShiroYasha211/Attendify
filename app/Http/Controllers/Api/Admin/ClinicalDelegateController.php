@@ -17,16 +17,24 @@ class ClinicalDelegateController extends AdminApiController
     public function index()
     {
         $majors = Major::where('has_clinical', true)
-            ->with(['college.university', 'clinicalDelegate.student'])
+            ->with([
+                'college.university',
+                'levels' => fn ($query) => $query->orderBy('name'),
+                'levels.clinicalDelegates.student',
+            ])
             ->get()
             ->map(function (Major $major) {
                 return [
                     'major' => $major,
-                    'delegate' => $major->clinicalDelegate ? [
-                        'id' => $major->clinicalDelegate->id,
-                        'student' => $major->clinicalDelegate->student,
-                        'assigned_at' => $major->clinicalDelegate->created_at,
-                    ] : null,
+                    'levels' => $major->levels->map(fn ($level) => [
+                        'id' => $level->id,
+                        'name' => $level->name,
+                        'delegates' => $level->clinicalDelegates->map(fn (ClinicalDelegate $delegate) => [
+                            'id' => $delegate->id,
+                            'student' => $delegate->student,
+                            'assigned_at' => $delegate->created_at,
+                        ])->values(),
+                    ])->values(),
                 ];
             });
 
@@ -37,39 +45,41 @@ class ClinicalDelegateController extends AdminApiController
     {
         $request->validate([
             'major_id' => 'required|exists:majors,id',
+            'level_id' => 'required|exists:levels,id',
             'student_id' => 'required|exists:users,id',
         ]);
 
-        $major = Major::where('has_clinical', true)->findOrFail($request->major_id);
+        $major = Major::where('has_clinical', true)
+            ->with('levels')
+            ->findOrFail($request->major_id);
+
+        $level = $major->levels->firstWhere('id', (int) $request->level_id);
+
+        if (! $level) {
+            return $this->error('المستوى المحدد لا يتبع هذا التخصص.', 422);
+        }
 
         $student = User::where('role', UserRole::STUDENT)
             ->where('major_id', $major->id)
+            ->where('level_id', $level->id)
             ->findOrFail($request->student_id);
 
-        $delegate = DB::transaction(function () use ($major, $student) {
-            $existing = ClinicalDelegate::with('student')->where('major_id', $major->id)->first();
-
-            if ($existing && $existing->student_id !== $student->id) {
-                $previousStudent = $existing->student;
-
-                if ($previousStudent && $previousStudent->role === UserRole::PRACTICAL_DELEGATE) {
-                    $previousStudent->update(['role' => UserRole::STUDENT]);
-                    $previousStudent->revokeDelegatePermissions();
-                }
-            }
-
+        $delegate = DB::transaction(function () use ($major, $level, $student, $request) {
             $student->update(['role' => UserRole::PRACTICAL_DELEGATE]);
             $student->grantAllDelegatePermissions($request->user()->id);
 
             return ClinicalDelegate::updateOrCreate(
-                ['major_id' => $major->id],
-                ['student_id' => $student->id]
+                ['student_id' => $student->id],
+                [
+                    'major_id' => $major->id,
+                    'level_id' => $level->id,
+                ]
             );
         });
 
-        $this->logCreate('ClinicalDelegate', $delegate, "تم تعيين {$student->name} كمندوب عملي لتخصص {$major->name} عبر الـ API");
+        $this->logCreate('ClinicalDelegate', $delegate, "تم تعيين {$student->name} كمندوب عملي لتخصص {$major->name} - {$level->name} عبر الـ API");
 
-        return $this->success($delegate->load('student', 'major'), 'تم تعيين المندوب العملي بنجاح', 201);
+        return $this->success($delegate->load('student', 'major', 'level'), 'تم تعيين المندوب العملي بنجاح', 201);
     }
 
     public function destroy(ClinicalDelegate $clinicalDelegate)
