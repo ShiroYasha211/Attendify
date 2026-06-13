@@ -10,11 +10,9 @@ use App\Models\Academic\College;
 use App\Models\Academic\Major;
 use App\Models\Academic\Level;
 use App\Models\StudentNotification;
-use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class StarController extends Controller
 {
@@ -24,62 +22,75 @@ class StarController extends Controller
     public function index(Request $request)
     {
         $universities = University::all();
-        $colleges     = College::all();
-        $majors       = Major::all();
-        $levels       = Level::all();
 
+        // ── Students Tab filters ──────────────────────────────────────────
         $query = User::whereIn('role', ['student', 'delegate', 'practical_delegate']);
 
-        // Apply filters
         if ($request->filled('university_id')) $query->where('university_id', $request->university_id);
         if ($request->filled('college_id'))    $query->where('college_id', $request->college_id);
         if ($request->filled('major_id'))      $query->where('major_id', $request->major_id);
         if ($request->filled('level_id'))      $query->where('level_id', $request->level_id);
+        if ($request->filled('role_filter'))   $query->where('role', $request->role_filter);
+        if ($request->filled('status_filter')) $query->where('status', $request->status_filter);
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('student_number', 'like', "%{$search}%");
-            });
+            $s = $request->search;
+            $query->where(fn($q) => $q->where('name', 'like', "%{$s}%")
+                                      ->orWhere('email', 'like', "%{$s}%")
+                                      ->orWhere('student_number', 'like', "%{$s}%"));
         }
-
-        $honorQuery = clone $query;
 
         $students = $query->with(['university', 'college', 'major', 'level'])
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
+
+        // ── Honor Board Tab filters ───────────────────────────────────────
+        $honorQuery = User::whereIn('role', ['student', 'delegate', 'practical_delegate'])
+            ->where('stars_balance', '>', 0);
+
+        if ($request->filled('h_university_id')) $honorQuery->where('university_id', $request->h_university_id);
+        if ($request->filled('h_college_id'))    $honorQuery->where('college_id', $request->h_college_id);
+        if ($request->filled('h_major_id'))      $honorQuery->where('major_id', $request->h_major_id);
+        if ($request->filled('h_role_filter'))   $honorQuery->where('role', $request->h_role_filter);
+        if ($request->filled('h_min_stars'))     $honorQuery->where('stars_balance', '>=', (int)$request->h_min_stars);
 
         $honorBoard = $honorQuery
             ->with(['university', 'college', 'major', 'level'])
-            ->where('stars_balance', '>', 0)
             ->orderByDesc('stars_balance')
             ->orderByDesc('total_stars_earned')
             ->orderBy('name')
-            ->limit(25)
+            ->limit(50)
             ->get();
 
         $honorStats = [
-            'count' => $honorBoard->count(),
+            'count'         => $honorBoard->count(),
             'total_balance' => $honorBoard->sum('stars_balance'),
-            'top_balance' => (int) ($honorBoard->first()?->stars_balance ?? 0),
+            'top_balance'   => (int) ($honorBoard->first()?->stars_balance ?? 0),
+        ];
+
+        // ── Global Summary Stats ──────────────────────────────────────────
+        $summaryStats = [
+            'total_stars'         => (int) User::whereIn('role', ['student', 'delegate', 'practical_delegate'])->sum('stars_balance'),
+            'students_with_stars' => User::whereIn('role', ['student', 'delegate', 'practical_delegate'])->where('stars_balance', '>', 0)->count(),
+            'top_balance'         => (int) (User::whereIn('role', ['student', 'delegate', 'practical_delegate'])->max('stars_balance') ?? 0),
+            'today_granted'       => (int) StarTransaction::where('type', 'admin_grant')
+                                        ->whereDate('created_at', today())
+                                        ->sum('amount'),
         ];
 
         return view('admin.stars.index', compact(
             'students',
             'honorBoard',
             'honorStats',
-            'universities',
-            'colleges',
-            'majors',
-            'levels'
+            'summaryStats',
+            'universities'
         ));
     }
 
     /**
      * Grant stars to selected students.
      */
-    public function grant(Request $request, PushNotificationService $pushNotifications)
+    public function grant(Request $request)
     {
         $request->validate([
             'student_ids' => 'required|array',
@@ -108,7 +119,7 @@ class StarController extends Controller
                 }
 
                 if ($request->amount !== 0) {
-                    $this->notifyStudent($student, (int) $request->amount, $request->description, $admin->id, $pushNotifications);
+                    $this->notifyStudent($student, (int) $request->amount, $request->description, $admin->id);
                 }
 
                 $count++;
@@ -123,12 +134,12 @@ class StarController extends Controller
         }
     }
 
-    private function notifyStudent(User $student, int $amount, string $description, int $adminId, PushNotificationService $pushNotifications): void
+    private function notifyStudent(User $student, int $amount, string $description, int $adminId): void
     {
         $absoluteAmount = abs($amount);
         $isGrant = $amount > 0;
 
-        $notification = StudentNotification::create([
+        StudentNotification::create([
             'user_id' => $student->id,
             'sender_id' => $adminId,
             'type' => 'stars',
@@ -144,15 +155,5 @@ class StarController extends Controller
                 'target_screen' => 'stars',
             ],
         ]);
-
-        try {
-            $pushNotifications->sendStudentNotification($notification);
-        } catch (\Throwable $e) {
-            Log::warning('Admin star adjustment completed but push notification failed.', [
-                'notification_id' => $notification->id,
-                'user_id' => $student->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 }

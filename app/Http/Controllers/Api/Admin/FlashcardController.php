@@ -7,7 +7,6 @@ use App\Models\FlashcardPack;
 use App\Models\PublicPackStore;
 use App\Models\StudentNotification;
 use App\Models\User;
-use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -373,7 +372,7 @@ class FlashcardController extends AdminApiController
 
     private function notifyFlashcardAssigned(FlashcardPack $pack, User $targetUser, int $senderId): void
     {
-        $notification = StudentNotification::create([
+        StudentNotification::create([
             'user_id' => $targetUser->id,
             'college_id' => $targetUser->college_id,
             'sender_id' => $senderId,
@@ -387,7 +386,6 @@ class FlashcardController extends AdminApiController
             ],
         ]);
 
-        app(PushNotificationService::class)->sendStudentNotification($notification);
     }
 
     private function deletePackTree(FlashcardPack $pack): void

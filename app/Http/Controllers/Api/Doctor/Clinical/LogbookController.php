@@ -8,7 +8,6 @@ use App\Models\Clinical\StudentDailyLog;
 use App\Models\StudentNotification;
 use App\Models\User;
 use App\Services\ClinicalLogbookPortfolioService;
-use App\Services\PushNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -463,7 +462,7 @@ class LogbookController extends DoctorApiController
             default => 'يوجد تحديث جديد على تكليفك السريري.',
         };
 
-        $notification = StudentNotification::create([
+        StudentNotification::create([
             'user_id' => $student->id,
             'college_id' => $student->college_id,
             'sender_id' => Auth::id(),
@@ -478,6 +477,5 @@ class LogbookController extends DoctorApiController
             ],
         ]);
 
-        app(PushNotificationService::class)->sendStudentNotification($notification);
     }
 }

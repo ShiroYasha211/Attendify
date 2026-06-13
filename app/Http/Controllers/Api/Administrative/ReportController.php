@@ -9,7 +9,6 @@ use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\StudentNotification;
 use App\Models\User;
-use App\Services\PushNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -502,7 +501,7 @@ class ReportController extends AdministrativeApiController
         return $this->csvResponse('administrative_comparison_report.csv', $rows);
     }
 
-    public function notifyThreshold(Request $request, PushNotificationService $push)
+    public function notifyThreshold(Request $request)
     {
         $payload = $this->thresholdReport($request)->getData(true)['data'] ?? [];
         $alerts = collect($payload['alerts'] ?? []);
@@ -518,9 +517,9 @@ class ReportController extends AdministrativeApiController
 
         $alerts->groupBy(fn ($row) => $row['student']['id'] ?? null)
             ->filter(fn ($rows, $studentId) => ! empty($studentId))
-            ->each(function ($rows, $studentId) use ($admin, $college, $batchId, &$sentStudents, $push) {
+            ->each(function ($rows, $studentId) use ($admin, $college, $batchId, &$sentStudents) {
                 $subjects = collect($rows)->pluck('subject.name')->filter()->unique()->values()->implode('، ');
-                $notification = StudentNotification::create([
+                StudentNotification::create([
                     'user_id' => $studentId,
                     'college_id' => $college->id,
                     'sender_id' => $admin->id,
@@ -534,7 +533,6 @@ class ReportController extends AdministrativeApiController
                         'source' => 'administrative_threshold_report',
                     ],
                 ]);
-                $push->sendStudentNotification($notification);
                 $sentStudents++;
             });
 

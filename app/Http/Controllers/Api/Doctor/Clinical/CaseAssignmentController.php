@@ -7,7 +7,6 @@ use App\Models\Clinical\CaseAssignment;
 use App\Models\Clinical\ClinicalCase;
 use App\Models\StudentNotification;
 use App\Models\User;
-use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -315,7 +314,7 @@ class CaseAssignmentController extends DoctorApiController
             default => 'تم تكليفك بحالة سريرية: ' . ($case?->patient_name ?: 'حالة سريرية'),
         };
 
-        $notification = StudentNotification::create([
+        StudentNotification::create([
             'user_id' => $student->id,
             'college_id' => $student->college_id,
             'sender_id' => Auth::id(),
@@ -332,6 +331,5 @@ class CaseAssignmentController extends DoctorApiController
             ],
         ]);
 
-        app(PushNotificationService::class)->sendStudentNotification($notification);
     }
 }

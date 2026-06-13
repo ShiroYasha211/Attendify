@@ -5,11 +5,9 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\StudentNotification;
 use App\Models\User;
-use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class StarController extends BaseController
 {
@@ -63,7 +61,7 @@ class StarController extends BaseController
     /**
      * Grant or deduct stars in bulk to a specific set of users.
      */
-    public function grant(Request $request, PushNotificationService $pushNotifications)
+    public function grant(Request $request)
     {
         $request->validate([
             'student_ids'   => 'required|array',
@@ -95,7 +93,7 @@ class StarController extends BaseController
                     $student->deductStars($request->amount, 'penalty', $admin->id, $request->description);
                 }
 
-                $this->notifyStudent($student, (int) $request->amount, $request->description, $admin->id, $pushNotifications);
+                $this->notifyStudent($student, (int) $request->amount, $request->description, $admin->id);
 
                 $processedCount++;
             }
@@ -111,12 +109,12 @@ class StarController extends BaseController
         }
     }
 
-    private function notifyStudent(User $student, int $amount, string $description, int $adminId, PushNotificationService $pushNotifications): void
+    private function notifyStudent(User $student, int $amount, string $description, int $adminId): void
     {
         $absoluteAmount = abs($amount);
         $isGrant = $amount > 0;
 
-        $notification = StudentNotification::create([
+        StudentNotification::create([
             'user_id' => $student->id,
             'sender_id' => $adminId,
             'type' => 'stars',
@@ -132,15 +130,5 @@ class StarController extends BaseController
                 'target_screen' => 'stars',
             ],
         ]);
-
-        try {
-            $pushNotifications->sendStudentNotification($notification);
-        } catch (\Throwable $e) {
-            Log::warning('Admin API star adjustment completed but push notification failed.', [
-                'notification_id' => $notification->id,
-                'user_id' => $student->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 }
