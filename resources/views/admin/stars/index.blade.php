@@ -91,15 +91,81 @@
 .filter-panel {
     background: #fff;
     border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.25rem;
+    border-radius: 20px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
 }
 .filter-panel .filter-title {
-    font-size: 0.78rem; font-weight: 800; color: #94a3b8;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    margin-bottom: 0.85rem;
-    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.95rem; font-weight: 800; color: #1e293b;
+    margin-bottom: 0.5rem;
+    display: flex; align-items: center; gap: 0.5rem;
+}
+.filter-section-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #475569;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.filter-section-title i {
+    color: #b45309;
+}
+.academic-group-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.25rem 1.25rem;
+    margin-bottom: 1.25rem;
+}
+.academic-group-box.honor-theme {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+.filter-btn-submit {
+    background: #0f172a;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 0.55rem 1.75rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.filter-btn-submit:hover {
+    background: #1e293b;
+    transform: translateY(-1px);
+}
+.filter-btn-reset {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 0.55rem 1.25rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-decoration: none;
+}
+.filter-btn-reset:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: translateY(-1px);
+}
+.filter-input {
+    transition: all 0.2s;
+}
+.filter-input:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
 }
 
 /* ── Table Card ── */
@@ -332,62 +398,24 @@
 
         {{-- Students Filters --}}
         <div class="filter-panel">
-            <div class="filter-title"><i class="fa-solid fa-sliders"></i> فلاتر البحث</div>
+            <div class="filter-title mb-3"><i class="fa-solid fa-sliders"></i> خيارات التصفية والبحث</div>
             <form action="{{ route('admin.stars.index') }}" method="GET" x-ref="studentsForm">
                 <input type="hidden" name="_tab" value="students">
-                <div class="row g-2 align-items-end">
+                
+                {{-- Row 1: Basic Filters --}}
+                <div class="row g-3 mb-3">
                     {{-- Search --}}
-                    <div class="col-md-4">
-                        <label class="form-label small fw-bold text-muted mb-1">بحث</label>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-muted mb-1">البحث النصي</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white border-end-0" style="border-radius:11px 0 0 11px;"><i class="fa-solid fa-magnifying-glass text-muted fa-sm"></i></span>
-                            <input type="text" name="search" class="form-control border-start-0" placeholder="الاسم، الإيميل، رقم القيد..." value="{{ request('search') }}" style="border-radius:0 11px 11px 0;">
+                            <span class="input-group-text bg-white border-end-0" style="border-radius:10px 0 0 10px; border: 1px solid #cbd5e1;"><i class="fa-solid fa-magnifying-glass text-muted fa-sm"></i></span>
+                            <input type="text" name="search" class="form-control border-start-0 filter-input" placeholder="ابحث باسم الطالب، البريد الإلكتروني، أو رقم القيد..." value="{{ request('search') }}" style="border-radius:0 10px 10px 0; border: 1px solid #cbd5e1; font-size: 0.85rem;">
                         </div>
                     </div>
-                    {{-- University --}}
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1">الجامعة</label>
-                        <select name="university_id" class="form-select" style="border-radius:11px;" x-model="uniId" @change="loadColleges">
-                            <option value="">كل الجامعات</option>
-                            @foreach($universities as $uni)
-                                <option value="{{ $uni->id }}" {{ request('university_id') == $uni->id ? 'selected' : '' }}>{{ $uni->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    {{-- College --}}
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1">الكلية</label>
-                        <select name="college_id" class="form-select" style="border-radius:11px;" x-model="colId" @change="loadMajors" :disabled="!colleges.length">
-                            <option value="">كل الكليات</option>
-                            <template x-for="c in colleges" :key="c.id">
-                                <option :value="c.id" x-text="c.name" :selected="c.id == colId"></option>
-                            </template>
-                        </select>
-                    </div>
-                    {{-- Major --}}
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1">التخصص</label>
-                        <select name="major_id" class="form-select" style="border-radius:11px;" x-model="majId" @change="loadLevels" :disabled="!majors.length">
-                            <option value="">كل التخصصات</option>
-                            <template x-for="m in majors" :key="m.id">
-                                <option :value="m.id" x-text="m.name" :selected="m.id == majId"></option>
-                            </template>
-                        </select>
-                    </div>
-                    {{-- Level --}}
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1">المستوى</label>
-                        <select name="level_id" class="form-select" style="border-radius:11px;" :disabled="!levels.length">
-                            <option value="">كل المستويات</option>
-                            <template x-for="l in levels" :key="l.id">
-                                <option :value="l.id" x-text="l.name" :selected="l.id == {{ request('level_id', 0) }}"></option>
-                            </template>
-                        </select>
-                    </div>
                     {{-- Role --}}
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1">الدور</label>
-                        <select name="role_filter" class="form-select" style="border-radius:11px;">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">دور المستخدم</label>
+                        <select name="role_filter" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
                             <option value="">كل الأدوار</option>
                             <option value="student"           {{ request('role_filter') == 'student'            ? 'selected' : '' }}>طالب</option>
                             <option value="delegate"          {{ request('role_filter') == 'delegate'           ? 'selected' : '' }}>مندوب دفعة</option>
@@ -395,23 +423,71 @@
                         </select>
                     </div>
                     {{-- Status --}}
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1">الحالة</label>
-                        <select name="status_filter" class="form-select" style="border-radius:11px;">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">حالة الحساب</label>
+                        <select name="status_filter" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
                             <option value="">كل الحالات</option>
                             <option value="active"   {{ request('status_filter') == 'active'   ? 'selected' : '' }}>نشط</option>
                             <option value="inactive" {{ request('status_filter') == 'inactive' ? 'selected' : '' }}>معطل</option>
                         </select>
                     </div>
-                    {{-- Actions --}}
-                    <div class="col-md-2 d-flex gap-2">
-                        <button type="submit" class="btn btn-dark flex-grow-1" style="border-radius:11px;">
-                            <i class="fa-solid fa-filter me-1"></i> تصفية
-                        </button>
-                        <a href="{{ route('admin.stars.index') }}" class="btn btn-light border" style="border-radius:11px;" title="مسح الفلاتر">
-                            <i class="fa-solid fa-rotate-right"></i>
-                        </a>
+                </div>
+
+                {{-- Row 2: Academic Group Box --}}
+                <div class="academic-group-box">
+                    <div class="filter-section-title"><i class="fa-solid fa-graduation-cap"></i> التصفية حسب المسار الأكاديمي</div>
+                    <div class="row g-3">
+                        {{-- University --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">الجامعة</label>
+                            <select name="university_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" x-model="uniId" @change="loadColleges">
+                                <option value="">كل الجامعات</option>
+                                @foreach($universities as $uni)
+                                    <option value="{{ $uni->id }}" {{ request('university_id') == $uni->id ? 'selected' : '' }}>{{ $uni->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        {{-- College --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">الكلية</label>
+                            <select name="college_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" x-model="colId" @change="loadMajors" :disabled="!colleges.length">
+                                <option value="">كل الكليات</option>
+                                <template x-for="c in colleges" :key="c.id">
+                                    <option :value="c.id" x-text="c.name" :selected="c.id == colId"></option>
+                                </template>
+                            </select>
+                        </div>
+                        {{-- Major --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">التخصص</label>
+                            <select name="major_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" x-model="majId" @change="loadLevels" :disabled="!majors.length">
+                                <option value="">كل التخصصات</option>
+                                <template x-for="m in majors" :key="m.id">
+                                    <option :value="m.id" x-text="m.name" :selected="m.id == majId"></option>
+                                </template>
+                            </select>
+                        </div>
+                        {{-- Level --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">المستوى</label>
+                            <select name="level_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" :disabled="!levels.length">
+                                <option value="">كل المستويات</option>
+                                <template x-for="l in levels" :key="l.id">
+                                    <option :value="l.id" x-text="l.name" :selected="l.id == {{ request('level_id', 0) }}"></option>
+                                </template>
+                            </select>
+                        </div>
                     </div>
+                </div>
+
+                {{-- Row 3: Buttons --}}
+                <div class="d-flex justify-content-start gap-2">
+                    <button type="submit" class="filter-btn-submit">
+                        <i class="fa-solid fa-filter me-1"></i> تطبيق الفلترة
+                    </button>
+                    <a href="{{ route('admin.stars.index') }}" class="filter-btn-reset" title="إعادة تعيين الفلاتر">
+                        <i class="fa-solid fa-rotate-right me-1"></i> إعادة تعيين
+                    </a>
                 </div>
             </form>
         </div>
@@ -561,55 +637,104 @@
          x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
 
         {{-- Honor Board Filters --}}
-        <div class="honor-filter-bar">
+        <div class="filter-panel">
+            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div class="filter-title m-0"><i class="fa-solid fa-crown text-warning"></i> تصفية لوحة الشرف</div>
+                
+                {{-- Stats pills --}}
+                <div class="d-flex gap-2 flex-wrap">
+                    <span style="background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:999px; padding:4px 12px; font-size:0.76rem; font-weight:800; font-variant-numeric:tabular-nums;">
+                        {{ number_format($honorStats['count']) }} مستخدم
+                    </span>
+                    <span style="background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:999px; padding:4px 12px; font-size:0.76rem; font-weight:800; font-variant-numeric:tabular-nums;">
+                        إجمالي: {{ number_format($honorStats['total_balance']) }} ⭐
+                    </span>
+                    <span style="background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:999px; padding:4px 12px; font-size:0.76rem; font-weight:800; font-variant-numeric:tabular-nums;">
+                        أعلى: {{ number_format($honorStats['top_balance']) }} ⭐
+                    </span>
+                </div>
+            </div>
+
             <form action="{{ route('admin.stars.index') }}" method="GET">
                 <input type="hidden" name="_tab" value="honor">
-                <div class="row g-2 align-items-end">
-                    <div class="col-auto">
-                        <span style="font-size:0.78rem; font-weight:800; color:#92400e; text-transform:uppercase; letter-spacing:0.06em;">
-                            <i class="fa-solid fa-sliders me-1"></i> فلاتر لوحة الشرف
-                        </span>
-                    </div>
-                    <div class="col-md-3">
-                        <select name="h_university_id" class="form-select form-select-sm" style="border-radius:9px;">
-                            <option value="">كل الجامعات</option>
-                            @foreach($universities as $uni)
-                                <option value="{{ $uni->id }}" {{ request('h_university_id') == $uni->id ? 'selected' : '' }}>{{ $uni->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select name="h_role_filter" class="form-select form-select-sm" style="border-radius:9px;">
+                
+                {{-- Row 1: Basic Filters --}}
+                <div class="row g-3 mb-3">
+                    {{-- Role --}}
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-muted mb-1">دور المستخدم</label>
+                        <select name="h_role_filter" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
                             <option value="">كل الأدوار</option>
                             <option value="student"            {{ request('h_role_filter') == 'student'            ? 'selected' : '' }}>طالب</option>
                             <option value="delegate"           {{ request('h_role_filter') == 'delegate'           ? 'selected' : '' }}>مندوب دفعة</option>
                             <option value="practical_delegate" {{ request('h_role_filter') == 'practical_delegate' ? 'selected' : '' }}>مندوب عملي</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <input type="number" name="h_min_stars" class="form-control form-control-sm"
-                               placeholder="أقل رصيد..." value="{{ request('h_min_stars') }}" style="border-radius:9px; font-variant-numeric:tabular-nums;">
+                    {{-- Min Stars --}}
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-muted mb-1">الحد الأدنى لرصيد النجوم</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0" style="border-radius:10px 0 0 10px; border: 1px solid #cbd5e1; color:#d97706;"><i class="fa-solid fa-star fa-sm"></i></span>
+                            <input type="number" name="h_min_stars" class="form-control border-start-0 filter-input" placeholder="مثال: 50 نجمة..." value="{{ request('h_min_stars') }}" style="border-radius:0 10px 10px 0; border: 1px solid #cbd5e1; font-size: 0.85rem; font-variant-numeric:tabular-nums;">
+                        </div>
                     </div>
-                    <div class="col-auto d-flex gap-2">
-                        <button type="submit" class="btn btn-sm" style="border-radius:9px; background:#d97706; color:#fff; font-weight:700; padding:6px 16px;">
-                            <i class="fa-solid fa-filter me-1"></i> تصفية
-                        </button>
-                        <a href="{{ route('admin.stars.index') }}?_tab=honor" class="btn btn-sm btn-light border" style="border-radius:9px;" title="مسح">
-                            <i class="fa-solid fa-rotate-right"></i>
-                        </a>
+                </div>
+
+                {{-- Row 2: Academic Group Box --}}
+                <div class="academic-group-box honor-theme">
+                    <div class="filter-section-title"><i class="fa-solid fa-graduation-cap text-amber-700"></i> التصفية حسب المسار الأكاديمي</div>
+                    <div class="row g-3">
+                        {{-- University --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">الجامعة</label>
+                            <select name="h_university_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" x-model="hUniId" @change="loadHColleges">
+                                <option value="">كل الجامعات</option>
+                                @foreach($universities as $uni)
+                                    <option value="{{ $uni->id }}" {{ request('h_university_id') == $uni->id ? 'selected' : '' }}>{{ $uni->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        {{-- College --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">الكلية</label>
+                            <select name="h_college_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" x-model="hColId" @change="loadHMajors" :disabled="!hColleges.length">
+                                <option value="">كل الكليات</option>
+                                <template x-for="c in hColleges" :key="c.id">
+                                    <option :value="c.id" x-text="c.name" :selected="c.id == hColId"></option>
+                                </template>
+                            </select>
+                        </div>
+                        {{-- Major --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">التخصص</label>
+                            <select name="h_major_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" x-model="hMajId" @change="loadHLevels" :disabled="!hMajors.length">
+                                <option value="">كل التخصصات</option>
+                                <template x-for="m in hMajors" :key="m.id">
+                                    <option :value="m.id" x-text="m.name" :selected="m.id == hMajId"></option>
+                                </template>
+                            </select>
+                        </div>
+                        {{-- Level --}}
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">المستوى</label>
+                            <select name="h_level_id" class="form-select filter-input" style="border-radius:10px; border: 1px solid #cbd5e1; font-size: 0.85rem;" :disabled="!hLevels.length">
+                                <option value="">كل المستويات</option>
+                                <template x-for="l in hLevels" :key="l.id">
+                                    <option :value="l.id" x-text="l.name" :selected="l.id == {{ request('h_level_id', 0) }}"></option>
+                                </template>
+                            </select>
+                        </div>
                     </div>
-                    {{-- Stats pills --}}
-                    <div class="col-auto ms-auto d-flex gap-2 flex-wrap">
-                        <span style="background:#fff; border:1px solid #fde68a; color:#92400e; border-radius:999px; padding:4px 12px; font-size:0.76rem; font-weight:800; font-variant-numeric:tabular-nums;">
-                            {{ number_format($honorStats['count']) }} مستخدم
-                        </span>
-                        <span style="background:#fff; border:1px solid #fde68a; color:#92400e; border-radius:999px; padding:4px 12px; font-size:0.76rem; font-weight:800; font-variant-numeric:tabular-nums;">
-                            إجمالي: {{ number_format($honorStats['total_balance']) }} ⭐
-                        </span>
-                        <span style="background:#fff; border:1px solid #fde68a; color:#92400e; border-radius:999px; padding:4px 12px; font-size:0.76rem; font-weight:800; font-variant-numeric:tabular-nums;">
-                            أعلى: {{ number_format($honorStats['top_balance']) }} ⭐
-                        </span>
-                    </div>
+                </div>
+
+                {{-- Row 3: Buttons --}}
+                <div class="d-flex justify-content-start gap-2">
+                    <button type="submit" class="filter-btn-submit" style="background: #b45309;">
+                        <i class="fa-solid fa-filter me-1"></i> تطبيق الفلترة
+                    </button>
+                    <a href="{{ route('admin.stars.index') }}?_tab=honor" class="filter-btn-reset" title="إعادة تعيين الفلاتر">
+                        <i class="fa-solid fa-rotate-right me-1"></i> إعادة تعيين
+                    </a>
                 </div>
             </form>
         </div>
@@ -793,6 +918,14 @@ document.addEventListener('alpine:init', () => {
         majors: [],
         levels: [],
 
+        // Cascading Filters (Honor Board tab)
+        hUniId: '{{ request('h_university_id', '') }}',
+        hColId: '{{ request('h_college_id', '') }}',
+        hMajId: '{{ request('h_major_id', '') }}',
+        hColleges: [],
+        hMajors: [],
+        hLevels: [],
+
         // Quick Action modal
         qaOpen: false,
         qaStudentId: null,
@@ -805,6 +938,13 @@ document.addEventListener('alpine:init', () => {
                 if (this.colId) {
                     await this.loadMajors();
                     if (this.majId) await this.loadLevels();
+                }
+            }
+            if (this.hUniId) {
+                await this.loadHColleges();
+                if (this.hColId) {
+                    await this.loadHMajors();
+                    if (this.hMajId) await this.loadHLevels();
                 }
             }
         },
@@ -844,6 +984,30 @@ document.addEventListener('alpine:init', () => {
             const res = await fetch(`/api/public/levels/${this.majId}`);
             const json = await res.json();
             this.levels = json.data || [];
+        },
+
+        async loadHColleges() {
+            this.hColleges = []; this.hMajors = []; this.hLevels = [];
+            if (!this.hUniId) return;
+            const res = await fetch(`/api/public/colleges/${this.hUniId}`);
+            const json = await res.json();
+            this.hColleges = json.data || [];
+        },
+
+        async loadHMajors() {
+            this.hMajors = []; this.hLevels = [];
+            if (!this.hColId) return;
+            const res = await fetch(`/api/public/majors/${this.hColId}`);
+            const json = await res.json();
+            this.hMajors = json.data || [];
+        },
+
+        async loadHLevels() {
+            this.hLevels = [];
+            if (!this.hMajId) return;
+            const res = await fetch(`/api/public/levels/${this.hMajId}`);
+            const json = await res.json();
+            this.hLevels = json.data || [];
         },
     }));
 });

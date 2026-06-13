@@ -51,6 +51,7 @@ class StarController extends Controller
         if ($request->filled('h_university_id')) $honorQuery->where('university_id', $request->h_university_id);
         if ($request->filled('h_college_id'))    $honorQuery->where('college_id', $request->h_college_id);
         if ($request->filled('h_major_id'))      $honorQuery->where('major_id', $request->h_major_id);
+        if ($request->filled('h_level_id'))      $honorQuery->where('level_id', $request->h_level_id);
         if ($request->filled('h_role_filter'))   $honorQuery->where('role', $request->h_role_filter);
         if ($request->filled('h_min_stars'))     $honorQuery->where('stars_balance', '>=', (int)$request->h_min_stars);
 
