@@ -9,9 +9,12 @@ use App\Models\Academic\University;
 use App\Models\Academic\College;
 use App\Models\Academic\Major;
 use App\Models\Academic\Level;
+use App\Models\StudentNotification;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StarController extends Controller
 {
@@ -41,17 +44,42 @@ class StarController extends Controller
             });
         }
 
+        $honorQuery = clone $query;
+
         $students = $query->with(['university', 'college', 'major', 'level'])
             ->latest()
             ->paginate(20);
 
-        return view('admin.stars.index', compact('students', 'universities', 'colleges', 'majors', 'levels'));
+        $honorBoard = $honorQuery
+            ->with(['university', 'college', 'major', 'level'])
+            ->where('stars_balance', '>', 0)
+            ->orderByDesc('stars_balance')
+            ->orderByDesc('total_stars_earned')
+            ->orderBy('name')
+            ->limit(25)
+            ->get();
+
+        $honorStats = [
+            'count' => $honorBoard->count(),
+            'total_balance' => $honorBoard->sum('stars_balance'),
+            'top_balance' => (int) ($honorBoard->first()?->stars_balance ?? 0),
+        ];
+
+        return view('admin.stars.index', compact(
+            'students',
+            'honorBoard',
+            'honorStats',
+            'universities',
+            'colleges',
+            'majors',
+            'levels'
+        ));
     }
 
     /**
      * Grant stars to selected students.
      */
-    public function grant(Request $request)
+    public function grant(Request $request, PushNotificationService $pushNotifications)
     {
         $request->validate([
             'student_ids' => 'required|array',
@@ -59,6 +87,10 @@ class StarController extends Controller
             'amount'      => 'required|integer|min:-1000|max:1000',
             'description' => 'required|string|max:255',
         ]);
+
+        if ((int) $request->amount === 0) {
+            return back()->with('error', 'يجب أن لا تكون قيمة النجوم صفرًا.');
+        }
 
         $admin = Auth::user();
         $count = 0;
@@ -72,17 +104,55 @@ class StarController extends Controller
                 if ($request->amount > 0) {
                     $student->addStars($request->amount, 'admin_grant', $admin->id, $request->description);
                 } elseif ($request->amount < 0) {
-                    $student->deductStars($request->amount, 'admin_penalty', $admin->id, $request->description);
+                    $student->deductStars($request->amount, 'penalty', $admin->id, $request->description);
                 }
-                
+
+                if ($request->amount !== 0) {
+                    $this->notifyStudent($student, (int) $request->amount, $request->description, $admin->id, $pushNotifications);
+                }
+
                 $count++;
             }
 
             DB::commit();
-            return back()->with('success', "تم منح {$request->amount} نجوم بنجاح لـ {$count} طالباً.");
+            $actionWord = $request->amount > 0 ? 'منح' : 'خصم';
+            return back()->with('success', "تم {$actionWord} " . abs((int) $request->amount) . " نجوم بنجاح لـ {$count} مستخدم.");
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'حدث خطأ أثناء منح النجوم: ' . $e->getMessage());
+            return back()->with('error', 'حدث خطأ أثناء تنفيذ عملية النجوم: ' . $e->getMessage());
+        }
+    }
+
+    private function notifyStudent(User $student, int $amount, string $description, int $adminId, PushNotificationService $pushNotifications): void
+    {
+        $absoluteAmount = abs($amount);
+        $isGrant = $amount > 0;
+
+        $notification = StudentNotification::create([
+            'user_id' => $student->id,
+            'sender_id' => $adminId,
+            'type' => 'stars',
+            'title' => $isGrant ? '⭐ منحة نجوم من الإدارة' : 'خصم نجوم من الإدارة',
+            'message' => $isGrant
+                ? "تم منحك {$absoluteAmount} نجمة من الإدارة. السبب: {$description}"
+                : "تم خصم {$absoluteAmount} نجمة من رصيدك من الإدارة. السبب: {$description}",
+            'data' => [
+                'amount' => $amount,
+                'description' => $description,
+                'source' => 'admin_stars',
+                'screen' => 'stars',
+                'target_screen' => 'stars',
+            ],
+        ]);
+
+        try {
+            $pushNotifications->sendStudentNotification($notification);
+        } catch (\Throwable $e) {
+            Log::warning('Admin star adjustment completed but push notification failed.', [
+                'notification_id' => $notification->id,
+                'user_id' => $student->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

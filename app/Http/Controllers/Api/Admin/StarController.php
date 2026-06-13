@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\BaseController;
+use App\Models\StudentNotification;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StarController extends BaseController
 {
@@ -60,7 +63,7 @@ class StarController extends BaseController
     /**
      * Grant or deduct stars in bulk to a specific set of users.
      */
-    public function grant(Request $request)
+    public function grant(Request $request, PushNotificationService $pushNotifications)
     {
         $request->validate([
             'student_ids'   => 'required|array',
@@ -89,9 +92,11 @@ class StarController extends BaseController
                 if ($request->amount > 0) {
                     $student->addStars($request->amount, 'admin_grant', $admin->id, $request->description);
                 } else {
-                    $student->deductStars($request->amount, 'admin_penalty', $admin->id, $request->description);
+                    $student->deductStars($request->amount, 'penalty', $admin->id, $request->description);
                 }
-                
+
+                $this->notifyStudent($student, (int) $request->amount, $request->description, $admin->id, $pushNotifications);
+
                 $processedCount++;
             }
 
@@ -103,6 +108,39 @@ class StarController extends BaseController
         } catch (\Exception $e) {
             DB::rollBack();
             return $this->error('حدث خطأ أثناء تنفيذ عملية تغيير أرصدة النجوم: ' . $e->getMessage(), 500);
+        }
+    }
+
+    private function notifyStudent(User $student, int $amount, string $description, int $adminId, PushNotificationService $pushNotifications): void
+    {
+        $absoluteAmount = abs($amount);
+        $isGrant = $amount > 0;
+
+        $notification = StudentNotification::create([
+            'user_id' => $student->id,
+            'sender_id' => $adminId,
+            'type' => 'stars',
+            'title' => $isGrant ? '⭐ منحة نجوم من الإدارة' : 'خصم نجوم من الإدارة',
+            'message' => $isGrant
+                ? "تم منحك {$absoluteAmount} نجمة من الإدارة. السبب: {$description}"
+                : "تم خصم {$absoluteAmount} نجمة من رصيدك من الإدارة. السبب: {$description}",
+            'data' => [
+                'amount' => $amount,
+                'description' => $description,
+                'source' => 'admin_stars',
+                'screen' => 'stars',
+                'target_screen' => 'stars',
+            ],
+        ]);
+
+        try {
+            $pushNotifications->sendStudentNotification($notification);
+        } catch (\Throwable $e) {
+            Log::warning('Admin API star adjustment completed but push notification failed.', [
+                'notification_id' => $notification->id,
+                'user_id' => $student->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

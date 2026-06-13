@@ -35,6 +35,133 @@
     .role-student { background: #e0e7ff; color: #4338ca; }
     .role-delegate { background: #fce7f3; color: #be185d; }
     .role-prac-delegate { background: #ecfccb; color: #4d7c0f; }
+    .honor-board-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+    }
+    .honor-board-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #fff7ed, #ffffff);
+        border-bottom: 1px solid #fed7aa;
+    }
+    .honor-board-title {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+    .honor-board-title .icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 15px;
+        display: grid;
+        place-items: center;
+        color: #b45309;
+        background: #ffedd5;
+    }
+    .honor-board-title h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 900;
+        color: #1e293b;
+    }
+    .honor-board-title p {
+        margin: 0.15rem 0 0;
+        font-size: 0.82rem;
+        color: #64748b;
+    }
+    .honor-board-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: flex-end;
+    }
+    .honor-stat-pill {
+        background: #fff;
+        border: 1px solid #fde68a;
+        color: #92400e;
+        border-radius: 999px;
+        padding: 0.42rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+    }
+    .honor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 0.85rem;
+        padding: 1rem;
+    }
+    .honor-item-card {
+        border: 1px solid #eef2f7;
+        border-radius: 16px;
+        padding: 0.9rem;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        min-width: 0;
+    }
+    .honor-rank {
+        width: 38px;
+        height: 38px;
+        border-radius: 13px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 38px;
+        font-weight: 900;
+        font-size: 0.9rem;
+        background: #f1f5f9;
+        color: #475569;
+    }
+    .honor-rank.rank-1 { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+    .honor-rank.rank-2 { background: linear-gradient(135deg, #94a3b8, #64748b); color: #fff; }
+    .honor-rank.rank-3 { background: linear-gradient(135deg, #b45309, #92400e); color: #fff; }
+    .honor-person {
+        min-width: 0;
+        flex: 1;
+    }
+    .honor-person strong {
+        display: block;
+        color: #0f172a;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .honor-person small {
+        display: block;
+        color: #64748b;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .honor-score {
+        text-align: left;
+        flex: 0 0 auto;
+        color: #b45309;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+    }
+    .honor-score span {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+    .honor-empty {
+        padding: 2rem;
+        text-align: center;
+        color: #64748b;
+    }
 </style>
 
 <div class="star-header">
@@ -109,6 +236,55 @@
             </div>
         </form>
     </div>
+
+    {{-- Honor Board --}}
+    <section class="honor-board-card">
+        <div class="honor-board-head">
+            <div class="honor-board-title">
+                <div class="icon"><i class="fa-solid fa-crown"></i></div>
+                <div>
+                    <h2>لوحة الشرف</h2>
+                    <p>أفضل الطلاب والمناديب حسب الفلاتر الحالية، مرتبين حسب رصيد النجوم.</p>
+                </div>
+            </div>
+            <div class="honor-board-stats">
+                <span class="honor-stat-pill">المعروض: {{ number_format($honorStats['count']) }}</span>
+                <span class="honor-stat-pill">أعلى رصيد: {{ number_format($honorStats['top_balance']) }}</span>
+                <span class="honor-stat-pill">إجمالي المعروض: {{ number_format($honorStats['total_balance']) }}</span>
+            </div>
+        </div>
+
+        @if($honorBoard->isNotEmpty())
+            <div class="honor-grid">
+                @foreach($honorBoard as $rank => $honorStudent)
+                    <article class="honor-item-card">
+                        <div class="honor-rank rank-{{ $rank + 1 <= 3 ? $rank + 1 : 'default' }}">{{ $rank + 1 }}</div>
+                        <div class="avatar-circle">{{ mb_substr($honorStudent->name, 0, 1) }}</div>
+                        <div class="honor-person">
+                            <strong>{{ $honorStudent->name }}</strong>
+                            <small>
+                                {{ $honorStudent->student_number ?? $honorStudent->email }}
+                                -
+                                {{ $honorStudent->major->name ?? 'بدون تخصص' }}
+                                /
+                                {{ $honorStudent->level->name ?? 'بدون مستوى' }}
+                            </small>
+                        </div>
+                        <div class="honor-score">
+                            {{ number_format($honorStudent->stars_balance) }}
+                            <span>نجمة</span>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        @else
+            <div class="honor-empty">
+                <i class="fa-solid fa-crown fa-2x mb-3 opacity-25"></i>
+                <div class="fw-bold">لا توجد نتائج في لوحة الشرف ضمن الفلاتر الحالية.</div>
+                <div class="small mt-1">جرّب توسيع نطاق الجامعة أو الكلية أو التخصص.</div>
+            </div>
+        @endif
+    </section>
 
     {{-- Students Table --}}
     <form action="{{ route('admin.stars.grant') }}" method="POST">
