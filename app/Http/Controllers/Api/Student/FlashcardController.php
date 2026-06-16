@@ -960,7 +960,9 @@ class FlashcardController extends StudentApiController
 
             $items = $pack->effectiveItems()
                 ->with('pack:id,title,color,display_mode')
-                ->get();
+                ->get()
+                ->filter(fn (FlashcardItem $item) => $item->resolved_item_type !== 'one_line')
+                ->values();
 
             if ($items->isEmpty()) {
                 continue;

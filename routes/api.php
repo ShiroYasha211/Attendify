@@ -632,13 +632,11 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
     Route::get('ledger', [\App\Http\Controllers\Api\Student\FinancialController::class, 'ledger']);
     Route::get('ledger/export', [\App\Http\Controllers\Api\Student\FinancialController::class, 'exportPdf']);
 
-    Route::middleware('device.primary')->group(function () {
-        Route::get('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'settings']);
-        Route::put('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateUserSettings']);
-    });
+    Route::get('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'settings']);
+    Route::put('flashcard-settings', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'updateUserSettings']);
 
     // Flashcard / One Line Shot
-    Route::prefix('flashcards')->middleware('device.primary')->group(function () {
+    Route::prefix('flashcards')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'index']);
         Route::post('/', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'store']);
         Route::get('store', [\App\Http\Controllers\Api\Student\FlashcardController::class, 'publicStore']);
