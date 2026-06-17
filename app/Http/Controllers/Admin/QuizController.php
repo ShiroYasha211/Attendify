@@ -67,6 +67,7 @@ class QuizController extends Controller
             'description'           => 'nullable|string',
             'timer_mode'            => 'required|in:quiz,per_question',
             'time_limit_minutes'    => 'nullable|required_if:timer_mode,quiz|integer|min:1|max:300',
+            'allow_question_backtracking' => 'nullable|boolean',
             'shuffle_questions'     => 'nullable|boolean',
             'shuffle_options'       => 'nullable|boolean',
             'show_correct_answers'  => 'nullable|boolean',
@@ -81,6 +82,7 @@ class QuizController extends Controller
             // Content
             'models'                => 'required|array|min:1',
             'models.*.name'         => 'required|string|max:100',
+            'models.*.access_code'  => 'nullable|string|max:100',
             'models.*.questions'    => 'required|array|min:1',
             'models.*.questions.*.question_text' => 'required|string',
             'models.*.questions.*.question_type' => 'required|in:multiple_choice,true_false',
@@ -120,6 +122,7 @@ class QuizController extends Controller
                 'description'           => $validated['description'] ?? null,
                 'time_limit_minutes'    => $validated['time_limit_minutes'] ?? null,
                 'timer_mode'            => $validated['timer_mode'],
+                'allow_question_backtracking' => $request->boolean('allow_question_backtracking', true),
                 'shuffle_questions'     => $request->boolean('shuffle_questions'),
                 'shuffle_options'       => $request->boolean('shuffle_options', true),
                 'show_correct_answers'  => $request->boolean('show_correct_answers'),
@@ -136,10 +139,14 @@ class QuizController extends Controller
             // Save Models, Questions, Options
             if (isset($validated['models']) && is_array($validated['models'])) {
                 foreach ($validated['models'] as $mIndex => $modelData) {
+                    $accessCode = null;
+                    if ($request->boolean('use_access_code')) {
+                        $accessCode = !empty($modelData['access_code']) ? strtoupper(trim($modelData['access_code'])) : strtoupper(Str::random(6));
+                    }
                     $quizModel = QuizModel::create([
                         'quiz_id'     => $quiz->id,
                         'name'        => $modelData['name'],
-                        'access_code' => $request->boolean('use_access_code') ? Str::random(6) : null,
+                        'access_code' => $accessCode,
                         'order'       => $mIndex + 1,
                     ]);
 
@@ -286,9 +293,11 @@ class QuizController extends Controller
         $initialModels = $quiz->models->map(function($m) {
             return [
                 'name' => $m->name,
+                'access_code' => $m->access_code,
                 'questions' => $m->questions->map(function($q) {
                     return [
                         'text' => $q->question_text,
+                        'question_type' => $q->question_type ?? 'multiple_choice',
                         'score' => $q->score,
                         'time_limit_seconds' => $q->time_limit_seconds,
                         'correction_note' => $q->correction_note,
@@ -324,6 +333,7 @@ class QuizController extends Controller
             'description'           => 'nullable|string',
             'timer_mode'            => 'required|in:quiz,per_question',
             'time_limit_minutes'    => 'nullable|required_if:timer_mode,quiz|integer|min:1|max:300',
+            'allow_question_backtracking' => 'nullable|boolean',
             'shuffle_questions'     => 'nullable|boolean',
             'shuffle_options'       => 'nullable|boolean',
             'show_correct_answers'  => 'nullable|boolean',
@@ -336,6 +346,7 @@ class QuizController extends Controller
             'closes_at'             => 'nullable|date|after:scheduled_at',
             'models'                => 'sometimes|array',
             'models.*.name'         => 'required_with:models|string|max:100',
+            'models.*.access_code'  => 'nullable|string|max:100',
             'models.*.questions'    => 'required_with:models|array|min:1',
             'models.*.questions.*.question_text' => 'required_with:models|string',
             'models.*.questions.*.question_type' => 'nullable|in:multiple_choice,true_false',
@@ -363,6 +374,7 @@ class QuizController extends Controller
                 'description'           => $validated['description'] ?? null,
                 'time_limit_minutes'    => $validated['time_limit_minutes'] ?? null,
                 'timer_mode'            => $validated['timer_mode'],
+                'allow_question_backtracking' => $request->boolean('allow_question_backtracking', true),
                 'shuffle_questions'     => $request->boolean('shuffle_questions'),
                 'shuffle_options'       => $request->boolean('shuffle_options', true),
                 'show_correct_answers'  => $request->boolean('show_correct_answers'),
@@ -379,14 +391,18 @@ class QuizController extends Controller
             if ($quiz->attempts()->count() === 0 && isset($validated['models'])) {
                 $quiz->models()->delete();
                 foreach ($validated['models'] as $m) {
+                    $accessCode = null;
+                    if ($request->boolean('use_access_code')) {
+                        $accessCode = !empty($m['access_code']) ? strtoupper(trim($m['access_code'])) : strtoupper(Str::random(6));
+                    }
                     $model = $quiz->models()->create([
                         'name' => $m['name'],
-                        'access_code' => $request->boolean('use_access_code') ? strtoupper(Str::random(6)) : null,
+                        'access_code' => $accessCode,
                     ]);
                     foreach ($m['questions'] as $qIdx => $q) {
                         $question = $model->questions()->create([
                             'question_text' => $q['question_text'],
-                            'question_type' => 'multiple_choice',
+                            'question_type' => $q['question_type'] ?? 'multiple_choice',
                             'score' => $q['score'] ?? 1,
                             'time_limit_seconds' => $validated['timer_mode'] === 'per_question' ? ($q['time_limit_seconds'] ?? null) : null,
                             'correction_note' => $q['correction_note'] ?? null,

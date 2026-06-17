@@ -125,6 +125,12 @@
                         <label class="form-check-label fw-bold small" for="show_countdown">إظهار عد تنازلي للطلاب</label>
                     </div>
                 </div>
+                <div class="col-md-4" x-show="timerMode === 'quiz'">
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" name="allow_question_backtracking" value="1" id="allow_question_backtracking" checked>
+                        <label class="form-check-label fw-bold small" for="allow_question_backtracking">السماح بالرجوع للأسئلة</label>
+                    </div>
+                </div>
                 <div class="col-md-4">
                     <div class="form-check form-switch m-0">
                         <input class="form-check-input" type="checkbox" name="use_access_code" value="1" id="use_access_code" x-model="use_access_code">
@@ -133,7 +139,7 @@
                 </div>
                 <div class="col-md-8" x-show="use_access_code">
                     <div class="alert alert-info py-2 px-3 m-0 small">
-                        <i class="fa-solid fa-info-circle me-1"></i> سيتم توليد رمز عشوائي لكل نموذج تلقائياً. لمشاركتك مع الطلاب لاحقاً.
+                        <i class="fa-solid fa-info-circle me-1"></i> كويز برمز دخول: يرجى كتابة رمز دخول مخصص لكل نموذج أدناه.
                     </div>
                 </div>
             </div>
@@ -185,10 +191,15 @@
             <h3 class="section-title"><i class="fa-solid fa-layer-group"></i> النماذج والأسئلة</h3>
             <template x-for="(model, mIdx) in models" :key="mIdx">
                 <div class="model-card">
-                    <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
-                        <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2 flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
                             <span class="badge bg-primary">نموذج <span x-text="mIdx+1"></span></span>
                             <input type="text" :name="'models['+mIdx+'][name]'" class="form-control-q" x-model="model.name" required placeholder="اسم النموذج">
+                            
+                            <div class="d-flex align-items-center gap-1" x-show="use_access_code">
+                                <label class="form-label-q mb-0 ms-2 small">رمز الدخول:</label>
+                                <input type="text" :name="'models['+mIdx+'][access_code]'" class="form-control-q text-uppercase" style="width: 120px;" x-model="model.access_code" :required="use_access_code" placeholder="مثال: A123">
+                            </div>
                         </div>
                         <button type="button" class="btn-remove" @click="removeModel(mIdx)" x-show="models.length > 1"><i class="fa-solid fa-trash"></i></button>
                     </div>
@@ -197,8 +208,14 @@
                         <div class="question-card">
                             <div class="d-flex justify-content-between mb-2">
                                 <span class="fw-bold small text-primary" x-text="'سؤال ' + (qIdx+1)"></span>
-                                <div class="d-flex gap-2">
-                                    <input type="hidden" :name="'models['+mIdx+'][questions]['+qIdx+'][question_type]'" value="multiple_choice">
+                                <div class="d-flex gap-2 align-items-center">
+                                    <div class="d-flex align-items-center gap-1">
+                                        <label class="form-label-q mb-0 small text-muted">النوع:</label>
+                                        <select :name="'models['+mIdx+'][questions]['+qIdx+'][question_type]'" class="form-select-q py-1 px-2" style="font-size: 0.75rem; border-radius: 8px;" x-model="q.question_type" @change="handleTypeChange(mIdx, qIdx)">
+                                            <option value="multiple_choice">اختيار من متعدد</option>
+                                            <option value="true_false">صح / خطأ</option>
+                                        </select>
+                                    </div>
                                     <input type="number" :name="'models['+mIdx+'][questions]['+qIdx+'][score]'" class="form-control-q" style="width: 70px;" x-model="q.score" step="0.5">
                                     <input type="number" :name="'models['+mIdx+'][questions]['+qIdx+'][time_limit_seconds]'" class="form-control-q" style="width: 115px;" x-model="q.time_limit_seconds" min="1" placeholder="ثواني" x-show="timerMode === 'per_question'" :required="timerMode === 'per_question'">
                                     <button type="button" class="btn-remove" @click="removeQuestion(mIdx, qIdx)" x-show="model.questions.length > 1"><i class="fa-solid fa-times"></i></button>
@@ -217,12 +234,12 @@
                             <template x-for="(opt, oIdx) in q.options" :key="oIdx">
                                 <div class="d-flex gap-2 align-items-center mb-1">
                                     <input type="radio" :name="'models['+mIdx+'][questions]['+qIdx+'][correct_radio]'" :checked="opt.is_correct" @change="setCorrect(mIdx, qIdx, oIdx)">
-                                    <input type="text" :name="'models['+mIdx+'][questions]['+qIdx+'][options]['+oIdx+'][option_text]'" class="form-control-q flex-fill" x-model="opt.text" required>
+                                    <input type="text" :name="'models['+mIdx+'][questions]['+qIdx+'][options]['+oIdx+'][option_text]'" class="form-control-q flex-fill" x-model="opt.text" required :readonly="q.question_type === 'true_false'">
                                     <input type="hidden" :name="'models['+mIdx+'][questions]['+qIdx+'][options]['+oIdx+'][is_correct]'" :value="opt.is_correct ? '1' : '0'">
-                                    <button type="button" class="btn-remove" @click="removeOption(mIdx, qIdx, oIdx)" x-show="q.options.length > 2"><i class="fa-solid fa-times"></i></button>
+                                    <button type="button" class="btn-remove" @click="removeOption(mIdx, qIdx, oIdx)" x-show="q.options.length > 2 && q.question_type !== 'true_false'"><i class="fa-solid fa-times"></i></button>
                                 </div>
                             </template>
-                            <button type="button" class="btn-add mt-1 py-1 px-2" style="font-size: 0.7rem;" @click="addOption(mIdx, qIdx)"><i class="fa-solid fa-plus"></i> إضافة خيار</button>
+                            <button type="button" class="btn-add mt-1 py-1 px-2" style="font-size: 0.7rem;" @click="addOption(mIdx, qIdx)" x-show="q.question_type !== 'true_false'"><i class="fa-solid fa-plus"></i> إضافة خيار</button>
                         </div>
                     </template>
                     <button type="button" class="btn-add mt-2" @click="addQuestion(mIdx)"><i class="fa-solid fa-plus"></i> سؤال جديد</button>
@@ -245,13 +262,13 @@ function adminQuizBuilder() {
         timerMode: 'quiz',
         use_access_code: false,
         targets: [{ university_id: '', college_id: '', major_id: '', level_id: '' }],
-        models: [{ name: 'نموذج أ', questions: [{ text: '', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }] }],
+        models: [{ name: 'نموذج أ', access_code: '', questions: [{ text: '', question_type: 'multiple_choice', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }] }],
         
         addTarget() { this.targets.push({ university_id: '', college_id: '', major_id: '', level_id: '' }); },
         removeTarget(idx) { this.targets.splice(idx, 1); },
-        addModel() { this.models.push({ name: 'نموذج جديد', questions: [{ text: '', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }] }); },
+        addModel() { this.models.push({ name: 'نموذج جديد', access_code: '', questions: [{ text: '', question_type: 'multiple_choice', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }] }); },
         removeModel(idx) { this.models.splice(idx, 1); },
-        addQuestion(mIdx) { this.models[mIdx].questions.push({ text: '', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }); },
+        addQuestion(mIdx) { this.models[mIdx].questions.push({ text: '', question_type: 'multiple_choice', score: 1, time_limit_seconds: '', correction_note: '', info_source: '', options: [{ text: '', is_correct: true }, { text: '', is_correct: false }] }); },
         removeQuestion(mIdx, qIdx) { this.models[mIdx].questions.splice(qIdx, 1); },
         addOption(mIdx, qIdx) { this.models[mIdx].questions[qIdx].options.push({ text: '', is_correct: false }); },
         removeOption(mIdx, qIdx, oIdx) {
@@ -262,6 +279,20 @@ function adminQuizBuilder() {
         },
         setCorrect(mIdx, qIdx, oIdx) {
             this.models[mIdx].questions[qIdx].options.forEach((opt, i) => opt.is_correct = (i === oIdx));
+        },
+        handleTypeChange(mIdx, qIdx) {
+            const q = this.models[mIdx].questions[qIdx];
+            if (q.question_type === 'true_false') {
+                q.options = [
+                    { text: 'صح', is_correct: true },
+                    { text: 'خطأ', is_correct: false }
+                ];
+            } else {
+                q.options = [
+                    { text: '', is_correct: true },
+                    { text: '', is_correct: false }
+                ];
+            }
         }
     };
 }
