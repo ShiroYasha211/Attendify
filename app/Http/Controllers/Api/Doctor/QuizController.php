@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Services\QuizNotificationService;
 
 class QuizController extends DoctorApiController
@@ -68,6 +69,7 @@ class QuizController extends DoctorApiController
             'description' => 'nullable|string',
             'timer_mode' => 'required|in:quiz,per_question',
             'time_limit_minutes' => 'nullable|required_if:timer_mode,quiz|integer|min:1|max:300',
+            'allow_question_backtracking' => 'nullable|boolean',
             'shuffle_questions' => 'nullable|boolean',
             'shuffle_options' => 'nullable|boolean',
             'show_correct_answers' => 'nullable|boolean',
@@ -97,6 +99,10 @@ class QuizController extends DoctorApiController
             'models.*.questions.*.options.*.option_text' => 'required|string',
             'models.*.questions.*.options.*.is_correct' => 'nullable|boolean',
         ]);
+        $this->ensureDistinctModelAccessCodes(
+            $validated['models'],
+            $request->boolean('use_access_code')
+        );
 
         Subject::where('id', $validated['subject_id'])
             ->where('doctor_id', $doctor->id)
@@ -118,6 +124,9 @@ class QuizController extends DoctorApiController
                 'description' => $validated['description'] ?? null,
                 'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
                 'timer_mode' => $validated['timer_mode'],
+                'allow_question_backtracking' => $request->has('allow_question_backtracking')
+                    ? $request->boolean('allow_question_backtracking')
+                    : true,
                 'shuffle_questions' => $request->boolean('shuffle_questions'),
                 'shuffle_options' => $request->boolean('shuffle_options'),
                 'show_correct_answers' => $request->boolean('show_correct_answers'),
@@ -178,6 +187,7 @@ class QuizController extends DoctorApiController
             'description' => 'nullable|string',
             'timer_mode' => 'required|in:quiz,per_question',
             'time_limit_minutes' => 'nullable|required_if:timer_mode,quiz|integer|min:1|max:300',
+            'allow_question_backtracking' => 'nullable|boolean',
             'shuffle_questions' => 'nullable|boolean',
             'shuffle_options' => 'nullable|boolean',
             'show_correct_answers' => 'nullable|boolean',
@@ -214,6 +224,12 @@ class QuizController extends DoctorApiController
         }
 
         $validated = $request->validate($rules);
+        if ($canEditContent && isset($validated['models'])) {
+            $this->ensureDistinctModelAccessCodes(
+                $validated['models'],
+                $request->boolean('use_access_code')
+            );
+        }
 
         Subject::where('id', $validated['subject_id'])
             ->where('doctor_id', Auth::id())
@@ -233,6 +249,9 @@ class QuizController extends DoctorApiController
                 'description' => $validated['description'] ?? null,
                 'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
                 'timer_mode' => $validated['timer_mode'],
+                'allow_question_backtracking' => $request->has('allow_question_backtracking')
+                    ? $request->boolean('allow_question_backtracking')
+                    : (bool) $quiz->allow_question_backtracking,
                 'shuffle_questions' => $request->boolean('shuffle_questions'),
                 'shuffle_options' => $request->boolean('shuffle_options'),
                 'show_correct_answers' => $request->boolean('show_correct_answers'),
@@ -423,6 +442,31 @@ class QuizController extends DoctorApiController
         $code = trim((string) $code);
 
         return $code === '' ? null : Str::upper($code);
+    }
+
+    protected function ensureDistinctModelAccessCodes(array $models, bool $useAccessCode): void
+    {
+        if (! $useAccessCode) {
+            return;
+        }
+
+        $seen = [];
+
+        foreach ($models as $modelData) {
+            $accessCode = $this->normalizeAccessCode($modelData['access_code'] ?? null);
+
+            if (! $accessCode) {
+                continue;
+            }
+
+            if (isset($seen[$accessCode])) {
+                throw ValidationException::withMessages([
+                    'models' => 'كود الدخول مكرر داخل نفس الكويز. استخدم كوداً مختلفاً لكل نموذج.',
+                ]);
+            }
+
+            $seen[$accessCode] = true;
+        }
     }
 
     protected function formatResultAttempt(QuizAttempt $attempt): array

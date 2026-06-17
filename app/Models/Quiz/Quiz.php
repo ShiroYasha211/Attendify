@@ -19,6 +19,7 @@ class Quiz extends Model
         'description',
         'time_limit_minutes',
         'timer_mode',
+        'allow_question_backtracking',
         'shuffle_questions',
         'shuffle_options',
         'show_correct_answers',
@@ -40,6 +41,7 @@ class Quiz extends Model
         'is_competition'        => 'boolean',
         'notify_students'       => 'boolean',
         'show_countdown'        => 'boolean',
+        'allow_question_backtracking' => 'boolean',
         'scheduled_at'          => 'datetime',
         'closes_at'             => 'datetime',
     ];

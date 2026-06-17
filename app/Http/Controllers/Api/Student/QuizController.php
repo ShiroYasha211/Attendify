@@ -145,6 +145,7 @@ class QuizController extends StudentApiController
             'duration_minutes' => $quiz->time_limit_minutes,   // Flutter reads 'duration_minutes'
             'time_limit_minutes' => $quiz->time_limit_minutes,
             'timer_mode'       => $quiz->timer_mode ?? 'quiz',
+            'allow_question_backtracking' => (bool) $quiz->allow_question_backtracking,
             'questions_count'  => $questionsCount,
             'models_count'     => $quiz->models_count ?? 0,
             'starts_at'        => $quiz->scheduled_at?->toIso8601String(),  // Flutter reads 'starts_at'
@@ -260,6 +261,7 @@ class QuizController extends StudentApiController
                 [
                     'duration_minutes' => $quiz->time_limit_minutes,
                     'timer_mode' => $quiz->timer_mode ?? 'quiz',
+                    'allow_question_backtracking' => (bool) $quiz->allow_question_backtracking,
                 ]
             ),
             'attempt'          => array_merge($attempt->toArray(), [
