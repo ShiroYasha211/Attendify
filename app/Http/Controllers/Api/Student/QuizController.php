@@ -323,12 +323,40 @@ class QuizController extends StudentApiController
         if ($quiz->results_visibility === 'hidden') {
             return $this->success([
                 'quiz'    => $quiz->only(['id', 'title']),
-                'attempt' => $attempt->only(['id', 'score', 'submitted_at', 'status']),
+                'attempt' => $attempt->only(['id', 'submitted_at', 'status']),
                 'message' => 'نتائج هذا الكويز مخفية حالياً من قبل المدرس.',
             ], 'تم إخفاء النتائج');
         }
 
         $attempt->load(['answers.question.options', 'answers.selectedOption', 'quizModel']);
+        $publicResults = [];
+
+        if ($quiz->results_visibility === 'public') {
+            $publicResults = QuizAttempt::where('quiz_id', $quiz->id)
+                ->where('status', 'graded')
+                ->whereNotNull('submitted_at')
+                ->with(['student:id,name,student_number', 'quizModel:id,name'])
+                ->orderByDesc('score')
+                ->orderBy('submitted_at')
+                ->get()
+                ->values()
+                ->map(fn (QuizAttempt $resultAttempt, int $index) => [
+                    'rank' => $index + 1,
+                    'id' => $resultAttempt->id,
+                    'student' => [
+                        'id' => $resultAttempt->student?->id,
+                        'name' => $resultAttempt->student?->name ?? 'طالب',
+                        'student_number' => $resultAttempt->student?->student_number,
+                    ],
+                    'model_name' => $resultAttempt->quizModel?->name,
+                    'score' => (float) ($resultAttempt->score ?? 0),
+                    'max_score' => (float) ($resultAttempt->max_score ?? 0),
+                    'percentage' => (float) $resultAttempt->percentage,
+                    'submitted_at' => $resultAttempt->submitted_at?->toIso8601String(),
+                    'is_current_student' => $resultAttempt->student_id === $student->id,
+                ])
+                ->all();
+        }
 
         return $this->success([
             'quiz'    => $quiz->load(['creator:id,name', 'subject:id,name']),
@@ -339,6 +367,7 @@ class QuizController extends StudentApiController
                 'wrong_answers_count'   => $attempt->wrong_count,
                 'unanswered_answers_count' => $attempt->answers()->where('answer_status', 'unanswered')->count(),
             ]),
+            'public_results' => $publicResults,
         ], 'تم جلب النتيجة بنجاح');
     }
 

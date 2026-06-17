@@ -171,6 +171,43 @@
         <a href="{{ route('student.quizzes.index') }}" class="btn-action btn-action-secondary"><i class="fa-solid fa-arrow-right"></i> الكويزات</a>
     </div>
 
+    @if(($publicAttempts ?? collect())->isNotEmpty())
+    <div class="answers-card">
+        <div class="answers-card-title"><i class="fa-solid fa-ranking-star" style="color:#2563eb;"></i> نتائج الطلاب</div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الطالب</th>
+                        <th>النموذج</th>
+                        <th>الدرجة</th>
+                        <th>النسبة</th>
+                        <th>وقت التسليم</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($publicAttempts as $rank => $publicAttempt)
+                    <tr class="{{ $publicAttempt->student_id === auth()->id() ? 'table-primary' : '' }}">
+                        <td class="fw-bold">{{ $rank + 1 }}</td>
+                        <td>
+                            <div class="fw-bold">{{ $publicAttempt->student?->name ?? 'طالب' }}</div>
+                            @if($publicAttempt->student?->student_number)
+                                <small class="text-muted">{{ $publicAttempt->student->student_number }}</small>
+                            @endif
+                        </td>
+                        <td>{{ $publicAttempt->quizModel?->name ?? '—' }}</td>
+                        <td>{{ number_format((float) $publicAttempt->score, 0) }} / {{ number_format((float) $publicAttempt->max_score, 0) }}</td>
+                        <td class="fw-bold">{{ $publicAttempt->percentage }}%</td>
+                        <td>{{ $publicAttempt->submitted_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
+
     {{-- Detailed Answers --}}
     @if($quiz->show_correct_answers)
     <div class="answers-card">

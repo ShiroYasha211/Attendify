@@ -224,7 +224,18 @@ class QuizController extends Controller
         }
 
         $attempt->load(['answers.question.options', 'answers.selectedOption', 'quizModel']);
+        $publicAttempts = collect();
 
-        return view('student.quizzes.result', compact('quiz', 'attempt'));
+        if ($quiz->results_visibility === 'public') {
+            $publicAttempts = QuizAttempt::where('quiz_id', $quiz->id)
+                ->where('status', 'graded')
+                ->whereNotNull('submitted_at')
+                ->with(['student:id,name,student_number', 'quizModel:id,name'])
+                ->orderByDesc('score')
+                ->orderBy('submitted_at')
+                ->get();
+        }
+
+        return view('student.quizzes.result', compact('quiz', 'attempt', 'publicAttempts'));
     }
 }
