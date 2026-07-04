@@ -4,14 +4,20 @@ namespace App\Http\Controllers\Api\Admin\Clinical;
 
 use App\Http\Controllers\Api\Admin\AdminApiController;
 use App\Models\Clinical\EvaluationChecklist;
-use App\Models\Clinical\ChecklistItem;
+use App\Services\AdminEvaluationChecklistService;
 use Illuminate\Http\Request;
 
 class EvaluationChecklistController extends AdminApiController
 {
+    public function __construct(private AdminEvaluationChecklistService $checklistService)
+    {
+    }
+
     public function index(Request $request)
     {
-        $query = EvaluationChecklist::whereNull('doctor_id')->with('items');
+        $query = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->with('items');
 
         if ($request->filled('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
@@ -26,7 +32,10 @@ class EvaluationChecklistController extends AdminApiController
 
     public function show($id)
     {
-        $checklist = EvaluationChecklist::whereNull('doctor_id')->with('items.subItems')->findOrFail($id);
+        $checklist = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->with('items.subItems')
+            ->findOrFail($id);
         return $this->success($checklist);
     }
 
@@ -44,45 +53,23 @@ class EvaluationChecklistController extends AdminApiController
             'items.*.sub_items' => 'nullable|array',
         ]);
 
-        $totalMarks = collect($request->items)->sum('marks');
-
-        $checklist = EvaluationChecklist::create([
+        $checklist = $this->checklistService->createStandard([
             'title' => $request->title,
             'description' => $request->description,
-            'doctor_id' => null,
             'skill_type' => $request->skill_type,
             'time_limit_minutes' => $request->time_limit_minutes,
             'is_practice_allowed' => $request->input('is_practice_allowed', true),
-            'total_marks' => $totalMarks,
+            'items' => $request->items,
         ]);
-
-        foreach ($request->items as $i => $item) {
-            $mainItem = ChecklistItem::create([
-                'checklist_id' => $checklist->id,
-                'description' => $item['description'],
-                'marks' => $item['marks'],
-                'sort_order' => $i + 1,
-            ]);
-
-            if (!empty($item['sub_items'])) {
-                foreach ($item['sub_items'] as $j => $subItem) {
-                    ChecklistItem::create([
-                        'checklist_id' => $checklist->id,
-                        'parent_id' => $mainItem->id,
-                        'description' => $subItem['description'],
-                        'marks' => $subItem['marks'] ?? 0,
-                        'sort_order' => $j + 1,
-                    ]);
-                }
-            }
-        }
 
         return $this->success($checklist->load('items.subItems'), 'تم إنشاء قائمة التقييم بنجاح.', 201);
     }
 
     public function update(Request $request, $id)
     {
-        $checklist = EvaluationChecklist::whereNull('doctor_id')->findOrFail($id);
+        $checklist = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->findOrFail($id);
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -93,47 +80,30 @@ class EvaluationChecklistController extends AdminApiController
             'items' => 'required|array|min:1',
         ]);
 
-        $totalMarks = collect($request->items)->sum('marks');
-
-        $checklist->update([
+        $result = $this->checklistService->updateStandard($checklist, [
             'title' => $request->title,
             'description' => $request->description,
             'skill_type' => $request->skill_type,
             'time_limit_minutes' => $request->time_limit_minutes,
             'is_practice_allowed' => $request->input('is_practice_allowed', $checklist->is_practice_allowed),
-            'total_marks' => $totalMarks,
+            'items' => $request->items,
         ]);
 
-        $checklist->items()->delete();
-        foreach ($request->items as $i => $item) {
-            $mainItem = ChecklistItem::create([
-                'checklist_id' => $checklist->id,
-                'description' => $item['description'],
-                'marks' => $item['marks'],
-                'sort_order' => $i + 1,
-            ]);
+        $message = $result['versioned']
+            ? 'تم إنشاء نسخة محدثة من قائمة التقييم مع حفظ النسخة القديمة للنتائج السابقة.'
+            : 'تم تحديث قائمة التقييم بنجاح.';
 
-            if (!empty($item['sub_items'])) {
-                foreach ($item['sub_items'] as $j => $subItem) {
-                    ChecklistItem::create([
-                        'checklist_id' => $checklist->id,
-                        'parent_id' => $mainItem->id,
-                        'description' => $subItem['description'],
-                        'marks' => $subItem['marks'] ?? 0,
-                        'sort_order' => $j + 1,
-                    ]);
-                }
-            }
-        }
-
-        return $this->success($checklist->load('items.subItems'), 'تم تحديث قائمة التقييم بنجاح.');
+        return $this->success($result['checklist']->load('items.subItems'), $message);
     }
 
     public function destroy($id)
     {
-        $checklist = EvaluationChecklist::whereNull('doctor_id')->findOrFail($id);
-        $checklist->items()->delete();
-        $checklist->delete();
-        return $this->success(null, 'تم حذف قائمة التقييم بنجاح.');
+        $checklist = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->findOrFail($id);
+
+        $checklist->update(['is_active' => false]);
+
+        return $this->success(null, 'تم أرشفة قائمة التقييم بنجاح.');
     }
 }

@@ -8,9 +8,11 @@ use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\QrAttendanceSession;
 use App\Models\Setting;
+use App\Models\StudentNotification;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class QrAttendanceController extends DelegateApiController
@@ -45,6 +47,13 @@ class QrAttendanceController extends DelegateApiController
             $existing = QrAttendanceSession::where('subject_id', $validated['subject_id'])
                 ->whereDate('date', $validated['date'])
                 ->where('title', $validated['title'])
+                ->when(array_key_exists('lecture_number', $validated), function ($query) use ($validated) {
+                    $lectureNumber = trim((string) ($validated['lecture_number'] ?? ''));
+
+                    return $lectureNumber === ''
+                        ? $query->whereNull('lecture_number')
+                        : $query->where('lecture_number', $lectureNumber);
+                })
                 ->first();
 
             if ($existing) {
@@ -90,6 +99,13 @@ class QrAttendanceController extends DelegateApiController
                 $session = QrAttendanceSession::where('subject_id', $validated['subject_id'])
                     ->whereDate('date', $validated['date'])
                     ->where('title', $validated['title'])
+                    ->when(array_key_exists('lecture_number', $validated), function ($query) use ($validated) {
+                        $lectureNumber = trim((string) ($validated['lecture_number'] ?? ''));
+
+                        return $lectureNumber === ''
+                            ? $query->whereNull('lecture_number')
+                            : $query->where('lecture_number', $lectureNumber);
+                    })
                     ->first();
 
                 if (!$session) {
@@ -276,35 +292,78 @@ class QrAttendanceController extends DelegateApiController
         }
 
         $existingAttendance = Attendance::where('student_id', $user->id)
-            ->where('subject_id', $session->subject_id)
-            ->whereDate('date', $session->date)
+            ->where('qr_attendance_session_id', $session->id)
             ->first();
 
         if ($existingAttendance && $existingAttendance->status === Attendance::STATUS_PRESENT) {
             return response()->json([
                 'message' => 'تم تسجيل حضورك مسبقًا.',
                 'already_scanned' => true,
+                'confirmed' => true,
+                'attendance_id' => $existingAttendance->id,
             ]);
         }
 
-        Attendance::updateOrCreate(
-            [
-                'student_id' => $user->id,
-                'subject_id' => $session->subject_id,
-                'date' => $session->date,
-            ],
-            [
-                'status' => Attendance::STATUS_PRESENT,
-                'recorded_by' => $session->delegate_id,
-                'attendance_method' => 'qr',
-                'qr_attendance_session_id' => $session->id,
-            ]
-        );
+        try {
+            $attendance = DB::transaction(function () use ($user, $session) {
+                Attendance::updateOrCreate(
+                    [
+                        'student_id' => $user->id,
+                        'qr_attendance_session_id' => $session->id,
+                    ],
+                    [
+                        'subject_id' => $session->subject_id,
+                        'date' => $session->date,
+                        'status' => Attendance::STATUS_PRESENT,
+                        'recorded_by' => $session->delegate_id,
+                        'attendance_method' => 'qr',
+                    ]
+                );
+
+                $confirmedAttendance = Attendance::where('student_id', $user->id)
+                    ->where('qr_attendance_session_id', $session->id)
+                    ->where('status', Attendance::STATUS_PRESENT)
+                    ->first();
+
+                if (!$confirmedAttendance) {
+                    throw new \RuntimeException('QR attendance was not persisted as present.');
+                }
+
+                $this->notifyQrAttendanceConfirmed($confirmedAttendance, $session);
+
+                return $confirmedAttendance;
+            });
+        } catch (\Throwable $exception) {
+            return response()->json([
+                'message' => 'لم يتم تأكيد حضورك. حاول مسح الكود مرة أخرى أو راجع المحضر.',
+                'confirmed' => false,
+            ], 500);
+        }
 
         return response()->json([
-            'message' => 'تم تسجيل حضورك بنجاح.',
+            'message' => 'تم تأكيد حضورك بنجاح.',
+            'confirmed' => true,
+            'attendance_id' => $attendance->id,
             'subject' => $session->subject->name ?? '',
             'date' => $session->date->format('Y-m-d'),
+        ]);
+    }
+
+    protected function notifyQrAttendanceConfirmed(Attendance $attendance, QrAttendanceSession $session): void
+    {
+        StudentNotification::create([
+            'user_id' => $attendance->student_id,
+            'type' => 'attendance_confirmation',
+            'title' => 'تم تأكيد حضورك',
+            'message' => "تم تأكيد حضورك في مادة {$session->subject->name} بتاريخ {$session->date->format('Y-m-d')}.",
+            'data' => [
+                'event' => 'qr_attendance_confirmed',
+                'attendance_id' => $attendance->id,
+                'subject_id' => $session->subject_id,
+                'subject_name' => $session->subject->name,
+                'qr_attendance_session_id' => $session->id,
+                'date' => $session->date->format('Y-m-d'),
+            ],
         ]);
     }
 

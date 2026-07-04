@@ -104,8 +104,7 @@ class QrAttendanceSession extends Model
         }
 
         $presentStudentIds = Attendance::query()
-            ->where('subject_id', $this->subject_id)
-            ->whereDate('date', $this->date)
+            ->where('qr_attendance_session_id', $this->id)
             ->where('status', Attendance::STATUS_PRESENT)
             ->pluck('student_id')
             ->unique()

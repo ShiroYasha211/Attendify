@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Doctor;
 
 use App\Enums\UserRole;
+use App\Exceptions\AttendanceEditLockedException;
 use App\Http\Controllers\Controller;
 use App\Models\Academic\Lecture;
 use App\Models\Academic\Subject;
@@ -10,10 +11,12 @@ use App\Models\Attendance;
 use App\Models\QrAttendanceSession;
 use App\Models\Student\StudentScheduleItem;
 use App\Models\User;
+use App\Services\AttendanceEditGate;
 use App\Support\ExcuseWorkflow;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
@@ -74,7 +77,11 @@ class AttendanceController extends Controller
             $qrVerification = $qrSession->buildVerificationPayload();
         }
 
-        if ($date) {
+        if ($qrSessionId) {
+            $attendanceRecords = Attendance::where('qr_attendance_session_id', $qrSessionId)
+                ->get()
+                ->keyBy('student_id');
+        } elseif ($date) {
             $lectureId = $request->input('lecture_id');
             $lecture = null;
 
@@ -143,7 +150,8 @@ class AttendanceController extends Controller
             'qr_session_id' => 'nullable|integer|exists:qr_attendance_sessions,id',
         ]);
 
-        $attendanceMethod = $request->filled('qr_session_id') ? 'qr' : 'manual';
+        $qrSessionId = !empty($validated['qr_session_id']) ? (int) $validated['qr_session_id'] : null;
+        $attendanceMethod = $qrSessionId ? 'qr' : 'manual';
 
         $lectureKey = [
             'subject_id' => $subject->id,
@@ -156,51 +164,88 @@ class AttendanceController extends Controller
             $lectureKey['lecture_number'] = $validated['lecture_number'];
         }
 
-        $lecture = Lecture::updateOrCreate(
-            $lectureKey,
-            [
-                'title' => $validated['title'],
-                'lecture_type' => $validated['lecture_type'] ?? 'official',
-                'lecture_number' => $validated['lecture_number'] ?? null,
-                'description' => $validated['description'] ?? null,
-                'start_time' => $validated['start_time'] ?? null,
-                'end_time' => $validated['end_time'] ?? null,
-            ]
-        );
+        try {
+            DB::beginTransaction();
 
-        foreach ($validated['attendance'] as $studentId => $status) {
-            Attendance::updateOrCreate(
+            $lecture = Lecture::updateOrCreate(
+                $lectureKey,
                 [
-                    'student_id' => $studentId,
+                    'title' => $validated['title'],
+                    'lecture_type' => $validated['lecture_type'] ?? 'official',
+                    'lecture_number' => $validated['lecture_number'] ?? null,
+                    'description' => $validated['description'] ?? null,
+                    'start_time' => $validated['start_time'] ?? null,
+                    'end_time' => $validated['end_time'] ?? null,
+                ]
+            );
+
+            $editGate = app(AttendanceEditGate::class);
+
+            foreach ($validated['attendance'] as $studentId => $status) {
+                $values = [
                     'subject_id' => $subject->id,
                     'date' => $validated['date'],
-                ],
-                [
                     'lecture_id' => $lecture->id,
                     'status' => $status,
                     'recorded_by' => $doctor->id,
                     'attendance_method' => $attendanceMethod,
-                ]
-            );
+                ];
 
-            StudentScheduleItem::firstOrCreate(
-                [
-                    'user_id' => $studentId,
-                    'referenceable_type' => Lecture::class,
-                    'referenceable_id' => $lecture->id,
-                ],
-                [
-                    'title' => $validated['title'],
-                    'scheduled_date' => $validated['date'],
-                    'item_type' => 'study',
-                    'priority' => 'medium',
-                    'status' => 'pending',
-                ]
-            );
-        }
+                if ($qrSessionId) {
+                    $values['qr_attendance_session_id'] = $qrSessionId;
 
-        if (!empty($validated['qr_session_id'])) {
-            $this->syncQrVerificationResults((int) $validated['qr_session_id'], $validated['attendance'], $doctor->id);
+                    $editGate->upsertAttendance(
+                        [
+                            'student_id' => $studentId,
+                            'qr_attendance_session_id' => $qrSessionId,
+                        ],
+                        $values,
+                        $doctor
+                    );
+                } else {
+                    $editGate->upsertAttendance(
+                        [
+                            'student_id' => $studentId,
+                            'subject_id' => $subject->id,
+                            'date' => $validated['date'],
+                            'lecture_id' => $lecture->id,
+                        ],
+                        $values,
+                        $doctor
+                    );
+                }
+
+                StudentScheduleItem::firstOrCreate(
+                    [
+                        'user_id' => $studentId,
+                        'referenceable_type' => Lecture::class,
+                        'referenceable_id' => $lecture->id,
+                    ],
+                    [
+                        'title' => $validated['title'],
+                        'scheduled_date' => $validated['date'],
+                        'item_type' => 'study',
+                        'priority' => 'medium',
+                        'status' => 'pending',
+                    ]
+                );
+            }
+
+            if (!empty($validated['qr_session_id'])) {
+                $this->syncQrVerificationResults((int) $validated['qr_session_id'], $validated['attendance'], $doctor->id);
+            }
+
+            DB::commit();
+        } catch (AttendanceEditLockedException $exception) {
+            DB::rollBack();
+
+            return back()
+                ->withInput()
+                ->with('error', $exception->getMessage());
+        } catch (\Throwable $exception) {
+            DB::rollBack();
+
+            throw $exception;
         }
 
         return redirect()

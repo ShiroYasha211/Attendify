@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\Delegate;
 
 use App\Enums\UserRole;
+use App\Exceptions\AttendanceEditLockedException;
 use App\Models\Academic\Lecture;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\QrAttendanceSession;
 use App\Models\Student\StudentScheduleItem;
 use App\Models\User;
+use App\Services\AttendanceEditGate;
 use App\Support\ExcuseWorkflow;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -183,25 +185,43 @@ class AttendanceController extends DelegateApiController
                 ]
             );
 
-            $attendanceMethod = $request->filled('qr_session_id') ? 'qr' : 'manual';
+            $qrSessionId = $request->filled('qr_session_id') ? (int) $request->input('qr_session_id') : null;
+            $attendanceMethod = $qrSessionId ? 'qr' : 'manual';
+            $editGate = app(AttendanceEditGate::class);
 
             foreach ($students as $student) {
-                Attendance::updateOrCreate(
-                    [
-                        'student_id' => $student['id'],
-                        'subject_id' => $subject->id,
-                        'date' => $request->date,
-                    ],
-                    [
-                        'lecture_id' => $lecture->id,
-                        'status' => $student['status'],
-                        'recorded_by' => $delegate->id,
-                        'attendance_method' => $attendanceMethod,
-                        'qr_attendance_session_id' => $request->filled('qr_session_id')
-                            ? (int) $request->input('qr_session_id')
-                            : null,
-                    ]
-                );
+                $values = [
+                    'subject_id' => $subject->id,
+                    'date' => $request->date,
+                    'lecture_id' => $lecture->id,
+                    'status' => $student['status'],
+                    'recorded_by' => $delegate->id,
+                    'attendance_method' => $attendanceMethod,
+                ];
+
+                if ($qrSessionId) {
+                    $values['qr_attendance_session_id'] = $qrSessionId;
+
+                    $editGate->upsertAttendance(
+                        [
+                            'student_id' => $student['id'],
+                            'qr_attendance_session_id' => $qrSessionId,
+                        ],
+                        $values,
+                        $delegate
+                    );
+                } else {
+                    $editGate->upsertAttendance(
+                        [
+                            'student_id' => $student['id'],
+                            'subject_id' => $subject->id,
+                            'date' => $request->date,
+                            'lecture_id' => $lecture->id,
+                        ],
+                        $values,
+                        $delegate
+                    );
+                }
 
                 StudentScheduleItem::firstOrCreate(
                     [
@@ -252,6 +272,10 @@ class AttendanceController extends DelegateApiController
                 'gender_filter' => $genderFilter,
                 'updated_students_count' => $students->count(),
             ], 'تم حفظ سجل الحضور بنجاح.', 201);
+        } catch (AttendanceEditLockedException $exception) {
+            DB::rollBack();
+
+            return $this->error($exception->getMessage(), 403, $exception->context());
         } catch (\Throwable $exception) {
             DB::rollBack();
 
@@ -308,29 +332,33 @@ class AttendanceController extends DelegateApiController
         }
 
         $lecture = null;
-        if ($lectureId) {
-            $lecture = Lecture::where('id', $lectureId)
-                ->where('subject_id', $subject->id)
-                ->first();
-        }
-        if (!$lecture) {
-            $lecture = Lecture::where('subject_id', $subject->id)
-                ->where('date', $date)
-                ->latest()
-                ->first();
-        }
+        if (!$qrSessionId) {
+            if ($lectureId) {
+                $lecture = Lecture::where('id', $lectureId)
+                    ->where('subject_id', $subject->id)
+                    ->first();
+            }
+            if (!$lecture) {
+                $lecture = Lecture::where('subject_id', $subject->id)
+                    ->where('date', $date)
+                    ->latest()
+                    ->first();
+            }
 
-        $attendanceQuery = Attendance::where('subject_id', $subject->id)
-            ->where('date', $date);
+            $attendanceQuery = Attendance::where('subject_id', $subject->id)
+                ->where('date', $date);
 
-        if ($lecture) {
-            $attendanceQuery->where('lecture_id', $lecture->id);
-            $prefill['title'] = $prefill['title'] ?? $lecture->title;
-            $prefill['lecture_number'] = $prefill['lecture_number'] ?? $lecture->lecture_number;
-            $prefill['description'] = $lecture->description;
-            $prefill['lecture_type'] = $lecture->lecture_type;
-            $prefill['start_time'] = $lecture->start_time;
-            $prefill['end_time'] = $lecture->end_time;
+            if ($lecture) {
+                $attendanceQuery->where('lecture_id', $lecture->id);
+                $prefill['title'] = $prefill['title'] ?? $lecture->title;
+                $prefill['lecture_number'] = $prefill['lecture_number'] ?? $lecture->lecture_number;
+                $prefill['description'] = $lecture->description;
+                $prefill['lecture_type'] = $lecture->lecture_type;
+                $prefill['start_time'] = $lecture->start_time;
+                $prefill['end_time'] = $lecture->end_time;
+            }
+        } else {
+            $attendanceQuery = Attendance::where('qr_attendance_session_id', $qrSessionId);
         }
 
         return $this->success([

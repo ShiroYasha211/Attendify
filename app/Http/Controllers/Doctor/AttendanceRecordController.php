@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Doctor;
 
+use App\Exceptions\AttendanceEditLockedException;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Services\AttendanceEditGate;
 use App\Support\ExcuseWorkflow;
 use Illuminate\Http\Request;
 
@@ -19,10 +21,14 @@ class AttendanceRecordController extends Controller
             'status' => 'required|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
         ]);
 
-        $attendance->update([
-            'status' => $validated['status'],
-            'recorded_by' => auth()->id(),
-        ]);
+        try {
+            app(AttendanceEditGate::class)->updateAttendance($attendance, [
+                'status' => $validated['status'],
+                'recorded_by' => auth()->id(),
+            ], $request->user());
+        } catch (AttendanceEditLockedException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         if ($attendance->excuse && $attendance->excuse->status === 'accepted') {
             $resolution = match ($validated['status']) {

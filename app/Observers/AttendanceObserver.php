@@ -7,49 +7,46 @@ use App\Models\StudentNotification;
 
 class AttendanceObserver
 {
-    /**
-     * Handle the Attendance "created" event.
-     */
     public function created(Attendance $attendance): void
     {
-        $this->checkAndNotify($attendance);
+        $this->notifyWhenAbsent($attendance);
     }
 
-    /**
-     * Handle the Attendance "updated" event.
-     */
     public function updated(Attendance $attendance): void
     {
-        $this->checkAndNotify($attendance);
+        $this->notifyWhenAbsent($attendance);
     }
 
-    /**
-     * Check status and notify if absent.
-     */
-    protected function checkAndNotify(Attendance $attendance): void
+    protected function notifyWhenAbsent(Attendance $attendance): void
     {
-        // Only notify if status is 'absent'
-        // For 'updated', we check if it was already absent to avoid duplicate notifications?
-        // Actually, if it changes FROM absent TO present, we might want to notify "Attendance corrected"?
-        // But the requirement is specifically "Notify when recording absence".
-
-        if ($attendance->status === 'absent') {
-            // Avoid duplicate notifications for the same day/subject if possible?
-            // But the observer runs on save.
-            // If I update 'absent' to 'absent', it might trigger again if I don't check isDirty.
-
-            if ($attendance->wasRecentlyCreated || $attendance->isDirty('status')) {
-                StudentNotification::create([
-                    'user_id' => $attendance->student_id,
-                    'type'    => 'attendance',
-                    'title'   => 'تسجيل غياب',
-                    'message' => "تم تسجيل غيابك في مادة {$attendance->subject->name} بتاريخ {$attendance->date->format('Y-m-d')}.",
-                    'data'    => [
-                        'subject_id' => $attendance->subject_id,
-                        'date'       => $attendance->date->format('Y-m-d'),
-                    ],
-                ]);
-            }
+        if ($attendance->status !== Attendance::STATUS_ABSENT) {
+            return;
         }
+
+        $statusChanged = $attendance->wasRecentlyCreated || $attendance->wasChanged('status');
+
+        if (!$statusChanged) {
+            return;
+        }
+
+        $previousStatus = $attendance->getOriginal('status');
+        $wasQrPresence = $previousStatus === Attendance::STATUS_PRESENT
+            && $attendance->attendance_method === 'qr';
+
+        StudentNotification::create([
+            'user_id' => $attendance->student_id,
+            'type' => 'attendance',
+            'title' => $wasQrPresence ? 'تم تعديل حالة حضورك' : 'تسجيل غياب',
+            'message' => $wasQrPresence
+                ? "تم تعديل حالة حضورك في مادة {$attendance->subject->name} بتاريخ {$attendance->date->format('Y-m-d')} إلى غياب بعد المراجعة النهائية."
+                : "تم تسجيل غيابك في مادة {$attendance->subject->name} بتاريخ {$attendance->date->format('Y-m-d')}.",
+            'data' => [
+                'event' => $wasQrPresence ? 'attendance_changed_after_review' : 'absence_recorded',
+                'attendance_id' => $attendance->id,
+                'subject_id' => $attendance->subject_id,
+                'subject_name' => $attendance->subject->name,
+                'date' => $attendance->date->format('Y-m-d'),
+            ],
+        ]);
     }
 }

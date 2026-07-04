@@ -5,20 +5,28 @@ namespace App\Http\Controllers\Admin\Clinical;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Clinical\EvaluationChecklist;
-use App\Models\Clinical\ChecklistItem;
+use App\Services\AdminEvaluationChecklistService;
 
 class EvaluationChecklistController extends Controller
 {
+    public function __construct(private AdminEvaluationChecklistService $checklistService)
+    {
+    }
+
     /**
      * Display a listing of the standard checklists.
      */
     public function index(Request $request)
     {
-        $query = EvaluationChecklist::whereNull('doctor_id')->with('items');
+        $query = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->with('items');
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%');
+            $query->where(function ($searchQuery) use ($request) {
+                $searchQuery->where('title', 'like', '%' . $request->search . '%')
+                    ->orWhere('description', 'like', '%' . $request->search . '%');
+            });
         }
 
         if ($request->filled('skill_type')) {
@@ -57,9 +65,7 @@ class EvaluationChecklistController extends Controller
             'items.*.sub_items.*.marks' => 'required_with:items.*.sub_items|integer|min:1|max:100',
         ]);
 
-        $totalMarks = 0;
         foreach ($request->items as $item) {
-            $totalMarks += (int)$item['marks'];
             if (!empty($item['sub_items'])) {
                 $subTotal = collect($item['sub_items'])->sum('marks');
                 if ($subTotal !== (int)$item['marks']) {
@@ -68,36 +74,14 @@ class EvaluationChecklistController extends Controller
             }
         }
 
-        $checklist = EvaluationChecklist::create([
+        $this->checklistService->createStandard([
             'title' => $request->title,
             'description' => $request->description,
-            'doctor_id' => null, // Global Standard Checklist
             'skill_type' => $request->skill_type,
             'time_limit_minutes' => $request->time_limit_minutes,
             'is_practice_allowed' => $request->boolean('is_practice_allowed'),
-            'total_marks' => $totalMarks,
+            'items' => $request->items,
         ]);
-
-        foreach ($request->items as $i => $item) {
-            $mainItem = ChecklistItem::create([
-                'checklist_id' => $checklist->id,
-                'description' => $item['description'],
-                'marks' => $item['marks'],
-                'sort_order' => $i + 1,
-            ]);
-
-            if (!empty($item['sub_items'])) {
-                foreach ($item['sub_items'] as $j => $subItem) {
-                    ChecklistItem::create([
-                        'checklist_id' => $checklist->id,
-                        'parent_id' => $mainItem->id,
-                        'description' => $subItem['description'],
-                        'marks' => $subItem['marks'],
-                        'sort_order' => $j + 1,
-                    ]);
-                }
-            }
-        }
 
         return redirect()->route('admin.clinical.checklists.index')->with('success', 'تم إنشاء قائمة التقييم الأساسية بنجاح.');
     }
@@ -107,7 +91,10 @@ class EvaluationChecklistController extends Controller
      */
     public function show(string $id)
     {
-        $checklist = EvaluationChecklist::whereNull('doctor_id')->with('items.subItems')->findOrFail($id);
+        $checklist = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->with('items.subItems')
+            ->findOrFail($id);
         return view('admin.clinical.checklists.show', compact('checklist'));
     }
 
@@ -116,7 +103,10 @@ class EvaluationChecklistController extends Controller
      */
     public function edit(string $id)
     {
-        $checklist = EvaluationChecklist::whereNull('doctor_id')->with('items.subItems')->findOrFail($id);
+        $checklist = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->with('items.subItems')
+            ->findOrFail($id);
         
         // Prepare data for JS
         $itemsData = $checklist->items->whereNull('parent_id')->map(function ($mainItem) {
@@ -142,7 +132,9 @@ class EvaluationChecklistController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $checklist = EvaluationChecklist::whereNull('doctor_id')->findOrFail($id);
+        $checklist = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->findOrFail($id);
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -158,9 +150,7 @@ class EvaluationChecklistController extends Controller
             'items.*.sub_items.*.marks' => 'required_with:items.*.sub_items|integer|min:1|max:100',
         ]);
 
-        $totalMarks = 0;
         foreach ($request->items as $item) {
-            $totalMarks += (int)$item['marks'];
             if (!empty($item['sub_items'])) {
                 $subTotal = collect($item['sub_items'])->sum('marks');
                 if ($subTotal !== (int)$item['marks']) {
@@ -169,38 +159,20 @@ class EvaluationChecklistController extends Controller
             }
         }
 
-        $checklist->update([
+        $result = $this->checklistService->updateStandard($checklist, [
             'title' => $request->title,
             'description' => $request->description,
             'skill_type' => $request->skill_type,
             'time_limit_minutes' => $request->time_limit_minutes,
             'is_practice_allowed' => $request->boolean('is_practice_allowed'),
-            'total_marks' => $totalMarks,
+            'items' => $request->items,
         ]);
 
-        $checklist->items()->delete();
-        foreach ($request->items as $i => $item) {
-            $mainItem = ChecklistItem::create([
-                'checklist_id' => $checklist->id,
-                'description' => $item['description'],
-                'marks' => $item['marks'],
-                'sort_order' => $i + 1,
-            ]);
+        $message = $result['versioned']
+            ? 'تم إنشاء نسخة محدثة من قائمة التقييم مع حفظ النسخة القديمة للنتائج السابقة.'
+            : 'تم تحديث قائمة التقييم الأساسية بنجاح.';
 
-            if (!empty($item['sub_items'])) {
-                foreach ($item['sub_items'] as $j => $subItem) {
-                    ChecklistItem::create([
-                        'checklist_id' => $checklist->id,
-                        'parent_id' => $mainItem->id,
-                        'description' => $subItem['description'],
-                        'marks' => $subItem['marks'],
-                        'sort_order' => $j + 1,
-                    ]);
-                }
-            }
-        }
-
-        return redirect()->route('admin.clinical.checklists.index')->with('success', 'تم تحديث قائمة التقييم الأساسية بنجاح.');
+        return redirect()->route('admin.clinical.checklists.index')->with('success', $message);
     }
 
     /**
@@ -208,9 +180,12 @@ class EvaluationChecklistController extends Controller
      */
     public function destroy(string $id)
     {
-        $checklist = EvaluationChecklist::whereNull('doctor_id')->findOrFail($id);
-        $checklist->items()->delete();
-        $checklist->delete();
-        return redirect()->route('admin.clinical.checklists.index')->with('success', 'تم حذف قائمة التقييم الأساسية بنجاح.');
+        $checklist = EvaluationChecklist::whereNull('doctor_id')
+            ->where('is_active', true)
+            ->findOrFail($id);
+
+        $checklist->update(['is_active' => false]);
+
+        return redirect()->route('admin.clinical.checklists.index')->with('success', 'تم أرشفة قائمة التقييم الأساسية بنجاح.');
     }
 }

@@ -325,6 +325,31 @@
         </div>
     </form>
 
+    @if($attendanceRecords && $attendanceRecords->isNotEmpty())
+        <form action="{{ route('delegate.attendance-edit-requests.store') }}" method="POST" class="card" style="margin-top: 1.5rem; border: 1px solid #fed7aa; background: #fff7ed;">
+            @csrf
+            @if($subject)
+                <input type="hidden" name="subject_id" value="{{ $subject->id }}">
+            @endif
+            <input type="hidden" name="date" value="{{ $prefill['date'] ?? request('date') ?? date('Y-m-d') }}">
+            <input type="hidden" name="title" value="{{ $prefill['title'] ?? old('title') }}">
+            @if(request('lecture_id'))
+                <input type="hidden" name="lecture_id" value="{{ request('lecture_id') }}">
+            @endif
+            @if(request('qr_session_id'))
+                <input type="hidden" name="qr_attendance_session_id" value="{{ request('qr_session_id') }}">
+            @endif
+
+            <div style="display:grid; grid-template-columns:1fr auto; gap:1rem; align-items:end;">
+                <div>
+                    <label for="attendance_edit_reason" style="font-weight: 800; color: #9a3412; display:block; margin-bottom:0.45rem;">طلب فتح تعديل الحضور</label>
+                    <textarea id="attendance_edit_reason" name="reason" rows="2" required class="form-control" style="width:100%;" placeholder="اكتب سبب طلب فتح التعديل من الأدمن الرئيسي..."></textarea>
+                </div>
+                <button type="submit" class="btn" style="background:#f97316; color:white; font-weight:800; padding:0.75rem 1rem;">إرسال الطلب</button>
+            </div>
+        </form>
+    @endif
+
     <!-- QR Code Modal (Integrated into Create Page) -->
     @unless($isUnofficial ?? false)
     <div x-show="showQrModal" style="display: none;"

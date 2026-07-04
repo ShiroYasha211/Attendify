@@ -352,6 +352,8 @@ Route::prefix('delegate')->middleware(['auth:sanctum', 'device.validate'])->grou
     Route::get('attendances/{subject_id}/{date}/report', [DelegateAttendanceController::class, 'report']);
     Route::get('attendances/{subject_id}/{date}/report-pdf', [DelegateAttendanceController::class, 'reportPdf']);
     Route::get('attendances/{lecture}', [DelegateAttendanceController::class, 'show']);
+    Route::get('attendance-edit-requests', [\App\Http\Controllers\Api\AttendanceEditRequestController::class, 'index']);
+    Route::post('attendance-edit-requests', [\App\Http\Controllers\Api\AttendanceEditRequestController::class, 'store']);
 
     Route::get('authorized-grades', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'index']);
     Route::get('authorized-grades/{category}', [\App\Http\Controllers\Api\Delegate\AuthorizedGradeController::class, 'show']);
@@ -829,6 +831,8 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::get('attendance/{subject}/create', [DoctorAttendanceController::class, 'create']);
     Route::post('attendance/{subject}', [DoctorAttendanceController::class, 'storeForSubject']);
     Route::patch('attendance-records/{attendance}', [\App\Http\Controllers\Doctor\ApiAttendanceRecordController::class, 'update']);
+    Route::get('attendance-edit-requests', [\App\Http\Controllers\Api\AttendanceEditRequestController::class, 'index']);
+    Route::post('attendance-edit-requests', [\App\Http\Controllers\Api\AttendanceEditRequestController::class, 'store']);
     Route::post('attendance/{subject}/toggle-delegate', [DoctorAttendanceController::class, 'toggleDelegate']);
     Route::get('attendance/{subject}/{date}/report', [DoctorAttendanceController::class, 'report']);
     Route::get('attendance/{subject}/{date}/report-pdf', [DoctorAttendanceController::class, 'reportPdf']);
@@ -983,6 +987,7 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
         Route::get('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'showChecklist']);
         Route::post('evaluations/checklists', [DoctorEvaluationController::class, 'storeChecklist']);
         Route::post('evaluations/checklists/{id}/restore', [DoctorEvaluationController::class, 'restoreChecklist']);
+        Route::post('evaluations/checklists/{id}/sync-admin-update', [DoctorEvaluationController::class, 'syncAdminChecklistUpdate']);
         Route::put('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'updateChecklist']);
         Route::delete('evaluations/checklists/{id}', [DoctorEvaluationController::class, 'destroyChecklist']);
         Route::get('evaluations/students', [DoctorEvaluationController::class, 'students']);

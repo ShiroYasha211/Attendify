@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\Doctor;
 
 use App\Enums\UserRole;
+use App\Exceptions\AttendanceEditLockedException;
 use App\Models\Academic\Lecture;
 use App\Models\Academic\Subject;
 use App\Models\Attendance;
 use App\Models\QrAttendanceSession;
 use App\Models\Student\StudentScheduleItem;
 use App\Models\User;
+use App\Services\AttendanceEditGate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -84,22 +86,26 @@ class AttendanceController extends DoctorApiController
         }
 
         $lecture = null;
-        if ($lectureId) {
-            $lecture = Lecture::where('id', $lectureId)->where('subject_id', $subject->id)->first();
-        }
-        if (!$lecture) {
-            $lecture = Lecture::where('subject_id', $subject->id)->where('date', $date)->latest()->first();
-        }
+        if (!$qrSessionId) {
+            if ($lectureId) {
+                $lecture = Lecture::where('id', $lectureId)->where('subject_id', $subject->id)->first();
+            }
+            if (!$lecture) {
+                $lecture = Lecture::where('subject_id', $subject->id)->where('date', $date)->latest()->first();
+            }
 
-        $attendanceQuery = Attendance::where('subject_id', $subject->id)->where('date', $date);
-        if ($lecture) {
-            $attendanceQuery->where('lecture_id', $lecture->id);
-            $prefill['title'] = $prefill['title'] ?? $lecture->title;
-            $prefill['lecture_number'] = $prefill['lecture_number'] ?? $lecture->lecture_number;
-            $prefill['description'] = $lecture->description;
-            $prefill['lecture_type'] = $lecture->lecture_type;
-            $prefill['start_time'] = $lecture->start_time;
-            $prefill['end_time'] = $lecture->end_time;
+            $attendanceQuery = Attendance::where('subject_id', $subject->id)->where('date', $date);
+            if ($lecture) {
+                $attendanceQuery->where('lecture_id', $lecture->id);
+                $prefill['title'] = $prefill['title'] ?? $lecture->title;
+                $prefill['lecture_number'] = $prefill['lecture_number'] ?? $lecture->lecture_number;
+                $prefill['description'] = $lecture->description;
+                $prefill['lecture_type'] = $lecture->lecture_type;
+                $prefill['start_time'] = $lecture->start_time;
+                $prefill['end_time'] = $lecture->end_time;
+            }
+        } else {
+            $attendanceQuery = Attendance::where('qr_attendance_session_id', $qrSessionId);
         }
 
         return $this->success([
@@ -390,6 +396,7 @@ class AttendanceController extends DoctorApiController
             'students.*.status' => 'required_with:students|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
             'attendance' => 'nullable|array|min:1',
             'attendance.*' => 'required_with:attendance|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
+            'qr_session_id' => 'nullable|integer|exists:qr_attendance_sessions,id',
         ]);
 
         if ($validator->fails()) {
@@ -447,22 +454,43 @@ class AttendanceController extends DoctorApiController
                 ]
             );
 
-            $attendanceMethod = $request->has('qr_session_id') ? 'qr' : 'manual';
+            $qrSessionId = $request->filled('qr_session_id') ? (int) $request->input('qr_session_id') : null;
+            $attendanceMethod = $qrSessionId ? 'qr' : 'manual';
+            $editGate = app(AttendanceEditGate::class);
 
             foreach ($students as $student) {
-                Attendance::updateOrCreate(
-                    [
-                        'student_id' => $student['id'],
-                        'subject_id' => $subject->id,
-                        'date' => $request->date,
-                    ],
-                    [
-                        'lecture_id' => $lecture->id,
-                        'status' => $student['status'],
-                        'recorded_by' => $request->user()->id,
-                        'attendance_method' => $attendanceMethod,
-                    ]
-                );
+                $values = [
+                    'subject_id' => $subject->id,
+                    'date' => $request->date,
+                    'lecture_id' => $lecture->id,
+                    'status' => $student['status'],
+                    'recorded_by' => $request->user()->id,
+                    'attendance_method' => $attendanceMethod,
+                ];
+
+                if ($qrSessionId) {
+                    $values['qr_attendance_session_id'] = $qrSessionId;
+
+                    $editGate->upsertAttendance(
+                        [
+                            'student_id' => $student['id'],
+                            'qr_attendance_session_id' => $qrSessionId,
+                        ],
+                        $values,
+                        $request->user()
+                    );
+                } else {
+                    $editGate->upsertAttendance(
+                        [
+                            'student_id' => $student['id'],
+                            'subject_id' => $subject->id,
+                            'date' => $request->date,
+                            'lecture_id' => $lecture->id,
+                        ],
+                        $values,
+                        $request->user()
+                    );
+                }
 
                 StudentScheduleItem::firstOrCreate(
                     [
@@ -493,6 +521,10 @@ class AttendanceController extends DoctorApiController
                 'gender_filter' => $genderFilter,
                 'updated_students_count' => $students->count(),
             ], 'تم حفظ سجل الحضور والغياب بنجاح', 201);
+        } catch (AttendanceEditLockedException $exception) {
+            DB::rollBack();
+
+            return $this->error($exception->getMessage(), 403, $exception->context());
         } catch (\Throwable $exception) {
             DB::rollBack();
             return $this->error('حدث خطأ أثناء رصد الحضور: ' . $exception->getMessage(), 500);

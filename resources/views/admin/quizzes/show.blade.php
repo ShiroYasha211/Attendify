@@ -80,6 +80,9 @@
         <a href="{{ route('admin.quizzes.results', $quiz) }}" class="btn btn-primary" style="border-radius: 12px;">
             <i class="fa-solid fa-chart-bar me-1"></i> عرض النتائج
         </a>
+        <a href="{{ route('admin.quizzes.results.export', $quiz) }}" class="btn btn-success" style="border-radius: 12px;">
+            <i class="fa-solid fa-file-excel me-1"></i> تصدير النتائج
+        </a>
     </div>
 </div>
 
@@ -151,6 +154,14 @@
                 <div class="setting-item">
                     <i class="fa-solid fa-hourglass-half {{ $quiz->show_countdown ? 'text-success' : 'text-muted' }}"></i>
                     <span>عداد تنازلي للطلاب: <strong>{{ $quiz->show_countdown ? 'مفعل' : 'معطل' }}</strong></span>
+                </div>
+                <div class="setting-item">
+                    <i class="fa-solid fa-eye text-primary"></i>
+                    <span>ظهور النتائج: <strong>{{ $quiz->results_visibility_label }}</strong></span>
+                </div>
+                <div class="setting-item">
+                    <i class="fa-solid fa-rotate-left {{ $quiz->allow_question_backtracking ? 'text-success' : 'text-muted' }}"></i>
+                    <span>رجوع الطالب للأسئلة السابقة: <strong>{{ $quiz->allow_question_backtracking ? 'مسموح' : 'غير مسموح' }}</strong></span>
                 </div>
             </div>
         </div>
@@ -229,6 +240,18 @@
         {{-- Actions --}}
         <div class="detail-card">
             <h5 class="fw-bold mb-3">إجراءات إضافية</h5>
+            <form action="{{ route('admin.quizzes.share-results', $quiz) }}" method="POST" class="mb-3">
+                @csrf
+                <label class="small text-muted mb-1">إعداد ظهور النتائج للطلاب</label>
+                <div class="d-flex gap-2">
+                    <select name="visibility" class="form-select form-select-sm">
+                        <option value="hidden" {{ $quiz->results_visibility === 'hidden' ? 'selected' : '' }}>مخفية</option>
+                        <option value="individual" {{ $quiz->results_visibility === 'individual' ? 'selected' : '' }}>فردية للطالب</option>
+                        <option value="public" {{ $quiz->results_visibility === 'public' ? 'selected' : '' }}>عامة للجميع</option>
+                    </select>
+                    <button class="btn btn-outline-primary btn-sm" style="border-radius: 10px; font-weight: 700;">حفظ</button>
+                </div>
+            </form>
             @if($quiz->status === 'draft')
                 <form action="{{ route('admin.quizzes.publish', $quiz) }}" method="POST" class="mb-2">
                     @csrf @method('PATCH')

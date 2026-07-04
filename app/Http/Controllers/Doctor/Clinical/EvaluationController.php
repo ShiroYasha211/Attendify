@@ -52,6 +52,7 @@ class EvaluationController extends Controller
             'timer_type' => 'required|in:fixed,open',
             'time_limit_minutes' => 'required_if:timer_type,fixed|nullable|integer|min:1|max:120',
             'description' => 'nullable|string|max:1000',
+            'tracks_admin_updates' => 'nullable|boolean',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:500',
             'items.*.marks' => 'required|integer|min:1|max:100',
@@ -179,11 +180,15 @@ class EvaluationController extends Controller
                 'title' => $request->title,
                 'description' => $request->description,
                 'doctor_id' => $user->id,
+                'source_checklist_id' => $checklist->source_checklist_id ?: $checklist->id,
+                'synced_admin_checklist_id' => $checklist->id,
+                'tracks_admin_updates' => $request->boolean('tracks_admin_updates', true),
                 'creator_type' => User::class,
                 'creator_id' => $user->id,
                 'skill_type' => $request->skill_type,
                 'time_limit_minutes' => $request->timer_type === 'fixed' ? $request->time_limit_minutes : null,
                 'is_practice_allowed' => $request->has('is_practice_allowed'),
+                'tracks_admin_updates' => $request->boolean('tracks_admin_updates', $checklist->tracks_admin_updates),
                 'total_marks' => $totalChecklistMarks,
             ]);
 

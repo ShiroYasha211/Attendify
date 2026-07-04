@@ -178,7 +178,7 @@ class PushNotificationService
             'study_reminder' => 'study_session',
             'schedule' => 'schedule',
             'reminder' => 'reminders',
-            'attendance', 'absence_warning', 'lecture_report' => 'attendance',
+            'attendance', 'attendance_confirmation', 'attendance_edit_request', 'absence_warning', 'lecture_report' => 'attendance',
             'resource' => 'resources',
             'library' => 'library',
             'rare_case', 'rare_cases' => 'rare_case',

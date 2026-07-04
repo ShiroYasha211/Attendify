@@ -249,6 +249,19 @@
                         <span class="badge" style="background: var(--danger-color); color: white; border-radius: 50%; padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-right: auto;">{{ $pendingRewardsCount }}</span>
                     @endif
                 </a>
+                <a href="{{ route('admin.attendance-edit-requests.index') }}" class="nav-link {{ request()->routeIs('admin.attendance-edit-requests.*') || request()->routeIs('admin.attendance-edit-permissions.*') ? 'active' : '' }}" title="طلبات تعديل الحضور">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    </svg>
+                    <span>طلبات تعديل الحضور</span>
+                    @php
+                        $pendingAttendanceEditCount = \App\Models\AttendanceEditRequest::pending()->count();
+                    @endphp
+                    @if($pendingAttendanceEditCount > 0)
+                        <span class="badge" style="background: var(--danger-color); color: white; border-radius: 50%; padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-right: auto;">{{ $pendingAttendanceEditCount }}</span>
+                    @endif
+                </a>
 
                 <div class="nav-group-label" title="إدارة المستخدمين">إدارة المستخدمين</div>
 

@@ -118,6 +118,8 @@ class StudentNotification extends Model
             'resource' => 'folder',
             'announcement' => 'megaphone',
             'attendance' => 'user-x',
+            'attendance_confirmation' => 'user-check',
+            'attendance_edit_request' => 'edit',
             default => 'bell',
         };
     }
@@ -136,6 +138,8 @@ class StudentNotification extends Model
             'resource' => '#3b82f6',
             'announcement' => '#10b981',
             'attendance' => '#ef4444',
+            'attendance_confirmation' => '#10b981',
+            'attendance_edit_request' => '#f59e0b',
             default => '#6366f1',
         };
     }

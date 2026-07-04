@@ -235,12 +235,88 @@ class QuizController extends Controller
      */
     public function results(Quiz $quiz)
     {
-        $attempts = QuizAttempt::where('quiz_id', $quiz->id)
-            ->with(['student', 'quizModel', 'answers.question'])
-            ->orderByDesc('score')
-            ->get();
+        [$quiz, $attempts] = $this->quizResultsData($quiz);
 
         return view('admin.quizzes.results', compact('quiz', 'attempts'));
+    }
+
+    public function exportResults(Quiz $quiz)
+    {
+        [$quiz, $attempts] = $this->quizResultsData($quiz);
+
+        $targetSummary = $quiz->targets->map(function ($target) {
+            $parts = array_filter([
+                $target->university?->name,
+                $target->college?->name,
+                $target->major?->name,
+                $target->level?->name,
+            ]);
+
+            return empty($parts) ? 'All students' : implode(' / ', $parts);
+        })->implode(' | ');
+
+        $rows = [
+            ['Quiz Results Report'],
+            ['Quiz', $quiz->title],
+            ['Subject', $quiz->subject?->name ?? '-'],
+            ['Targets', $targetSummary ?: '-'],
+            ['Results Visibility', $quiz->results_visibility_label],
+            ['Attempts Count', $attempts->count()],
+            ['Exported At', now()->format('Y-m-d H:i:s')],
+            [],
+            ['#', 'Student Name', 'Student Number', 'Major', 'Level', 'Quiz Model', 'Score', 'Max Score', 'Percentage', 'Correct Answers', 'Wrong Answers', 'Duration (Minutes)', 'Status', 'Submitted At'],
+        ];
+
+        foreach ($attempts as $index => $attempt) {
+            $rows[] = [
+                $index + 1,
+                $attempt->student?->name ?? '-',
+                $attempt->student?->student_number ?? '-',
+                $attempt->student?->major?->name ?? '-',
+                $attempt->student?->level?->name ?? '-',
+                $attempt->quizModel?->name ?? '-',
+                (float) ($attempt->score ?? 0),
+                (float) ($attempt->max_score ?? 0),
+                $attempt->percentage,
+                $attempt->correct_count,
+                $attempt->wrong_count,
+                $attempt->duration ?? '-',
+                $attempt->status_label,
+                $attempt->submitted_at?->format('Y-m-d H:i') ?? '-',
+            ];
+        }
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="admin_quiz_results_' . $quiz->id . '_' . now()->format('Y-m-d_His') . '.csv"',
+        ];
+
+        $callback = static function () use ($rows): void {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Toggle results visibility.
+     */
+    public function shareResults(Request $request, Quiz $quiz)
+    {
+        $validated = $request->validate([
+            'visibility' => 'required|in:hidden,individual,public',
+        ]);
+
+        $quiz->update(['results_visibility' => $validated['visibility']]);
+
+        return back()->with('success', 'تم تحديث إعدادات ظهور النتائج.');
     }
 
     /**
@@ -439,5 +515,31 @@ class QuizController extends Controller
             DB::rollBack();
             return back()->with('error', 'خطأ: ' . $e->getMessage());
         }
+    }
+
+    protected function quizResultsData(Quiz $quiz): array
+    {
+        $quiz->loadMissing([
+            'subject.major',
+            'subject.level',
+            'models:id,quiz_id,name',
+            'targets.university',
+            'targets.college',
+            'targets.major',
+            'targets.level',
+        ]);
+
+        $attempts = QuizAttempt::where('quiz_id', $quiz->id)
+            ->with([
+                'student:id,name,student_number,major_id,level_id',
+                'student.major:id,name',
+                'student.level:id,name',
+                'quizModel:id,name',
+                'answers.question',
+            ])
+            ->orderByDesc('score')
+            ->get();
+
+        return [$quiz, $attempts];
     }
 }

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\Doctor\Clinical;
 use App\Http\Controllers\Api\Doctor\DoctorApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Models\Clinical\EvaluationChecklist;
 use App\Models\Clinical\ChecklistItem;
+use App\Models\Clinical\MockEvaluation;
 use App\Models\Clinical\StudentEvaluation;
 use App\Models\Clinical\EvaluationScore;
 use App\Models\Clinical\BodySystem;
@@ -27,6 +29,7 @@ class EvaluationController extends DoctorApiController
         $hiddenIds = $user->hiddenChecklists()->pluck('evaluation_checklists.id')->toArray();
 
         $query = EvaluationChecklist::with('items')
+            ->where('is_active', true)
             ->where(function ($query) use ($user, $hiddenIds) {
                 $query->where(function ($q) use ($hiddenIds) {
                     $q->whereNull('doctor_id');
@@ -112,6 +115,7 @@ class EvaluationController extends DoctorApiController
             'skill_type' => 'required|in:history_taking,clinical_examination,procedure,communication',
             'time_limit_minutes' => 'nullable|integer|min:1',
             'is_practice_allowed' => 'nullable|boolean',
+            'tracks_admin_updates' => 'nullable|boolean',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:500',
             'items.*.marks' => 'required|integer|min:1|max:100',
@@ -179,6 +183,7 @@ class EvaluationController extends DoctorApiController
             'skill_type' => 'required|in:history_taking,clinical_examination,procedure,communication',
             'time_limit_minutes' => 'nullable|integer|min:1',
             'is_practice_allowed' => 'nullable|boolean',
+            'tracks_admin_updates' => 'nullable|boolean',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:500',
             'items.*.marks' => 'required|integer|min:1|max:100',
@@ -206,9 +211,13 @@ class EvaluationController extends DoctorApiController
                 'title' => $request->title,
                 'description' => $request->description,
                 'doctor_id' => $user->id,
+                'source_checklist_id' => $checklist->source_checklist_id ?: $checklist->id,
+                'synced_admin_checklist_id' => $checklist->id,
+                'tracks_admin_updates' => $request->boolean('tracks_admin_updates', true),
                 'skill_type' => $request->skill_type,
                 'time_limit_minutes' => $request->time_limit_minutes,
                 'is_practice_allowed' => $request->boolean('is_practice_allowed'),
+                'tracks_admin_updates' => $request->boolean('tracks_admin_updates', $checklist->tracks_admin_updates),
                 'total_marks' => $totalMarks,
             ]);
 
@@ -268,6 +277,45 @@ class EvaluationController extends DoctorApiController
 
         }
         return $this->success($checklist->load('items'), 'تم تحديث قائمة التقييم بنجاح.');
+    }
+
+    /** POST /api/doctor/clinical/evaluations/checklists/{id}/sync-admin-update */
+    public function syncAdminChecklistUpdate($id)
+    {
+        $user = Auth::user();
+        $checklist = EvaluationChecklist::with('items.subItems')
+            ->where('doctor_id', $user->id)
+            ->where('is_active', true)
+            ->findOrFail($id);
+
+        if (!$checklist->source_checklist_id || !$checklist->tracks_admin_updates) {
+            return $this->error('هذه القائمة غير مرتبطة بتحديثات الأدمن.', 422);
+        }
+
+        $latestStandard = $this->latestStandardChecklistFor($checklist);
+        if (!$this->hasNewerStandardChecklist($checklist, $latestStandard)) {
+            return $this->success(
+                $this->serializeChecklist($checklist->fresh('items.subItems')),
+                'قائمتك محدثة بالفعل.'
+            );
+        }
+
+        $updatedChecklist = DB::transaction(function () use ($checklist, $latestStandard) {
+            if ($this->hasChecklistUsage($checklist)) {
+                $checklist->update(['is_active' => false]);
+
+                return $this->createDoctorChecklistFromStandard($latestStandard, $checklist);
+            }
+
+            $this->replaceDoctorChecklistWithStandard($checklist, $latestStandard);
+
+            return $checklist->fresh('items.subItems');
+        });
+
+        return $this->success(
+            $this->serializeChecklist($updatedChecklist),
+            'تم تحديث قائمتك من نسخة الأدمن بنجاح.'
+        );
     }
 
     /** DELETE /api/doctor/clinical/evaluations/checklists/{id} */
@@ -332,7 +380,9 @@ class EvaluationController extends DoctorApiController
                     ->orWhere('doctor_id', $doctorId);
             })
             ->latest()
-            ->get();
+            ->get()
+            ->map(fn (EvaluationChecklist $checklist) => $this->serializeChecklist($checklist))
+            ->values();
 
         $students = User::with(['major:id,name', 'level:id,name'])
             ->inDoctorClinicalScope($doctorId)
@@ -821,11 +871,16 @@ class EvaluationController extends DoctorApiController
 
     private function serializeChecklist(EvaluationChecklist $checklist, bool $isHidden = false): array
     {
+        $latestStandard = $this->latestStandardChecklistFor($checklist);
+
         return [
             'id' => $checklist->id,
             'title' => $checklist->title,
             'description' => $checklist->description,
             'doctor_id' => $checklist->doctor_id,
+            'source_checklist_id' => $checklist->source_checklist_id,
+            'synced_admin_checklist_id' => $checklist->synced_admin_checklist_id,
+            'tracks_admin_updates' => (bool) $checklist->tracks_admin_updates,
             'skill_type' => $checklist->skill_type,
             'time_limit_minutes' => $checklist->time_limit_minutes,
             'is_practice_allowed' => (bool) $checklist->is_practice_allowed,
@@ -833,9 +888,129 @@ class EvaluationController extends DoctorApiController
             'is_active' => (bool) $checklist->is_active,
             'is_standard' => is_null($checklist->doctor_id),
             'is_hidden' => $isHidden,
+            'has_admin_update' => $this->hasNewerStandardChecklist($checklist, $latestStandard),
+            'latest_standard_checklist' => $latestStandard ? [
+                'id' => $latestStandard->id,
+                'title' => $latestStandard->title,
+                'updated_at' => $latestStandard->updated_at,
+            ] : null,
             'items' => $checklist->relationLoaded('items') ? $checklist->items : [],
             'created_at' => $checklist->created_at,
             'updated_at' => $checklist->updated_at,
         ];
+    }
+
+    private function latestStandardChecklistFor(EvaluationChecklist $checklist): ?EvaluationChecklist
+    {
+        if (
+            is_null($checklist->doctor_id) ||
+            is_null($checklist->source_checklist_id) ||
+            !$checklist->tracks_admin_updates
+        ) {
+            return null;
+        }
+
+        $sourceId = (int) $checklist->source_checklist_id;
+
+        return EvaluationChecklist::query()
+            ->with('items.subItems')
+            ->whereNull('doctor_id')
+            ->where('is_active', true)
+            ->where(function ($query) use ($sourceId) {
+                $query->where('id', $sourceId)
+                    ->orWhere('source_checklist_id', $sourceId);
+            })
+            ->latest('updated_at')
+            ->latest('id')
+            ->first();
+    }
+
+    private function hasNewerStandardChecklist(EvaluationChecklist $checklist, ?EvaluationChecklist $latestStandard): bool
+    {
+        if (!$latestStandard) {
+            return false;
+        }
+
+        $syncedAdminId = (int) ($checklist->synced_admin_checklist_id ?: $checklist->source_checklist_id);
+
+        if ((int) $latestStandard->id !== $syncedAdminId) {
+            return true;
+        }
+
+        return $latestStandard->updated_at && $checklist->updated_at
+            ? $latestStandard->updated_at->gt($checklist->updated_at)
+            : false;
+    }
+
+    private function hasChecklistUsage(EvaluationChecklist $checklist): bool
+    {
+        return StudentEvaluation::where('checklist_id', $checklist->id)->exists()
+            || MockEvaluation::where('checklist_id', $checklist->id)->exists();
+    }
+
+    private function createDoctorChecklistFromStandard(
+        EvaluationChecklist $standard,
+        EvaluationChecklist $previous
+    ): EvaluationChecklist {
+        $newChecklist = EvaluationChecklist::create([
+            'title' => $standard->title,
+            'description' => $standard->description,
+            'doctor_id' => $previous->doctor_id,
+            'source_checklist_id' => $previous->source_checklist_id,
+            'synced_admin_checklist_id' => $standard->id,
+            'tracks_admin_updates' => $previous->tracks_admin_updates,
+            'skill_type' => $standard->skill_type,
+            'time_limit_minutes' => $standard->time_limit_minutes,
+            'is_practice_allowed' => $standard->is_practice_allowed,
+            'total_marks' => $standard->total_marks,
+            'is_active' => true,
+        ]);
+
+        $this->copyChecklistItems($standard, $newChecklist);
+
+        return $newChecklist->load('items.subItems');
+    }
+
+    private function replaceDoctorChecklistWithStandard(
+        EvaluationChecklist $checklist,
+        EvaluationChecklist $standard
+    ): void {
+        $checklist->update([
+            'title' => $standard->title,
+            'description' => $standard->description,
+            'synced_admin_checklist_id' => $standard->id,
+            'skill_type' => $standard->skill_type,
+            'time_limit_minutes' => $standard->time_limit_minutes,
+            'is_practice_allowed' => $standard->is_practice_allowed,
+            'total_marks' => $standard->total_marks,
+            'is_active' => true,
+        ]);
+
+        $checklist->items()->delete();
+        $this->copyChecklistItems($standard, $checklist);
+    }
+
+    private function copyChecklistItems(EvaluationChecklist $source, EvaluationChecklist $target): void
+    {
+        $source->loadMissing('items.subItems');
+
+        foreach ($source->items->whereNull('parent_id')->values() as $i => $item) {
+            $mainItem = ChecklistItem::create([
+                'checklist_id' => $target->id,
+                'description' => $item->description,
+                'marks' => $item->marks,
+                'sort_order' => $i + 1,
+            ]);
+
+            foreach ($item->subItems as $j => $subItem) {
+                ChecklistItem::create([
+                    'checklist_id' => $target->id,
+                    'parent_id' => $mainItem->id,
+                    'description' => $subItem->description,
+                    'marks' => $subItem->marks,
+                    'sort_order' => $j + 1,
+                ]);
+            }
+        }
     }
 }

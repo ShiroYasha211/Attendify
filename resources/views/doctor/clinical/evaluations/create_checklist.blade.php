@@ -328,6 +328,16 @@
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">عند تفعيل هذا الخيار، سيتمكن الطلاب من تقييم أنفسهم ذاتياً باستخدام هذه القائمة من حساباتهم للتدريب واكتساب المهارة.</span>
                 </div>
             </div>
+            @if(isset($checklist) && is_null($checklist->doctor_id))
+                <div class="form-group" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 1.5rem; background: #fff7ed; padding: 1rem; border-radius: 10px; border: 1px dashed #fdba74;">
+                    <input type="hidden" name="tracks_admin_updates" value="0">
+                    <input type="checkbox" name="tracks_admin_updates" id="tracks_admin_updates" value="1" style="width: 20px; height: 20px; accent-color: #f97316; cursor: pointer;" {{ old('tracks_admin_updates', true) ? 'checked' : '' }}>
+                    <div style="flex: 1;">
+                        <label for="tracks_admin_updates" style="font-weight: 700; color: var(--text-primary); cursor: pointer; display: block; margin-bottom: 0.25rem;">تلقي تحديثات الأدمن لهذه القائمة</label>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">عند حفظ هذه القائمة كنسخة مخصصة، سيظهر لك تنبيه إذا نشر الأدمن نسخة أحدث. عند إيقاف الخيار ستبقى نسختك مستقلة ولن تظهر تنبيهات تحديث.</span>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 

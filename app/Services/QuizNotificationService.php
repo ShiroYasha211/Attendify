@@ -12,15 +12,24 @@ class QuizNotificationService
 {
     private const STUDENT_ROLES = ['student', 'delegate', 'practical_delegate'];
 
-    public function notifyIfEnabled(Quiz $quiz): int
+    public function notifyIfEnabled(Quiz $quiz): void
     {
-        $quiz->loadMissing(['subject', 'targets']);
+        $quizId = $quiz->id;
 
-        if (! $quiz->notify_students || $quiz->status === 'draft' || $quiz->status === 'closed') {
-            return 0;
-        }
+        dispatch(static function () use ($quizId) {
+            $quiz = Quiz::find($quizId);
+            if (! $quiz) {
+                return;
+            }
 
-        return $this->notify($quiz);
+            $quiz->loadMissing(['subject', 'targets']);
+
+            if (! $quiz->notify_students || $quiz->status === 'draft' || $quiz->status === 'closed') {
+                return;
+            }
+
+            app(QuizNotificationService::class)->notify($quiz);
+        })->afterResponse();
     }
 
     public function notify(Quiz $quiz): int

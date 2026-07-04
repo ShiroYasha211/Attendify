@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Administrative;
 
+use App\Exceptions\AttendanceEditLockedException;
 use App\Http\Controllers\Api\Administrative\AdministrativeApiController;
 use App\Models\Attendance;
+use App\Services\AttendanceEditGate;
 use App\Support\ExcuseWorkflow;
 use Illuminate\Http\Request;
 
@@ -19,10 +21,14 @@ class ApiAttendanceController extends AdministrativeApiController
             'status' => 'required|in:' . implode(',', ExcuseWorkflow::editableAttendanceStatuses()),
         ]);
 
-        $attendance->update([
-            'status' => $validated['status'],
-            'recorded_by' => $this->administrative()->id,
-        ]);
+        try {
+            app(AttendanceEditGate::class)->updateAttendance($attendance, [
+                'status' => $validated['status'],
+                'recorded_by' => $this->administrative()->id,
+            ], $this->administrative());
+        } catch (AttendanceEditLockedException $exception) {
+            return $this->error($exception->getMessage(), 403, $exception->context());
+        }
 
         if ($attendance->excuse && $attendance->excuse->status === 'accepted') {
             $resolution = match ($validated['status']) {

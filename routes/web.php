@@ -103,6 +103,11 @@ Route::prefix('admin')
         // Route::get('attendance/create', [App\Http\Controllers\Admin\AttendanceController::class, 'create'])->name('attendance.create');
         // Route::get('attendance/form', [App\Http\Controllers\Admin\AttendanceController::class, 'showCorrectionForm'])->name('attendance.form');
         // Route::post('attendance/store', [App\Http\Controllers\Admin\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::get('attendance-edit-requests', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'index'])->name('attendance-edit-requests.index');
+        Route::post('attendance-edit-requests/grant', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'grant'])->name('attendance-edit-requests.grant');
+        Route::post('attendance-edit-requests/{editRequest}/approve', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'approve'])->name('attendance-edit-requests.approve');
+        Route::post('attendance-edit-requests/{editRequest}/reject', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'reject'])->name('attendance-edit-requests.reject');
+        Route::post('attendance-edit-permissions/{permission}/revoke', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'revoke'])->name('attendance-edit-permissions.revoke');
 
         // Reports Routes
         Route::get('reports', [App\Http\Controllers\Admin\ReportController::class, 'index'])->name('reports.index');
@@ -180,6 +185,8 @@ Route::prefix('admin')
             Route::get('{quiz}/edit', [App\Http\Controllers\Admin\QuizController::class, 'edit'])->name('edit');
             Route::put('{quiz}', [App\Http\Controllers\Admin\QuizController::class, 'update'])->name('update');
             Route::get('{quiz}/results', [App\Http\Controllers\Admin\QuizController::class, 'results'])->name('results');
+            Route::get('{quiz}/results/export', [App\Http\Controllers\Admin\QuizController::class, 'exportResults'])->name('results.export');
+            Route::post('{quiz}/share-results', [App\Http\Controllers\Admin\QuizController::class, 'shareResults'])->name('share-results');
             Route::delete('{quiz}', [App\Http\Controllers\Admin\QuizController::class, 'destroy'])->name('destroy');
             Route::patch('{quiz}/publish', [App\Http\Controllers\Admin\QuizController::class, 'publish'])->name('publish');
             Route::patch('{quiz}/close', [App\Http\Controllers\Admin\QuizController::class, 'close'])->name('close');
@@ -261,6 +268,7 @@ Route::prefix('doctor')
         Route::post('attendance/{subject}', [App\Http\Controllers\Doctor\AttendanceController::class, 'store'])->name('attendance.store');
         Route::post('desktop/pairing-code', [DesktopPairingCodeController::class, 'issueForDoctor'])->name('desktop.pairing-code');
         Route::patch('attendance-records/{attendance}', [App\Http\Controllers\Doctor\AttendanceRecordController::class, 'update'])->name('attendance.records.update');
+        Route::post('attendance-edit-requests', [App\Http\Controllers\AttendanceEditRequestController::class, 'store'])->name('attendance-edit-requests.store');
         Route::post('attendance/{subject}/toggle-delegate', [App\Http\Controllers\Doctor\AttendanceController::class, 'toggleDelegateAttendance'])->name('attendance.toggle-delegate');
         Route::get('attendance/{subject}/{date}/report', [App\Http\Controllers\Doctor\AttendanceController::class, 'showReport'])->name('attendance.report');
 
@@ -626,6 +634,7 @@ Route::prefix('delegate')
         Route::get('attendance/{subject}/check', [App\Http\Controllers\Delegate\AttendanceController::class, 'check'])->name('attendance.check');
         Route::post('attendance/{subject}', [App\Http\Controllers\Delegate\AttendanceController::class, 'store'])->name('attendance.store');
         Route::post('desktop/pairing-code', [DesktopPairingCodeController::class, 'issueForDelegate'])->name('desktop.pairing-code');
+        Route::post('attendance-edit-requests', [App\Http\Controllers\AttendanceEditRequestController::class, 'store'])->name('attendance-edit-requests.store');
         // Assignments
         Route::resource('assignments', App\Http\Controllers\Delegate\AssignmentController::class)->except(['create', 'edit', 'show']);
 

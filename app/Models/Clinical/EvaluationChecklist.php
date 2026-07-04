@@ -11,6 +11,9 @@ class EvaluationChecklist extends Model
         'title',
         'description',
         'doctor_id',
+        'source_checklist_id',
+        'synced_admin_checklist_id',
+        'tracks_admin_updates',
         'skill_type',
         'time_limit_minutes',
         'total_marks',
@@ -22,12 +25,28 @@ class EvaluationChecklist extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'is_practice_allowed' => 'boolean'
+        'is_practice_allowed' => 'boolean',
+        'tracks_admin_updates' => 'boolean',
     ];
 
     public function doctor()
     {
         return $this->belongsTo(User::class, 'doctor_id');
+    }
+
+    public function sourceChecklist()
+    {
+        return $this->belongsTo(self::class, 'source_checklist_id');
+    }
+
+    public function syncedAdminChecklist()
+    {
+        return $this->belongsTo(self::class, 'synced_admin_checklist_id');
+    }
+
+    public function derivedChecklists()
+    {
+        return $this->hasMany(self::class, 'source_checklist_id');
     }
 
     public function items()
