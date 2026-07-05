@@ -8,6 +8,7 @@ use App\Models\Academic\Lecture;
 use App\Models\Academic\Subject;
 use App\Models\AttendanceEditPermission;
 use App\Models\AttendanceEditRequest;
+use App\Models\QrAttendanceSession;
 use App\Models\StudentNotification;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -51,33 +52,164 @@ class AttendanceEditRequestController extends Controller
             ->latest('expires_at')
             ->paginate(10, ['*'], 'permissions_page');
 
-        $editableUsers = User::whereIn('role', [
-            UserRole::DOCTOR->value,
-            UserRole::DELEGATE->value,
-            UserRole::PRACTICAL_DELEGATE->value,
-        ])
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'role']);
-
-        $subjects = Subject::orderBy('name')->get(['id', 'name', 'code']);
-
-        $recentLectures = Lecture::with('subject:id,name,code')
-            ->latest('date')
-            ->latest('id')
-            ->limit(150)
-            ->get(['id', 'subject_id', 'title', 'lecture_number', 'date']);
-
         $pendingCount = AttendanceEditRequest::pending()->count();
+        $activePermissionsCount = AttendanceEditPermission::active()->count();
+        $expiringPermissionsCount = AttendanceEditPermission::active()
+            ->where('expires_at', '<=', now()->addHours(2))
+            ->count();
 
         return view('admin.attendance-edit-requests.index', compact(
             'requests',
             'activePermissions',
-            'editableUsers',
-            'subjects',
-            'recentLectures',
             'pendingCount',
+            'activePermissionsCount',
+            'expiringPermissionsCount',
             'status'
         ));
+    }
+
+    public function lookupUsers(Request $request)
+    {
+        $this->ensurePrimaryAdmin($request);
+
+        $term = trim((string) $request->input('q', ''));
+
+        $users = User::whereIn('role', [
+            UserRole::DOCTOR->value,
+            UserRole::DELEGATE->value,
+            UserRole::PRACTICAL_DELEGATE->value,
+        ])
+            ->when($term !== '', function ($query) use ($term) {
+                $query->where(function ($scope) use ($term) {
+                    $scope
+                        ->where('name', 'like', "%{$term}%")
+                        ->orWhere('email', 'like', "%{$term}%")
+                        ->orWhere('role', 'like', "%{$term}%");
+                });
+            })
+            ->orderBy('name')
+            ->limit(25)
+            ->get(['id', 'name', 'email', 'role']);
+
+        return response()->json([
+            'results' => $users->map(fn (User $user) => [
+                'id' => $user->id,
+                'label' => $user->name,
+                'meta' => trim(($user->email ?? '-') . ' - ' . ($user->role instanceof UserRole ? $user->role->value : (string) $user->role)),
+            ])->values(),
+        ]);
+    }
+
+    public function lookupSubjects(Request $request)
+    {
+        $this->ensurePrimaryAdmin($request);
+
+        $term = trim((string) $request->input('q', ''));
+
+        $subjects = Subject::query()
+            ->when($term !== '', function ($query) use ($term) {
+                $query->where(function ($scope) use ($term) {
+                    $scope
+                        ->where('name', 'like', "%{$term}%")
+                        ->orWhere('code', 'like', "%{$term}%");
+                });
+            })
+            ->orderBy('name')
+            ->limit(25)
+            ->get(['id', 'name', 'code']);
+
+        return response()->json([
+            'results' => $subjects->map(fn (Subject $subject) => [
+                'id' => $subject->id,
+                'label' => $subject->name,
+                'meta' => $subject->code ?: null,
+            ])->values(),
+        ]);
+    }
+
+    public function lookupLectures(Request $request)
+    {
+        $this->ensurePrimaryAdmin($request);
+
+        $term = trim((string) $request->input('q', ''));
+
+        $lectures = Lecture::with('subject:id,name,code')
+            ->when($request->filled('subject_id'), fn ($query) => $query->where('subject_id', $request->integer('subject_id')))
+            ->when($request->filled('date'), fn ($query) => $query->whereDate('date', $request->input('date')))
+            ->when($term !== '', function ($query) use ($term) {
+                $query->where(function ($scope) use ($term) {
+                    $scope
+                        ->where('title', 'like', "%{$term}%")
+                        ->orWhere('lecture_number', 'like', "%{$term}%")
+                        ->orWhere('date', 'like', "%{$term}%")
+                        ->orWhereHas('subject', function ($subjectQuery) use ($term) {
+                            $subjectQuery
+                                ->where('name', 'like', "%{$term}%")
+                                ->orWhere('code', 'like', "%{$term}%");
+                        });
+                });
+            })
+            ->latest('date')
+            ->latest('id')
+            ->limit(30)
+            ->get(['id', 'subject_id', 'title', 'lecture_number', 'date']);
+
+        return response()->json([
+            'results' => $lectures->map(fn (Lecture $lecture) => [
+                'id' => $lecture->id,
+                'label' => $lecture->title ?: 'محاضرة بدون عنوان',
+                'meta' => collect([
+                    $lecture->date?->format('Y-m-d'),
+                    $lecture->subject?->name,
+                    $lecture->lecture_number ? "رقم {$lecture->lecture_number}" : null,
+                ])->filter()->implode(' - '),
+                'subject_id' => $lecture->subject_id,
+                'date' => $lecture->date?->format('Y-m-d'),
+            ])->values(),
+        ]);
+    }
+
+    public function lookupQrSessions(Request $request)
+    {
+        $this->ensurePrimaryAdmin($request);
+
+        $term = trim((string) $request->input('q', ''));
+
+        $sessions = QrAttendanceSession::with(['subject:id,name,code', 'delegate:id,name'])
+            ->when($request->filled('subject_id'), fn ($query) => $query->where('subject_id', $request->integer('subject_id')))
+            ->when($request->filled('date'), fn ($query) => $query->whereDate('date', $request->input('date')))
+            ->when($term !== '', function ($query) use ($term) {
+                $query->where(function ($scope) use ($term) {
+                    $scope
+                        ->where('title', 'like', "%{$term}%")
+                        ->orWhere('lecture_number', 'like', "%{$term}%")
+                        ->orWhere('date', 'like', "%{$term}%")
+                        ->orWhereHas('subject', function ($subjectQuery) use ($term) {
+                            $subjectQuery
+                                ->where('name', 'like', "%{$term}%")
+                                ->orWhere('code', 'like', "%{$term}%");
+                        })
+                        ->orWhereHas('delegate', fn ($delegateQuery) => $delegateQuery->where('name', 'like', "%{$term}%"));
+                });
+            })
+            ->latest('date')
+            ->latest('id')
+            ->limit(30)
+            ->get(['id', 'subject_id', 'delegate_id', 'title', 'lecture_number', 'date']);
+
+        return response()->json([
+            'results' => $sessions->map(fn (QrAttendanceSession $session) => [
+                'id' => $session->id,
+                'label' => $session->title ?: 'جلسة QR بدون عنوان',
+                'meta' => collect([
+                    $session->date?->format('Y-m-d'),
+                    $session->subject?->name,
+                    $session->delegate?->name ? "بواسطة {$session->delegate->name}" : null,
+                ])->filter()->implode(' - '),
+                'subject_id' => $session->subject_id,
+                'date' => $session->date?->format('Y-m-d'),
+            ])->values(),
+        ]);
     }
 
     public function approve(Request $request, AttendanceEditRequest $editRequest)
@@ -195,6 +327,76 @@ class AttendanceEditRequestController extends Controller
                 'permission_id' => $permission->id,
                 'subject_id' => $permission->subject_id,
                 'lecture_id' => $permission->lecture_id,
+                'date' => $permission->date?->format('Y-m-d'),
+            ],
+        ]);
+
+        return back()->with('success', 'تم فتح صلاحية التعديل يدويًا.');
+    }
+
+    public function grantManual(Request $request)
+    {
+        $this->ensurePrimaryAdmin($request);
+
+        $validated = $request->validate([
+            'user_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->whereIn('role', [
+                    UserRole::DOCTOR->value,
+                    UserRole::DELEGATE->value,
+                    UserRole::PRACTICAL_DELEGATE->value,
+                ])),
+            ],
+            'scope_type' => 'required|in:lecture,subject_date,qr',
+            'lecture_id' => 'nullable|integer|exists:lectures,id',
+            'qr_attendance_session_id' => 'nullable|integer|exists:qr_attendance_sessions,id',
+            'subject_id' => 'nullable|integer|exists:subjects,id',
+            'date' => 'nullable|date',
+            'reason' => 'nullable|string|max:2000',
+            'expires_hours' => 'required|integer|min:1|max:168',
+        ]);
+
+        $lecture = $validated['scope_type'] === 'lecture' && !empty($validated['lecture_id'])
+            ? Lecture::find($validated['lecture_id'])
+            : null;
+        $qrSession = $validated['scope_type'] === 'qr' && !empty($validated['qr_attendance_session_id'])
+            ? QrAttendanceSession::find($validated['qr_attendance_session_id'])
+            : null;
+
+        if ($validated['scope_type'] === 'lecture' && !$lecture) {
+            return back()->withInput()->with('error', 'يرجى اختيار محاضرة صحيحة لفتح التعديل.');
+        }
+
+        if ($validated['scope_type'] === 'qr' && !$qrSession) {
+            return back()->withInput()->with('error', 'يرجى اختيار جلسة QR صحيحة لفتح التعديل.');
+        }
+
+        if ($validated['scope_type'] === 'subject_date' && (empty($validated['subject_id']) || empty($validated['date']))) {
+            return back()->withInput()->with('error', 'يرجى اختيار المادة والتاريخ عند فتح التعديل بنطاق مادة وتاريخ.');
+        }
+
+        $permission = AttendanceEditPermission::create([
+            'user_id' => $validated['user_id'],
+            'granted_by' => auth()->id(),
+            'subject_id' => $lecture?->subject_id ?? $qrSession?->subject_id ?? ($validated['subject_id'] ?? null),
+            'lecture_id' => $lecture?->id,
+            'qr_attendance_session_id' => $qrSession?->id,
+            'date' => $lecture?->date ?? $qrSession?->date ?? ($validated['date'] ?? null),
+            'reason' => $validated['reason'] ?? 'فتح يدوي من الأدمن الرئيسي',
+            'expires_at' => now()->addHours((int) $validated['expires_hours']),
+        ]);
+
+        StudentNotification::create([
+            'user_id' => $permission->user_id,
+            'type' => 'attendance_edit_request',
+            'title' => 'تم فتح تعديل الحضور',
+            'message' => "تم فتح صلاحية تعديل الحضور لك حتى {$permission->expires_at->format('Y-m-d H:i')}.",
+            'data' => [
+                'permission_id' => $permission->id,
+                'subject_id' => $permission->subject_id,
+                'lecture_id' => $permission->lecture_id,
+                'qr_attendance_session_id' => $permission->qr_attendance_session_id,
                 'date' => $permission->date?->format('Y-m-d'),
             ],
         ]);

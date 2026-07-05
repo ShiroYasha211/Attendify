@@ -104,7 +104,11 @@ Route::prefix('admin')
         // Route::get('attendance/form', [App\Http\Controllers\Admin\AttendanceController::class, 'showCorrectionForm'])->name('attendance.form');
         // Route::post('attendance/store', [App\Http\Controllers\Admin\AttendanceController::class, 'store'])->name('attendance.store');
         Route::get('attendance-edit-requests', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'index'])->name('attendance-edit-requests.index');
-        Route::post('attendance-edit-requests/grant', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'grant'])->name('attendance-edit-requests.grant');
+        Route::get('attendance-edit-requests/lookups/users', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'lookupUsers'])->name('attendance-edit-requests.lookup-users');
+        Route::get('attendance-edit-requests/lookups/subjects', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'lookupSubjects'])->name('attendance-edit-requests.lookup-subjects');
+        Route::get('attendance-edit-requests/lookups/lectures', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'lookupLectures'])->name('attendance-edit-requests.lookup-lectures');
+        Route::get('attendance-edit-requests/lookups/qr-sessions', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'lookupQrSessions'])->name('attendance-edit-requests.lookup-qr-sessions');
+        Route::post('attendance-edit-requests/grant', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'grantManual'])->name('attendance-edit-requests.grant');
         Route::post('attendance-edit-requests/{editRequest}/approve', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'approve'])->name('attendance-edit-requests.approve');
         Route::post('attendance-edit-requests/{editRequest}/reject', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'reject'])->name('attendance-edit-requests.reject');
         Route::post('attendance-edit-permissions/{permission}/revoke', [App\Http\Controllers\Admin\AttendanceEditRequestController::class, 'revoke'])->name('attendance-edit-permissions.revoke');
