@@ -12,9 +12,13 @@ class SettingController extends Controller
     /**
      * عرض صفحة الإعدادات
      */
-    public function index()
+    public function index(Request $request)
     {
-        $settings = Setting::all()->groupBy('group');
+        $settings = Setting::query()
+            ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
+            ->get()
+            ->groupBy('group');
+
         return view('admin.settings.index', compact('settings'));
     }
 
@@ -23,6 +27,10 @@ class SettingController extends Controller
      */
     public function update(Request $request)
     {
+        if ($request->has('owner_graduation_presentation_mode') && !$request->user()?->isSystemOwner()) {
+            abort(403);
+        }
+
         if ($request->hasAny([
             'student_star_gifting_enabled',
             'student_star_gift_limit',

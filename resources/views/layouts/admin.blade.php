@@ -165,6 +165,11 @@
                 <span>لوحة الإدارة</span>
             </div>
 
+            @php
+                $ownerPresentationMode = auth()->user()?->isSystemOwner()
+                    && \App\Models\Setting::get('owner_graduation_presentation_mode', false);
+            @endphp
+
             <nav class="sidebar-nav">
                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" title="الرئيسية">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -177,6 +182,7 @@
 
                 <div class="nav-group-label" title="الهيكل الأكاديمي">الهيكل الأكاديمي</div>
 
+                @unless($ownerPresentationMode)
                 <a href="{{ route('admin.universities.index') }}" class="nav-link {{ request()->routeIs('admin.universities.*') ? 'active' : '' }}" title="الجامعات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 21h18v-8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z"></path>
@@ -184,6 +190,7 @@
                     </svg>
                     <span>الجامعات</span>
                 </a>
+                @endunless
                 <a href="{{ route('admin.colleges.index') }}" class="nav-link {{ request()->routeIs('admin.colleges.*') ? 'active' : '' }}" title="الكليات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
@@ -212,6 +219,7 @@
                     </svg>
                     <span>المكتبة المشتركة</span>
                 </a>
+                @unless($ownerPresentationMode)
                 <a href="{{ route('admin.flashcards.index') }}" class="nav-link {{ request()->routeIs('admin.flashcards.*') ? 'active' : '' }}" title="Oneline Shot">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -220,8 +228,10 @@
                     </svg>
                     <span>Oneline Shot</span>
                 </a>
+                @endunless
 
                 <div class="nav-group-label" title="الأنشطة المتقدمة">الأنشطة المتقدمة</div>
+                @unless($ownerPresentationMode)
                 <a href="{{ route('admin.quizzes.index') }}" class="nav-link {{ request()->routeIs('admin.quizzes.*') ? 'active' : '' }}" title="إدارة الكويزات">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -230,12 +240,16 @@
                     </svg>
                     <span>إدارة الكويزات</span>
                 </a>
+                @endunless
+                @unless($ownerPresentationMode)
                 <a href="{{ route('admin.stars.index') }}" class="nav-link {{ request()->routeIs('admin.stars.*') ? 'active' : '' }}" title="منح النجوم للطلاب">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                     </svg>
                     <span>منح النجوم للطلاب</span>
                 </a>
+                @endunless
+                @unless($ownerPresentationMode)
                 <a href="{{ route('admin.tree-farm-rewards.index') }}" class="nav-link {{ request()->routeIs('admin.tree-farm-rewards.*') ? 'active' : '' }}" title="إدارة مزرعة الأشجار">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
@@ -249,6 +263,7 @@
                         <span class="badge" style="background: var(--danger-color); color: white; border-radius: 50%; padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-right: auto;">{{ $pendingRewardsCount }}</span>
                     @endif
                 </a>
+                @endunless
                 <a href="{{ route('admin.attendance-edit-requests.index') }}" class="nav-link {{ request()->routeIs('admin.attendance-edit-requests.*') || request()->routeIs('admin.attendance-edit-permissions.*') ? 'active' : '' }}" title="طلبات تعديل الحضور">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 11l3 3L22 4"></path>
@@ -342,6 +357,7 @@
                     @endif
                 </a>
 
+                @unless($ownerPresentationMode)
                 <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 0.5rem 1rem;"></div>
                 
                 <a href="{{ route('admin.packages.index') }}" class="nav-link {{ request()->routeIs('admin.packages.*') ? 'active' : '' }}" title="الباقات">
@@ -367,7 +383,9 @@
                     </svg>
                     <span>الإدارة المالية والأرباح</span>
                 </a>
+                @endunless
 
+                @unless($ownerPresentationMode)
                 <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 0.5rem 1rem;"></div>
                 <a href="{{ route('admin.clinical-delegates.index') }}" class="nav-link {{ request()->routeIs('admin.clinical-delegates.*') ? 'active' : '' }}" title="مندوبو العملي">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -377,6 +395,7 @@
                     </svg>
                     <span>مندوبو العملي</span>
                 </a>
+                @endunless
 
                 <div class="nav-group-label" title="الحضور والتقارير">الحضور والتقارير</div>
 
@@ -408,6 +427,7 @@
                     <span>إدارة المساحة</span>
                 </a>
 
+                @unless($ownerPresentationMode)
                 <div class="nav-group-label" title="الثوابت الطبية">الثوابت الطبية</div>
 
                 <a href="{{ route('admin.clinical.departments.index') }}" class="nav-link {{ request()->routeIs('admin.clinical.departments.*') ? 'active' : '' }}" title="الأقسام الطبية (عام)">
@@ -437,6 +457,7 @@
                     </svg>
                     <span>قوائم التقييم (عام)</span>
                 </a>
+                @endunless
 
                 <div class="nav-group-label" title="أخرى">أخرى</div>
 

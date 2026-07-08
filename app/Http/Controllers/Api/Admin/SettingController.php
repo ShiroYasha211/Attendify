@@ -9,14 +9,22 @@ use Illuminate\Support\Facades\Cache;
 
 class SettingController extends AdminApiController
 {
-    public function index()
+    public function index(Request $request)
     {
-        $settings = Setting::all()->groupBy('group');
+        $settings = Setting::query()
+            ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
+            ->get()
+            ->groupBy('group');
+
         return $this->success($settings);
     }
 
     public function update(Request $request)
     {
+        if ($request->has('owner_graduation_presentation_mode') && !$request->user()?->isSystemOwner()) {
+            abort(403);
+        }
+
         if ($request->hasAny([
             'student_star_gifting_enabled',
             'student_star_gift_limit',
@@ -33,7 +41,9 @@ class SettingController extends AdminApiController
             ]);
         }
 
-        $settings = Setting::all();
+        $settings = Setting::query()
+            ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
+            ->get();
         $updated = 0;
 
         foreach ($settings as $setting) {
@@ -65,6 +75,12 @@ class SettingController extends AdminApiController
             ActivityLog::log('update', 'Setting', null, null, "تحديث {$updated} إعداد عبر الـ API");
         }
 
-        return $this->success(Setting::all()->groupBy('group'), "تم تحديث {$updated} إعداد بنجاح");
+        return $this->success(
+            Setting::query()
+                ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
+                ->get()
+                ->groupBy('group'),
+            "تم تحديث {$updated} إعداد بنجاح"
+        );
     }
 }
