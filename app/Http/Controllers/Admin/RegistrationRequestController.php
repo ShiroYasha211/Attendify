@@ -11,10 +11,11 @@ class RegistrationRequestController extends Controller
     /**
      * Display a listing of the pending registration requests.
      */
-    public function index()
+    public function index(Request $request)
     {
         // Get all users with 'pending' status
         $pendingRequests = User::where('status', 'pending')
+            ->visibleToAdmin($request->user())
             ->with(['university', 'college', 'major', 'level'])
             ->latest()
             ->paginate(15);
@@ -27,6 +28,8 @@ class RegistrationRequestController extends Controller
      */
     public function approve(User $user)
     {
+        $this->abortIfProtected($user);
+
         if ($user->status !== 'pending') {
             return back()->with('error', 'هذا الحساب ليس قيد المراجعة.');
         }
@@ -41,6 +44,8 @@ class RegistrationRequestController extends Controller
      */
     public function reject(User $user)
     {
+        $this->abortIfProtected($user);
+
         if ($user->status !== 'pending') {
             return back()->with('error', 'هذا الحساب ليس قيد المراجعة.');
         }
@@ -50,5 +55,12 @@ class RegistrationRequestController extends Controller
         $user->forceDelete();
 
         return back()->with('success', "تم رفض وحذف حساب {$user->name} بنجاح.");
+    }
+
+    protected function abortIfProtected(User $user): void
+    {
+        if ($user->isProtectedFrom(auth()->user())) {
+            abort(404);
+        }
     }
 }

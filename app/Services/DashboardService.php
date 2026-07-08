@@ -17,10 +17,10 @@ class DashboardService
     /**
      * Get all essential dashboard statistics in an optimized way.
      */
-    public function getAllStats(): array
+    public function getAllStats(?User $viewer = null): array
     {
         return [
-            'user_stats' => $this->getUserStats(),
+            'user_stats' => $this->getUserStats($viewer),
             'academic_stats' => $this->getAcademicStats(),
             'attendance_stats' => $this->getAttendanceStats(),
             'at_risk_students' => $this->getAtRiskStudentsCount(),
@@ -28,16 +28,18 @@ class DashboardService
             'weekly_trend' => $this->getWeeklyTrend(),
             'top_absent_subjects' => $this->getTopAbsentSubjects(),
             'students_per_major' => $this->getStudentsPerMajor(),
-            'latest_activity' => $this->getLatestActivity(),
+            'latest_activity' => $this->getLatestActivity($viewer),
         ];
     }
 
     /**
      * Efficiently get user counts using a single SQL query.
      */
-    public function getUserStats(): array
+    public function getUserStats(?User $viewer = null): array
     {
-        $stats = User::selectRaw("
+        $stats = User::query()
+            ->visibleToAdmin($viewer)
+            ->selectRaw("
             COUNT(CASE WHEN role IN (?, ?) THEN 1 END) as students_count,
             COUNT(CASE WHEN role = ? THEN 1 END) as doctors_count,
             COUNT(CASE WHEN role = ? THEN 1 END) as delegates_count,
@@ -178,14 +180,16 @@ class DashboardService
     /**
      * Get latest activities for the dashboard.
      */
-    public function getLatestActivity(): array
+    public function getLatestActivity(?User $viewer = null): array
     {
         return [
             'latest_attendance' => Attendance::with(['student', 'subject'])
                 ->latest('date')
                 ->take(5)
                 ->get(),
-            'latest_users' => User::latest()
+            'latest_users' => User::query()
+                ->visibleToAdmin($viewer)
+                ->latest()
                 ->take(5)
                 ->get(),
         ];

@@ -25,6 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_system_owner',
         'administrative_access',
         'status',
         'student_number',
@@ -57,6 +58,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'role' => UserRole::class,
+        'is_system_owner' => 'boolean',
         'gender' => 'string',
         'administrative_access' => 'boolean',
         'balance' => 'decimal:2',
@@ -75,6 +77,30 @@ class User extends Authenticatable
         }
 
         return $this->subscribed_until && $this->subscribed_until->isFuture();
+    }
+
+    public function isSystemOwner(): bool
+    {
+        return (bool) $this->is_system_owner;
+    }
+
+    public function canManageSystemOwners(): bool
+    {
+        return $this->isSystemOwner();
+    }
+
+    public function isProtectedFrom(?self $actor): bool
+    {
+        return $this->isSystemOwner() && !$actor?->canManageSystemOwners();
+    }
+
+    public function scopeVisibleToAdmin($query, ?self $viewer)
+    {
+        if (!$viewer?->canManageSystemOwners()) {
+            $query->where('is_system_owner', false);
+        }
+
+        return $query;
     }
 
     /**

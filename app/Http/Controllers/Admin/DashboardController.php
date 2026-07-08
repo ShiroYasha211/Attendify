@@ -25,7 +25,7 @@ class DashboardController extends Controller
         }
 
         // جلب جميع الإحصائيات من الخدمة الموحدة (Optimized Logic)
-        $stats = $dashboardService->getAllStats();
+        $stats = $dashboardService->getAllStats($user);
 
         return view('admin.dashboard', [
             'user' => $user,

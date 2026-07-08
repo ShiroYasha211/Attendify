@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ActivityController extends Controller
@@ -13,7 +14,14 @@ class ActivityController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ActivityLog::with('user')->latest();
+        $viewer = $request->user();
+        $query = ActivityLog::with('user')
+            ->when(!$viewer?->canManageSystemOwners(), function ($query) {
+                $query->whereDoesntHave('user', function ($userQuery) {
+                    $userQuery->where('is_system_owner', true);
+                });
+            })
+            ->latest();
 
         // Filter by user
         if ($request->has('user_id') && $request->user_id) {
@@ -43,7 +51,11 @@ class ActivityController extends Controller
         // Get unique actions and model types for filters
         $actions = ActivityLog::distinct()->pluck('action');
         $modelTypes = ActivityLog::distinct()->pluck('model_type');
-        $users = \App\Models\User::select('id', 'name')->get();
+        $users = User::query()
+            ->visibleToAdmin($viewer)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return view('admin.activities.index', compact('activities', 'actions', 'modelTypes', 'users'));
     }

@@ -14,7 +14,9 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::with(['university', 'college', 'major', 'level'])->latest();
+        $query = User::with(['university', 'college', 'major', 'level'])
+            ->visibleToAdmin($request->user())
+            ->latest();
 
         if ($request->has('role') && $request->role != 'all') {
             $query->where('role', $request->role);
@@ -44,6 +46,8 @@ class UserController extends Controller
 
     public function updateStatus(Request $request, User $user)
     {
+        $this->abortIfProtected($user);
+
         // Don't allow suspending self
         if ($user->id === auth()->id()) {
             return back()->with('error', 'لا يمكنك إيقاف حسابك الخاص.');
@@ -68,6 +72,8 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->abortIfProtected($user);
+
         if ($user->id === auth()->id()) {
             return back()->with('error', 'لا يمكنك حذف حسابك الخاص.');
         }
@@ -94,7 +100,8 @@ class UserController extends Controller
      */
     public function export(Request $request)
     {
-        $query = User::with(['university', 'college', 'major', 'level']);
+        $query = User::with(['university', 'college', 'major', 'level'])
+            ->visibleToAdmin($request->user());
 
         // Apply filters if any
         if ($request->has('role') && $request->role != 'all') {
@@ -168,7 +175,9 @@ class UserController extends Controller
         $currentUserId = auth()->id();
         $ids = array_filter($request->ids, fn($id) => $id != $currentUserId);
 
-        $count = User::whereIn('id', $ids)->update(['status' => 'active']);
+        $count = User::whereIn('id', $ids)
+            ->visibleToAdmin($request->user())
+            ->update(['status' => 'active']);
 
         return back()->with('success', "تم تفعيل {$count} مستخدم بنجاح.");
     }
@@ -186,7 +195,9 @@ class UserController extends Controller
         $currentUserId = auth()->id();
         $ids = array_filter($request->ids, fn($id) => $id != $currentUserId);
 
-        $count = User::whereIn('id', $ids)->update(['status' => 'inactive']);
+        $count = User::whereIn('id', $ids)
+            ->visibleToAdmin($request->user())
+            ->update(['status' => 'inactive']);
 
         return back()->with('success', "تم تعطيل {$count} مستخدم بنجاح.");
     }
@@ -204,7 +215,9 @@ class UserController extends Controller
         $currentUserId = auth()->id();
         $ids = array_filter($request->ids, fn($id) => $id != $currentUserId);
 
-        $count = User::whereIn('id', $ids)->delete();
+        $count = User::whereIn('id', $ids)
+            ->visibleToAdmin($request->user())
+            ->delete();
 
         return back()->with('success', "تم حذف {$count} مستخدم بنجاح.");
     }
@@ -214,6 +227,8 @@ class UserController extends Controller
      */
     public function resetPassword(Request $request, User $user)
     {
+        $this->abortIfProtected($user);
+
         $request->validate([
             'new_password' => 'required|min:8'
         ]);
@@ -239,6 +254,8 @@ class UserController extends Controller
      */
     public function kickSession(User $user)
     {
+        $this->abortIfProtected($user);
+
         if ($user->id === auth()->id()) {
             return back()->with('error', 'لا يمكنك طرد نفسك من الجلسة!');
         }
@@ -266,6 +283,8 @@ class UserController extends Controller
      */
     public function activateSubscription(Request $request, User $user)
     {
+        $this->abortIfProtected($user);
+
         $request->validate([
             'days' => 'required|integer|min:1|max:3650'
         ]);
@@ -287,5 +306,12 @@ class UserController extends Controller
         );
 
         return back()->with('success', "تم تفعيل اشتراك المستخدم {$user->name} بنجاح لمدة {$days} أيام.");
+    }
+
+    protected function abortIfProtected(User $user): void
+    {
+        if ($user->isProtectedFrom(auth()->user())) {
+            abort(404);
+        }
     }
 }
