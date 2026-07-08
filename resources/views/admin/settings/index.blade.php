@@ -832,6 +832,23 @@
                                     </span>
                                 </div>
                                 
+                                @elseif($setting->key === 'owner_default_university_id')
+                                <div class="custom-select-wrapper">
+                                    <select name="{{ $setting->key }}" class="custom-select">
+                                        <option value="">بدون جامعة افتراضية</option>
+                                        @foreach(\App\Models\Academic\University::orderBy('name')->get(['id', 'name']) as $university)
+                                            <option value="{{ $university->id }}" @selected((string) $setting->value === (string) $university->id)>
+                                                {{ $university->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <span class="custom-select-arrow">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </span>
+                                </div>
+
                                 @elseif($setting->type === 'number')
                                 <input
                                     type="number"

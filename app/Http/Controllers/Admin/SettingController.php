@@ -31,6 +31,16 @@ class SettingController extends Controller
             abort(403);
         }
 
+        if ($request->has('owner_default_university_id') && !$request->user()?->isSystemOwner()) {
+            abort(403);
+        }
+
+        if ($request->has('owner_default_university_id')) {
+            $request->validate([
+                'owner_default_university_id' => ['nullable', 'integer', 'exists:universities,id'],
+            ]);
+        }
+
         if ($request->hasAny([
             'student_star_gifting_enabled',
             'student_star_gift_limit',

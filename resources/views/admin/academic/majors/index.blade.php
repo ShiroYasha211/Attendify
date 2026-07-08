@@ -478,6 +478,11 @@
                     <small>سيقوم النظام بإنشاء المستويات والفصول تلقائياً</small>
                 </div>
 
+                @if($ownerPresentationMode)
+                <input type="hidden" name="has_clinical" value="0">
+                <input type="hidden" name="has_semesters" value="0">
+                <input type="hidden" name="semesters_per_term" value="0">
+                @else
                 {{-- Clinical Training Toggle --}}
                 <div style="margin-top: 1rem; padding: 0.875rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;">
                     <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 600; color: #1e40af; font-size: 0.9rem;">
@@ -511,6 +516,7 @@
                         <small style="display: block; margin-top: 0.5rem; color: #7e22ce; font-size: 0.78rem;">سيتم تقسيم كل ترم إلى هذا العدد من السيمسترات</small>
                     </div>
                 </div>
+                @endif
 
                 <button type="submit" class="btn-submit">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -664,6 +670,10 @@
                 <input type="text" name="name" id="edit_name" class="form-control" x-model="editName" required>
             </div>
 
+            @if($ownerPresentationMode)
+            <input type="hidden" name="has_clinical" :value="editHasClinical ? 1 : 0">
+            <input type="hidden" name="has_semesters" :value="editHasSemesters ? 1 : 0">
+            @else
             {{-- Clinical Training Toggle --}}
             <div style="padding: 0.875rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;">
                 <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 600; color: #1e40af; font-size: 0.9rem;">
@@ -689,6 +699,7 @@
                 </label>
                 <small style="display: block; margin-top: 0.5rem; color: #7e22ce; font-size: 0.75rem;">تنبيه: تغيير هذا الخيار لن يغير الهيكل المنشأ مسبقاً.</small>
             </div>
+            @endif
 
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" @click="showEditModal = false">إلغاء</button>

@@ -8,6 +8,7 @@ use App\Models\Academic\Major;
 use App\Models\Academic\College;
 use App\Models\Academic\University;
 use App\Models\Academic\Semester;
+use App\Support\OwnerPresentationMode;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -24,15 +25,31 @@ class MajorController extends Controller
     /**
      * عرض قائمة التخصصات.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $universities = University::with('colleges')->get();
-        $colleges = College::with('university')->get();
+        $ownerPresentationMode = OwnerPresentationMode::enabledFor($request->user());
+        $ownerDefaultUniversityId = $ownerPresentationMode
+            ? OwnerPresentationMode::defaultUniversityId()
+            : null;
+
+        $universities = University::with('colleges')
+            ->when($ownerDefaultUniversityId, fn ($query) => $query->whereKey($ownerDefaultUniversityId))
+            ->get();
+
+        $colleges = College::with('university')
+            ->when($ownerDefaultUniversityId, fn ($query) => $query->where('university_id', $ownerDefaultUniversityId))
+            ->get();
 
         // جلب التخصصات مع مستوياتها لعرض الإحصائيات
         $majors = Major::with(['college.university', 'levels'])->get();
 
-        return view('admin.academic.majors.index', compact('majors', 'universities', 'colleges'));
+        return view('admin.academic.majors.index', compact(
+            'majors',
+            'universities',
+            'colleges',
+            'ownerPresentationMode',
+            'ownerDefaultUniversityId'
+        ));
     }
 
     /**
