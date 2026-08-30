@@ -9,32 +9,14 @@ use Illuminate\Support\Facades\Cache;
 
 class SettingController extends AdminApiController
 {
-    public function index(Request $request)
+    public function index()
     {
-        $settings = Setting::query()
-            ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
-            ->get()
-            ->groupBy('group');
-
+        $settings = Setting::all()->groupBy('group');
         return $this->success($settings);
     }
 
     public function update(Request $request)
     {
-        if ($request->has('owner_graduation_presentation_mode') && !$request->user()?->isSystemOwner()) {
-            abort(403);
-        }
-
-        if ($request->has('owner_default_university_id') && !$request->user()?->isSystemOwner()) {
-            abort(403);
-        }
-
-        if ($request->has('owner_default_university_id')) {
-            $request->validate([
-                'owner_default_university_id' => ['nullable', 'integer', 'exists:universities,id'],
-            ]);
-        }
-
         if ($request->hasAny([
             'student_star_gifting_enabled',
             'student_star_gift_limit',
@@ -51,9 +33,7 @@ class SettingController extends AdminApiController
             ]);
         }
 
-        $settings = Setting::query()
-            ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
-            ->get();
+        $settings = Setting::all();
         $updated = 0;
 
         foreach ($settings as $setting) {
@@ -85,12 +65,6 @@ class SettingController extends AdminApiController
             ActivityLog::log('update', 'Setting', null, null, "تحديث {$updated} إعداد عبر الـ API");
         }
 
-        return $this->success(
-            Setting::query()
-                ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
-                ->get()
-                ->groupBy('group'),
-            "تم تحديث {$updated} إعداد بنجاح"
-        );
+        return $this->success(Setting::all()->groupBy('group'), "تم تحديث {$updated} إعداد بنجاح");
     }
 }

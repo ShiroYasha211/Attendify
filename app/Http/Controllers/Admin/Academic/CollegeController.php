@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Services\AcademicService;
 use App\Models\Academic\College;
 use App\Models\Academic\University;
-use App\Support\OwnerPresentationMode;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -22,25 +21,15 @@ class CollegeController extends Controller
     /**
      * عرض قائمة الكليات.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $ownerPresentationMode = OwnerPresentationMode::enabledFor($request->user());
-        $ownerDefaultUniversity = $ownerPresentationMode
-            ? OwnerPresentationMode::defaultUniversity()
-            : null;
-
         // نحتاج الجامعات من أجل القائمة المنسدلة في نموذج الإضافة
         $universities = $this->academicService->getAllUniversities();
 
         // جلب الكليات مع بيانات الجامعة التابعة لها
         $colleges = College::with('university')->get();
 
-        return view('admin.academic.colleges.index', compact(
-            'colleges',
-            'universities',
-            'ownerPresentationMode',
-            'ownerDefaultUniversity'
-        ));
+        return view('admin.academic.colleges.index', compact('colleges', 'universities'));
     }
 
     /**
@@ -48,10 +37,6 @@ class CollegeController extends Controller
      */
     public function store(Request $request)
     {
-        if (OwnerPresentationMode::enabledFor($request->user()) && OwnerPresentationMode::defaultUniversityId()) {
-            $request->merge(['university_id' => OwnerPresentationMode::defaultUniversityId()]);
-        }
-
         $request->validate([
             'university_id' => 'required|exists:universities,id',
             'name' => [

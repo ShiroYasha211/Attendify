@@ -361,15 +361,6 @@
             <form action="{{ route('admin.colleges.store') }}" method="POST">
                 @csrf
 
-                @if($ownerPresentationMode && $ownerDefaultUniversity)
-                <input type="hidden" name="university_id" value="{{ $ownerDefaultUniversity->id }}">
-                <div class="form-group">
-                    <label class="form-label">الجامعة الافتراضية</label>
-                    <div class="form-control" style="background: #f8fafc; color: var(--text-secondary);">
-                        {{ $ownerDefaultUniversity->name }}
-                    </div>
-                </div>
-                @else
                 <div class="form-group">
                     <label for="university_id" class="form-label">الجامعة التابعة لها</label>
                     <div class="input-with-icon">
@@ -386,7 +377,6 @@
                         </select>
                     </div>
                 </div>
-                @endif
 
                 <div class="form-group">
                     <label for="name" class="form-label">اسم الكلية</label>

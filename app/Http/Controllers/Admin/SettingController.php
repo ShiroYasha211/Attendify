@@ -12,13 +12,9 @@ class SettingController extends Controller
     /**
      * عرض صفحة الإعدادات
      */
-    public function index(Request $request)
+    public function index()
     {
-        $settings = Setting::query()
-            ->when(!$request->user()?->isSystemOwner(), fn ($query) => $query->where('group', '!=', 'owner'))
-            ->get()
-            ->groupBy('group');
-
+        $settings = Setting::all()->groupBy('group');
         return view('admin.settings.index', compact('settings'));
     }
 
@@ -27,20 +23,6 @@ class SettingController extends Controller
      */
     public function update(Request $request)
     {
-        if ($request->has('owner_graduation_presentation_mode') && !$request->user()?->isSystemOwner()) {
-            abort(403);
-        }
-
-        if ($request->has('owner_default_university_id') && !$request->user()?->isSystemOwner()) {
-            abort(403);
-        }
-
-        if ($request->has('owner_default_university_id')) {
-            $request->validate([
-                'owner_default_university_id' => ['nullable', 'integer', 'exists:universities,id'],
-            ]);
-        }
-
         if ($request->hasAny([
             'student_star_gifting_enabled',
             'student_star_gift_limit',

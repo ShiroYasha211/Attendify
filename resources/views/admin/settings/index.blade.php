@@ -692,8 +692,6 @@
                                 نظام نجوم الطلاب
                                 @elseif($group === 'access')
                                 فتح وإغلاق دخول الموقع
-                                @elseif($group === 'owner')
-                                خيارات عرض خاصة بمالك النظام
                                 @else
                                 خيارات وخلفيات إضافية
                                 @endif
@@ -757,8 +755,6 @@
                                 إدارة فترات وحصص الهدايا اليومية والحدود المسموح بها للنجوم التقديرية.
                                 @elseif($group === 'access')
                                 التحكم في إمكانية دخول الطلاب والدكاترة والمندوبين ومسؤولي الكليات إلى واجهة الموقع، مع بقاء دخول الأدمن الرئيسي متاحًا دائمًا.
-                                @elseif($group === 'owner')
-                                إعدادات خاصة بمالك النظام لا تظهر لبقية الأدمن، وتستخدم لتجهيز عرض مختصر دون تعطيل الصفحات أو تغيير الصلاحيات.
                                 @else
                                 خيارات ضبط المعطيات العامة المتنوعة.
                                 @endif
@@ -832,23 +828,6 @@
                                     </span>
                                 </div>
                                 
-                                @elseif($setting->key === 'owner_default_university_id')
-                                <div class="custom-select-wrapper">
-                                    <select name="{{ $setting->key }}" class="custom-select">
-                                        <option value="">بدون جامعة افتراضية</option>
-                                        @foreach(\App\Models\Academic\University::orderBy('name')->get(['id', 'name']) as $university)
-                                            <option value="{{ $university->id }}" @selected((string) $setting->value === (string) $university->id)>
-                                                {{ $university->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <span class="custom-select-arrow">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="6 9 12 15 18 9"></polyline>
-                                        </svg>
-                                    </span>
-                                </div>
-
                                 @elseif($setting->type === 'number')
                                 <input
                                     type="number"

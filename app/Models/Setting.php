@@ -91,7 +91,6 @@ class Setting extends Model
             'support' => 'إعدادات الدعم والمساعدة',
             'stars' => 'إعدادات تحويل النجوم',
             'access' => 'إعدادات دخول الموقع',
-            'owner' => 'إعدادات المالك',
             default => $group
         };
     }
