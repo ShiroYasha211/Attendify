@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Models\Academic\Subject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CourseResource extends Model
 {
@@ -35,6 +37,21 @@ class CourseResource extends Model
     public function uploader()
     {
         return $this->belongsTo(User::class, 'created_by')->withTrashed();
+    }
+
+    public function libraryNodes(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            LibraryNode::class,
+            'library_node_resources',
+            'course_resource_id',
+            'library_node_id'
+        )->withPivot(['sort_order', 'attached_by'])->withTimestamps();
+    }
+
+    public function libraryPlacements(): HasMany
+    {
+        return $this->hasMany(LibraryNodeResource::class);
     }
 
     public function getCategoryTextAttribute()

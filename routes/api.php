@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Api\Admin\ActivityController as AdminActivityController;
 use App\Http\Controllers\Api\Admin\FlashcardController as AdminFlashcardController;
 use App\Http\Controllers\Api\Admin\LibraryController;
+use App\Http\Controllers\Api\LibraryNavigationController;
+use App\Http\Controllers\Api\LibraryManagementController;
 use App\Http\Controllers\Api\Admin\QuizController as AdminApiQuizController;
 use App\Http\Controllers\Api\Admin\StarController as AdminApiStarController;
 use App\Http\Controllers\Api\Admin\RegistrationRequestController as AdminRegistrationRequestController;
@@ -250,6 +252,18 @@ Route::prefix('admin')->middleware(['auth:sanctum'])->group(function () {
     });
 
     // Shared Library Management
+    Route::prefix('library/manage')->group(function () {
+        Route::post('spaces', [LibraryManagementController::class, 'ensureSpace']);
+        Route::post('nodes', [LibraryManagementController::class, 'createNode']);
+        Route::patch('nodes/{node}', [LibraryManagementController::class, 'updateNode']);
+        Route::delete('nodes/{node}', [LibraryManagementController::class, 'deleteNode']);
+        Route::post('nodes/reorder', [LibraryManagementController::class, 'reorderNodes']);
+        Route::post('resources/upload', [LibraryManagementController::class, 'uploadResource']);
+        Route::post('resources/attach', [LibraryManagementController::class, 'attachResource']);
+        Route::post('resources/move', [LibraryManagementController::class, 'moveResource']);
+        Route::post('contributors', [LibraryManagementController::class, 'grantContributor']);
+        Route::delete('contributors/{contributor}', [LibraryManagementController::class, 'revokeContributor']);
+    });
     Route::get('library/{id}/download', [LibraryController::class, 'download'])->name('api.admin.library.download');
     Route::post('library/bulk-delete', [LibraryController::class, 'bulkDestroy']);
     Route::apiResource('library', LibraryController::class)->names('api.admin.library');
@@ -311,6 +325,17 @@ Route::prefix('delegate')->middleware(['auth:sanctum', 'device.validate'])->grou
     Route::get('resources/library/search', [DelegateResourceController::class, 'searchLibrary']);
     Route::post('resources/import', [DelegateResourceController::class, 'import']);
     Route::apiResource('resources', DelegateResourceController::class)->names('api.delegate.resources');
+    Route::get('library/navigation', [LibraryNavigationController::class, 'index']);
+    Route::get('library/{resource}/download', [\App\Http\Controllers\Api\Student\LibraryController::class, 'incrementDownload']);
+    Route::prefix('library/manage')->group(function () {
+        Route::post('nodes', [LibraryManagementController::class, 'createNode']);
+        Route::patch('nodes/{node}', [LibraryManagementController::class, 'updateNode']);
+        Route::delete('nodes/{node}', [LibraryManagementController::class, 'deleteNode']);
+        Route::post('nodes/reorder', [LibraryManagementController::class, 'reorderNodes']);
+        Route::post('resources/upload', [LibraryManagementController::class, 'uploadResource']);
+        Route::post('resources/attach', [LibraryManagementController::class, 'attachResource']);
+        Route::post('resources/move', [LibraryManagementController::class, 'moveResource']);
+    });
 
     // Communication
     Route::patch('announcements/{announcement}/toggle-pin', [DelegateAnnouncementController::class, 'togglePin']);
@@ -567,6 +592,16 @@ Route::prefix('student')->middleware(['auth:sanctum', \App\Http\Middleware\Check
 
     // Shared Study Library
     Route::get('library', [\App\Http\Controllers\Api\Student\LibraryController::class, 'index']);
+    Route::get('library/navigation', [LibraryNavigationController::class, 'index']);
+    Route::prefix('library/manage')->group(function () {
+        Route::post('nodes', [LibraryManagementController::class, 'createNode']);
+        Route::patch('nodes/{node}', [LibraryManagementController::class, 'updateNode']);
+        Route::delete('nodes/{node}', [LibraryManagementController::class, 'deleteNode']);
+        Route::post('nodes/reorder', [LibraryManagementController::class, 'reorderNodes']);
+        Route::post('resources/upload', [LibraryManagementController::class, 'uploadResource']);
+        Route::post('resources/attach', [LibraryManagementController::class, 'attachResource']);
+        Route::post('resources/move', [LibraryManagementController::class, 'moveResource']);
+    });
     Route::post('library/upload', [\App\Http\Controllers\Api\Student\LibraryController::class, 'store']);
     Route::get('library/{resource}/download', [\App\Http\Controllers\Api\Student\LibraryController::class, 'incrementDownload']);
 
@@ -921,6 +956,16 @@ Route::prefix('doctor')->middleware(['auth:sanctum', 'role:doctor', 'status'])->
     Route::get('stars', [DoctorStarApiController::class, 'index']);
     Route::post('stars/grant', [DoctorStarApiController::class, 'grant']);
     Route::get('library', [DoctorLibraryController::class, 'index']);
+    Route::get('library/navigation', [LibraryNavigationController::class, 'index']);
+    Route::prefix('library/manage')->group(function () {
+        Route::post('nodes', [LibraryManagementController::class, 'createNode']);
+        Route::patch('nodes/{node}', [LibraryManagementController::class, 'updateNode']);
+        Route::delete('nodes/{node}', [LibraryManagementController::class, 'deleteNode']);
+        Route::post('nodes/reorder', [LibraryManagementController::class, 'reorderNodes']);
+        Route::post('resources/upload', [LibraryManagementController::class, 'uploadResource']);
+        Route::post('resources/attach', [LibraryManagementController::class, 'attachResource']);
+        Route::post('resources/move', [LibraryManagementController::class, 'moveResource']);
+    });
     Route::post('library/upload', [DoctorLibraryController::class, 'store']);
     Route::get('library/{resource}/download', [DoctorLibraryController::class, 'incrementDownload']);
     Route::prefix('qr-attendance')->group(function () {

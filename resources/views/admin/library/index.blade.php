@@ -56,14 +56,21 @@
             </h1>
             <p style="color: var(--text-secondary); margin: 0; font-size: 1rem;">التحكم الكامل ومراقبة جميع الملفات التعليمية المرفوعة في النظام</p>
         </div>
-        <a href="{{ route('admin.library.create') }}" 
-           style="background: var(--primary-color); color: white; text-decoration: none; padding: 0.85rem 1.75rem; border-radius: 15px; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; transition: all 0.3s; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            رفع ملف جديد
-        </a>
+        <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+            <a href="{{ route('admin.library-structure.index') }}"
+               style="background: white; color: var(--text-primary); text-decoration: none; padding: 0.85rem 1.1rem; border-radius: 12px; border: 1px solid var(--border-color); font-weight: 800; display: flex; align-items: center; gap: 0.6rem; transition: all 0.2s;">
+                <i class="fas fa-diagram-project" aria-hidden="true"></i>
+                الهيكل والصلاحيات
+            </a>
+            <a href="{{ route('admin.library.create') }}"
+               style="background: var(--primary-color); color: white; text-decoration: none; padding: 0.85rem 1.75rem; border-radius: 15px; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; transition: all 0.3s; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                رفع ملف جديد
+            </a>
+        </div>
     </div>
 
     <!-- Stats Overview -->

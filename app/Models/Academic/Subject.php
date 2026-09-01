@@ -98,6 +98,11 @@ class Subject extends Model
         return $this->hasMany(\App\Models\CourseResource::class);
     }
 
+    public function librarySpaces(): HasMany
+    {
+        return $this->hasMany(\App\Models\LibrarySpace::class);
+    }
+
     public function grades(): HasMany
     {
         return $this->hasMany(\App\Models\Grade::class);

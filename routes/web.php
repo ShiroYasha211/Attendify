@@ -128,6 +128,18 @@ Route::prefix('admin')
         Route::delete('activities/cleanup', [App\Http\Controllers\Admin\ActivityController::class, 'cleanup'])->name('activities.cleanup');
 
         // Shared Library Management
+        Route::prefix('library-structure')->name('library-structure.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\LibraryStructureController::class, 'index'])->name('index');
+            Route::get('lookups/subjects', [App\Http\Controllers\Admin\LibraryStructureController::class, 'lookupSubjects'])->name('lookup-subjects');
+            Route::get('lookups/users', [App\Http\Controllers\Admin\LibraryStructureController::class, 'lookupUsers'])->name('lookup-users');
+            Route::post('nodes', [App\Http\Controllers\Admin\LibraryStructureController::class, 'storeNode'])->name('nodes.store');
+            Route::patch('nodes/{node}', [App\Http\Controllers\Admin\LibraryStructureController::class, 'updateNode'])->name('nodes.update');
+            Route::delete('nodes/{node}', [App\Http\Controllers\Admin\LibraryStructureController::class, 'destroyNode'])->name('nodes.destroy');
+            Route::post('nodes/{node}/move', [App\Http\Controllers\Admin\LibraryStructureController::class, 'moveNode'])->name('nodes.move');
+            Route::post('resources/upload', [App\Http\Controllers\Admin\LibraryStructureController::class, 'uploadResource'])->name('resources.upload');
+            Route::post('contributors', [App\Http\Controllers\Admin\LibraryStructureController::class, 'storeContributor'])->name('contributors.store');
+            Route::delete('contributors/{contributor}', [App\Http\Controllers\Admin\LibraryStructureController::class, 'revokeContributor'])->name('contributors.revoke');
+        });
         Route::post('library/bulk-destroy', [App\Http\Controllers\Admin\LibraryController::class, 'bulkDestroy'])->name('library.bulk-destroy');
         Route::resource('library', App\Http\Controllers\Admin\LibraryController::class)->names('library');
         Route::get('library/{resource}/download', [App\Http\Controllers\Admin\LibraryController::class, 'download'])->name('library.download');
