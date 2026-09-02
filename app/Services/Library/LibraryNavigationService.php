@@ -10,6 +10,7 @@ use App\Models\Academic\Term;
 use App\Models\CourseResource;
 use App\Models\LibraryContributor;
 use App\Models\LibraryNode;
+use App\Models\LibraryNodeResource;
 use App\Models\LibrarySpace;
 use App\Models\User;
 use App\Support\Library\LibraryContract;
@@ -60,13 +61,23 @@ class LibraryNavigationService
                 ->orderBy('name')
                 ->get(['id', 'name']);
 
+            $subjectsQuery = Subject::query()->whereIn('major_id', $majors->pluck('id'));
+            $this->limitSubjectsForUser($subjectsQuery, $user, $type);
+            $subjects = $subjectsQuery->get(['id', 'major_id']);
+            $countsByMajor = $this->aggregateResourceCounts(
+                $subjects,
+                $this->resourceCountsBySubject($user, $type, $subjects->pluck('id')),
+                'major_id'
+            );
+
             return [
                 'breadcrumbs' => [],
                 'children' => $majors->map(fn (Major $major) => $this->child(
                     "major:{$major->id}",
                     'major',
                     $major->name,
-                    'school'
+                    'school',
+                    itemsCount: (int) $countsByMajor->get($major->id, 0)
                 ))->values(),
                 'resources' => null,
                 'capabilities' => $this->emptyCapabilities(),
@@ -87,13 +98,23 @@ class LibraryNavigationService
             ->orderBy('id')
             ->get(['id', 'name']);
 
+        $subjectsQuery = Subject::query()->whereIn('level_id', $levels->pluck('id'));
+        $this->limitSubjectsForUser($subjectsQuery, $user, $type);
+        $subjects = $subjectsQuery->get(['id', 'level_id']);
+        $countsByLevel = $this->aggregateResourceCounts(
+            $subjects,
+            $this->resourceCountsBySubject($user, $type, $subjects->pluck('id')),
+            'level_id'
+        );
+
         return [
             'breadcrumbs' => [],
             'children' => $levels->map(fn (Level $level) => $this->child(
                 "level:{$level->id}",
                 'level',
                 $level->name,
-                'layers'
+                'layers',
+                itemsCount: (int) $countsByLevel->get($level->id, 0)
             ))->values(),
             'resources' => null,
             'capabilities' => $this->emptyCapabilities(),
@@ -117,13 +138,23 @@ class LibraryNavigationService
             ->orderBy('id')
             ->get(['id', 'name']);
 
+        $subjectsQuery = Subject::query()->whereIn('level_id', $levels->pluck('id'));
+        $this->limitSubjectsForUser($subjectsQuery, $user, $type);
+        $subjects = $subjectsQuery->get(['id', 'level_id']);
+        $countsByLevel = $this->aggregateResourceCounts(
+            $subjects,
+            $this->resourceCountsBySubject($user, $type, $subjects->pluck('id')),
+            'level_id'
+        );
+
         return [
             'breadcrumbs' => [$this->crumb("major:{$major->id}", 'major', $major->name)],
             'children' => $levels->map(fn (Level $level) => $this->child(
                 "level:{$level->id}",
                 'level',
                 $level->name,
-                'layers'
+                'layers',
+                itemsCount: (int) $countsByLevel->get($level->id, 0)
             ))->values(),
             'resources' => null,
             'capabilities' => $this->emptyCapabilities(),
@@ -144,13 +175,23 @@ class LibraryNavigationService
             ->orderBy('id')
             ->get(['id', 'level_id', 'name']);
 
+        $subjectsQuery = Subject::query()->whereIn('term_id', $terms->pluck('id'));
+        $this->limitSubjectsForUser($subjectsQuery, $user, $type);
+        $subjects = $subjectsQuery->get(['id', 'term_id']);
+        $countsByTerm = $this->aggregateResourceCounts(
+            $subjects,
+            $this->resourceCountsBySubject($user, $type, $subjects->pluck('id')),
+            'term_id'
+        );
+
         return [
             'breadcrumbs' => $this->levelBreadcrumbs($user, $level),
             'children' => $terms->map(fn (Term $term) => $this->child(
                 "term:{$term->id}",
                 'term',
                 $term->name,
-                'calendar_month'
+                'calendar_month',
+                itemsCount: (int) $countsByTerm->get($term->id, 0)
             ))->values(),
             'resources' => null,
             'capabilities' => $this->emptyCapabilities(),
@@ -164,6 +205,19 @@ class LibraryNavigationService
 
         $subjectsQuery = Subject::query()->where('term_id', $term->id);
         $this->limitSubjectsForUser($subjectsQuery, $user, $type);
+
+        $countSubjectsQuery = clone $subjectsQuery;
+        $countSubjects = $countSubjectsQuery->get(['id', 'semester_id']);
+        $countsBySubject = $this->resourceCountsBySubject(
+            $user,
+            $type,
+            $countSubjects->pluck('id')
+        );
+        $countsBySemester = $this->aggregateResourceCounts(
+            $countSubjects->whereNotNull('semester_id'),
+            $countsBySubject,
+            'semester_id'
+        );
 
         $children = collect();
         if ($term->level->major->has_semesters) {
@@ -179,14 +233,18 @@ class LibraryNavigationService
                 "semester:{$semester->id}",
                 'semester',
                 $semester->name,
-                'date_range'
+                'date_range',
+                itemsCount: (int) $countsBySemester->get($semester->id, 0)
             ));
 
             $subjectsQuery->whereNull('semester_id');
         }
 
         $subjects = $subjectsQuery->orderBy('name')->get(['id', 'name', 'code']);
-        $children = $children->concat($subjects->map(fn (Subject $subject) => $this->subjectChild($subject)))->values();
+        $children = $children->concat($subjects->map(fn (Subject $subject) => $this->subjectChild(
+            $subject,
+            (int) $countsBySubject->get($subject->id, 0)
+        )))->values();
 
         return [
             'breadcrumbs' => [
@@ -207,6 +265,7 @@ class LibraryNavigationService
         $subjectsQuery = Subject::query()->where('semester_id', $semester->id);
         $this->limitSubjectsForUser($subjectsQuery, $user, $type);
         $subjects = $subjectsQuery->orderBy('name')->get(['id', 'name', 'code']);
+        $countsBySubject = $this->resourceCountsBySubject($user, $type, $subjects->pluck('id'));
 
         return [
             'breadcrumbs' => [
@@ -214,7 +273,10 @@ class LibraryNavigationService
                 $this->crumb("term:{$semester->term->id}", 'term', $semester->term->name),
                 $this->crumb("semester:{$semester->id}", 'semester', $semester->name),
             ],
-            'children' => $subjects->map(fn (Subject $subject) => $this->subjectChild($subject))->values(),
+            'children' => $subjects->map(fn (Subject $subject) => $this->subjectChild(
+                $subject,
+                (int) $countsBySubject->get($subject->id, 0)
+            ))->values(),
             'resources' => null,
             'capabilities' => $this->emptyCapabilities(),
         ];
@@ -239,6 +301,8 @@ class LibraryNavigationService
                 ->orderBy('title')
                 ->get();
 
+            $nodeCounts = $this->nodeResourceCounts($user, $type, $subject, $space);
+
             $sections = $nodes->map(fn (LibraryNode $node) => $this->child(
                 "custom:{$node->id}",
                 $node->node_type,
@@ -246,19 +310,27 @@ class LibraryNavigationService
                 $node->icon ?: 'folder',
                 true,
                 $node->is_system,
-                $node->sort_order
+                $node->sort_order,
+                (int) ($nodeCounts[$node->id] ?? 0)
             ));
         }
 
         if ($sections->isEmpty()) {
+            $categoryCounts = $this->resourceCountsByCategory($user, $type, $subject);
             $sections = collect(LibraryContract::DEFAULT_SECTIONS)
-                ->map(fn (array $section, string $slug) => $this->child(
-                    "section:{$subject->id}:{$slug}",
-                    'section',
-                    $section['title'],
-                    $section['icon'],
-                    true
-                ));
+                ->map(function (array $section, string $slug) use ($subject, $categoryCounts) {
+                    $count = collect($section['aliases'])
+                        ->sum(fn (string $alias) => (int) $categoryCounts->get($alias, 0));
+
+                    return $this->child(
+                        "section:{$subject->id}:{$slug}",
+                        'section',
+                        $section['title'],
+                        $section['icon'],
+                        true,
+                        itemsCount: $count
+                    );
+                });
         }
 
         return [
@@ -315,6 +387,7 @@ class LibraryNavigationService
         }
 
         $subject = $this->authorizedSubject($user, $type, $node->space->subject_id);
+        $nodeCounts = $this->nodeResourceCounts($user, $type, $subject, $node->space);
         $resourcesQuery = $this->resourceQuery($user, $type, $subject);
         if ($node->is_system && isset(LibraryContract::DEFAULT_SECTIONS[$node->slug])) {
             $aliases = LibraryContract::DEFAULT_SECTIONS[$node->slug]['aliases'];
@@ -347,7 +420,8 @@ class LibraryNavigationService
                 $child->icon ?: 'folder',
                 $child->children_count > 0,
                 false,
-                $child->sort_order
+                $child->sort_order,
+                (int) ($nodeCounts[$child->id] ?? 0)
             ))->values(),
             'resources' => $this->resourcePage($resources, $type),
             'capabilities' => $this->capabilities($user, $type, $subject, $node->space, $node),
@@ -750,11 +824,138 @@ class LibraryNavigationService
         ))->values()->all();
     }
 
-    private function subjectChild(Subject $subject): array
+    private function resourceCountsBySubject(
+        User $user,
+        string $type,
+        Collection $subjectIds
+    ): Collection {
+        $subjectIds = $subjectIds->filter()->unique()->values();
+        if ($subjectIds->isEmpty()) {
+            return collect();
+        }
+
+        $query = CourseResource::query()->whereIn('subject_id', $subjectIds);
+        $this->limitResourceQueryForUser($query, $user, $type);
+
+        return $query
+            ->selectRaw('subject_id, COUNT(*) as aggregate')
+            ->groupBy('subject_id')
+            ->pluck('aggregate', 'subject_id')
+            ->map(fn ($count) => (int) $count);
+    }
+
+    private function aggregateResourceCounts(
+        Collection $subjects,
+        Collection $countsBySubject,
+        string $groupKey
+    ): Collection {
+        return $subjects
+            ->groupBy($groupKey)
+            ->map(fn (Collection $group) => $group->sum(
+                fn (Subject $subject) => (int) $countsBySubject->get($subject->id, 0)
+            ));
+    }
+
+    private function resourceCountsByCategory(
+        User $user,
+        string $type,
+        Subject $subject
+    ): Collection {
+        $query = CourseResource::query()->where('subject_id', $subject->id);
+        $this->limitResourceQueryForUser($query, $user, $type);
+
+        return $query
+            ->selectRaw('category, COUNT(*) as aggregate')
+            ->groupBy('category')
+            ->pluck('aggregate', 'category')
+            ->map(fn ($count) => (int) $count);
+    }
+
+    private function nodeResourceCounts(
+        User $user,
+        string $type,
+        Subject $subject,
+        LibrarySpace $space
+    ): array {
+        $nodes = $space->nodes()
+            ->where('is_active', true)
+            ->get(['id', 'parent_id', 'slug', 'is_system']);
+        if ($nodes->isEmpty()) {
+            return [];
+        }
+
+        $resourcesQuery = CourseResource::query()->where('subject_id', $subject->id);
+        $this->limitResourceQueryForUser($resourcesQuery, $user, $type);
+        $resources = $resourcesQuery->get(['id', 'category']);
+        $resourceIds = $resources->pluck('id');
+
+        $directSets = [];
+        if ($resourceIds->isNotEmpty()) {
+            LibraryNodeResource::query()
+                ->whereIn('library_node_id', $nodes->pluck('id'))
+                ->whereIn('course_resource_id', $resourceIds)
+                ->get(['library_node_id', 'course_resource_id'])
+                ->each(function (LibraryNodeResource $placement) use (&$directSets) {
+                    $directSets[$placement->library_node_id][$placement->course_resource_id] = true;
+                });
+        }
+
+        $categorySets = [];
+        foreach ($resources as $resource) {
+            $categorySets[$resource->category][$resource->id] = true;
+        }
+
+        $nodesById = $nodes->keyBy('id');
+        $childrenByParent = $nodes->groupBy(fn (LibraryNode $node) => (int) ($node->parent_id ?? 0));
+        $memo = [];
+        $collectResourceSet = function (int $nodeId) use (
+            &$collectResourceSet,
+            &$memo,
+            $nodesById,
+            $childrenByParent,
+            $directSets,
+            $categorySets
+        ): array {
+            if (isset($memo[$nodeId])) {
+                return $memo[$nodeId];
+            }
+
+            /** @var LibraryNode|null $node */
+            $node = $nodesById->get($nodeId);
+            if (! $node) {
+                return [];
+            }
+
+            $set = $directSets[$nodeId] ?? [];
+            if ($node->is_system && isset(LibraryContract::DEFAULT_SECTIONS[$node->slug])) {
+                foreach (LibraryContract::DEFAULT_SECTIONS[$node->slug]['aliases'] as $alias) {
+                    $set += $categorySets[$alias] ?? [];
+                }
+            }
+
+            foreach ($childrenByParent->get($nodeId, collect()) as $child) {
+                $set += $collectResourceSet((int) $child->id);
+            }
+
+            return $memo[$nodeId] = $set;
+        };
+
+        return $nodes->mapWithKeys(fn (LibraryNode $node) => [
+            $node->id => count($collectResourceSet((int) $node->id)),
+        ])->all();
+    }
+
+    private function subjectChild(Subject $subject, int $itemsCount = 0): array
     {
         $title = $subject->code ? "{$subject->name} ({$subject->code})" : $subject->name;
 
-        return $this->child("subject:{$subject->id}", 'subject', $title, 'menu_book');
+        return $this->child(
+            "subject:{$subject->id}",
+            'subject',
+            $title,
+            'menu_book',
+            itemsCount: $itemsCount
+        );
     }
 
     private function child(
@@ -764,7 +965,8 @@ class LibraryNavigationService
         string $icon,
         bool $hasChildren = true,
         bool $isSystem = true,
-        int $sortOrder = 0
+        int $sortOrder = 0,
+        int $itemsCount = 0
     ): array {
         return [
             'key' => $key,
@@ -774,6 +976,8 @@ class LibraryNavigationService
             'has_children' => $hasChildren,
             'is_system' => $isSystem,
             'sort_order' => $sortOrder,
+            'items_count' => $itemsCount,
+            'is_empty' => $itemsCount === 0,
         ];
     }
 
