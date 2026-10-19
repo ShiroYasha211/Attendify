@@ -7,6 +7,7 @@ use App\Models\FlashcardPack;
 use App\Models\FlashcardProgress;
 use App\Models\FlashcardUserSetting;
 use App\Models\PublicPackStore;
+use App\Services\FlashcardDailyScheduleService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -809,21 +810,44 @@ class FlashcardController extends StudentApiController
 
     public function oneLineNotifications(Request $request)
     {
+        $request->validate(['days' => 'sometimes|integer|min:1|max:3', 'reschedule' => 'sometimes|boolean']);
+        $days = (int) $request->input('days', 1);
+        $today = now()->startOfDay();
+        $result = null;
+        $items = [];
+        $generatedAt = '';
+        for ($offset = 0; $offset < $days; $offset++) {
+            $day = $this->buildOneLineNotifications($request, $today->copy()->addDays($offset));
+            $result ??= $day;
+            $items = array_merge($items, $day['items']);
+            $generatedAt = max($generatedAt, $day['generated_at']);
+        }
+
+        return $this->success(array_merge($result, [
+            'items' => $items, 'total' => count($items),
+            'generated_at' => $generatedAt,
+            'valid_until' => $today->copy()->addDays($days)->toIso8601String(),
+        ]));
+    }
+
+    private function buildOneLineNotifications(Request $request, Carbon $date): array
+    {
         $user = $request->user();
-        $today = now()->toDateString();
+        $today = $date->toDateString();
         $settings = $this->flashcardSettings($user->id);
 
-        if (!$settings->one_line_notifications_enabled) {
-            return $this->success([
+        if (! $settings->one_line_notifications_enabled) {
+            return [
                 'items' => [],
                 'total' => 0,
                 'date' => $today,
+                'generated_at' => now()->toISOString(),
                 'settings' => $settings,
                 'summary' => [
                     'enabled' => false,
                     'message' => 'إشعارات One Line متوقفة.',
                 ],
-            ]);
+            ];
         }
 
         $packs = FlashcardPack::forUser($user->id)
@@ -836,7 +860,7 @@ class FlashcardController extends StudentApiController
         $candidates = collect();
 
         foreach ($packs as $pack) {
-            if (!$this->packIsScheduledForDate($pack, now())) {
+            if (! $this->packIsScheduledForDate($pack, $date)) {
                 continue;
             }
 
@@ -852,76 +876,86 @@ class FlashcardController extends StudentApiController
                 continue;
             }
 
-            $progressMap = FlashcardProgress::where('user_id', $user->id)
-                ->whereIn('item_id', $packItems->pluck('id'))
-                ->get()
-                ->keyBy('item_id');
-
             foreach ($packItems as $item) {
-                $item->user_progress = $progressMap->get($item->id);
                 $candidates->push(['pack' => $pack, 'item' => $item]);
             }
         }
 
-        $limit = max(1, (int) ($settings->one_line_daily_limit ?? $settings->daily_card_limit ?? 5));
-        $selected = $candidates
-            ->sortBy(function (array $entry) {
+        $schedules = app(FlashcardDailyScheduleService::class);
+        $fingerprint = hash('sha256', json_encode([
+            $settings->only($settings->getFillable()),
+            $candidates->map(fn ($entry) => [
+                $entry['pack']->id, $entry['pack']->updated_at?->toIso8601String(),
+                $entry['item']->id, $entry['item']->updated_at?->toIso8601String(),
+                $entry['item']->front_content, $entry['item']->priority, $entry['item']->sort_order,
+            ])->all(),
+        ], JSON_THROW_ON_ERROR));
+
+        return $schedules->remember($user->id, $today, 'one_line', $fingerprint, function () use ($candidates, $settings, $date, $today, $user, $schedules) {
+            $lastSelected = $schedules->lastSelectedDates($user->id, $today);
+            $limit = max(1, min(100, (int) ($settings->one_line_daily_limit ?? $settings->daily_card_limit ?? 5)));
+            $selected = $candidates
+                ->sortBy(function (array $entry) use ($lastSelected) {
+                    /** @var FlashcardPack $pack */
+                    $pack = $entry['pack'];
+                    /** @var FlashcardItem $item */
+                    $item = $entry['item'];
+
+                    return [
+                        $lastSelected[$item->id] ?? '',
+                        $this->packPriorityWeight($pack),
+                        match ($item->priority) {
+                            'critical' => 0,
+                            'high' => 1,
+                            default => 2,
+                        },
+                        $item->sort_order,
+                        $item->id,
+                    ];
+                })
+                ->take($limit)
+                ->values();
+
+            $scheduleSettings = $this->oneLineScheduleSettings($settings);
+            $start = $date->isToday() ? now()->addMinute()->startOfMinute() : $date->copy()->hour(8);
+            $scheduleTimes = $this->resolveScheduledTimes($scheduleSettings, $selected->count(), 0, $start);
+            $selected = $selected->take(count($scheduleTimes));
+
+            $items = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $scheduleSettings) {
                 /** @var FlashcardPack $pack */
                 $pack = $entry['pack'];
                 /** @var FlashcardItem $item */
                 $item = $entry['item'];
+                $scheduledAt = $scheduleTimes[$index] ?? now()->copy()->seconds(0)->microsecond(0);
+                $title = trim((string) $pack->title);
 
-                return [
-                    $this->packPriorityWeight($pack),
-                    $item->user_progress?->last_shown_at?->timestamp ?? 0,
-                    match ($item->priority) {
-                        'critical' => 0,
-                        'high' => 1,
-                        default => 2,
-                    },
-                    $item->sort_order,
-                    $item->id,
-                ];
-            })
-            ->take($limit)
-            ->values();
+                return array_merge(
+                    $this->dailyQueueItem($pack, $item, $scheduledAt, false, $scheduleSettings),
+                    [
+                        'notification_title' => $title === '' || $title === 'جديد'
+                            ? 'تذكير One Line'
+                            : "تذكير One Line - {$title}",
+                        'notification_body' => trim((string) $item->front_content),
+                        'notification_subtitle' => $title === '' ? 'One Line Shot' : $title,
+                        'requires_response' => false,
+                    ]
+                );
+            })->all();
 
-        $scheduleSettings = $this->oneLineScheduleSettings($settings);
-        $scheduleTimes = $this->resolveScheduledTimes($scheduleSettings, $selected->count(), 0);
-
-        $items = $selected->map(function (array $entry, int $index) use ($scheduleTimes, $scheduleSettings) {
-            /** @var FlashcardPack $pack */
-            $pack = $entry['pack'];
-            /** @var FlashcardItem $item */
-            $item = $entry['item'];
-            $scheduledAt = $scheduleTimes[$index] ?? now()->copy()->seconds(0)->microsecond(0);
-            $title = trim((string) $pack->title);
-
-            return array_merge(
-                $this->dailyQueueItem($pack, $item, $scheduledAt, false, $scheduleSettings),
-                [
-                    'notification_title' => $title === '' || $title === 'جديد'
-                        ? 'تذكير One Line'
-                        : "تذكير One Line - {$title}",
-                    'notification_body' => trim((string) $item->front_content),
-                    'notification_subtitle' => $title === '' ? 'One Line Shot' : $title,
-                    'requires_response' => false,
-                ]
-            );
-        })->all();
-
-        return $this->success([
-            'items' => $items,
-            'total' => count($items),
-            'date' => $today,
-            'settings' => $settings,
-            'summary' => [
-                'enabled' => true,
-                'daily_limit' => $limit,
-                'frequency_minutes' => $scheduleSettings->smart_review_frequency_minutes,
-                'next_time_label' => $items[0]['scheduled_time_label'] ?? null,
-            ],
-        ]);
+            return [
+                'items' => $items,
+                'total' => count($items),
+                'date' => $today,
+                'generated_at' => now()->toISOString(),
+                'settings' => $settings,
+                'summary' => [
+                    'enabled' => true,
+                    'daily_limit' => $limit,
+                    'frequency_minutes' => $scheduleSettings->smart_review_frequency_minutes,
+                    'next_time_label' => $items[0]['scheduled_time_label'] ?? null,
+                ],
+            ];
+        }, $date->isToday() && $request->boolean('reschedule'));
     }
 
     public function getDailyQueue(Request $request)
@@ -930,7 +964,7 @@ class FlashcardController extends StudentApiController
         $today = now()->toDateString();
         $settings = $this->flashcardSettings($user->id);
 
-        if (!$settings->smart_review_enabled) {
+        if (! $settings->smart_review_enabled) {
             return $this->success([
                 'queue' => [],
                 'pending' => [],
@@ -954,7 +988,7 @@ class FlashcardController extends StudentApiController
         $reviewedCandidates = collect();
 
         foreach ($packs as $pack) {
-            if (!$this->packIsScheduledForDate($pack, now())) {
+            if (! $this->packIsScheduledForDate($pack, now())) {
                 continue;
             }
 
@@ -996,7 +1030,8 @@ class FlashcardController extends StudentApiController
 
                     return $item;
                 })
-                ->filter(fn (FlashcardItem $item) => $item->user_progress?->last_shown_at?->toDateString() !== now()->toDateString())
+                ->filter(fn (FlashcardItem $item) => $item->user_progress?->last_shown_at?->toDateString() !== now()->toDateString()
+                    && (! $item->user_progress?->next_review_at || $item->user_progress->next_review_at->lessThanOrEqualTo(now())))
                 ->sortBy(function (FlashcardItem $item) {
                     return [
                         -1 * ($item->user_progress?->review_weight ?? 2),
@@ -1049,9 +1084,33 @@ class FlashcardController extends StudentApiController
             ->values();
 
         $reviewedCount = $reviewedSelected->count();
-        $dueCount = $selected->count();
         $reviewedScheduleTimes = $this->resolveScheduledTimes($settings, $reviewedCount, 0);
-        $queueScheduleTimes = $this->resolveScheduledTimes($settings, $dueCount, 0);
+        $reviewFingerprint = hash('sha256', json_encode($settings->only($settings->getFillable()), JSON_THROW_ON_ERROR));
+        $reviewTimes = app(FlashcardDailyScheduleService::class)->remember(
+            $user->id, $today, 'review', $reviewFingerprint,
+            function () use ($selected, $settings, $user, $today, $reviewFingerprint) {
+                $saved = DB::table('flashcard_daily_schedules')->where('user_id', $user->id)
+                    ->where('schedule_date', $today)->where('kind', 'review')->first();
+                $assigned = $saved && $saved->fingerprint === $reviewFingerprint
+                    ? json_decode($saved->payload, true, 512, JSON_THROW_ON_ERROR) : [];
+                $missing = $selected->reject(fn ($entry) => isset($assigned[$entry['item']->id]))
+                    ->take(max(0, (int) $settings->daily_card_limit - count($assigned)))->values();
+                $from = now()->startOfMinute();
+                if ($assigned) {
+                    $afterLast = Carbon::parse(max($assigned))->addMinutes(max(1, (int) $settings->smart_review_frequency_minutes));
+                    if ($afterLast->isAfter($from)) {
+                        $from = $afterLast;
+                    }
+                }
+                $times = $this->resolveScheduledTimes($settings, $missing->count(), 0, $from);
+                foreach ($missing->take(count($times)) as $index => $entry) {
+                    $assigned[$entry['item']->id] = $times[$index]->toIso8601String();
+                }
+
+                return $assigned;
+            }, true
+        );
+        $selected = $selected->filter(fn ($entry) => isset($reviewTimes[$entry['item']->id]))->values();
 
         $reviewedToday = [];
         foreach ($reviewedSelected as $index => $entry) {
@@ -1072,12 +1131,12 @@ class FlashcardController extends StudentApiController
             );
         }
 
-        $queue = $selected->map(function (array $entry, int $index) use ($queueScheduleTimes, $settings) {
+        $queue = $selected->map(function (array $entry, int $index) use ($reviewTimes, $settings) {
             /** @var FlashcardPack $pack */
             $pack = $entry['pack'];
             /** @var FlashcardItem $item */
             $item = $entry['item'];
-            $scheduledTime = $queueScheduleTimes[$index] ?? now();
+            $scheduledTime = Carbon::parse($reviewTimes[$item->id]);
 
             return $this->dailyQueueItem($pack, $item, $scheduledTime, false, $settings);
         })->all();
@@ -1085,11 +1144,11 @@ class FlashcardController extends StudentApiController
         usort($queue, function ($a, $b) {
             return [
                 $a['pack_priority_weight'] ?? 1,
-                !($a['available_now'] ?? false),
+                ! ($a['available_now'] ?? false),
                 $a['scheduled_time'] ?? '',
             ] <=> [
                 $b['pack_priority_weight'] ?? 1,
-                !($b['available_now'] ?? false),
+                ! ($b['available_now'] ?? false),
                 $b['scheduled_time'] ?? '',
             ];
         });
@@ -1907,14 +1966,15 @@ class FlashcardController extends StudentApiController
         }
 
         $frequency = max(1, (int) ($settings->smart_review_frequency_minutes ?? 30));
-        $now = now()->copy()->seconds(0)->microsecond(0);
+        $now = $from?->copy() ?? now()->startOfDay()->hour(8);
+        $day = $now->toDateString();
         $cursor = $now->copy();
         if ($settings->active_from_time) {
             $parts = explode(':', $settings->active_from_time);
             if (count($parts) >= 2) {
-                $activeStart = now()->startOfDay()
-                    ->hour((int)$parts[0])
-                    ->minute((int)$parts[1])
+                $activeStart = $now->copy()->startOfDay()
+                    ->hour((int) $parts[0])
+                    ->minute((int) $parts[1])
                     ->seconds(0)
                     ->microsecond(0);
                 if ($activeStart->isAfter($now)) {
@@ -1922,7 +1982,7 @@ class FlashcardController extends StudentApiController
                 }
             }
         } elseif ($now->hour < 8) {
-            $cursor = now()->startOfDay();
+            $cursor = $now->copy()->startOfDay();
             $cursor->hour(8)->minute(0);
         }
         $cursor->seconds(0)->microsecond(0);
@@ -1930,23 +1990,16 @@ class FlashcardController extends StudentApiController
         $selected = [];
         $guard = 0;
 
-        while (count($selected) < $totalCount && $guard < 2880) {
+        while (count($selected) < $totalCount && $guard < 1440 && $cursor->toDateString() === $day) {
             if ($this->settingsAllowDateTime($settings, $cursor)) {
                 $selected[] = $cursor->copy();
                 $cursor->addMinutes($frequency);
+
                 continue;
             }
 
             $cursor->addMinute();
             $guard++;
-        }
-
-        if (empty($selected)) {
-            $selected[] = now()->copy()->seconds(0);
-        }
-
-        while (count($selected) < $totalCount) {
-            $selected[] = end($selected)->copy()->addMinutes($frequency);
         }
 
         return array_slice($selected, $reviewedCount);
