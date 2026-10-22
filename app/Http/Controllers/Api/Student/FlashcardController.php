@@ -113,6 +113,7 @@ class FlashcardController extends StudentApiController
         return $this->success([
             'pack' => $pack,
             'items' => $items,
+            'can_manage_items' => $pack->user_id === $request->user()->id && !$pack->is_assigned,
             'child_packs' => $pack->childPacks->map(function (FlashcardPack $childPack) {
                 $childPack->items_count = $childPack->cardsCount();
 
@@ -310,7 +311,7 @@ class FlashcardController extends StudentApiController
         $this->assertCanManageItems($pack);
 
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,xls',
+            'file' => 'required|file|mimes:xlsx,csv,txt,xls|extensions:xlsx,csv,xls|max:10240',
         ]);
 
         $file = $request->file('file');
@@ -383,7 +384,7 @@ class FlashcardController extends StudentApiController
         $this->assertCanManageItems($pack);
 
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,xls',
+            'file' => 'required|file|mimes:xlsx,csv,txt,xls|extensions:xlsx,csv,xls|max:10240',
         ]);
 
         $file = $request->file('file');
@@ -394,7 +395,7 @@ class FlashcardController extends StudentApiController
             mkdir($tempDir, 0755, true);
         }
 
-        $tempFileName = 'student_' . $request->user()->id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+        $tempFileName = 'student_' . $request->user()->id . '_pack_' . $pack->id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
         $file->move($tempDir, $tempFileName);
         $tempFilePath = 'temp_imports/student_flashcards/' . $tempFileName;
 
@@ -406,8 +407,9 @@ class FlashcardController extends StudentApiController
             }
 
             $firstRow = $rows[0];
+            $columnCount = max(array_map('count', $rows));
             $columns = [];
-            foreach ($firstRow as $index => $value) {
+            foreach (array_pad($firstRow, $columnCount, null) as $index => $value) {
                 $columns[$index] = trim((string) ($value ?? '')) ?: ('العمود ' . ($index + 1));
             }
 
@@ -455,7 +457,10 @@ class FlashcardController extends StudentApiController
         ]);
 
         $tempFile = (string) $validated['temp_file'];
-        if (!str_starts_with($tempFile, 'temp_imports/student_flashcards/')) {
+        $tempDirectory = 'temp_imports/student_flashcards/';
+        $filename = basename($tempFile);
+        $expectedPrefix = 'student_' . $request->user()->id . '_pack_' . $pack->id . '_';
+        if ($tempFile !== $tempDirectory . $filename || !str_starts_with($filename, $expectedPrefix)) {
             return $this->error('مسار ملف الاستيراد المؤقت غير صالح، يرجى الرفع من جديد.', 422);
         }
 
@@ -473,14 +478,28 @@ class FlashcardController extends StudentApiController
                 return $this->error('الملف لا يحتوي على بيانات صالحة.', 422);
             }
 
+            $columnCount = max(array_map('count', $rows));
+            foreach (['front_content_col', 'item_type_col', 'back_content_col', 'correct_option_col', 'priority_col', 'color_col'] as $columnKey) {
+                $column = (int) $validated[$columnKey];
+                if ($column < ($columnKey === 'front_content_col' ? 0 : -1) || $column >= $columnCount) {
+                    return $this->error('أحد الأعمدة المحددة غير موجود في الملف. راجع ربط الأعمدة.', 422);
+                }
+            }
+            foreach ($validated['options_cols'] ?? [] as $column) {
+                if ($column < 0 || $column >= $columnCount) {
+                    return $this->error('أحد أعمدة الخيارات غير موجود في الملف.', 422);
+                }
+            }
+
             $startRowIndex = $request->boolean('has_headers') ? 1 : 0;
-            $itemsCountBefore = $pack->items()->count();
             $existingItems = $pack->items()
                 ->select(['id', 'front_content'])
                 ->get()
                 ->keyBy(fn ($item) => mb_strtolower(trim($item->front_content)));
 
             $toInsert = [];
+            $queuedIndexes = [];
+            $nextSortOrder = ($pack->items()->max('sort_order') ?? -1) + 1;
             $insertedCount = 0;
             $updatedCount = 0;
             $ignoredCount = 0;
@@ -528,21 +547,29 @@ class FlashcardController extends StudentApiController
 
                 if ($itemType === 'mcq') {
                     $options = [];
-                    foreach (($validated['options_cols'] ?? []) as $colIndex) {
+                    $optionColumns = array_values(array_unique($validated['options_cols'] ?? []));
+                    $optionIndexes = [];
+                    foreach ($optionColumns as $optionIndex => $colIndex) {
                         if (isset($row[$colIndex]) && trim((string) $row[$colIndex]) !== '') {
+                            $optionIndexes[$optionIndex] = count($options);
                             $options[] = trim((string) $row[$colIndex]);
                         }
                     }
 
-                    if (count($options) < 2) {
-                        $failedRows[] = ['row' => $rowNum, 'reason' => 'تم تحديد اختيار متعدد ولكن عدد الخيارات الصالحة أقل من خيارين.'];
+                    if (count($options) < 2 || count($options) > 6) {
+                        $failedRows[] = ['row' => $rowNum, 'reason' => 'يجب أن يحتوي السؤال على خيارين إلى ستة خيارات صالحة.'];
                         continue;
                     }
 
                     $correctCol = (int) $validated['correct_option_col'];
                     $correctVal = ($correctCol >= 0 && isset($row[$correctCol])) ? $row[$correctCol] : null;
-                    $correct = is_numeric($correctVal) ? (int) $correctVal : 1;
-                    $correctOption = max(0, min(count($options) - 1, $correct > 0 ? $correct - 1 : $correct));
+                    $correct = $correctCol < 0 ? 1 : filter_var($correctVal, FILTER_VALIDATE_INT);
+                    $originalIndex = $correct === 0 ? 0 : $correct - 1;
+                    if ($correct === false || $correct < 0 || !array_key_exists($originalIndex, $optionIndexes)) {
+                        $failedRows[] = ['row' => $rowNum, 'reason' => 'رقم الإجابة الصحيحة غير صالح أو يشير إلى خيار فارغ.'];
+                        continue;
+                    }
+                    $correctOption = $optionIndexes[$originalIndex];
                 } else {
                     $backCol = (int) $validated['back_content_col'];
                     $backVal = ($backCol >= 0 && isset($row[$backCol])) ? trim((string) $row[$backCol]) : '';
@@ -554,7 +581,7 @@ class FlashcardController extends StudentApiController
                 }
 
                 $frontKey = mb_strtolower(trim($front));
-                $duplicateExists = $existingItems->has($frontKey);
+                $duplicateExists = $existingItems->has($frontKey) || isset($queuedIndexes[$frontKey]);
 
                 if ($duplicateExists && $validated['duplicate_strategy'] === 'ignore') {
                     $ignoredCount++;
@@ -562,8 +589,17 @@ class FlashcardController extends StudentApiController
                 }
 
                 if ($duplicateExists && $validated['duplicate_strategy'] === 'update') {
+                    if (isset($queuedIndexes[$frontKey])) {
+                        $queuedIndex = $queuedIndexes[$frontKey];
+                        $toInsert[$queuedIndex] = array_merge($toInsert[$queuedIndex], [
+                            'item_type' => $itemType, 'back_content' => $back,
+                            'options' => $options ? json_encode($options, JSON_UNESCAPED_UNICODE) : null,
+                            'correct_option' => $correctOption, 'item_color' => $color, 'priority' => $priority,
+                        ]);
+                        continue;
+                    }
                     $existingItem = $existingItems->get($frontKey);
-                    FlashcardItem::where('id', $existingItem->id)->update([
+                    $existingItem->update([
                         'item_type' => $itemType,
                         'back_content' => $back,
                         'options' => $options,
@@ -575,6 +611,7 @@ class FlashcardController extends StudentApiController
                     continue;
                 }
 
+                $queuedIndexes[$frontKey] = count($toInsert);
                 $toInsert[] = [
                     'pack_id' => $pack->id,
                     'item_type' => $itemType,
@@ -584,7 +621,7 @@ class FlashcardController extends StudentApiController
                     'correct_option' => $correctOption,
                     'item_color' => $color,
                     'priority' => $priority,
-                    'sort_order' => $itemsCountBefore + count($toInsert),
+                    'sort_order' => $nextSortOrder++,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -646,7 +683,11 @@ class FlashcardController extends StudentApiController
         $itemType = $request->input('item_type', $item->resolved_item_type);
         $validated = $this->validateItemPayload($request, $itemType);
 
-        $item->update($this->mapItemData($validated, $item->pack, $itemType, false));
+        $data = $this->mapItemData($validated, $item->pack, $itemType, false);
+        if (!array_key_exists('item_color', $validated)) {
+            unset($data['item_color']);
+        }
+        $item->update($data);
 
         return $this->success(['item' => $item->fresh()], 'Item updated successfully.');
     }
@@ -775,6 +816,7 @@ class FlashcardController extends StudentApiController
             'item_id' => 'required|exists:flashcard_items,id',
             'response_level' => 'nullable|in:easy,medium,hard',
             'is_correct' => 'nullable|boolean',
+            'client_event_id' => 'nullable|uuid',
         ]);
 
         $responseLevel = $validated['response_level'] ?? $this->mapLegacyResponse((bool) ($validated['is_correct'] ?? false));
@@ -785,27 +827,50 @@ class FlashcardController extends StudentApiController
             return $this->error('Unauthorized for this item.', 403);
         }
 
-        $progress = FlashcardProgress::firstOrCreate(
-            ['user_id' => $user->id, 'item_id' => $item->id],
-            ['times_shown' => 0, 'times_correct' => 0, 'review_weight' => 2]
-        );
+        return DB::transaction(function () use ($validated, $user, $item, $responseLevel) {
+            DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
+            $eventId = $validated['client_event_id'] ?? null;
+            if ($eventId !== null) {
+                $event = DB::table('flashcard_progress_events')->where('user_id', $user->id)
+                    ->where('client_event_id', $eventId)->first();
+                if ($event) {
+                    if ((int) $event->item_id !== $item->id || $event->response_level !== $responseLevel) {
+                        return $this->error('This review event was already used for a different answer.', 409);
+                    }
+                    return $this->success(json_decode($event->result, true, 512, JSON_THROW_ON_ERROR), 'Progress recorded successfully.');
+                }
+            }
+            $progress = FlashcardProgress::firstOrCreate(
+                ['user_id' => $user->id, 'item_id' => $item->id],
+                ['times_shown' => 0, 'times_correct' => 0, 'review_weight' => 2]
+            );
 
-        $progress->times_shown += 1;
-        if (in_array($responseLevel, ['easy', 'medium'], true)) {
-            $progress->times_correct += 1;
-        }
+            $progress->times_shown += 1;
+            if (in_array($responseLevel, ['easy', 'medium'], true)) {
+                $progress->times_correct += 1;
+            }
 
-        $progress->last_response = $responseLevel;
-        $progress->review_weight = match ($responseLevel) {
-            'easy' => 1,
-            'medium' => 2,
-            'hard' => 3,
-        };
-        $progress->last_shown_at = now();
-        $progress->next_review_at = $this->calculateNextReview($item->pack, $progress, $responseLevel);
-        $progress->save();
+            $progress->last_response = $responseLevel;
+            $progress->review_weight = match ($responseLevel) {
+                'easy' => 1,
+                'medium' => 2,
+                'hard' => 3,
+            };
+            $progress->last_shown_at = now();
+            $progress->next_review_at = $this->calculateNextReview($item->pack, $progress, $responseLevel);
+            $progress->save();
 
-        return $this->success(['progress' => $progress->fresh()], 'Progress recorded successfully.');
+            $result = ['progress' => $progress->fresh()->toArray()];
+            if ($eventId !== null) {
+                DB::table('flashcard_progress_events')->insert([
+                    'user_id' => $user->id, 'client_event_id' => $eventId,
+                    'item_id' => $item->id, 'response_level' => $responseLevel,
+                    'result' => json_encode($result, JSON_THROW_ON_ERROR),
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+            return $this->success($result, 'Progress recorded successfully.');
+        });
     }
 
     public function oneLineNotifications(Request $request)
@@ -883,6 +948,7 @@ class FlashcardController extends StudentApiController
 
         $schedules = app(FlashcardDailyScheduleService::class);
         $fingerprint = hash('sha256', json_encode([
+            'date-anchored-v2',
             $settings->only($settings->getFillable()),
             $candidates->map(fn ($entry) => [
                 $entry['pack']->id, $entry['pack']->updated_at?->toIso8601String(),
@@ -1580,7 +1646,7 @@ class FlashcardController extends StudentApiController
     private function assertCanManageItems(FlashcardPack $pack): void
     {
         if ($pack->is_assigned) {
-            abort(422, 'Assigned packs cannot be edited directly.');
+            abort(422, 'هذه الحزمة مرتبطة بمصدرها الأصلي، ولا يمكن تعديل عناصرها مباشرة.');
         }
     }
 
@@ -1596,7 +1662,7 @@ class FlashcardController extends StudentApiController
         if ($itemType === 'mcq') {
             $rules['options'] = 'required|array|min:2|max:6';
             $rules['options.*'] = 'required|string|max:500';
-            $rules['correct_option'] = 'required|integer|min:0';
+            $rules['correct_option'] = 'required|integer|min:0|max:' . max(0, count((array) $request->input('options', [])) - 1);
         } elseif ($itemType !== 'one_line') {
             $rules['back_content'] = 'required|string';
         }
@@ -1615,7 +1681,7 @@ class FlashcardController extends StudentApiController
         ];
 
         if ($isCreate) {
-            $data['sort_order'] = $pack->items()->count();
+            $data['sort_order'] = ($pack->items()->max('sort_order') ?? -1) + 1;
         }
 
         if ($itemType === 'mcq') {
@@ -1670,36 +1736,34 @@ class FlashcardController extends StudentApiController
     private function guessImportMapping(array $columns): array
     {
         $mapping = [
-            'item_type_col' => 0,
-            'front_content_col' => 1,
-            'back_content_col' => 2,
-            'options_cols' => [2, 3, 4],
+            'item_type_col' => -1,
+            'front_content_col' => 0,
+            'back_content_col' => -1,
+            'options_cols' => [],
             'correct_option_col' => -1,
-            'priority_col' => 9,
-            'color_col' => 10,
+            'priority_col' => -1,
+            'color_col' => -1,
         ];
 
-        $hasMatchedOptions = false;
         foreach ($columns as $index => $name) {
             $nameLower = mb_strtolower(trim((string) $name));
 
+            if (str_contains($nameLower, 'correct') || str_contains($nameLower, 'صحيح')) {
+                $mapping['correct_option_col'] = $index;
+                continue;
+            }
             if ($nameLower === 'type' || $nameLower === 'item_type' || str_contains($nameLower, 'نوع')) {
                 $mapping['item_type_col'] = $index;
             } elseif ($nameLower === 'front' || $nameLower === 'question' || str_contains($nameLower, 'سؤال') || str_contains($nameLower, 'المحتوى الأمامي') || str_contains($nameLower, 'النص')) {
                 $mapping['front_content_col'] = $index;
             } elseif ($nameLower === 'back' || $nameLower === 'answer' || str_contains($nameLower, 'إجابة') || str_contains($nameLower, 'الاجابة') || str_contains($nameLower, 'المحتوى الخلفي')) {
                 $mapping['back_content_col'] = $index;
-            } elseif (str_contains($nameLower, 'correct') || str_contains($nameLower, 'صحيح')) {
-                $mapping['correct_option_col'] = $index;
             } elseif ($nameLower === 'priority' || str_contains($nameLower, 'أولوية') || str_contains($nameLower, 'الأولوية')) {
                 $mapping['priority_col'] = $index;
             } elseif ($nameLower === 'color' || str_contains($nameLower, 'لون') || str_contains($nameLower, 'اللون')) {
                 $mapping['color_col'] = $index;
-            } elseif (preg_match('/(option|choice|خيار|إختيار|اختيار)\s*\d*/iu', $nameLower) || in_array($nameLower, ['a', 'b', 'c', 'd', 'e', 'f'], true)) {
-                if (!$hasMatchedOptions) {
-                    $mapping['options_cols'] = [];
-                    $hasMatchedOptions = true;
-                }
+            }
+            if (preg_match('/(option|choice|خيار|إختيار|اختيار)\s*\d*/iu', $nameLower) || in_array($nameLower, ['a', 'b', 'c', 'd', 'e', 'f'], true)) {
                 $mapping['options_cols'][] = $index;
             }
         }
@@ -1750,10 +1814,24 @@ class FlashcardController extends StudentApiController
 
         if ($extension === 'csv') {
             $handle = fopen($path, 'r');
-            while (($data = fgetcsv($handle)) !== false) {
-                $rows[] = $data;
+            try {
+                $firstLine = preg_replace('/^\xEF\xBB\xBF/', '', fgets($handle) ?: '');
+                $delimiter = ',';
+                foreach ([';', "\t"] as $candidate) {
+                    if (count(str_getcsv($firstLine, $candidate)) > count(str_getcsv($firstLine, $delimiter))) {
+                        $delimiter = $candidate;
+                    }
+                }
+                rewind($handle);
+                while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
+                    if (count($rows) === 0) {
+                        $data[0] = preg_replace('/^\xEF\xBB\xBF/', '', $data[0] ?? '');
+                    }
+                    $rows[] = $data;
+                }
+            } finally {
+                fclose($handle);
             }
-            fclose($handle);
         } else {
             if (!class_exists('\PhpOffice\PhpSpreadsheet\IOFactory')) {
                 throw new \RuntimeException('PhpSpreadsheet is required to read Excel files.');
@@ -1773,9 +1851,11 @@ class FlashcardController extends StudentApiController
 
                 $rows[] = $data;
             }
+            $spreadsheet->disconnectWorksheets();
         }
 
-        return $rows;
+        return array_values(array_filter($rows, fn ($row) => count(array_filter($row,
+            fn ($value) => $value !== null && trim((string) $value) !== '')) > 0));
     }
 
     private function looksLikeHeader(array $row): bool
@@ -1958,7 +2038,7 @@ class FlashcardController extends StudentApiController
         };
     }
 
-    private function resolveScheduledTimes(FlashcardUserSetting $settings, int $count, int $reviewedCount = 0): array
+    private function resolveScheduledTimes(FlashcardUserSetting $settings, int $count, int $reviewedCount = 0, ?Carbon $from = null): array
     {
         $totalCount = $count + $reviewedCount;
         if ($totalCount <= 0) {

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Api\Student\FlashcardController;
+use App\Models\FlashcardItem;
+use App\Models\FlashcardPack;
 use App\Models\FlashcardUserSetting;
 use App\Models\User;
 use Carbon\Carbon;
@@ -33,6 +35,7 @@ class FlashcardSchedulingTest extends TestCase
             '2026_06_01_000002_create_flashcard_user_settings_table.php',
             '2026_06_07_000001_add_one_line_notification_settings_to_flashcard_user_settings_table.php',
             '2026_10_19_000001_create_flashcard_daily_schedules_table.php',
+            '2026_10_21_000001_create_flashcard_progress_events_table.php',
         ] as $migration) {
             (require database_path('migrations/'.$migration))->up();
         }
@@ -87,6 +90,61 @@ class FlashcardSchedulingTest extends TestCase
         $this->assertCount(6, $data['items']);
         $this->assertCount(6, array_unique(array_column($data['items'], 'item_id')));
         $this->assertSame('2026-10-22', substr($data['valid_until'], 0, 10));
+        $this->assertSame([
+            '2026-10-19' => 2, '2026-10-20' => 2, '2026-10-21' => 2,
+        ], array_count_values(array_map(fn ($item) => substr($item['scheduled_at'], 0, 10), $data['items'])));
+        $this->assertCount(6, array_unique(array_column($data['items'], 'scheduled_at')));
+        $this->assertSame('09:01', Carbon::parse($data['items'][0]['scheduled_at'])->format('H:i'));
+        $this->assertSame('08:00', Carbon::parse($data['items'][2]['scheduled_at'])->format('H:i'));
+        $this->assertSame(30.0, Carbon::parse($data['items'][0]['scheduled_at'])
+            ->diffInMinutes(Carbon::parse($data['items'][1]['scheduled_at'])));
+        $this->assertSame($data['items'], $this->response(query: ['days' => 3])['items']);
+    }
+
+    public function test_late_night_schedule_keeps_future_days_separate(): void
+    {
+        $this->addPack('one_line', 8);
+        $this->response();
+        FlashcardUserSetting::where('user_id', 1)->update([
+            'one_line_daily_limit' => 3, 'one_line_frequency_minutes' => 1,
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-19 23:58:00'));
+        $items = $this->response(query: ['days' => 3])['items'];
+        $this->assertSame([
+            '2026-10-19' => 1, '2026-10-20' => 3, '2026-10-21' => 3,
+        ], array_count_values(array_map(fn ($item) => substr($item['scheduled_at'], 0, 10), $items)));
+        foreach ($items as $item) {
+            $this->assertTrue(Carbon::parse($item['scheduled_at'])->isAfter(now()));
+        }
+    }
+
+    public function test_legacy_snapshot_is_rebuilt_without_changing_user_settings(): void
+    {
+        $ids = $this->addPack('one_line', 1);
+        $this->response();
+        $settings = FlashcardUserSetting::where('user_id', 1)->firstOrFail();
+        $item = FlashcardItem::findOrFail($ids[0]);
+        $pack = FlashcardPack::findOrFail($item->pack_id);
+        $legacyFingerprint = hash('sha256', json_encode([
+            $settings->only($settings->getFillable()),
+            [[
+                $pack->id, $pack->updated_at?->toIso8601String(),
+                $item->id, $item->updated_at?->toIso8601String(),
+                $item->front_content, $item->priority, $item->sort_order,
+            ]],
+        ], JSON_THROW_ON_ERROR));
+        DB::table('flashcard_daily_schedules')->where('user_id', 1)->where('kind', 'one_line')->update([
+            'fingerprint' => $legacyFingerprint,
+            'payload' => json_encode(['items' => [['scheduled_at' => '2026-10-19T08:00:00+00:00']]], JSON_THROW_ON_ERROR),
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-19 09:10:00'));
+
+        $rebuilt = $this->response();
+        $this->assertSame('09:11', Carbon::parse($rebuilt['items'][0]['scheduled_at'])->format('H:i'));
+        $this->assertNotSame($legacyFingerprint, DB::table('flashcard_daily_schedules')
+            ->where('user_id', 1)->where('kind', 'one_line')->value('fingerprint'));
+        $this->assertSame($settings->getAttributes(), $settings->fresh()->getAttributes());
+        $this->assertSame($rebuilt['items'], $this->response()['items']);
     }
 
     public function test_conflicting_quiet_window_creates_no_forbidden_notifications(): void
@@ -148,5 +206,21 @@ class FlashcardSchedulingTest extends TestCase
         $queue = $this->response('getDailyQueue')['queue'];
         $this->assertCount(1, $queue);
         $this->assertSame($ids[0], $queue[0]['item_id']);
+    }
+
+    public function test_retrying_a_review_event_does_not_count_the_answer_twice(): void
+    {
+        $ids = $this->addPack('mcq', 1);
+        $query = ['item_id' => $ids[0], 'response_level' => 'easy',
+            'client_event_id' => '92000000-0000-4000-8000-000000000001'];
+        $first = $this->response('recordProgress', $query);
+        $second = $this->response('recordProgress', $query);
+        $this->assertSame($first, $second);
+        $this->assertSame(1, DB::table('flashcard_progress')->where('item_id', $ids[0])->value('times_shown'));
+        $this->assertSame(1, DB::table('flashcard_progress_events')->count());
+        $request = Request::create('/test', 'POST', array_replace($query, ['response_level' => 'hard']));
+        $request->setUserResolver(fn () => User::findOrFail(1));
+        $this->assertSame(409, app(FlashcardController::class)->recordProgress($request)->getStatusCode());
+        $this->assertSame(1, DB::table('flashcard_progress')->where('item_id', $ids[0])->value('times_shown'));
     }
 }
