@@ -187,7 +187,7 @@ class FlashcardSchedulingTest extends TestCase
         $this->assertCount(2, $first['queue']);
         $remaining = $first['queue'][1];
         DB::table('flashcard_progress')->insert([
-            'user_id' => 1, 'item_id' => $ids[0], 'last_shown_at' => now(), 'next_review_at' => now()->addDay(),
+            'user_id' => 1, 'item_id' => $ids[0], 'times_shown' => 1, 'last_shown_at' => now(), 'next_review_at' => now()->addDay(),
         ]);
         Carbon::setTestNow(Carbon::parse('2026-10-19 09:15:00'));
         $second = $this->response('getDailyQueue');
@@ -222,5 +222,94 @@ class FlashcardSchedulingTest extends TestCase
         $request->setUserResolver(fn () => User::findOrFail(1));
         $this->assertSame(409, app(FlashcardController::class)->recordProgress($request)->getStatusCode());
         $this->assertSame(1, DB::table('flashcard_progress')->where('item_id', $ids[0])->value('times_shown'));
+    }
+
+    public function test_future_pending_card_prevents_pack_and_global_restart(): void
+    {
+        $ids = $this->addPack('qa', 2);
+        $first = $this->response('getDailyQueue');
+        FlashcardUserSetting::where('user_id', 1)->update(['auto_restart_enabled' => true]);
+        DB::table('flashcard_packs')->update(['restart_mode' => 'all']);
+        $this->response('recordProgress', ['item_id' => $ids[0], 'response_level' => 'easy']);
+        Carbon::setTestNow(Carbon::parse('2026-10-19 09:05:00'));
+        $second = $this->response('getDailyQueue');
+        $this->assertCount(1, $second['queue']);
+        $this->assertSame($first['queue'][1], $second['queue'][0]);
+        $this->assertFalse($second['queue'][0]['available_now']);
+        $this->assertSame($second, $this->response('getDailyQueue'));
+    }
+
+    public function test_automatic_round_has_new_keys_and_does_not_restart_on_each_fetch(): void
+    {
+        $ids = $this->addPack('mcq', 2);
+        $first = $this->response('getDailyQueue');
+        FlashcardUserSetting::where('user_id', 1)->update(['auto_restart_enabled' => true]);
+        foreach ($ids as $id) {
+            $this->response('recordProgress', ['item_id' => $id, 'response_level' => 'easy']);
+        }
+        Carbon::setTestNow(Carbon::parse('2026-10-19 10:00:00'));
+        $next = $this->response('getDailyQueue');
+        $this->assertCount(2, $next['queue']);
+        $this->assertNotSame($first['queue'][0]['review_key'], $next['queue'][0]['review_key']);
+        $this->assertSame('10:30', Carbon::parse($next['queue'][0]['scheduled_at'])->format('H:i'));
+        $this->assertFalse($next['queue'][0]['available_now']);
+        Carbon::setTestNow(Carbon::parse('2026-10-19 10:05:00'));
+        $this->assertSame($next['queue'], $this->response('getDailyQueue')['queue']);
+    }
+
+    public function test_manual_restart_is_server_owned_and_preserves_progress(): void
+    {
+        $ids = $this->addPack('qa', 1);
+        $first = $this->response('getDailyQueue');
+        $this->response('recordProgress', ['item_id' => $ids[0], 'response_level' => 'easy']);
+        $this->assertSame([], $this->response('getDailyQueue')['queue']);
+        $restarted = $this->response('restartDailyReview');
+        $this->assertNotSame($first['queue'][0]['review_key'], $restarted['queue'][0]['review_key']);
+        $this->assertSame($restarted['queue'], $this->response('getDailyQueue')['queue']);
+        $this->assertSame(1, DB::table('flashcard_progress')->value('times_shown'));
+        $this->assertSame([], $this->response('getDailyQueue', user: 2)['queue']);
+    }
+
+    public function test_manual_restart_cannot_replace_future_pending_cards(): void
+    {
+        $this->addPack('qa', 2);
+        $this->response('getDailyQueue');
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->response('restartDailyReview');
+    }
+
+    public function test_existing_release_schedule_is_adopted_without_moving_times(): void
+    {
+        $ids = $this->addPack('qa', 1);
+        $this->response('settings');
+        $settings = FlashcardUserSetting::where('user_id', 1)->firstOrFail();
+        $at = '2026-10-19T11:45:00+00:00';
+        DB::table('flashcard_daily_schedules')->insert([
+            'user_id' => 1, 'schedule_date' => '2026-10-19', 'kind' => 'review',
+            'fingerprint' => hash('sha256', json_encode($settings->only($settings->getFillable()), JSON_THROW_ON_ERROR)),
+            'payload' => json_encode([$ids[0] => $at]), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $queue = $this->response('getDailyQueue')['queue'];
+        $this->assertTrue(Carbon::parse($at)->equalTo(Carbon::parse($queue[0]['scheduled_at'])));
+        $this->assertSame($queue, $this->response('getDailyQueue')['queue']);
+    }
+
+    public function test_upgrading_a_partial_day_does_not_replace_completed_slots_with_extra_cards(): void
+    {
+        $ids = $this->addPack('qa', 3);
+        $this->response('settings');
+        FlashcardUserSetting::where('user_id', 1)->update(['daily_card_limit' => 2]);
+        $settings = FlashcardUserSetting::where('user_id', 1)->firstOrFail();
+        DB::table('flashcard_daily_schedules')->insert([
+            'user_id' => 1, 'schedule_date' => '2026-10-19', 'kind' => 'review',
+            'fingerprint' => hash('sha256', json_encode($settings->only($settings->getFillable()), JSON_THROW_ON_ERROR)),
+            'payload' => json_encode([$ids[0] => now()->toIso8601String(), $ids[1] => now()->addMinutes(30)->toIso8601String()]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->response('recordProgress', ['item_id' => $ids[0], 'response_level' => 'easy']);
+        $queue = $this->response('getDailyQueue')['queue'];
+        $this->assertCount(1, $queue);
+        $this->assertSame($ids[1], $queue[0]['item_id']);
+        $this->assertSame($queue, $this->response('getDailyQueue')['queue']);
     }
 }

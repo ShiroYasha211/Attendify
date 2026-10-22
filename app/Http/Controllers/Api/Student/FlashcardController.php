@@ -8,6 +8,7 @@ use App\Models\FlashcardProgress;
 use App\Models\FlashcardUserSetting;
 use App\Models\PublicPackStore;
 use App\Services\FlashcardDailyScheduleService;
+use App\Services\FlashcardReviewScheduleService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -1026,6 +1027,24 @@ class FlashcardController extends StudentApiController
 
     public function getDailyQueue(Request $request)
     {
+        return DB::transaction(function () use ($request) {
+            DB::table('users')->where('id', $request->user()->id)->lockForUpdate()->first();
+
+            return $this->dailyReviewQueue($request);
+        });
+    }
+
+    public function restartDailyReview(Request $request)
+    {
+        return DB::transaction(function () use ($request) {
+            DB::table('users')->where('id', $request->user()->id)->lockForUpdate()->first();
+
+            return $this->dailyReviewQueue($request, true);
+        });
+    }
+
+    private function dailyReviewQueue(Request $request, bool $restart = false)
+    {
         $user = $request->user();
         $today = now()->toDateString();
         $settings = $this->flashcardSettings($user->id);
@@ -1052,6 +1071,7 @@ class FlashcardController extends StudentApiController
 
         $candidates = collect();
         $reviewedCandidates = collect();
+        $catalog = collect();
 
         foreach ($packs as $pack) {
             if (! $this->packIsScheduledForDate($pack, now())) {
@@ -1090,6 +1110,10 @@ class FlashcardController extends StudentApiController
                 ]);
             }
 
+            foreach ($items as $item) {
+                $catalog->put($item->id, ['pack' => $pack, 'item' => $item]);
+            }
+
             $dueItems = $items
                 ->map(function (FlashcardItem $item) use ($progressMap) {
                     $item->user_progress = $progressMap->get($item->id);
@@ -1111,10 +1135,6 @@ class FlashcardController extends StudentApiController
                     ];
                 })
                 ->values();
-
-            if ($dueItems->isEmpty() && $reviewedItems->isNotEmpty()) {
-                $dueItems = $this->restartItemsForPack($pack, $reviewedItems);
-            }
 
             $dueItems->each(function (FlashcardItem $item) use ($pack, $candidates) {
                 $candidates->push(['pack' => $pack, 'item' => $item]);
@@ -1151,32 +1171,10 @@ class FlashcardController extends StudentApiController
 
         $reviewedCount = $reviewedSelected->count();
         $reviewedScheduleTimes = $this->resolveScheduledTimes($settings, $reviewedCount, 0);
-        $reviewFingerprint = hash('sha256', json_encode($settings->only($settings->getFillable()), JSON_THROW_ON_ERROR));
-        $reviewTimes = app(FlashcardDailyScheduleService::class)->remember(
-            $user->id, $today, 'review', $reviewFingerprint,
-            function () use ($selected, $settings, $user, $today, $reviewFingerprint) {
-                $saved = DB::table('flashcard_daily_schedules')->where('user_id', $user->id)
-                    ->where('schedule_date', $today)->where('kind', 'review')->first();
-                $assigned = $saved && $saved->fingerprint === $reviewFingerprint
-                    ? json_decode($saved->payload, true, 512, JSON_THROW_ON_ERROR) : [];
-                $missing = $selected->reject(fn ($entry) => isset($assigned[$entry['item']->id]))
-                    ->take(max(0, (int) $settings->daily_card_limit - count($assigned)))->values();
-                $from = now()->startOfMinute();
-                if ($assigned) {
-                    $afterLast = Carbon::parse(max($assigned))->addMinutes(max(1, (int) $settings->smart_review_frequency_minutes));
-                    if ($afterLast->isAfter($from)) {
-                        $from = $afterLast;
-                    }
-                }
-                $times = $this->resolveScheduledTimes($settings, $missing->count(), 0, $from);
-                foreach ($missing->take(count($times)) as $index => $entry) {
-                    $assigned[$entry['item']->id] = $times[$index]->toIso8601String();
-                }
-
-                return $assigned;
-            }, true
+        $plan = app(FlashcardReviewScheduleService::class)->resolve(
+            $user->id, $settings, $catalog, $selected, $reviewedSelected, $restart,
+            fn (int $count, Carbon $from) => $this->resolveScheduledTimes($settings, $count, 0, $from)
         );
-        $selected = $selected->filter(fn ($entry) => isset($reviewTimes[$entry['item']->id]))->values();
 
         $reviewedToday = [];
         foreach ($reviewedSelected as $index => $entry) {
@@ -1197,15 +1195,15 @@ class FlashcardController extends StudentApiController
             );
         }
 
-        $queue = $selected->map(function (array $entry, int $index) use ($reviewTimes, $settings) {
-            /** @var FlashcardPack $pack */
-            $pack = $entry['pack'];
-            /** @var FlashcardItem $item */
-            $item = $entry['item'];
-            $scheduledTime = Carbon::parse($reviewTimes[$item->id]);
-
-            return $this->dailyQueueItem($pack, $item, $scheduledTime, false, $settings);
-        })->all();
+        $queue = [];
+        foreach ($plan['entries'] as $id => $scheduled) {
+            $entry = $catalog->get($id);
+            if (! $entry || (int) ($entry['item']->user_progress?->times_shown ?? 0) > $scheduled['baseline']) {
+                continue;
+            }
+            $queue[] = $this->dailyQueueItem($entry['pack'], $entry['item'], Carbon::parse($scheduled['scheduled_at']), false, $settings)
+                + ['review_key' => $today.':'.$plan['cycle'].':'.$id];
+        }
 
         usort($queue, function ($a, $b) {
             return [
@@ -1222,6 +1220,7 @@ class FlashcardController extends StudentApiController
 
         return $this->success([
             'queue' => $queue,
+            'review_schedule_version' => 2,
             'pending' => $queue,
             'reviewed_today' => $reviewedToday,
             'total' => count($queue),
