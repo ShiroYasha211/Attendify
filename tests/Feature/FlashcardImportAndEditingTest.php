@@ -134,6 +134,25 @@ class FlashcardImportAndEditingTest extends TestCase
         $this->assertSame('A', $pack->items()->firstOrFail()->back_content);
     }
 
+    public function test_missing_excel_reader_returns_actionable_service_error(): void
+    {
+        $sheet = new Spreadsheet();
+        $sheet->getActiveSheet()->fromArray([['السؤال'], ['Q']]);
+        $path = tempnam(sys_get_temp_dir(), 'moeen_missing_reader_');
+        $this->temporaryFiles[] = $path;
+        (new Xlsx($sheet))->save($path);
+        $sheet->disconnectWorksheets();
+        $request = $this->request();
+        $request->files->set('file', new UploadedFile($path, 'cards.xlsx', null, null, true));
+        $controller = new class extends FlashcardController {
+            protected function excelReaderAvailable(): bool { return false; }
+        };
+        $response = $controller->importPreview($request, $this->pack()->id);
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertStringContainsString('CSV', $response->getData(true)['message']);
+        $this->assertSame(0, FlashcardItem::count());
+    }
+
     public function test_confirmation_rejects_other_account_files_and_invalid_columns(): void
     {
         $pack = $this->pack();

@@ -115,6 +115,7 @@ class FlashcardController extends StudentApiController
             'pack' => $pack,
             'items' => $items,
             'can_manage_items' => $pack->user_id === $request->user()->id && !$pack->is_assigned,
+            'can_manage_pack' => $pack->user_id === $request->user()->id,
             'child_packs' => $pack->childPacks->map(function (FlashcardPack $childPack) {
                 $childPack->items_count = $childPack->cardsCount();
 
@@ -316,7 +317,10 @@ class FlashcardController extends StudentApiController
         ]);
 
         $file = $request->file('file');
-        $extension = $file->getClientOriginalExtension();
+        $extension = strtolower($file->getClientOriginalExtension());
+        if ($extension !== 'csv' && ! $this->excelReaderAvailable()) {
+            return $this->error('استيراد Excel غير متاح حاليًا على الخادم. يرجى التواصل مع الإدارة لتثبيت مكتبة قراءة Excel، أو استخدام ملف CSV مؤقتًا.', 503);
+        }
 
         try {
             $rows = $this->parseSpreadsheet($file->getPathname(), $extension);
@@ -391,6 +395,9 @@ class FlashcardController extends StudentApiController
         $file = $request->file('file');
         $extension = strtolower($file->getClientOriginalExtension());
         $tempDir = storage_path('app/temp_imports/student_flashcards');
+        if ($extension !== 'csv' && ! $this->excelReaderAvailable()) {
+            return $this->error('استيراد Excel غير متاح حاليًا على الخادم. يرجى التواصل مع الإدارة لتثبيت مكتبة قراءة Excel، أو استخدام ملف CSV مؤقتًا.', 503);
+        }
 
         if (!file_exists($tempDir)) {
             mkdir($tempDir, 0755, true);
@@ -471,6 +478,9 @@ class FlashcardController extends StudentApiController
         }
 
         $extension = strtolower(pathinfo($tempFilePath, PATHINFO_EXTENSION));
+        if ($extension !== 'csv' && ! $this->excelReaderAvailable()) {
+            return $this->error('استيراد Excel غير متاح حاليًا على الخادم. يرجى التواصل مع الإدارة أو استخدام CSV مؤقتًا.', 503);
+        }
 
         try {
             $rows = $this->parseSpreadsheet($tempFilePath, $extension);
@@ -911,6 +921,7 @@ class FlashcardController extends StudentApiController
                 'settings' => $settings,
                 'summary' => [
                     'enabled' => false,
+                    'reason' => 'messages_disabled',
                     'message' => 'إشعارات One Line متوقفة.',
                 ],
             ];
@@ -924,11 +935,13 @@ class FlashcardController extends StudentApiController
             ->sortBy(fn (FlashcardPack $pack) => $this->packPriorityWeight($pack));
 
         $candidates = collect();
+        $scheduledPackCount = 0;
 
         foreach ($packs as $pack) {
             if (! $this->packIsScheduledForDate($pack, $date)) {
                 continue;
             }
+            $scheduledPackCount++;
 
             $packItems = $pack->effectiveItems()
                 ->with('pack:id,title,color,display_mode')
@@ -958,7 +971,7 @@ class FlashcardController extends StudentApiController
             ])->all(),
         ], JSON_THROW_ON_ERROR));
 
-        return $schedules->remember($user->id, $today, 'one_line', $fingerprint, function () use ($candidates, $settings, $date, $today, $user, $schedules) {
+        $result = $schedules->remember($user->id, $today, 'one_line', $fingerprint, function () use ($candidates, $settings, $date, $today, $user, $schedules) {
             $lastSelected = $schedules->lastSelectedDates($user->id, $today);
             $limit = max(1, min(100, (int) ($settings->one_line_daily_limit ?? $settings->daily_card_limit ?? 5)));
             $selected = $candidates
@@ -1023,6 +1036,24 @@ class FlashcardController extends StudentApiController
                 ],
             ];
         }, $date->isToday() && $request->boolean('reschedule'));
+
+        $reason = match (true) {
+            $packs->isEmpty() => 'no_active_packs',
+            $scheduledPackCount === 0 => 'no_packs_today',
+            $candidates->isEmpty() => 'no_text_items',
+            empty($result['items']) => 'outside_time_window',
+            default => 'scheduled',
+        };
+        $result['summary']['reason'] = $reason;
+        $result['summary']['message'] = match ($reason) {
+            'no_active_packs' => 'لا توجد حزم نشطة مفعّل لها الظهور الذكي.',
+            'no_packs_today' => 'الحزم غير مجدولة في هذا اليوم. راجع نمط الجدولة وأيام الحزم.',
+            'no_text_items' => 'لا توجد رسائل نصية في الحزم المتاحة. الأسئلة والفلاش كارد تظهر في جدول الكروت التفاعلية.',
+            'outside_time_window' => 'لا يوجد وقت متاح للإشعارات ضمن فترة النشاط والهدوء المحددة لهذا اليوم.',
+            default => 'جدول رسائل One Line جاهز.',
+        };
+
+        return $result;
     }
 
     public function getDailyQueue(Request $request)
@@ -1805,6 +1836,11 @@ class FlashcardController extends StudentApiController
         $value = trim($value);
 
         return preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? $value : null;
+    }
+
+    protected function excelReaderAvailable(): bool
+    {
+        return class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class);
     }
 
     private function parseSpreadsheet(string $path, string $extension): array

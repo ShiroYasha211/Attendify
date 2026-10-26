@@ -81,6 +81,24 @@ class FlashcardSchedulingTest extends TestCase
         $this->assertSame($first['items'], $second['items']);
     }
 
+    public function test_empty_text_schedule_explains_missing_packs_or_texts(): void
+    {
+        $this->assertSame('no_active_packs', $this->response()['summary']['reason']);
+        $this->addPack('mcq', 2);
+        $this->assertSame('no_text_items', $this->response()['summary']['reason']);
+        $this->addPack('one_line', 2);
+        $this->assertSame('scheduled', $this->response()['summary']['reason']);
+    }
+
+    public function test_disabled_messages_and_unavailable_days_have_distinct_reasons(): void
+    {
+        $this->addPack('one_line', 1);
+        DB::table('flashcard_packs')->update(['schedule_mode' => 'manual']);
+        $this->assertSame('no_packs_today', $this->response()['summary']['reason']);
+        FlashcardUserSetting::where('user_id', 1)->update(['one_line_notifications_enabled' => false]);
+        $this->assertSame('messages_disabled', $this->response()['summary']['reason']);
+    }
+
     public function test_three_days_rotate_without_repeating_unseen_messages(): void
     {
         $this->addPack('one_line', 8);
