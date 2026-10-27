@@ -7,8 +7,11 @@ readonly APP=/var/www/moeen_app
 readonly STATE=/var/backups/moeen-deploy
 readonly TARGET=${1:-}
 readonly MIGRATE=${2:-false}
+readonly ASSET_SHA=${3:-}
 [[ "$TARGET" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid commit.' >&2; exit 1; }
 [[ "$MIGRATE" == true || "$MIGRATE" == false ]] || exit 1
+[[ "$ASSET_SHA" =~ ^[0-9a-f]{64}$ ]] || { echo 'Invalid asset checksum.' >&2; exit 1; }
+readonly ASSET_ARCHIVE="$STATE/incoming/$TARGET.tar.gz"
 (( EUID != 0 )) || { echo 'Deployment must not run as root.' >&2; exit 1; }
 cd "$APP"
 [[ "$(git rev-parse --show-toplevel)" == "$APP" ]] || exit 1
@@ -28,6 +31,7 @@ git merge-base --is-ancestor "$PREVIOUS" "$TARGET"
 if [[ "$PREVIOUS" == "$TARGET" ]]; then
   echo "Already deployed: $TARGET"
   php artisan flashcards:check-import --no-ansi
+  php scripts/check-web-build.php public/build
   exit 0
 fi
 
@@ -40,11 +44,8 @@ while IFS= read -r path; do
   fi
 done < <({ git diff --name-only; git diff --cached --name-only; git ls-files --others --exclude-standard; } | sort -u)
 
-# The existing server builds its UI separately. Never publish stale Vite assets.
-if git diff --name-only "$PREVIOUS" "$TARGET" -- package.json package-lock.json vite.config.js resources/css resources/js | grep -q .; then
-  echo 'Web asset changes require a reviewed asset build; automated PHP deployment stopped.' >&2
-  exit 1
-fi
+test ! -e public/hot || { echo 'Remove the development Vite hot file after operator review.' >&2; exit 1; }
+printf '%s  %s\n' "$ASSET_SHA" "$ASSET_ARCHIVE" | sha256sum --check
 mapfile -t pending < <(git diff --name-only --diff-filter=A "$PREVIOUS" "$TARGET" -- database/migrations)
 if (( ${#pending[@]} > 0 )) && [[ "$MIGRATE" != true ]]; then
   echo 'New migrations require manual dispatch with run_migrations after database backup.' >&2
@@ -59,6 +60,15 @@ printf '%s\n' "$PREVIOUS" > "$SNAPSHOT/previous-commit"
 git archive "$PREVIOUS" | gzip > "$SNAPSHOT/source.tar.gz"
 git diff --binary HEAD > "$SNAPSHOT/local-changes.patch"
 test ! -d vendor || tar -czf "$SNAPSHOT/vendor.tar.gz" vendor
+test ! -d public/build || tar -czf "$SNAPSHOT/web-build.tar.gz" public/build
+readonly STAGED="$APP/public/.deploy-$TARGET"
+test ! -e "$STAGED" || { echo 'Asset staging path already exists; inspect it before retrying.' >&2; exit 1; }
+mkdir "$STAGED"
+tar -xzf "$ASSET_ARCHIVE" -C "$STAGED" --no-same-owner --no-same-permissions
+find "$STAGED" -type d -exec chmod 750 {} +
+find "$STAGED" -type f -exec chmod 640 {} +
+# Validate using the exact target's checker before entering maintenance.
+git show "$TARGET:scripts/check-web-build.php" | php /dev/stdin "$STAGED"
 maintenance=false
 mutating=false
 failed() {
@@ -68,7 +78,7 @@ failed() {
     php artisan up || true
   fi
   echo "Deployment failed (exit $status). Recovery snapshot: $SNAPSHOT" >&2
-  if [[ "$mutating" == true ]]; then
+  if [[ "$mutating" == true && "$maintenance" == true ]]; then
     echo 'Maintenance is intentionally retained: inspect and repair/revert the release before artisan up.' >&2
   fi
   exit "$status"
@@ -80,6 +90,9 @@ mutating=true
 git merge --ff-only "$TARGET"
 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
 php artisan flashcards:check-import --no-ansi
+test ! -d public/build || mv public/build "$SNAPSHOT/previous-web-build"
+mv "$STAGED" public/build
+php scripts/check-web-build.php public/build
 if [[ "$MIGRATE" == true ]]; then php artisan migrate --force --isolated; fi
 php artisan optimize:clear
 php artisan config:cache
@@ -88,4 +101,8 @@ php artisan up
 maintenance=false
 php artisan queue:restart
 curl --fail --silent --show-error --retry 3 --retry-delay 3 --max-time 30 https://moeen.tech/up
+php -r '$manifest = json_decode(file_get_contents("public/build/manifest.json"), true, 512, JSON_THROW_ON_ERROR); foreach ($manifest as $entry) { echo $entry["file"], PHP_EOL; }' |
+  while IFS= read -r asset; do
+    curl --fail --silent --show-error --output /dev/null --retry 2 --max-time 30 "https://moeen.tech/build/$asset"
+  done
 printf '\nDEPLOYED %s (previous %s)\n' "$TARGET" "$PREVIOUS"

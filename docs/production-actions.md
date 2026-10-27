@@ -4,7 +4,8 @@
 
 This workflow belongs to `ShiroYasha211/Attendify`, not the Flutter repository.
 Pushes and pull requests to `main` run dependency validation, PHP syntax checks,
-the existing flashcard regression suites and Excel-runtime validation. Deployment
+the existing flashcard regression suites, Excel-runtime validation and a locked
+Vite production build. Deployment
 uses the exact tested SHA, only from `main`, only after validation succeeds.
 No new secrets, users or server permissions are created by committing this file.
 
@@ -53,21 +54,30 @@ deployment runs at a time; the server also takes a filesystem lock. A stale run
 cannot deploy over a newer `main`. Existing local changes are preserved, and an
 overlap causes deployment to stop rather than overwrite them.
 
-Dependencies come from `composer.lock`, never `composer update`. This in-place
-deployment uses a short maintenance window. Source and vendor snapshots are
-created before changing live code. PHP-FPM is reloaded, queues are signalled to
+Dependencies come from `composer.lock`, never `composer update`. Web dependencies
+come from the committed `package-lock.json` using Node 22 and `npm ci` in GitHub,
+not on the production server. The validated build is uploaded as an immutable
+run artifact, then transferred over SSH and checked against its SHA-256 digest.
+Its manifest and entry files are checked before maintenance and after installation.
+No server `.env` is copied to the build runner; any future public `VITE_*` build
+variables must be explicitly reviewed/configured in CI, never copied wholesale.
+
+This in-place deployment uses a short maintenance window. Source and vendor snapshots are
+created before changing live code. Previous web assets are saved alongside those
+snapshots before the validated build replaces `public/build`. PHP-FPM is reloaded, queues are signalled to
 restart and public health is checked. Existing cron/Supervisor configuration is
 not modified; operators must ensure their workers are already supervised.
+Public HTTP checks cover `/up` and each built entry file, not only PHP health.
 
 ## Explicit Safety Stops
 
 - New migrations stop automatic deployment. Review them, take a verified database
   backup, then use **Run workflow** with `run_migrations` enabled. Existing pending
   migrations also need operator review before manually enabling this option.
-- Changes to Vite inputs/package locks stop PHP deployment instead of serving
-  stale web assets. A reproducible Vite build/artifact stage is a separate next
-  step: this checkout currently has no committed npm lockfile. The workflow does
-  not silently run an unpinned `npm install` on production.
+- A failed npm install/build, invalid manifest, failed artifact checksum, or
+  existing development `public/hot` file stops deployment before live changes.
+  Vite inputs, Blade templates and package changes now receive a production
+  asset build automatically on every run.
 - The workflow does not install OS packages, upgrade PHP, change `.env`, run
   seeders, reset Git, delete uploaded files or disable host-key verification.
 
@@ -79,7 +89,7 @@ run prints its recovery snapshot directory. This is **not** an atomic-release
 system and does not promise zero downtime or automatic database rollback.
 
 An administrator must inspect the error, compare `previous-commit`, recover the
-reviewed code/dependencies from the snapshot or push a corrective/revert commit,
+reviewed code/dependencies and `web-build.tar.gz` from the snapshot or push a corrective/revert commit,
 check Excel/platform requirements, reload PHP-FPM, then run `php artisan up` and
 verify `/up`. Never blindly reset local changes or roll migrations back. If
 maintenance is already active, the next automated run stops for operator review.
