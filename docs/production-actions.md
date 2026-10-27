@@ -86,6 +86,13 @@ maintenance is already active, the next automated run stops for operator review.
 
 ## Current Activation Status
 
-Workflow and scripts can be committed and pushed now; deployment remains disabled
-until the account, verified host key, Environment secrets and repository variable
-are configured. The first successful live Action run is required acceptance.
+Activated on 2026-10-27. The `moeen-deploy` account uses application-scoped ACLs,
+an independent read-only repository key and only the PHP-FPM reload sudo command.
+The verified server host key and encrypted credentials are stored in the
+`production` Environment, restricted to `main`; `DEPLOY_ENABLED` is `true`.
+
+The first live manual run passed both validation and deployment:
+[40446176061](https://github.com/ShiroYasha211/Attendify/actions/runs/40446176061),
+deploying commit `fcf91754225660916476556bfcdde867aa6db271`. This confirms the
+connection and deployment path, not every application feature. No database
+migrations were requested by this activation.
